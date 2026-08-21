@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { RolePermissionSection } from '../components/profile/RolePermissionSection';
 import {
   User,
   Phone,
@@ -15,6 +16,9 @@ import {
   LogOut,
   Edit,
   ShieldCheck,
+  Building2,
+  ArrowRight,
+  Clock,
 } from 'lucide-react';
 
 export const RenterProfilePage: React.FC = () => {
@@ -30,7 +34,7 @@ export const RenterProfilePage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+    <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8 animate-fadeIn">
       {/* Profile Header Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-gray-100 text-center sm:text-left">
@@ -43,6 +47,9 @@ export const RenterProfilePage: React.FC = () => {
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
               <h1 className="text-2xl font-black text-gray-900">{currentUser.name}</h1>
               {currentUser.verified && <Badge variant="verified" size="sm">Đã xác thực SV</Badge>}
+              <Badge variant={currentUser.role === 'owner' ? 'verified' : 'available'} size="sm" showIcon={false}>
+                {currentUser.role === 'owner' ? '🏢 Chủ Trọ Đối Tác' : currentUser.role === 'admin' ? '🛡️ Admin' : '👤 Người Thuê'}
+              </Badge>
             </div>
             <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
               <School className="w-3.5 h-3.5 text-[#006d37]" />
@@ -104,6 +111,9 @@ export const RenterProfilePage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Role & Permissions Section */}
+      <RolePermissionSection user={currentUser} />
 
       {/* Bookings Section */}
       {bookings.length > 0 && (

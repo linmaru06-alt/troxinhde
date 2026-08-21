@@ -1,18 +1,74 @@
-export type UserRole = 'guest' | 'renter' | 'owner' | 'admin';
+export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
 
 export interface User {
   id: string;
-  role: UserRole;
-  name: string;
   phone: string;
-  email: string;
-  verified: boolean;
+  name: string;
+  role: 'user' | 'owner' | 'admin';
   avatarUrl: string;
+  email?: string;
   school?: string;
   year?: string;
+  bio?: string;
   address?: string;
   rating?: number;
-  bio?: string;
+  verified?: boolean;
+  onboardingCompleted?: boolean;
+  ownerOnboardingCompleted?: boolean;
+  ownerApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  ownerApplicationDate?: string;
+  ownerApplicationReason?: string;
+  ownerApplicationRejectionReason?: string;
+  createdAt: string;
+}
+
+export interface OwnerApplication {
+  id: string;
+  userId: string;
+  userName: string;
+  userPhone: string;
+  userEmail?: string;
+  buildingName: string;
+  address: string;
+  district: string;
+  totalRooms: number;
+  cccdNumber: string;
+  cccdImageUrl?: string;
+  legalDocsNote?: string;
+  status: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
+  createdAt: string;
+  reviewedAt?: string;
+}
+
+export interface Room {
+  id: string;
+  buildingId: string;
+  buildingName: string;
+  ownerId: string;
+  ownerName: string;
+  ownerPhone: string;
+  ownerAvatar: string;
+  title: string;
+  roomNumber: string;
+  price: number;
+  deposit: number;
+  electricityPrice: number;
+  waterPrice: number;
+  area: number;
+  type: 'Phòng đơn' | 'Studio' | 'Phòng ghép' | 'Căn hộ mini';
+  status: 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt' | 'Bị từ chối';
+  verified: boolean;
+  rejectionReason?: string;
+  amenities: string[];
+  images: string[];
+  distanceToSchoolKm: number;
+  nearestSchool: string;
+  address: string;
+  district: string;
+  description: string;
+  views: number;
+  savedCount: number;
   createdAt: string;
 }
 
@@ -34,39 +90,14 @@ export interface Building {
   rating: number;
   reviewCount: number;
   description: string;
-  geo: { lat: number; lng: number };
-  nearbyUniversities: { name: string; distanceKm: number }[];
-}
-
-export interface Room {
-  id: string;
-  buildingId: string;
-  buildingName: string;
-  ownerId: string;
-  ownerName: string;
-  ownerPhone: string;
-  ownerAvatar: string;
-  title: string;
-  roomNumber: string;
-  price: number; // VNĐ / tháng
-  deposit: number; // VNĐ
-  electricityPrice: number; // VNĐ / kWh
-  waterPrice: number; // VNĐ / khối hoặc người
-  area: number; // m²
-  type: 'Phòng đơn' | 'Phòng ghép' | 'Studio' | 'Căn hộ mini';
-  status: 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt' | 'Bị từ chối';
-  verified: boolean;
-  rejectionReason?: string;
-  amenities: string[];
-  images: string[];
-  distanceToSchoolKm: number;
-  nearestSchool: string;
-  address: string;
-  district: string;
-  description: string;
-  views: number;
-  savedCount: number;
-  createdAt: string;
+  geo: {
+    lat: number;
+    lng: number;
+  };
+  nearbyUniversities: {
+    name: string;
+    distanceKm: number;
+  }[];
 }
 
 export interface RoommatePost {
@@ -74,20 +105,21 @@ export interface RoommatePost {
   userId: string;
   userName: string;
   userAvatar: string;
-  userSchool: string;
   userGender: 'Nam' | 'Nữ' | 'Khác';
   userAge: number;
+  userSchool: string;
+  district: string;
+  budgetShare: number;
+  genderPreference: 'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả';
+  habits: string[];
+  lifestyleTags?: string[];
+  intro: string;
   linkedRoomId?: string;
   linkedRoomTitle?: string;
   linkedRoomPrice?: number;
   linkedRoomArea?: number;
   linkedRoomImage?: string;
-  budgetShare: number; // VNĐ
-  district: string;
-  genderPreference: 'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả';
-  habits: string[];
-  intro: string;
-  lifestyleTags: string[];
+  status?: 'Đang tìm' | 'Đã ghép';
   createdAt: string;
 }
 
@@ -95,17 +127,18 @@ export interface MarketplaceItem {
   id: string;
   userId: string;
   userName: string;
+  userPhone?: string;
   userAvatar: string;
-  userPhone: string;
   name: string;
+  category: 'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng';
+  price: number;
   pricingType: 'Miễn phí' | 'Giá rẻ';
-  price: number; // 0 if free
-  category: 'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng' | 'Khác';
-  condition: 'Mới 99%' | 'Dùng tốt' | 'Hơi cũ' | 'Tặng miễn phí';
-  images: string[];
+  condition: 'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí';
   location: string;
   district: string;
+  images: string[];
   description: string;
+  status?: 'Còn hàng' | 'Đã bán';
   createdAt: string;
 }
 
@@ -122,7 +155,12 @@ export interface Message {
 
 export interface Thread {
   id: string;
-  participants: { id: string; name: string; avatar: string; role: UserRole }[];
+  participants: {
+    id: string;
+    name: string;
+    avatar: string;
+    role: string;
+  }[];
   relatedRoomId?: string;
   relatedRoomTitle?: string;
   relatedRoomPrice?: number;
@@ -135,12 +173,40 @@ export interface Thread {
 export interface NotificationItem {
   id: string;
   userId: string;
-  type: 'approval' | 'message' | 'action_required' | 'rejected' | 'system' | 'booking';
   title: string;
   body: string;
-  createdAt: string;
+  type:
+    | 'approval'
+    | 'message'
+    | 'booking'
+    | 'system'
+    | 'rejected'
+    | 'upgrade'
+    | 'action_required'
+    | 'owner_approved'
+    | 'owner_rejected'
+    | 'new_owner_application';
   read: boolean;
+  ctaUrl?: string;
+  ctaLabel?: string;
   actionLink?: string;
+  priority?: 'normal' | 'urgent';
+  createdAt: string;
+}
+
+export interface BookingRequest {
+  id: string;
+  roomId: string;
+  roomTitle: string;
+  roomPrice: number;
+  renterId: string;
+  renterName: string;
+  renterPhone: string;
+  date: string;
+  timeSlot: string;
+  note?: string;
+  status: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy';
+  createdAt: string;
 }
 
 export interface Review {
@@ -157,21 +223,5 @@ export interface Review {
     location: number;
   };
   text: string;
-  images?: string[];
-  createdAt: string;
-}
-
-export interface BookingRequest {
-  id: string;
-  roomId: string;
-  roomTitle: string;
-  roomPrice: number;
-  renterId: string;
-  renterName: string;
-  renterPhone: string;
-  date: string;
-  timeSlot: string;
-  note?: string;
-  status: 'Chờ xác nhận' | 'Đã chấp nhận' | 'Đã hủy';
   createdAt: string;
 }

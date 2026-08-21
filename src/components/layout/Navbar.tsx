@@ -1,66 +1,68 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
+import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import {
   Home,
-  Search,
+  Compass,
   MapPin,
+  Heart,
   Users,
   ShoppingBag,
-  ShieldCheck,
   Bell,
   MessageSquare,
   User as UserIcon,
+  ShieldCheck,
+  Building2,
   LogOut,
-  LayoutDashboard,
-  PlusCircle,
-  Code,
   ChevronDown,
+  PlusCircle,
+  Sparkles,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, notifications, threads, logout, loginAsRole } = useAppStore();
-  const [showUserMenu, setShowUserMenu] = useState<boolean>(false);
-  const [showRoleMenu, setShowRoleMenu] = useState<boolean>(false);
+  const { currentUser, savedRoomIds, notifications, threads, logout } = useAppStore();
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
   const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
   const navLinks = [
-    { to: '/tim-kiem', label: 'Tìm phòng', icon: Search },
-    { to: '/ban-do', label: 'Bản đồ', icon: MapPin },
-    { to: '/roommate', label: 'Tìm bạn ghép', icon: Users },
-    { to: '/cho-do-cu', label: 'Chợ đồ cũ', icon: ShoppingBag },
-    { to: '/ve-chung-toi/kiem-duyet', label: 'Đã kiểm duyệt', icon: ShieldCheck },
+    { to: '/tim-kiem', label: 'Tìm Phòng', icon: Compass },
+    { to: '/ban-do', label: 'Bản Đồ', icon: MapPin },
+    { to: '/roommate', label: 'Ở Ghép', icon: Users },
+    { to: '/cho-do-cu', label: 'Chợ Đồ Cũ', icon: ShoppingBag },
+    { to: '/ve-chung-toi/kiem-duyet', label: 'Kiểm Duyệt 100%', icon: ShieldCheck },
   ];
 
   const isActive = (path: string) => location.pathname === path;
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-100 shadow-xs">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-2xs">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16 sm:h-18">
           {/* Logo & Brand */}
           <div className="flex items-center gap-6">
-            <Link to="/" className="flex items-center gap-2 group">
-              <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#006d37] to-[#27ae60] flex items-center justify-center text-white shadow-md shadow-[#006d37]/20 group-hover:scale-105 transition-transform">
-                <Home className="w-6 h-6" />
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <div className="w-10 h-10 rounded-2xl bg-linear-to-br from-[#006d37] to-[#27ae60] flex items-center justify-center text-white shadow-md shadow-emerald-900/10 group-hover:scale-105 transition-transform duration-200">
+                <Home className="w-5 h-5" />
               </div>
               <div className="flex flex-col">
-                <span className="text-xl font-extrabold tracking-tight text-[#006d37] leading-none">
-                  Trọ Xinh<span className="text-emerald-500">.vn</span>
+                <span className="text-xl font-black tracking-tight text-[#006d37] leading-none">
+                  Trọ Xinh
                 </span>
-                <span className="text-[10px] font-medium text-gray-500 tracking-wider uppercase mt-0.5">
-                  An Tâm Thuê Trọ
+                <span className="text-[10px] font-bold text-gray-500 tracking-wider uppercase mt-0.5">
+                  TroXinh.vn
                 </span>
               </div>
             </Link>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden md:flex items-center gap-1">
+            <nav className="hidden lg:flex items-center gap-1">
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const active = isActive(link.to);
@@ -68,13 +70,13 @@ export const Navbar: React.FC = () => {
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${
                       active
-                        ? 'bg-[#006d37]/10 text-[#006d37]'
-                        : 'text-gray-600 hover:text-[#006d37] hover:bg-gray-50'
+                        ? 'bg-emerald-50 text-[#006d37] shadow-xs'
+                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
                     }`}
                   >
-                    <Icon className="w-4 h-4" />
+                    <Icon className={`w-4 h-4 ${active ? 'text-[#006d37]' : 'text-gray-400'}`} />
                     <span>{link.label}</span>
                   </Link>
                 );
@@ -82,213 +84,179 @@ export const Navbar: React.FC = () => {
             </nav>
           </div>
 
-          {/* Right Action Menu */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Quick Role Switcher Pill */}
-            <div className="relative">
-              <button
-                onClick={() => setShowRoleMenu(!showRoleMenu)}
-                className="hidden lg:flex items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold rounded-full bg-emerald-50 text-[#006d37] border border-emerald-200 hover:bg-emerald-100 transition"
-              >
-                <span>Role: {currentUser ? currentUser.role.toUpperCase() : 'KHÁCH'}</span>
-                <ChevronDown className="w-3 h-3" />
-              </button>
-
-              {showRoleMenu && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 text-xs animate-fadeIn">
-                  <div className="px-3 py-1 text-[10px] text-gray-400 font-bold uppercase">Chuyển role demo:</div>
-                  <button
-                    onClick={() => { loginAsRole('renter'); setShowRoleMenu(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 hover:text-[#006d37] flex items-center justify-between"
-                  >
-                    <span>Người thuê (Renter)</span>
-                    {currentUser?.role === 'renter' && <span className="text-[#006d37]">✓</span>}
-                  </button>
-                  <button
-                    onClick={() => { loginAsRole('owner'); setShowRoleMenu(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 hover:text-[#006d37] flex items-center justify-between"
-                  >
-                    <span>Chủ trọ (Owner)</span>
-                    {currentUser?.role === 'owner' && <span className="text-[#006d37]">✓</span>}
-                  </button>
-                  <button
-                    onClick={() => { loginAsRole('admin'); setShowRoleMenu(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-emerald-50 hover:text-[#006d37] flex items-center justify-between"
-                  >
-                    <span>Ban Quản Trị (Admin)</span>
-                    {currentUser?.role === 'admin' && <span className="text-[#006d37]">✓</span>}
-                  </button>
-                  <button
-                    onClick={() => { loginAsRole('guest'); setShowRoleMenu(false); }}
-                    className="w-full text-left px-3 py-2 hover:bg-gray-50 text-gray-500 flex items-center justify-between border-t border-gray-100"
-                  >
-                    <span>Khách (Chưa đăng nhập)</span>
-                    {!currentUser && <span className="text-[#006d37]">✓</span>}
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* QA Debug shortcut */}
+          {/* Right Action Icons & User Menu */}
+          <div className="flex items-center gap-3">
+            {/* Heart Saved Rooms */}
             <Link
-              to="/debug"
-              className="p-2 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition hidden sm:flex"
-              title="Trang Debug QA"
+              to="/da-luu"
+              className="relative p-2 rounded-xl text-gray-600 hover:text-rose-600 hover:bg-rose-50 transition"
+              title="Phòng đã lưu"
             >
-              <Code className="w-4 h-4" />
+              <Heart className="w-5 h-5" />
+              {savedRoomIds.length > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                  {savedRoomIds.length}
+                </span>
+              )}
             </Link>
 
-            {currentUser ? (
+            {/* Notifications & Chat (when authenticated) */}
+            {currentUser && (
               <>
-                {/* Notification Bell */}
                 <Link
                   to={currentUser.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
-                  className="relative p-2 rounded-xl text-gray-600 hover:text-[#006d37] hover:bg-gray-100 transition"
-                  aria-label="Thông báo"
+                  className="relative p-2 rounded-xl text-gray-600 hover:text-[#006d37] hover:bg-emerald-50 transition"
+                  title="Thông báo"
                 >
                   <Bell className="w-5 h-5" />
                   {unreadNotifs > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-amber-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
                       {unreadNotifs}
                     </span>
                   )}
                 </Link>
 
-                {/* Messages Inbox */}
                 <Link
                   to={currentUser.role === 'owner' ? '/chu-tro/tin-nhan' : '/tin-nhan'}
-                  className="relative p-2 rounded-xl text-gray-600 hover:text-[#006d37] hover:bg-gray-100 transition"
-                  aria-label="Tin nhắn"
+                  className="relative p-2 rounded-xl text-gray-600 hover:text-[#006d37] hover:bg-emerald-50 transition"
+                  title="Tin nhắn"
                 >
                   <MessageSquare className="w-5 h-5" />
                   {unreadMessages > 0 && (
-                    <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#006d37] text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
+                    <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#006d37] text-white text-[10px] font-bold rounded-full flex items-center justify-center ring-2 ring-white">
                       {unreadMessages}
                     </span>
                   )}
                 </Link>
+              </>
+            )}
 
-                {/* Owner CTA to Post Room */}
-                {currentUser.role === 'owner' && (
-                  <Link to="/chu-tro/phong/tao-moi" className="hidden sm:block">
-                    <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>
-                      Đăng Phòng
-                    </Button>
-                  </Link>
-                )}
+            {/* Progressive Role Action Buttons */}
+            {currentUser?.role === 'owner' && (
+              <Link to="/chu-tro" className="hidden sm:block">
+                <Button variant="secondary" size="sm" leftIcon={<Building2 className="w-4 h-4" />}>
+                  Quản Lý Nhà Trọ
+                </Button>
+              </Link>
+            )}
 
-                {/* User Dropdown */}
-                <div className="relative">
-                  <button
-                    onClick={() => setShowUserMenu(!showUserMenu)}
-                    className="flex items-center gap-2 p-1.5 rounded-full hover:bg-gray-100 transition"
+            {currentUser?.role === 'admin' && (
+              <Link to="/admin" className="hidden sm:block">
+                <Button variant="primary" size="sm" leftIcon={<ShieldCheck className="w-4 h-4" />}>
+                  Bảng Quản Trị
+                </Button>
+              </Link>
+            )}
+
+            {currentUser && currentUser.role === 'user' && (
+              <Link to="/nang-cap-chu-tro" className="hidden sm:block">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  leftIcon={<PlusCircle className="w-4 h-4 text-[#006d37]" />}
+                >
+                  {currentUser.ownerApplicationStatus === 'pending' ? 'Hồ Sơ Đang Duyệt ⏳' : 'Đăng Phòng / Làm Chủ Trọ'}
+                </Button>
+              </Link>
+            )}
+
+            {/* User Dropdown / Login Button */}
+            {currentUser ? (
+              <div className="relative">
+                <button
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                  className="flex items-center gap-2 p-1.5 rounded-2xl hover:bg-gray-100 transition border border-gray-200/80"
+                >
+                  <img
+                    src={currentUser.avatarUrl}
+                    alt={currentUser.name}
+                    className="w-8 h-8 rounded-xl object-cover ring-1 ring-gray-200"
+                  />
+                  <div className="hidden md:flex flex-col text-left">
+                    <span className="text-xs font-bold text-gray-900 leading-tight">
+                      {currentUser.name}
+                    </span>
+                    <span className="text-[10px] text-gray-500">
+                      {currentUser.role === 'owner' ? 'Chủ Trọ Đối Tác' : currentUser.role === 'admin' ? 'Admin Quản Trị' : 'Người Thuê'}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-gray-400" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {isDropdownOpen && (
+                  <div
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50 animate-fadeIn"
+                    onClick={() => setIsDropdownOpen(false)}
                   >
-                    <img
-                      src={currentUser.avatarUrl}
-                      alt={currentUser.name}
-                      className="w-8 h-8 rounded-full object-cover ring-2 ring-[#006d37]/30"
-                    />
-                  </button>
-
-                  {showUserMenu && (
-                    <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 animate-fadeIn text-sm">
-                      <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="font-bold text-gray-900 truncate">{currentUser.name}</p>
-                        <p className="text-xs text-gray-500 truncate">{currentUser.phone}</p>
-                        <span className="inline-block mt-1 text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-emerald-50 text-[#006d37]">
-                          {currentUser.role === 'owner' ? 'Chủ Trọ' : currentUser.role === 'admin' ? 'Quản Trị Viên' : 'Người Thuê'}
-                        </span>
-                      </div>
-
-                      <div className="py-1">
-                        {currentUser.role === 'owner' ? (
-                          <>
-                            <Link
-                              to="/chu-tro"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <LayoutDashboard className="w-4 h-4 text-[#006d37]" />
-                              Bảng điều khiển chủ trọ
-                            </Link>
-                            <Link
-                              to="/chu-tro/toa-nha"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <Home className="w-4 h-4 text-[#006d37]" />
-                              Quản lý tòa nhà
-                            </Link>
-                            <Link
-                              to="/chu-tro/toi"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <UserIcon className="w-4 h-4 text-[#006d37]" />
-                              Hồ sơ chủ trọ
-                            </Link>
-                          </>
-                        ) : currentUser.role === 'admin' ? (
-                          <>
-                            <Link
-                              to="/admin"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <ShieldCheck className="w-4 h-4 text-[#006d37]" />
-                              Kiểm duyệt tin đăng
-                            </Link>
-                            <Link
-                              to="/admin/nguoi-dung"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <Users className="w-4 h-4 text-[#006d37]" />
-                              Quản lý người dùng
-                            </Link>
-                          </>
-                        ) : (
-                          <>
-                            <Link
-                              to="/da-luu"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <Search className="w-4 h-4 text-[#006d37]" />
-                              Phòng đã lưu
-                            </Link>
-                            <Link
-                              to="/toi"
-                              onClick={() => setShowUserMenu(false)}
-                              className="flex items-center gap-2 px-4 py-2 hover:bg-gray-50 text-gray-700 font-medium text-xs"
-                            >
-                              <UserIcon className="w-4 h-4 text-[#006d37]" />
-                              Hồ sơ cá nhân
-                            </Link>
-                          </>
-                        )}
-                      </div>
-
-                      <div className="border-t border-gray-100 pt-1">
-                        <button
-                          onClick={() => {
-                            logout();
-                            setShowUserMenu(false);
-                          }}
-                          className="flex items-center gap-2 w-full text-left px-4 py-2 hover:bg-red-50 text-red-600 font-medium text-xs"
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs font-bold text-gray-900">{currentUser.name}</p>
+                      <p className="text-[11px] text-gray-500">{currentUser.phone}</p>
+                      <div className="mt-1">
+                        <Badge
+                          variant={currentUser.role === 'owner' ? 'verified' : currentUser.role === 'admin' ? 'primary' : 'available'}
+                          size="sm"
+                          showIcon={false}
                         >
-                          <LogOut className="w-4 h-4" />
-                          Đăng xuất
-                        </button>
+                          {currentUser.role === 'owner' ? '🏢 Chủ Trọ' : currentUser.role === 'admin' ? '🛡️ Quản Trị Viên' : '👤 Người Thuê'}
+                        </Badge>
                       </div>
                     </div>
-                  )}
-                </div>
-              </>
+
+                    <Link
+                      to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
+                      className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#006d37] font-semibold"
+                    >
+                      <UserIcon className="w-4 h-4" />
+                      <span>Trang cá nhân</span>
+                    </Link>
+
+                    {currentUser.role === 'user' && (
+                      <Link
+                        to="/nang-cap-chu-tro"
+                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
+                      >
+                        <Building2 className="w-4 h-4" />
+                        <span>Nâng cấp lên Chủ Trọ</span>
+                      </Link>
+                    )}
+
+                    {currentUser.role === 'owner' && (
+                      <Link
+                        to="/chu-tro"
+                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
+                      >
+                        <Building2 className="w-4 h-4" />
+                        <span>Bảng Quản Trị Tòa Nhà</span>
+                      </Link>
+                    )}
+
+                    {currentUser.role === 'admin' && (
+                      <Link
+                        to="/admin"
+                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
+                      >
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>Duyệt Tin & Hồ Sơ</span>
+                      </Link>
+                    )}
+
+                    <div className="border-t border-gray-100 my-1" />
+
+                    <button
+                      onClick={logout}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-semibold text-left"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      <span>Đăng xuất</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             ) : (
               <div className="flex items-center gap-2">
                 <Link to="/dang-nhap">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="outline" size="sm">
                     Đăng Nhập
                   </Button>
                 </Link>

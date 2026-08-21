@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import {
   Compass,
@@ -9,8 +9,8 @@ import {
   User as UserIcon,
   LayoutDashboard,
   Building2,
-  MessageSquare,
   Bell,
+  MessageSquare,
   ShieldCheck,
   BarChart3,
   Code,
@@ -24,23 +24,23 @@ interface NavLinkItem {
 }
 
 export const MobileBottomNav: React.FC = () => {
-  const { currentUser, notifications, threads } = useAppStore();
+  const { currentUser, notifications, threads, savedRoomIds } = useAppStore();
   const location = useLocation();
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
   const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
-  // Hidden on specific fullscreen auth pages if needed
+  // Hidden on specific fullscreen auth pages
   if (['/dang-nhap', '/dang-ky', '/quen-mat-khau', '/xac-thuc-otp'].includes(location.pathname)) {
     return null;
   }
 
-  // Renter / Guest tabs
-  const renterTabs: NavLinkItem[] = [
+  // Renter / Standard User / Guest tabs
+  const userTabs: NavLinkItem[] = [
     { to: '/tim-kiem', label: 'Khám phá', icon: Compass },
     { to: '/ban-do', label: 'Bản đồ', icon: MapPin },
-    { to: '/da-luu', label: 'Đã lưu', icon: Heart },
-    { to: '/roommate', label: 'Cộng đồng', icon: Users },
+    { to: '/da-luu', label: 'Đã lưu', icon: Heart, badge: savedRoomIds.length },
+    { to: '/roommate', label: 'Ở ghép', icon: Users },
     { to: currentUser ? '/toi' : '/dang-nhap', label: 'Tôi', icon: UserIcon },
   ];
 
@@ -55,53 +55,47 @@ export const MobileBottomNav: React.FC = () => {
 
   // Admin tabs
   const adminTabs: NavLinkItem[] = [
-    { to: '/admin', label: 'Kiểm duyệt', icon: ShieldCheck },
+    { to: '/admin', label: 'Kiểm duyệt', icon: ShieldCheck, badge: unreadNotifs },
     { to: '/admin/nguoi-dung', label: 'Người dùng', icon: Users },
     { to: '/admin/thong-ke', label: 'Thống kê', icon: BarChart3 },
     { to: '/debug', label: 'Debug QA', icon: Code },
   ];
 
-  const tabs =
-    currentUser?.role === 'owner'
-      ? ownerTabs
-      : currentUser?.role === 'admin'
-      ? adminTabs
-      : renterTabs;
+  const currentTabs =
+    currentUser?.role === 'owner' ? ownerTabs : currentUser?.role === 'admin' ? adminTabs : userTabs;
 
   return (
-    <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-lg border-t border-gray-200 py-1.5 px-2 safe-area-pb">
-      <div className="flex items-center justify-around">
-        {tabs.map((tab) => {
+    <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg">
+      <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
+        {currentTabs.map((tab) => {
           const Icon = tab.icon;
+          const isActive = location.pathname === tab.to;
           return (
-            <NavLink
+            <Link
               key={tab.to}
               to={tab.to}
-              className={({ isActive }) =>
-                `relative flex flex-col items-center justify-center py-1 px-3 rounded-xl transition-all duration-200 ${
-                  isActive
-                    ? 'text-[#006d37] font-bold scale-105'
-                    : 'text-gray-500 font-medium hover:text-gray-900'
-                }`
-              }
+              className={`flex flex-col items-center justify-center gap-1 transition-colors relative ${
+                isActive ? 'text-[#006d37]' : 'text-gray-500 hover:text-gray-900'
+              }`}
             >
-              {({ isActive }) => (
-                <>
-                  <div className="relative">
-                    <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.4]' : 'stroke-[1.8]'}`} />
-                    {tab.badge !== undefined && tab.badge > 0 && (
-                      <span className="absolute -top-1 -right-2 w-4 h-4 bg-rose-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                        {tab.badge}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] mt-1 tracking-tight leading-none">{tab.label}</span>
-                </>
+              <div className="relative">
+                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px]' : 'stroke-2'}`} />
+                {tab.badge !== undefined && tab.badge > 0 && (
+                  <span className="absolute -top-1.5 -right-2 min-w-4 h-4 px-1 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                    {tab.badge > 99 ? '99+' : tab.badge}
+                  </span>
+                )}
+              </div>
+              <span className={`text-[10px] ${isActive ? 'font-bold' : 'font-medium'}`}>
+                {tab.label}
+              </span>
+              {isActive && (
+                <span className="absolute bottom-1 w-1 h-1 bg-[#006d37] rounded-full" />
               )}
-            </NavLink>
+            </Link>
           );
         })}
       </div>
-    </div>
+    </nav>
   );
 };

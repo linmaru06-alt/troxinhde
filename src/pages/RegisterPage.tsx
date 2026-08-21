@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { UserRole } from '../types';
+import { useAppStore } from '../store/useAppStore';
 import { Home, User, Phone, Lock, UserPlus, ShieldCheck } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const roleParam = (searchParams.get('role') as UserRole) || 'renter';
+  const { registerUser } = useAppStore();
 
-  const [role, setRole] = useState<'renter' | 'owner'>(roleParam === 'owner' ? 'owner' : 'renter');
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -42,8 +40,9 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
     setTimeout(() => {
       setIsLoading(false);
-      // Navigate to OTP with phone & role
-      navigate(`/xac-thuc-otp?phone=${encodeURIComponent(phone)}&role=${role}&name=${encodeURIComponent(name)}`);
+      registerUser({ name, phone });
+      // Navigate to OTP
+      navigate(`/xac-thuc-otp?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`);
     }, 400);
   };
 
@@ -61,29 +60,7 @@ export const RegisterPage: React.FC = () => {
           <p className="text-xs text-gray-500">Tham gia cộng đồng phòng trọ an tâm số 1</p>
         </div>
 
-        {/* Role Toggle Tabs */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl">
-          <button
-            type="button"
-            onClick={() => setRole('renter')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-              role === 'renter' ? 'bg-white text-[#006d37] shadow-xs' : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Tôi là Người Thuê
-          </button>
-          <button
-            type="button"
-            onClick={() => setRole('owner')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition ${
-              role === 'owner' ? 'bg-white text-[#006d37] shadow-xs' : 'text-gray-500 hover:text-gray-900'
-            }`}
-          >
-            Tôi là Chủ Trọ
-          </button>
-        </div>
-
-        {/* Form */}
+        {/* Form (Clean, progressive model without role toggle) */}
         <form onSubmit={handleRegister} className="space-y-4">
           <Input
             label="Họ và tên của bạn"
@@ -139,9 +116,14 @@ export const RegisterPage: React.FC = () => {
           </Button>
         </form>
 
+        <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 text-[11px] text-emerald-900 flex items-center gap-2">
+          <ShieldCheck className="w-4 h-4 text-[#006d37] shrink-0" />
+          <span>Bạn là chủ trọ? Sau khi tạo tài khoản, bạn có thể dễ dàng nộp hồ sơ nâng cấp thành Đối Tác Chủ Trọ.</span>
+        </div>
+
         <div className="text-center text-xs text-gray-600">
           Đã có tài khoản?{' '}
-          <Link to={`/dang-nhap?role=${role}`} className="font-bold text-[#006d37] hover:underline">
+          <Link to="/dang-nhap" className="font-bold text-[#006d37] hover:underline">
             Đăng nhập ngay
           </Link>
         </div>

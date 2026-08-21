@@ -6,6 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { formatPrice, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import { LoginPromptModal } from '../components/modals/LoginPromptModal';
+import { GuestViewingBar } from '../components/rooms/GuestViewingBar';
 import { initialReviews } from '../data/mockData';
 import {
   ShieldCheck,
@@ -522,6 +523,9 @@ export const RoomDetailPage: React.FC = () => {
         onClose={() => setShowLoginModal(false)}
         message="Vui lòng đăng nhập để bắt đầu nhắn tin với chủ trọ."
       />
+
+      {/* Guest Viewing Sticky Bar */}
+      <GuestViewingBar />
     </div>
   );
 };

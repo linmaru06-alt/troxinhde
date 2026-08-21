@@ -5,6 +5,7 @@ import { RoomCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
+import { GuestPromptBanner } from '../components/search/GuestPromptBanner';
 import {
   Search,
   Filter,
@@ -320,6 +321,8 @@ export const SearchPage: React.FC = () => {
 
         {/* RESULTS SECTION */}
         <main className="md:col-span-3 space-y-4">
+          <GuestPromptBanner />
+
           {/* Sorting Bar */}
           <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-gray-200 text-xs">
             <span className="text-gray-500 font-medium hidden sm:inline">

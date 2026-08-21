@@ -23,10 +23,11 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications, threads } = useAppStore();
+  const { logout, currentUser, notifications, threads, ownerApplications } = useAppStore();
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
   const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;
 
   const ownerLinks: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan & Phòng', icon: LayoutDashboard },
@@ -38,7 +39,8 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
   ];
 
   const adminLinks: NavLinkItem[] = [
-    { to: '/admin', label: 'Duyệt tin đăng', icon: ShieldCheck },
+    { to: '/admin', label: 'Kiểm duyệt tin đăng', icon: ShieldCheck },
+    { to: '/admin/don-chu-tro', label: 'Đơn Chủ trọ', icon: Building2, badge: pendingOwnerApps },
     { to: '/admin/nguoi-dung', label: 'Quản lý người dùng', icon: Users },
     { to: '/admin/thong-ke', label: 'Báo cáo thống kê', icon: BarChart3 },
   ];

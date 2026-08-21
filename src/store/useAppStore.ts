@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import {
   User,
   UserRole,
+  OwnerApplication,
   Building,
   Room,
   RoommatePost,
@@ -14,6 +15,7 @@ import {
 } from '../types';
 import {
   initialUsers,
+  initialOwnerApplications,
   initialBuildings,
   initialRooms,
   initialRoommates,
@@ -32,6 +34,7 @@ export interface Toast {
 
 interface AppState {
   currentUser: User | null;
+  ownerApplications: OwnerApplication[];
   rooms: Room[];
   buildings: Building[];
   roommates: RoommatePost[];
@@ -45,10 +48,24 @@ interface AppState {
   bookings: BookingRequest[];
   toasts: Toast[];
 
-  // Auth
+  // Auth & Permissions
   setCurrentUser: (user: User | null) => void;
   loginAsRole: (role: UserRole) => void;
+  loginWithPhone: (phone: string, roleHint?: UserRole) => boolean;
+  registerUser: (data: { name: string; phone: string }) => User;
   logout: () => void;
+
+  // Owner Upgrade Applications
+  submitOwnerApplication: (data: {
+    buildingName: string;
+    address: string;
+    district: string;
+    totalRooms: number;
+    cccdNumber: string;
+    legalDocsNote?: string;
+  }) => string;
+  approveOwnerApplication: (applicationId: string) => void;
+  rejectOwnerApplication: (applicationId: string, reason: string) => void;
 
   // Saved toggles
   toggleSaveRoom: (roomId: string) => boolean;
@@ -81,14 +98,15 @@ interface AppState {
   showToast: (title: string, description?: string, type?: Toast['type']) => void;
   removeToast: (id: string) => void;
 
-  // Debug
+  // Debug & Reset
   resetAllData: () => void;
 }
 
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      currentUser: initialUsers[0], // Default logged in as Renter for great initial experience
+      currentUser: initialUsers[0], // Default logged in as User (authenticated)
+      ownerApplications: initialOwnerApplications,
       rooms: initialRooms,
       buildings: initialBuildings,
       roommates: initialRoommates,
@@ -110,14 +128,190 @@ export const useAppStore = create<AppState>()(
           get().showToast('Đã chuyển sang chế độ Khách (chưa đăng nhập)', '', 'info');
           return;
         }
-        const user = initialUsers.find((u) => u.role === role) || initialUsers[0];
-        set({ currentUser: { ...user, role } });
-        get().showToast(`Đã đăng nhập thành công vai trò ${role.toUpperCase()}`, `Chào mừng ${user.name}!`, 'success');
+        const normalizedRole = role === 'renter' ? 'user' : role;
+        const user = initialUsers.find((u) => u.role === normalizedRole) || initialUsers[0];
+        set({ currentUser: { ...user, role: normalizedRole } });
+        get().showToast(
+          `Đăng nhập thành công với vai trò ${normalizedRole.toUpperCase()}`,
+          `Chào mừng ${user.name}!`,
+          'success'
+        );
+      },
+
+      loginWithPhone: (phone, roleHint) => {
+        const found = initialUsers.find((u) => u.phone === phone);
+        if (found) {
+          set({ currentUser: found });
+          get().showToast(`Đăng nhập thành công`, `Chào mừng trở lại, ${found.name}!`, 'success');
+          return true;
+        }
+        // If not found in seed, create or log in as normal user
+        const targetRole: 'user' | 'owner' | 'admin' = roleHint === 'owner' ? 'owner' : roleHint === 'admin' ? 'admin' : 'user';
+        const newUser: User = {
+          id: `user_${Date.now()}`,
+          name: 'Người Dùng Mới',
+          phone,
+          role: targetRole,
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          verified: true,
+          ownerApplicationStatus: targetRole === 'owner' ? 'approved' : 'none',
+          createdAt: new Date().toISOString(),
+        };
+        set({ currentUser: newUser });
+        get().showToast(`Đăng nhập thành công`, `Chào mừng bạn đến với Trọ Xinh!`, 'success');
+        return true;
+      },
+
+      registerUser: ({ name, phone }) => {
+        const newUser: User = {
+          id: `user_${Date.now()}`,
+          name,
+          phone,
+          role: 'user', // Always standard user after registration
+          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          verified: true,
+          ownerApplicationStatus: 'none',
+          createdAt: new Date().toISOString(),
+        };
+        set({ currentUser: newUser });
+        get().showToast(
+          'Đăng ký tài khoản thành công! 🎉',
+          `Chào mừng ${name} gia nhập cộng đồng Trọ Xinh.`,
+          'success'
+        );
+        return newUser;
       },
 
       logout: () => {
         set({ currentUser: null });
         get().showToast('Đã đăng xuất', 'Hẹn gặp lại bạn!', 'info');
+      },
+
+      // OWNER UPGRADE WORKFLOW
+      submitOwnerApplication: (data) => {
+        const { currentUser } = get();
+        const appId = `app_${Date.now()}`;
+        const newApp: OwnerApplication = {
+          id: appId,
+          userId: currentUser?.id || 'user_guest',
+          userName: currentUser?.name || 'Khách',
+          userPhone: currentUser?.phone || '0987654321',
+          userEmail: currentUser?.email,
+          buildingName: data.buildingName,
+          address: data.address,
+          district: data.district,
+          totalRooms: data.totalRooms,
+          cccdNumber: data.cccdNumber,
+          legalDocsNote: data.legalDocsNote,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          ownerApplications: [newApp, ...state.ownerApplications],
+          currentUser: state.currentUser
+            ? { ...state.currentUser, ownerApplicationStatus: 'pending' }
+            : null,
+          notifications: [
+            {
+              id: `notif_${Date.now()}`,
+              userId: currentUser?.id || 'user_guest',
+              type: 'upgrade',
+              title: 'Hồ sơ nâng cấp Chủ Trọ đã được gửi! ⏳',
+              body: `Hồ sơ đăng ký cơ sở "${data.buildingName}" đang được Ban Quản Trị thẩm định trong 24h.`,
+              read: false,
+              createdAt: new Date().toISOString(),
+            },
+            ...state.notifications,
+          ],
+        }));
+
+        get().showToast(
+          'Đã gửi hồ sơ nâng cấp thành công!',
+          'Ban Quản Trị sẽ liên hệ và phê duyệt trong vòng 24h.',
+          'success'
+        );
+        return appId;
+      },
+
+      approveOwnerApplication: (applicationId) => {
+        set((state) => {
+          const app = state.ownerApplications.find((a) => a.id === applicationId);
+          const updatedApps = state.ownerApplications.map((a) =>
+            a.id === applicationId ? { ...a, status: 'approved' as const, reviewedAt: new Date().toISOString() } : a
+          );
+
+          // Update current user if matching
+          let updatedUser = state.currentUser;
+          if (updatedUser && app && updatedUser.id === app.userId) {
+            updatedUser = { ...updatedUser, role: 'owner', ownerApplicationStatus: 'approved' };
+          }
+
+          return {
+            ownerApplications: updatedApps,
+            currentUser: updatedUser,
+            notifications: [
+              {
+                id: `notif_${Date.now()}`,
+                userId: app?.userId || 'user_renter_1',
+                type: 'approval',
+                title: 'Hồ sơ nâng cấp Chủ Trọ đã được duyệt! 🎉',
+                body: `Chúc mừng bạn đã chính thức trở thành Đối Tác Chủ Trọ. Bây giờ bạn có thể đăng phòng và quản lý tòa nhà.`,
+                read: false,
+                actionLink: '/chu-tro',
+                createdAt: new Date().toISOString(),
+              },
+              ...state.notifications,
+            ],
+          };
+        });
+
+        get().showToast(
+          'Phê duyệt nâng cấp thành công! 🏢',
+          'Người dùng đã được cấp quyền Chủ Trọ chính thức.',
+          'success'
+        );
+      },
+
+      rejectOwnerApplication: (applicationId, reason) => {
+        set((state) => {
+          const app = state.ownerApplications.find((a) => a.id === applicationId);
+          const updatedApps = state.ownerApplications.map((a) =>
+            a.id === applicationId
+              ? {
+                  ...a,
+                  status: 'rejected' as const,
+                  rejectionReason: reason,
+                  reviewedAt: new Date().toISOString(),
+                }
+              : a
+          );
+
+          let updatedUser = state.currentUser;
+          if (updatedUser && app && updatedUser.id === app.userId) {
+            updatedUser = { ...updatedUser, ownerApplicationStatus: 'rejected', ownerApplicationReason: reason };
+          }
+
+          return {
+            ownerApplications: updatedApps,
+            currentUser: updatedUser,
+            notifications: [
+              {
+                id: `notif_${Date.now()}`,
+                userId: app?.userId || 'user_renter_1',
+                type: 'rejected',
+                title: 'Hồ sơ nâng cấp Chủ Trọ bị từ chối ❌',
+                body: `Lý do: ${reason}. Vui lòng bổ sung hồ sơ và gửi lại.`,
+                read: false,
+                actionLink: '/nang-cap-chu-tro',
+                createdAt: new Date().toISOString(),
+              },
+              ...state.notifications,
+            ],
+          };
+        });
+
+        get().showToast('Đã từ chối hồ sơ nâng cấp', `Lý do: ${reason}`, 'warning');
       },
 
       toggleSaveRoom: (roomId) => {
@@ -249,7 +443,7 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ roommates: [newPost, ...state.roommates] }));
-        get().showToast('Đăng tin tìm bạn ghép thành công! 🎉', '', 'success');
+        get().showToast('Đăng tin tìm bạn thành công!', 'Bài viết của bạn đã được hiển thị', 'success');
         return newId;
       },
 
@@ -261,16 +455,16 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ marketplaceItems: [newItem, ...state.marketplaceItems] }));
-        get().showToast('Đăng món đồ thành công! 🎉', '', 'success');
+        get().showToast('Đăng món đồ thành công!', 'Sản phẩm đã xuất hiện trên chợ đồ cũ', 'success');
         return newId;
       },
 
       createBooking: (data) => {
-        const newId = `book_${Date.now()}`;
+        const newId = `bk_${Date.now()}`;
         const newBooking: BookingRequest = {
           ...data,
           id: newId,
-          status: 'Chờ xác nhận',
+          status: 'Chờ chủ trọ xác nhận',
           createdAt: new Date().toISOString(),
         };
         set((state) => ({
@@ -278,49 +472,41 @@ export const useAppStore = create<AppState>()(
           notifications: [
             {
               id: `notif_${Date.now()}`,
-              userId: 'user_owner_1',
+              userId: data.renterId,
               type: 'booking',
-              title: 'Yêu cầu xem phòng mới 📅',
-              body: `${data.renterName} vừa đặt lịch xem phòng vào ngày ${data.date} khung giờ ${data.timeSlot}`,
+              title: 'Đặt lịch xem phòng thành công 📅',
+              body: `Yêu cầu xem phòng "${data.roomTitle}" vào ${data.date} (${data.timeSlot}) đã được gửi tới chủ trọ.`,
               createdAt: new Date().toISOString(),
               read: false,
+              actionLink: '/toi',
             },
             ...state.notifications,
           ],
         }));
-        get().showToast('Đặt lịch xem phòng thành công! 📅', 'Chủ trọ sẽ liên hệ xác nhận qua tin nhắn hoặc điện thoại.', 'success');
+        get().showToast('Đặt lịch thành công!', 'Chủ trọ sẽ liên hệ sớm nhất để đón bạn', 'success');
         return newId;
       },
 
       sendMessage: (threadId, text) => {
         const { currentUser } = get();
-        if (!currentUser || !text.trim()) return;
-
         const newMsgId = `msg_${Date.now()}`;
         const newMsg: Message = {
           id: newMsgId,
           threadId,
-          senderId: currentUser.id,
-          senderName: currentUser.name,
-          senderAvatar: currentUser.avatarUrl,
-          text: text.trim(),
+          senderId: currentUser?.id || 'user_guest',
+          senderName: currentUser?.name || 'Khách',
+          senderAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          text,
           createdAt: new Date().toISOString(),
-          status: 'sending',
+          status: 'sent',
         };
 
         set((state) => ({
           messages: [...state.messages, newMsg],
           threads: state.threads.map((t) =>
-            t.id === threadId ? { ...t, lastMessage: text.trim(), lastMessageAt: new Date().toISOString() } : t
+            t.id === threadId ? { ...t, lastMessage: text, lastMessageAt: new Date().toISOString() } : t
           ),
         }));
-
-        // Simulate network latency & sent status
-        setTimeout(() => {
-          set((state) => ({
-            messages: state.messages.map((m) => (m.id === newMsgId ? { ...m, status: 'sent' } : m)),
-          }));
-        }, 500);
       },
 
       getOrCreateThread: (contactId, roomId) => {
@@ -330,29 +516,35 @@ export const useAppStore = create<AppState>()(
         );
         if (existing) return existing.id;
 
-        const newThreadId = `thread_${Date.now()}`;
-        const room = rooms.find((r) => r.id === roomId);
+        const contactUser = initialUsers.find((u) => u.id === contactId) || {
+          id: contactId,
+          name: 'Chủ Trọ',
+          avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+          role: 'owner' as const,
+        };
+
+        const relatedRoom = roomId ? rooms.find((r) => r.id === roomId) : undefined;
+        const newThreadId = `th_${Date.now()}`;
+
         const newThread: Thread = {
           id: newThreadId,
           participants: [
             {
               id: currentUser?.id || 'guest',
-              name: currentUser?.name || 'Khách',
+              name: currentUser?.name || 'Tôi',
               avatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-              role: currentUser?.role || 'renter',
+              role: currentUser?.role || 'user',
             },
             {
-              id: contactId,
-              name: room?.ownerName || 'Chủ nhà',
-              avatar: room?.ownerAvatar || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
+              id: contactUser.id,
+              name: contactUser.name,
+              avatar: contactUser.avatarUrl,
               role: 'owner',
             },
           ],
           relatedRoomId: roomId,
-          relatedRoomTitle: room?.title,
-          relatedRoomPrice: room?.price,
-          relatedRoomImage: room?.images[0],
-          lastMessage: 'Cuộc trò chuyện mới',
+          relatedRoomTitle: relatedRoom?.title,
+          lastMessage: 'Bắt đầu cuộc trò chuyện...',
           lastMessageAt: new Date().toISOString(),
           unreadCount: 0,
         };
@@ -371,11 +563,11 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           notifications: state.notifications.map((n) => ({ ...n, read: true })),
         }));
-        get().showToast('Đã đánh dấu tất cả thông báo là đã đọc', '', 'info');
+        get().showToast('Đã đánh dấu đọc tất cả thông báo', '', 'info');
       },
 
-      showToast: (title, description, type = 'success') => {
-        const id = `toast_${Date.now()}_${Math.random()}`;
+      showToast: (title, description, type = 'info') => {
+        const id = `toast_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
         set((state) => ({
           toasts: [...state.toasts, { id, title, description, type }],
         }));
@@ -393,6 +585,7 @@ export const useAppStore = create<AppState>()(
       resetAllData: () => {
         set({
           currentUser: initialUsers[0],
+          ownerApplications: initialOwnerApplications,
           rooms: initialRooms,
           buildings: initialBuildings,
           roommates: initialRoommates,
@@ -404,12 +597,13 @@ export const useAppStore = create<AppState>()(
           savedRoommateIds: ['rm_1'],
           savedItemIds: ['item_1'],
           bookings: [],
+          toasts: [],
         });
-        get().showToast('Đã đặt lại dữ liệu demo ban đầu!', 'Tất cả dữ liệu đã được làm mới.', 'success');
+        get().showToast('Đã khôi phục toàn bộ dữ liệu ban đầu', 'Hệ thống đã sẵn sàng kiểm thử!', 'success');
       },
     }),
     {
-      name: 'troxinh_storage_v1',
+      name: 'troxinh_storage_v2',
     }
   )
 );

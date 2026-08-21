@@ -58,9 +58,9 @@ export const DebugPage: React.FC = () => {
         <h2 className="text-base font-bold text-gray-900">1. Chuyển Đổi Nhanh Vai Trò (Active Role):</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           <button
-            onClick={() => loginAsRole('renter')}
+            onClick={() => loginAsRole('user')}
             className={`p-4 rounded-2xl border text-left transition ${
-              currentUser?.role === 'renter'
+              currentUser?.role === 'user'
                 ? 'border-[#006d37] bg-emerald-50 text-[#006d37] font-bold shadow-xs'
                 : 'border-gray-200 hover:bg-gray-50 text-gray-700'
             }`}

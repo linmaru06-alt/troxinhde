@@ -195,14 +195,18 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
           "{post.intro}"
         </p>
 
-        {/* Lifestyle Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {post.lifestyleTags.map((tag, i) => (
-            <span key={i} className="text-[11px] bg-gray-100 text-gray-700 px-2 py-0.5 rounded-md font-medium">
-              {tag}
-            </span>
-          ))}
-        </div>
+        {Array.isArray(post.lifestyleTags) && post.lifestyleTags.length > 0 && (
+          <div className="flex flex-wrap gap-1 pt-1">
+            {post.lifestyleTags.map((tag: string, i: number) => (
+              <span
+                key={i}
+                className="text-[10px] font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-[#006d37] border border-emerald-100"
+              >
+                #{tag}
+              </span>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
