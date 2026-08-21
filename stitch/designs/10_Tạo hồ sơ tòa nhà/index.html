@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Thêm Tòa Nhà Mới - TroXinh</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#006d37",
+                        "on-tertiary-fixed-variant": "#004b6f",
+                        "on-secondary-fixed-variant": "#6e3900",
+                        "primary": "#006d37",
+                        "error-container": "#ffdad6",
+                        "secondary": "#904d00",
+                        "secondary-fixed": "#ffdcc3",
+                        "surface-dim": "#dadada",
+                        "on-primary-fixed-variant": "#005228",
+                        "primary-fixed-dim": "#61de8a",
+                        "primary-fixed": "#7efba4",
+                        "tertiary-fixed": "#cae6ff",
+                        "inverse-surface": "#2f3131",
+                        "on-primary-fixed": "#00210c",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-background": "#1a1c1c",
+                        "tertiary-fixed-dim": "#8ccdff",
+                        "on-tertiary-fixed": "#001e2f",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "inverse-primary": "#61de8a",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#ffa454",
+                        "on-surface": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e8e8e8",
+                        "secondary-fixed-dim": "#ffb77d",
+                        "background": "#f9f9f9",
+                        "on-surface-variant": "#3d4a3f",
+                        "primary-container": "#27ae60",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#35a1e0",
+                        "outline": "#6d7a6e",
+                        "tertiary": "#006492",
+                        "surface-container": "#eeeeee",
+                        "on-primary-container": "#00391a",
+                        "surface-container-low": "#f3f3f3",
+                        "on-secondary-container": "#713b00",
+                        "surface-variant": "#e2e2e2",
+                        "outline-variant": "#bccabc",
+                        "on-tertiary-container": "#00344f",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#2f1500",
+                        "surface": "#f9f9f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px",
+                        "container-max": "1200px",
+                        "margin-desktop": "40px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "display-lg": ["Be Vietnam Pro"],
+                        "headline-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "label-md": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        body { font-family: 'Be Vietnam Pro', sans-serif; background-color: #f9f9f9; }
+        .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+        .material-symbols-outlined.filled { font-variation-settings: 'FILL' 1; }
+    </style>
+</head>
+<body class="bg-background text-on-background flex min-h-screen antialiased">
+<!-- SideNavBar (Hidden on Mobile, Visible on Desktop) -->
+<aside class="hidden md:flex h-screen w-64 fixed left-0 top-0 bg-surface-container-low dark:bg-surface-container-lowest flex-col p-4 gap-2 z-40 border-r border-surface-variant">
+<div class="mb-6 px-4">
+<h1 class="font-headline-md text-headline-md font-bold text-primary">TroXinh</h1>
+</div>
+<div class="flex items-center gap-3 px-4 py-3 mb-6 bg-surface rounded-xl shadow-sm">
+<img alt="Chủ trọ đại diện" class="w-12 h-12 rounded-full object-cover" data-alt="A professional headshot of an Asian male property manager in his 30s, wearing a smart casual outfit. The lighting is soft and natural, emphasizing trust and reliability. The background is a slightly blurred modern office space." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBm1YRIN-lKL6uAz71QTza_Boj92FeLUOKISMCVQVpNb1vN1V1E8FxCdBdvCgElLIHBWI4OGMONEwws0V_FSLH-3mPsAN_k0vaBxWqCbONI-C9S86vFia_YwJxDmzbh-7v-mKyPe2NAT6AZs2tq_7RTH07s01OoitQAG1v2gCY3vecnlUWerZPsATSvH_AeW2cf5QJnf7GZ5yjmwKnvTnqpWsLht0yrZEpVr86QlXlLMTvwvrzfM1M5"/>
+<div>
+<p class="font-label-md text-label-md text-on-surface">Bảng điều khiển</p>
+<p class="font-caption text-caption text-on-surface-variant">Quản lý tin đăng</p>
+</div>
+</div>
+<nav class="flex-1 space-y-1">
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<span>Tổng quan</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md bg-primary-container text-on-primary-container rounded-lg font-bold transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined filled">home_work</span>
+<span>Phòng của tôi</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">chat</span>
+<span>Tin nhắn</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">receipt_long</span>
+<span>Giao dịch</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high rounded-lg transition-all duration-200 ease-in-out" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Cài đặt</span>
+</a>
+</nav>
+<button class="mt-4 w-full py-3 bg-primary text-on-primary rounded-lg font-label-md text-label-md font-bold shadow-sm hover:bg-surface-tint transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined">add</span>
+            Thêm phòng mới
+        </button>
+<div class="mt-6 pt-4 border-t border-surface-variant space-y-1">
+<a class="flex items-center gap-3 px-4 py-2 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high rounded-lg" href="#">
+<span class="material-symbols-outlined">help</span>
+<span>Hỗ trợ</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-2 font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high rounded-lg" href="#">
+<span class="material-symbols-outlined">logout</span>
+<span>Đăng xuất</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 md:ml-64 flex flex-col min-h-screen">
+<!-- TopNavBar (Mobile Only) -->
+<header class="md:hidden flex justify-between items-center w-full px-margin-mobile h-16 bg-surface dark:bg-surface-dim shadow-sm sticky top-0 z-50">
+<div class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary dark:text-primary-fixed">TroXinh</div>
+<div class="flex items-center gap-4 text-primary dark:text-primary-fixed-dim">
+<span class="material-symbols-outlined">notifications</span>
+<img alt="Ảnh đại diện người dùng" class="w-8 h-8 rounded-full" data-alt="A simple avatar placeholder image showing a generic user silhouette in minimalist style on a light background." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAyhSl2LQzc-9tuTmYRTJBzkIMCfczSqAlDTvoy5W3dGopYMx2pl7CMwjBV8Qb-Bred3wwL9wwCcsMWxMaiCTCLOLxHp7afmVjbmG_BWcKKAVw2Yx6_jxiIj9CiK-WbpVMmklsQRx8qmNd3Ye2TlO26ETQSdr0aJceYnQg_uveOSy3vzPH8mDzjymtEzxMiLIKGkFWUvqngtcA_OhVdJhf8y80FXYGck6spcf8QX6BvRfRWaiuJmIUD"/>
+</div>
+</header>
+<!-- Form Content Canvas -->
+<div class="flex-1 w-full max-w-4xl mx-auto px-margin-mobile md:px-margin-desktop py-8 md:py-12">
+<div class="mb-8">
+<h2 class="font-headline-lg text-headline-lg text-on-background mb-2">Thêm Tòa Nhà Mới</h2>
+<p class="font-body-md text-body-md text-on-surface-variant">Tạo hồ sơ cho tòa nhà hoặc khu trọ của bạn để bắt đầu đăng phòng.</p>
+</div>
+<!-- Progress Stepper -->
+<div class="flex items-center justify-between mb-10 relative">
+<div class="absolute left-0 top-1/2 -translate-y-1/2 w-full h-1 bg-surface-variant z-0 rounded-full"></div>
+<div class="absolute left-0 top-1/2 -translate-y-1/2 w-1/3 h-1 bg-primary z-0 rounded-full"></div>
+<div class="relative z-10 flex flex-col items-center gap-2 w-1/3 text-center">
+<div class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold shadow-md">1</div>
+<span class="font-label-md text-label-md text-primary font-bold">Bước 1:<br/>Thông tin tòa nhà</span>
+</div>
+<div class="relative z-10 flex flex-col items-center gap-2 w-1/3 text-center opacity-50">
+<div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-bold">2</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Bước 2:<br/>Thêm phòng</span>
+</div>
+<div class="relative z-10 flex flex-col items-center gap-2 w-1/3 text-center opacity-50">
+<div class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center font-bold">3</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Bước 3:<br/>Xem lại</span>
+</div>
+</div>
+<!-- Form Card -->
+<div class="bg-surface rounded-2xl shadow-sm border border-surface-variant p-6 md:p-gutter">
+<form class="space-y-8">
+<!-- Basic Info Section -->
+<div class="space-y-4">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="buildingName">Tên tòa nhà/khu trọ *</label>
+<input class="w-full h-14 px-4 rounded-xl border border-outline-variant bg-surface-bright focus:border-primary focus:ring-2 focus:ring-primary-container/20 transition-all font-body-md text-body-md text-on-background placeholder:text-on-surface-variant" id="buildingName" placeholder="VD: Chung cư mini Hoa Mai" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2">Địa chỉ đầy đủ *</label>
+<div class="relative">
+<input class="w-full h-14 pl-12 pr-4 rounded-xl border border-outline-variant bg-surface-bright focus:border-primary focus:ring-2 focus:ring-primary-container/20 transition-all font-body-md text-body-md text-on-background" placeholder="Nhập địa chỉ hoặc chọn trên bản đồ" type="text"/>
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant">location_on</span>
+</div>
+<div class="mt-3 w-full h-48 rounded-xl bg-surface-container-high overflow-hidden border border-surface-variant relative">
+<img class="w-full h-full object-cover" data-alt="A highly detailed overhead map view of a vibrant residential neighborhood in Hanoi, Vietnam. The map shows clearly defined street grids, small colorful building blocks, and green park spaces. A stylized prominent red map pin marker is centrally placed. Soft, natural lighting gives it a modern app-like UI aesthetic." data-location="Hanoi" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDpdt-7WrFC9In6oQRF5BSjl4GEpWgApEanhIj1WinLKFR5vFrMlgVeaGbu0HKrvbmtm9RmOQLXi9EqMd0Bv8f0NMg9rqh2s0EN-VRcIn4coA2BZWSzWeDkh5XNfEUsuJWASrZlgNAwaUpZlzozJcURlxnOxFwtk9BX_VE2kuyDkeWPchvm4fPDQhK9KUJRyUzpwHLrh-l1LIlRek3G4Bf42hSugY5nC5XUrq1GqY00LpL-xBmJeTIo"/>
+<button class="absolute bottom-4 right-4 bg-surface text-primary px-4 py-2 rounded-lg shadow-md font-label-md text-label-md flex items-center gap-2 hover:bg-surface-bright" type="button">
+<span class="material-symbols-outlined">my_location</span>
+                                    Vị trí của tôi
+                                </button>
+</div>
+</div>
+</div>
+<hr class="border-surface-variant"/>
+<!-- Images Section -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2">Ảnh tòa nhà *</label>
+<p class="font-caption text-caption text-on-surface-variant mb-4">Tải lên ít nhất 1 ảnh mặt tiền hoặc không gian chung. Khuyến khích ảnh ngang.</p>
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+<!-- Upload Button -->
+<div class="aspect-square rounded-xl border-2 border-dashed border-primary/50 bg-primary/5 flex flex-col items-center justify-center text-primary cursor-pointer hover:bg-primary/10 transition-colors">
+<span class="material-symbols-outlined text-3xl mb-2">add_photo_alternate</span>
+<span class="font-label-md text-label-md">Thêm ảnh</span>
+</div>
+<!-- Placeholder for uploaded image -->
+<div class="aspect-square rounded-xl bg-surface-container-high relative overflow-hidden group">
+<img class="w-full h-full object-cover" data-alt="A bright, high-quality photograph of the modern exterior of a multi-story apartment building. The building features clean white and grey facades with small balconies. A clear blue sky is visible in the background. The lighting is sunny and welcoming, typical of a professional real estate listing." src="https://lh3.googleusercontent.com/aida-public/AB6AXuChGuvoS2zG6cpcHxdbbAlQ4S-JYY1yhDlLDmc_eQZHJgindVcGPgkSx0itCjjsjxx18abtIpy4HsVjgFpttGWVfobpSP4G_oAGgyRUm782wos3G_wUsyDtC-6DTfRknpdaeOyVMCvYFWpAEhcNpANCDpIkLYnTWXwjoMQ8w1Jon5i_cp7f-bi_LU8tfsX8K3yONLxQ6aQ9WZehz3H2eQtw9ue-jTB-mTEh7_eBF9ZOJP42DhgWe9XI"/>
+<div class="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+<button class="text-white hover:text-error transition-colors" type="button">
+<span class="material-symbols-outlined">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<hr class="border-surface-variant"/>
+<!-- Amenities Section -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-4">Tiện ích chung của tòa nhà</label>
+<div class="grid grid-cols-2 md:grid-cols-3 gap-4">
+<label class="flex items-center gap-3 p-4 rounded-xl border border-surface-variant bg-surface-bright cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<input checked="" class="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-on-surface-variant">two_wheeler</span>
+<span class="font-body-md text-body-md text-on-surface">Chỗ để xe</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded-xl border border-surface-variant bg-surface-bright cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<input class="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-on-surface-variant">security</span>
+<span class="font-body-md text-body-md text-on-surface">Bảo vệ 24/7</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded-xl border border-surface-variant bg-surface-bright cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<input checked="" class="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-on-surface-variant">wifi</span>
+<span class="font-body-md text-body-md text-on-surface">Wifi</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded-xl border border-surface-variant bg-surface-bright cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<input class="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-on-surface-variant">elevator</span>
+<span class="font-body-md text-body-md text-on-surface">Thang máy</span>
+</label>
+<label class="flex items-center gap-3 p-4 rounded-xl border border-surface-variant bg-surface-bright cursor-pointer hover:border-primary transition-colors has-[:checked]:border-primary has-[:checked]:bg-primary/5">
+<input class="w-5 h-5 text-primary rounded border-outline-variant focus:ring-primary" type="checkbox"/>
+<span class="material-symbols-outlined text-on-surface-variant">local_laundry_service</span>
+<span class="font-body-md text-body-md text-on-surface">Máy giặt chung</span>
+</label>
+</div>
+</div>
+<hr class="border-surface-variant"/>
+<!-- Description -->
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="description">Mô tả ngắn</label>
+<p class="font-caption text-caption text-on-surface-variant mb-2">Giới thiệu tổng quan về khu vực xung quanh, quy định chung...</p>
+<textarea class="w-full p-4 rounded-xl border border-outline-variant bg-surface-bright focus:border-primary focus:ring-2 focus:ring-primary-container/20 transition-all font-body-md text-body-md text-on-background placeholder:text-on-surface-variant resize-none" id="description" placeholder="Khu trọ an ninh, gần siêu thị và bến xe buýt..." rows="4"></textarea>
+</div>
+<!-- Actions -->
+<div class="flex justify-end gap-4 pt-4">
+<button class="px-6 py-3 rounded-lg font-label-md text-label-md text-on-surface bg-surface-container-high hover:bg-surface-variant transition-colors" type="button">
+                            Hủy bỏ
+                        </button>
+<button class="px-8 py-3 rounded-lg font-label-md text-label-md font-bold text-white bg-primary hover:bg-surface-tint transition-colors shadow-sm flex items-center gap-2" type="button">
+                            Tiếp tục
+                            <span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</form>
+</div>
+<!-- Bottom padding for mobile to account for bottom nav if it existed, though omitted per instructions for transactional form -->
+<div class="h-8 md:h-0"></div>
+</div>
+</main>
+</body></html>

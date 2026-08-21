@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>TroXinh - Chào mừng chủ trọ mới</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#006d37",
+                        "on-tertiary-container": "#00344f",
+                        "on-error-container": "#93000a",
+                        "surface": "#f9f9f9",
+                        "primary-fixed": "#7efba4",
+                        "secondary-container": "#ffa454",
+                        "on-primary-container": "#00391a",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#8ccdff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#dadada",
+                        "outline": "#6d7a6e",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "on-tertiary-fixed": "#001e2f",
+                        "secondary": "#904d00",
+                        "on-surface-variant": "#3d4a3f",
+                        "on-tertiary-fixed-variant": "#004b6f",
+                        "inverse-primary": "#61de8a",
+                        "primary-container": "#27ae60",
+                        "inverse-on-surface": "#f1f1f1",
+                        "primary": "#006d37",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f3f3f3",
+                        "tertiary-fixed": "#cae6ff",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#bccabc",
+                        "tertiary": "#006492",
+                        "surface-container": "#eeeeee",
+                        "on-primary-fixed": "#00210c",
+                        "background": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed-dim": "#61de8a",
+                        "on-secondary-fixed-variant": "#6e3900",
+                        "secondary-fixed-dim": "#ffb77d",
+                        "on-secondary-fixed": "#2f1500",
+                        "on-primary-fixed-variant": "#005228",
+                        "on-secondary-container": "#713b00",
+                        "surface-container-highest": "#e2e2e2",
+                        "inverse-surface": "#2f3131",
+                        "surface-bright": "#f9f9f9",
+                        "tertiary-container": "#35a1e0",
+                        "secondary-fixed": "#ffdcc3",
+                        "surface-variant": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "unit": "8px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "container-max": "1200px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Be Vietnam Pro"],
+                        "display-lg": ["Be Vietnam Pro"],
+                        "label-md": ["Be Vietnam Pro"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 1;
+        }
+        .slide-hidden {
+            display: none;
+            opacity: 0;
+            transform: translateX(20px);
+        }
+        .slide-active {
+            display: flex;
+            opacity: 1;
+            transform: translateX(0);
+            transition: opacity 0.4s ease-out, transform 0.4s ease-out;
+        }
+        body {
+            font-family: 'Be Vietnam Pro', sans-serif;
+            background: linear-gradient(180deg, #cae6ff 0%, #ffffff 100%);
+            min-height: 100vh;
+        }
+    </style>
+</head>
+<body class="flex flex-col min-h-screen relative overflow-hidden text-on-surface">
+<!-- Top Bar with Skip Link -->
+<div class="absolute top-0 right-0 p-margin-desktop md:p-6 z-10">
+<button class="font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" onclick="skipOnboarding()">
+            Bỏ qua
+        </button>
+</div>
+<!-- Main Content Area -->
+<main class="flex-grow flex flex-col items-center justify-center p-6 md:p-12 w-full max-w-container-max mx-auto">
+<!-- Slides Container -->
+<div class="w-full max-w-md mx-auto text-center flex-grow flex flex-col justify-center items-center" id="slides-container">
+<!-- Slide 1 -->
+<div class="slide-active flex-col items-center justify-center w-full" id="slide-1">
+<div class="w-64 h-64 mb-8 relative rounded-full bg-white shadow-lg flex items-center justify-center">
+<img class="w-48 h-48 object-contain" data-alt="A warm, friendly vector illustration of a modern house with a large golden key. The style is flat, modern, and inviting, using a palette of soft blues, crisp whites, and warm earthy tones. The lighting is bright and cheerful, suggesting a welcoming start to a new venture on a housing platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7iR0f4ccfreHdLAp-fxNDyVattBCiexm2n19gakh-3aM5jTf1DnZwlYJ6NjVsQou3sA8cPwXtB7jfVNh3TO-Fvyms-ZRlmpV_77ujhkjlYbS6h_yZJR4qP-tZ5N2iBqFQKil5w92uxY1NHpPrxOZUkzKvtggYbDiPeQjWuhpa3Hhl6MQOrVUX2PcuAzkUdNQmUkqiQw1BQGCMBxpfnNYEighuclhuztw-7xUclSsJrkVcio0JN9pG"/>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-tertiary-fixed mb-4">
+                    Chào mừng bạn đến TroXinh!
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant px-4">
+                    Chỉ 3 bước để phòng trọ của bạn tiếp cận hàng ngàn sinh viên
+                </p>
+</div>
+<!-- Slide 2 -->
+<div class="slide-hidden flex-col items-center justify-center w-full" id="slide-2">
+<div class="w-64 h-64 mb-8 relative rounded-full bg-white shadow-lg flex items-center justify-center">
+<img class="w-48 h-48 object-contain" data-alt="A clean, minimalist vector illustration showing a digital checklist or form on a modern tablet interface. The style is professional yet approachable, utilizing bright greens and soft blues. The scene conveys ease of use and organization, perfect for a property listing process." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAMVmqSE28JkzPxWImm2EOOrBBJfwrSkjWR9NE4KQvbQY-7oTBkxWmXTXSdnZ8rLGnn4_DIAPUT5PrFAhkZs9WWmeYpLo4eP9t7xp6Dj5MJcdRwjmYAwlIbnfKoQKExbWR-rMQbQ55lW2KHub4wWnBvTmdWZ7gRhGkZ1NG3ISCPnq8j7a3tBm1uKAmH-oaocgB6oeGxEPUxkvhze2vgGd6D57in2ZvgTfgC_Gpw-eTUXxDJ4vdsiF2w"/>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-tertiary-fixed mb-4">
+                    Đăng phòng dễ dàng
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant px-4">
+                    Điền thông tin, tải ảnh, và đợi kiểm duyệt trong 24 giờ
+                </p>
+</div>
+<!-- Slide 3 -->
+<div class="slide-hidden flex-col items-center justify-center w-full" id="slide-3">
+<div class="w-64 h-64 mb-8 relative rounded-full bg-white shadow-lg flex items-center justify-center">
+<img class="w-48 h-48 object-contain" data-alt="An engaging vector illustration featuring overlapping chat bubbles in vibrant colors, symbolizing active communication. The design is modern, with soft rounded edges and a friendly, community-focused vibe. The background is a crisp white to make the colorful chat icons pop, suggesting quick and direct connection." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAE0BqY93XEych20-zCWPM1kvOHIc6z2O9L2PH03NB2OjGzdNwn61bRtmyHqoXGK1DkFKgmTx9Qh44HHAQhncWDlIXvgF128nUaHt6iRNDQ0qXZ23Bhcc0ywKa2zY-m1lW6qtW4WXOazIWP0xdv8VQRBt3R6GImG1V7SphBHUFtTAahkTHuSaeATZXdBhRdIWGxoH9d2o5rV5hmV3cJg_CXsGtsi_0xCKvCJCRA04vrtF3brtHXaLVq"/>
+</div>
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-headline-lg-mobile md:text-headline-lg text-on-tertiary-fixed mb-4">
+                    Kết nối ngay với người thuê
+                </h1>
+<p class="font-body-lg text-body-lg text-on-surface-variant px-4">
+                    Nhận tin nhắn trực tiếp từ sinh viên quan tâm
+                </p>
+</div>
+</div>
+</main>
+<!-- Bottom Controls Area -->
+<div class="w-full bg-white/50 backdrop-blur-md pb-8 pt-6 px-6 md:px-12 fixed bottom-0 left-0 rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.05)]">
+<div class="max-w-md mx-auto flex flex-col items-center">
+<!-- Step Indicators -->
+<div class="flex gap-2 mb-8">
+<div class="w-8 h-2 rounded-full bg-primary transition-all duration-300" id="dot-1"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant transition-all duration-300" id="dot-2"></div>
+<div class="w-2 h-2 rounded-full bg-outline-variant transition-all duration-300" id="dot-3"></div>
+</div>
+<!-- Buttons -->
+<div class="w-full relative h-14">
+<button class="absolute inset-0 w-full h-full bg-primary-container text-on-primary font-label-md text-label-md rounded-full shadow-md hover:bg-primary transition-colors flex items-center justify-center gap-2" id="btn-next" onclick="nextSlide()">
+                    Tiếp theo
+                    <span class="material-symbols-outlined text-sm" data-icon="arrow_forward">arrow_forward</span>
+</button>
+<button class="hidden absolute inset-0 w-full h-full bg-primary-container text-on-primary font-label-md text-label-md rounded-full shadow-lg hover:bg-primary transition-transform hover:scale-[1.02] active:scale-95 flex items-center justify-center" id="btn-start" onclick="finishOnboarding()">
+                    Bắt đầu đăng phòng ngay
+                </button>
+</div>
+</div>
+</div>
+<script>
+        let currentSlide = 1;
+        const totalSlides = 3;
+
+        function updateUI() {
+            // Update slides visibility
+            for (let i = 1; i <= totalSlides; i++) {
+                const slide = document.getElementById(`slide-${i}`);
+                if (i === currentSlide) {
+                    slide.classList.remove('slide-hidden');
+                    slide.classList.add('slide-active');
+                } else {
+                    slide.classList.remove('slide-active');
+                    slide.classList.add('slide-hidden');
+                }
+            }
+
+            // Update dots
+            for (let i = 1; i <= totalSlides; i++) {
+                const dot = document.getElementById(`dot-${i}`);
+                if (i === currentSlide) {
+                    dot.classList.remove('w-2', 'bg-outline-variant');
+                    dot.classList.add('w-8', 'bg-primary');
+                } else {
+                    dot.classList.remove('w-8', 'bg-primary');
+                    dot.classList.add('w-2', 'bg-outline-variant');
+                }
+            }
+
+            // Update buttons
+            const btnNext = document.getElementById('btn-next');
+            const btnStart = document.getElementById('btn-start');
+
+            if (currentSlide === totalSlides) {
+                btnNext.classList.add('hidden');
+                btnStart.classList.remove('hidden');
+                btnStart.classList.add('flex');
+            } else {
+                btnNext.classList.remove('hidden');
+                btnNext.classList.add('flex');
+                btnStart.classList.add('hidden');
+                btnStart.classList.remove('flex');
+            }
+        }
+
+        function nextSlide() {
+            if (currentSlide < totalSlides) {
+                currentSlide++;
+                updateUI();
+            }
+        }
+
+        function skipOnboarding() {
+            // Add navigation logic to dashboard
+            console.log("Skipped to dashboard");
+            alert("Redirecting to Dashboard...");
+        }
+
+        function finishOnboarding() {
+             // Add navigation logic to create listing page
+            console.log("Finished onboarding, go to create listing");
+            alert("Redirecting to Create Listing...");
+        }
+    </script>
+</body></html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Xác thực số điện thoại - TroXinh</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "inverse-on-surface": "#f1f1f1",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-dim": "#dadada",
+                    "inverse-primary": "#61de8a",
+                    "inverse-surface": "#2f3131",
+                    "primary-fixed-dim": "#61de8a",
+                    "surface-container": "#eeeeee",
+                    "on-secondary": "#ffffff",
+                    "primary-container": "#27ae60",
+                    "surface": "#f9f9f9",
+                    "on-surface": "#1a1c1c",
+                    "on-secondary-fixed": "#2f1500",
+                    "on-secondary-container": "#713b00",
+                    "on-tertiary": "#ffffff",
+                    "secondary-fixed": "#ffdcc3",
+                    "error": "#ba1a1a",
+                    "on-primary-fixed": "#00210c",
+                    "surface-container-high": "#e8e8e8",
+                    "primary-fixed": "#7efba4",
+                    "surface-bright": "#f9f9f9",
+                    "outline-variant": "#bccabc",
+                    "on-background": "#1a1c1c",
+                    "surface-variant": "#e2e2e2",
+                    "on-tertiary-fixed": "#001e2f",
+                    "outline": "#6d7a6e",
+                    "surface-tint": "#006d37",
+                    "surface-container-low": "#f3f3f3",
+                    "tertiary": "#006492",
+                    "background": "#f9f9f9",
+                    "on-error": "#ffffff",
+                    "on-tertiary-container": "#00344f",
+                    "on-surface-variant": "#3d4a3f",
+                    "on-tertiary-fixed-variant": "#004b6f",
+                    "surface-container-highest": "#e2e2e2",
+                    "error-container": "#ffdad6",
+                    "on-primary": "#ffffff",
+                    "primary": "#006d37",
+                    "secondary": "#904d00",
+                    "on-secondary-fixed-variant": "#6e3900",
+                    "tertiary-fixed": "#cae6ff",
+                    "tertiary-fixed-dim": "#8ccdff",
+                    "secondary-container": "#ffa454",
+                    "on-error-container": "#93000a",
+                    "tertiary-container": "#35a1e0",
+                    "on-primary-container": "#00391a",
+                    "on-primary-fixed-variant": "#005228",
+                    "secondary-fixed-dim": "#ffb77d"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.25rem",
+                    "lg": "0.5rem",
+                    "xl": "0.75rem",
+                    "full": "9999px"
+            },
+            "spacing": {
+                    "margin-mobile": "16px",
+                    "margin-desktop": "40px",
+                    "container-max": "1200px",
+                    "unit": "8px",
+                    "gutter": "24px"
+            },
+            "fontFamily": {
+                    "caption": ["Be Vietnam Pro"],
+                    "body-md": ["Be Vietnam Pro"],
+                    "label-md": ["Be Vietnam Pro"],
+                    "headline-lg-mobile": ["Be Vietnam Pro"],
+                    "headline-lg": ["Be Vietnam Pro"],
+                    "display-lg": ["Be Vietnam Pro"],
+                    "body-lg": ["Be Vietnam Pro"],
+                    "headline-md": ["Be Vietnam Pro"]
+            },
+            "fontSize": {
+                    "caption": ["12px", {"lineHeight": "16px", "fontWeight": "500"}],
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "label-md": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "headline-lg-mobile": ["28px", {"lineHeight": "36px", "fontWeight": "700"}],
+                    "headline-lg": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "28px", "fontWeight": "400"}],
+                    "headline-md": ["24px", {"lineHeight": "32px", "fontWeight": "600"}]
+            }
+          }
+        }
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .otp-input {
+            transition: all 0.2s ease-in-out;
+        }
+        .otp-input:focus {
+            transform: scale(1.05);
+            box-shadow: 0 4px 20px rgba(39, 174, 96, 0.15);
+        }
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-body-md antialiased min-h-screen flex items-center justify-center p-4">
+<!-- Main Container -->
+<main class="w-full max-w-md bg-surface-container-lowest rounded-[24px] shadow-[0_8px_30px_rgb(0,0,0,0.04)] p-8 md:p-10 relative overflow-hidden">
+<!-- Decorative subtle background blob -->
+<div class="absolute top-[-50px] right-[-50px] w-32 h-32 bg-primary-container opacity-10 rounded-full blur-2xl"></div>
+<!-- Header / Logo Area -->
+<div class="flex justify-center mb-8">
+<div class="w-16 h-16 bg-primary-container/10 rounded-2xl flex items-center justify-center text-primary-container shadow-sm">
+<span class="material-symbols-outlined text-[32px]">shield_lock</span>
+</div>
+</div>
+<!-- Title & Subtitle -->
+<div class="text-center mb-8">
+<h1 class="font-headline-md text-headline-md text-on-surface mb-3 tracking-tight">Xác thực số điện thoại</h1>
+<p class="font-body-md text-body-md text-on-surface-variant max-w-[280px] mx-auto">
+                TroXinh gửi mã xác nhận để đảm bảo tin đăng và liên hệ an toàn
+            </p>
+</div>
+<!-- OTP Input Form -->
+<form class="flex flex-col gap-6" onsubmit="event.preventDefault();">
+<!-- Phone Number Display -->
+<div class="flex items-center justify-center gap-2 text-on-surface-variant font-label-md text-label-md">
+<span>Mã được gửi đến:</span>
+<span class="font-bold text-on-surface">+84 9** *** 123</span>
+<button class="text-primary hover:text-primary-container ml-1 hover:underline transition-all" type="button">Đổi số</button>
+</div>
+<!-- 6 Digit Input -->
+<div class="flex justify-between gap-2 sm:gap-3" id="otp-container">
+<input class="otp-input w-12 h-14 sm:w-14 sm:h-16 text-center font-headline-md text-headline-md rounded-xl border border-outline-variant bg-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:bg-surface-container-lowest outline-none text-on-surface" maxlength="1" pattern="[0-9]" placeholder="-" type="text"/>
+<input class="otp-input w-12 h-14 sm:w-14 sm:h-16 text-center font-headline-md text-headline-md rounded-xl border border-outline-variant bg-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:bg-surface-container-lowest outline-none text-on-surface" disabled="" maxlength="1" pattern="[0-9]" placeholder="-" type="text"/>
+<input class="otp-input w-12 h-14 sm:w-14 sm:h-16 text-center font-headline-md text-headline-md rounded-xl border border-outline-variant bg-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:bg-surface-container-lowest outline-none text-on-surface" disabled="" maxlength="1" pattern="[0-9]" placeholder="-" type="text"/>
+<input class="otp-input w-12 h-14 sm:w-14 sm:h-16 text-center font-headline-md text-headline-md rounded-xl border border-outline-variant bg-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:bg-surface-container-lowest outline-none text-on-surface" disabled="" maxlength="1" pattern="[0-9]" placeholder="-" type="text"/>
+<input class="otp-input w-12 h-14 sm:w-14 sm:h-16 text-center font-headline-md text-headline-md rounded-xl border border-outline-variant bg-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:bg-surface-container-lowest outline-none text-on-surface" disabled="" maxlength="1" pattern="[0-9]" placeholder="-" type="text"/>
+<input class="otp-input w-12 h-14 sm:w-14 sm:h-16 text-center font-headline-md text-headline-md rounded-xl border border-outline-variant bg-surface focus:border-primary-container focus:ring-2 focus:ring-primary-container/20 focus:bg-surface-container-lowest outline-none text-on-surface" disabled="" maxlength="1" pattern="[0-9]" placeholder="-" type="text"/>
+</div>
+<!-- Resend Timer -->
+<div class="text-center font-body-md text-body-md mt-2">
+<span class="text-on-surface-variant">Chưa nhận được mã? </span>
+<span class="text-primary font-medium" id="timer">Gửi lại (00:59)</span>
+</div>
+<!-- Submit Action -->
+<button class="w-full bg-[#27AE60] hover:bg-[#219653] text-white font-label-md text-label-md py-4 rounded-xl shadow-[0_4px_14px_rgba(39,174,96,0.2)] transition-all active:scale-[0.98] mt-4 flex items-center justify-center gap-2" type="submit">
+                Hoàn tất
+                <span class="material-symbols-outlined text-[20px]">arrow_forward</span>
+</button>
+</form>
+<!-- Trust Note Footer -->
+<div class="mt-8 pt-6 border-t border-surface-container-highest flex items-center justify-center gap-2 text-on-surface-variant">
+<span class="material-symbols-outlined text-[16px] text-[#27AE60]">verified_user</span>
+<span class="font-caption text-caption">Giúp hạn chế spam và tài khoản ảo</span>
+</div>
+</main>
+<script>
+        // Minimal OTP Input Logic for UI feel
+        const inputs = document.querySelectorAll('.otp-input');
+        
+        inputs.forEach((input, index) => {
+            input.addEventListener('input', (e) => {
+                if (e.target.value.length === 1) {
+                    if (index < inputs.length - 1) {
+                        inputs[index + 1].disabled = false;
+                        inputs[index + 1].focus();
+                    }
+                }
+            });
+
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Backspace' && !e.target.value) {
+                    if (index > 0) {
+                        inputs[index - 1].focus();
+                        inputs[index - 1].value = '';
+                    }
+                }
+            });
+        });
+
+        // Simple Timer Simulation
+        let timeLeft = 59;
+        const timerDisplay = document.getElementById('timer');
+        
+        const countdown = setInterval(() => {
+            if (timeLeft <= 0) {
+                clearInterval(countdown);
+                timerDisplay.innerHTML = '<button class="text-primary hover:underline focus:outline-none">Gửi lại mã</button>';
+            } else {
+                timerDisplay.textContent = `Gửi lại (00:${timeLeft < 10 ? '0' : ''}${timeLeft})`;
+                timeLeft -= 1;
+            }
+        }, 1000);
+    </script>
+</body></html>

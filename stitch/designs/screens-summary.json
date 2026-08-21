@@ -1,0 +1,154 @@
+[
+  {
+    "index": 1,
+    "id": "3399f732f06049ed8b5ce37a3ec3b629",
+    "title": "Onboarding Người thuê",
+    "folder": "stitch\\designs\\01_Onboarding Người thuê",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 2,
+    "id": "bde25a2c4aaf452ebd5593ca702f6a52",
+    "title": "Phòng đã lưu",
+    "folder": "stitch\\designs\\02_Phòng đã lưu",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 3,
+    "id": "55b9d58120174abf88df1428e601ee33",
+    "title": "Onboarding Chủ trọ",
+    "folder": "stitch\\designs\\03_Onboarding Chủ trọ",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 4,
+    "id": "db8314dfea9747f8a55f9897ccfbc42f",
+    "title": "Dashboard quản lý phòng",
+    "folder": "stitch\\designs\\04_Dashboard quản lý phòng",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 5,
+    "id": "3f267d4df1f04700aa3bd10916c5038f",
+    "title": "Chi tiết Tìm bạn ở ghép",
+    "folder": "stitch\\designs\\05_Chi tiết Tìm bạn ở ghép",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 6,
+    "id": "9a0a4a74083c466fbb033410727c0b92",
+    "title": "Chi tiết Đồ cũ thanh lý",
+    "folder": "stitch\\designs\\06_Chi tiết Đồ cũ thanh lý",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 7,
+    "id": "0f778d84c5f641baadc98f582722cf4f",
+    "title": "Quên mật khẩu",
+    "folder": "stitch\\designs\\07_Quên mật khẩu",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 8,
+    "id": "39c2d306b63547c3a2f8ca3716904ea3",
+    "title": "Đăng nhập",
+    "folder": "stitch\\designs\\08_Đăng nhập",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 9,
+    "id": "313a3ece956445fdbf9eba7a59d99667",
+    "title": "Hồ sơ Người thuê",
+    "folder": "stitch\\designs\\09_Hồ sơ Người thuê",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 10,
+    "id": "a456ec456e4745e88d0f9e3b8ae63480",
+    "title": "Tạo hồ sơ tòa nhà",
+    "folder": "stitch\\designs\\10_Tạo hồ sơ tòa nhà",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 11,
+    "id": "5d7b5f8f6f1a455abd43a082a5a667f6",
+    "title": "Trang Tòa nhà tổng quan",
+    "folder": "stitch\\designs\\11_Trang Tòa nhà tổng quan",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 12,
+    "id": "8f1acd9a650642eb91bca15ee79e8f01",
+    "title": "Đăng ký Chủ trọ",
+    "folder": "stitch\\designs\\12_Đăng ký Chủ trọ",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 13,
+    "id": "da805ec64841417f8a775d09e038106a",
+    "title": "Trung tâm thông báo",
+    "folder": "stitch\\designs\\13_Trung tâm thông báo",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 14,
+    "id": "5a1a6e184b564e0fb75944bb3e726d1c",
+    "title": "Trang chủ (Landing Page)",
+    "folder": "stitch\\designs\\14_Trang chủ (Landing Page)",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 15,
+    "id": "58b2aa3faee7488fb4ff1955cdb4153a",
+    "title": "Xác thực số điện thoại",
+    "folder": "stitch\\designs\\15_Xác thực số điện thoại",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 16,
+    "id": "5178bbec31b84e04a19959088aad2605",
+    "title": "Hồ sơ Chủ trọ",
+    "folder": "stitch\\designs\\16_Hồ sơ Chủ trọ",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 17,
+    "id": "41406a126b154bffb3b84aa053be6f1c",
+    "title": "Tòa nhà của tôi",
+    "folder": "stitch\\designs\\17_Tòa nhà của tôi",
+    "html": true,
+    "img": true
+  },
+  {
+    "index": 18,
+    "id": "2c098baab79742d7a075fd0fffbac45f",
+    "title": "TroXinh Project Plan",
+    "folder": "stitch\\designs\\18_TroXinh Project Plan",
+    "html": true,
+    "img": false
+  },
+  {
+    "index": 19,
+    "id": "b2f7914bf3f547b2b602d91cf730c36b",
+    "title": "Đăng phòng trọ",
+    "folder": "stitch\\designs\\19_Đăng phòng trọ",
+    "html": true,
+    "img": true
+  }
+]

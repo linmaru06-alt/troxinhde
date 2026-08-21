@@ -1,0 +1,55 @@
+import React from 'react';
+import { Link } from 'react-router-dom';
+import { useAppStore } from '../store/useAppStore';
+import { DashboardSidebar } from '../components/layout/DashboardSidebar';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { Building2, Phone, Mail, MapPin, ShieldCheck, LogOut } from 'lucide-react';
+
+export const OwnerProfilePage: React.FC = () => {
+  const { currentUser, buildings, rooms, logout } = useAppStore();
+
+  return (
+    <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
+      <DashboardSidebar role="owner" />
+
+      <main className="flex-1 p-4 sm:p-8 max-w-4xl space-y-6 overflow-y-auto">
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">
+          <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-gray-100 text-center sm:text-left">
+            <img
+              src={currentUser?.avatarUrl}
+              alt=""
+              className="w-24 h-24 rounded-full object-cover ring-4 ring-emerald-100 shadow-md"
+            />
+            <div className="space-y-1.5 flex-1">
+              <div className="flex items-center justify-center sm:justify-start gap-2">
+                <h1 className="text-2xl font-black text-gray-900">{currentUser?.name}</h1>
+                <Badge variant="verified" size="sm">Chủ trọ uy tín 5★</Badge>
+              </div>
+              <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
+                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                {currentUser?.phone}
+              </p>
+              <p className="text-xs text-gray-500">{currentUser?.bio}</p>
+            </div>
+
+            <button onClick={logout} className="text-xs font-semibold text-rose-600 hover:underline flex items-center gap-1">
+              <LogOut className="w-4 h-4" /> Đăng xuất
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+              <span className="text-xs text-emerald-800 font-medium">Tòa nhà đang quản lý:</span>
+              <h3 className="text-xl font-black text-[#006d37] mt-1">{buildings.length} tòa nhà</h3>
+            </div>
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
+              <span className="text-xs text-emerald-800 font-medium">Tổng số phòng trọ:</span>
+              <h3 className="text-xl font-black text-[#006d37] mt-1">{rooms.length} phòng</h3>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};

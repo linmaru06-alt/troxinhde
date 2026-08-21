@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Tổng quan Tòa nhà - TroXinh</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#006d37",
+                        "on-tertiary-container": "#00344f",
+                        "on-error-container": "#93000a",
+                        "surface": "#f9f9f9",
+                        "primary-fixed": "#7efba4",
+                        "secondary-container": "#ffa454",
+                        "on-primary-container": "#00391a",
+                        "on-secondary": "#ffffff",
+                        "tertiary-fixed-dim": "#8ccdff",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-dim": "#dadada",
+                        "outline": "#6d7a6e",
+                        "on-tertiary": "#ffffff",
+                        "on-error": "#ffffff",
+                        "on-surface": "#1a1c1c",
+                        "on-tertiary-fixed": "#001e2f",
+                        "secondary": "#904d00",
+                        "on-surface-variant": "#3d4a3f",
+                        "on-tertiary-fixed-variant": "#004b6f",
+                        "inverse-primary": "#61de8a",
+                        "primary-container": "#27ae60",
+                        "inverse-on-surface": "#f1f1f1",
+                        "primary": "#006d37",
+                        "error-container": "#ffdad6",
+                        "surface-container-low": "#f3f3f3",
+                        "tertiary-fixed": "#cae6ff",
+                        "on-primary": "#ffffff",
+                        "error": "#ba1a1a",
+                        "outline-variant": "#bccabc",
+                        "tertiary": "#006492",
+                        "surface-container": "#eeeeee",
+                        "on-primary-fixed": "#00210c",
+                        "background": "#f9f9f9",
+                        "surface-container-high": "#e8e8e8",
+                        "on-background": "#1a1c1c",
+                        "primary-fixed-dim": "#61de8a",
+                        "on-secondary-fixed-variant": "#6e3900",
+                        "secondary-fixed-dim": "#ffb77d",
+                        "on-secondary-fixed": "#2f1500",
+                        "on-primary-fixed-variant": "#005228",
+                        "on-secondary-container": "#713b00",
+                        "surface-container-highest": "#e2e2e2",
+                        "inverse-surface": "#2f3131",
+                        "surface-bright": "#f9f9f9",
+                        "tertiary-container": "#35a1e0",
+                        "secondary-fixed": "#ffdcc3",
+                        "surface-variant": "#e2e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "gutter": "24px",
+                        "unit": "8px",
+                        "margin-mobile": "16px",
+                        "margin-desktop": "40px",
+                        "container-max": "1200px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Be Vietnam Pro"],
+                        "display-lg": ["Be Vietnam Pro"],
+                        "label-md": ["Be Vietnam Pro"],
+                        "body-lg": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "500" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background font-body-md antialiased pb-24 md:pb-0">
+<!-- TopNavBar (Web & Mobile, mapped as per JSON instructions) -->
+<header class="bg-surface dark:bg-surface-dim docked full-width top-0 sticky z-50 shadow-sm">
+<div class="flex justify-between items-center w-full px-margin-desktop max-w-container-max mx-auto h-20">
+<div class="font-headline-lg text-headline-lg font-bold text-primary dark:text-primary-fixed">TroXinh</div>
+<nav class="hidden md:flex gap-8">
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-label-md text-label-md" href="#">Tìm phòng</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-label-md text-label-md" href="#">Ở ghép</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-label-md text-label-md" href="#">Đồ cũ</a>
+<a class="text-on-surface-variant dark:text-outline-variant hover:text-primary dark:hover:text-primary-fixed transition-colors font-label-md text-label-md" href="#">Tin tức</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="hidden md:flex text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+<button class="hidden md:flex text-on-surface-variant hover:text-primary transition-colors">
+<span class="material-symbols-outlined" data-icon="favorite">favorite</span>
+</button>
+<button class="hidden md:flex text-on-surface-variant font-label-md text-label-md hover:text-primary transition-colors">Đăng nhập</button>
+<button class="bg-primary-container text-on-primary-container font-label-md text-label-md px-4 py-2 rounded-lg hover:bg-surface-tint hover:text-on-primary transition-colors active:scale-95 duration-150">Đăng tin</button>
+<img alt="Ảnh đại diện người dùng" class="w-10 h-10 rounded-full bg-surface-container-high object-cover" data-alt="A clean, minimalist circular profile avatar placeholder image for a user, featuring a soft gradient background in light greys and subtle greens, conveying a modern and professional UI aesthetic." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBTyuOymwm684LRPzlnvQTyxzHrxVMPs2PEE5v8GtIOexqu0BJOyeOci_PsMz_OUe0CJwxZrbS4_vulUpTdMcrePYblzaICZJreFSGzM7KG1GJ02g0lJ052YCqWuduYZ7ysG2u_N56-ekh6znFureBN7-Gr6kn8YFD4gMge2blfywuvL0SPKyFFxU0jmFjX2FTdwt5i2eVKqZaT5VjwVN9plp9Dr8gLSU0457SI3ChIpThu6JHz6c1e"/>
+</div>
+</div>
+</header>
+<main>
+<!-- Hero Section -->
+<section class="relative w-full h-[409px] md:h-[614px]">
+<div class="bg-cover bg-center w-full h-full" data-alt="A high-quality architectural photograph of a modern student housing building exterior in Vietnam, shot during golden hour. The building features clean lines, large windows, and subtle green accents in its design. The scene is well-lit, professional, and inviting, conveying a sense of safety, cleanliness, and premium modern living." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDvpD19aERau8o7HhYjBX2Ci07KfxoqblqbE3t8Rhe0exTisdV8LQ5poD574o9hVAU-zkCPYnCbN97aHr4-5Pw2IzJ3dNY9w-WjOfoFHnctW9wR6w-jzHz9xhDT4Opuv1jQXlpQEUisEeeD-LUYvd69y3JugVOE3ufrLbzNcyeGiUhhzeLj-Gkh7X9z9Ptl2xH8uTlpzN2F8lJPAyZVl1ndXg_UEhd6_aAaL3R3YQbExSU65s00M_r7')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-on-background/80 via-transparent to-transparent"></div>
+<div class="absolute bottom-0 left-0 w-full px-margin-mobile md:px-margin-desktop pb-8 max-w-container-max mx-auto">
+<div class="flex flex-col md:flex-row md:items-end justify-between gap-4">
+<div class="text-on-secondary">
+<div class="flex items-center gap-2 mb-2">
+<span class="bg-primary-container text-on-secondary font-label-md text-label-md px-3 py-1 rounded-full flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[16px]" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                Đã kiểm duyệt
+                            </span>
+</div>
+<h1 class="font-headline-lg-mobile md:font-display-lg text-headline-lg-mobile md:text-display-lg mb-2">Tòa nhà Green Living Cầu Giấy</h1>
+<p class="font-body-lg text-body-lg flex items-center gap-1 opacity-90">
+<span class="material-symbols-outlined text-[20px]" data-icon="location_on">location_on</span>
+                            123 Đường Xuân Thủy, Dịch Vọng Hậu, Cầu Giấy, Hà Nội
+                        </p>
+</div>
+</div>
+</div>
+</section>
+<!-- Main Content Layout -->
+<div class="max-w-container-max mx-auto px-margin-mobile md:px-margin-desktop py-gutter grid grid-cols-1 lg:grid-cols-3 gap-8">
+<div class="lg:col-span-2 space-y-12">
+<!-- Tiện ích chung -->
+<section>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6">Tiện ích chung của tòa nhà</h2>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm text-center">
+<div class="bg-primary-container/10 p-3 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="wifi">wifi</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Wifi tốc độ cao</span>
+</div>
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm text-center">
+<div class="bg-primary-container/10 p-3 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="security">security</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Bảo vệ 24/7</span>
+</div>
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm text-center">
+<div class="bg-primary-container/10 p-3 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="two_wheeler">two_wheeler</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Chỗ để xe rộng</span>
+</div>
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm text-center">
+<div class="bg-primary-container/10 p-3 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="local_laundry_service">local_laundry_service</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Máy giặt chung</span>
+</div>
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm text-center">
+<div class="bg-primary-container/10 p-3 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="elevator">elevator</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Thang máy</span>
+</div>
+<div class="bg-surface-container-lowest border border-surface-container-highest rounded-xl p-4 flex flex-col items-center justify-center gap-2 shadow-sm text-center">
+<div class="bg-primary-container/10 p-3 rounded-full text-primary">
+<span class="material-symbols-outlined" data-icon="cleaning_services">cleaning_services</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface-variant">Dọn vệ sinh tuần</span>
+</div>
+</div>
+</section>
+<!-- Các phòng trống -->
+<section>
+<div class="flex justify-between items-center mb-6">
+<h2 class="font-headline-md text-headline-md text-on-surface">Các phòng còn trống</h2>
+<span class="font-label-md text-label-md text-on-surface-variant">3 phòng</span>
+</div>
+<div class="flex overflow-x-auto gap-4 pb-4 no-scrollbar -mx-margin-mobile px-margin-mobile md:mx-0 md:px-0 snap-x">
+<!-- Room Card 1 -->
+<div class="min-w-[280px] md:min-w-[320px] bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] overflow-hidden snap-start flex-shrink-0">
+<div class="relative h-40">
+<div class="bg-cover bg-center w-full h-full" data-alt="A bright, clean interior shot of a modern student rental room in Vietnam. The room features a comfortable bed, a study desk by a large window letting in ample natural light, and minimalist decor. The color palette is neutral with soft green accents, conveying a fresh, organized, and inviting living space suitable for a student." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuC4JDvE5lOcPNNeXfcdYyY2yE9MzmOCW1eBXs6MgNCfsUeNVwn8SQcJOQxIq9NWoM8iySfac59FAJiteENbJJhaE-p2J_VzP-m8JcZtPuPJSPPoyF94YlPIZWRpLmj45Esz0RSnWpAj_WH0XGuEcpPLVfPrIsKXDeldiThSed0or23YK2JjMZvw0kLGzikwXmKnEEoLZbI2bFiWIdlTmY45bXOEEBm9kXTm52a9jSpuBYCvjHSG7ucT')"></div>
+<div class="absolute top-2 left-2 bg-primary-container text-on-secondary font-caption text-caption px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                    Đã kiểm duyệt
+                                </div>
+</div>
+<div class="p-4">
+<h3 class="font-label-md text-label-md text-on-surface mb-1">Phòng Studio Tầng 3</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-2">Studio • 25m²</p>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="bg-surface-tint/10 text-on-surface-variant font-caption text-caption px-2 py-1 rounded text-xs">Có máy lạnh</span>
+<span class="bg-surface-tint/10 text-on-surface-variant font-caption text-caption px-2 py-1 rounded text-xs">Cửa sổ lớn</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div class="font-headline-md text-headline-md text-primary">3.5tr <span class="font-body-md text-body-md text-on-surface-variant font-normal">/tháng</span></div>
+<button class="bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md px-3 py-2 rounded-lg transition-colors">Xem chi tiết</button>
+</div>
+</div>
+</div>
+<!-- Room Card 2 -->
+<div class="min-w-[280px] md:min-w-[320px] bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] overflow-hidden snap-start flex-shrink-0">
+<div class="relative h-40">
+<div class="bg-cover bg-center w-full h-full" data-alt="A cozy, well-lit interior of a student room with a loft bed design (gác xép). The space below the loft features a compact living area and kitchenette, while the loft serves as the sleeping area. The lighting is warm and natural, highlighting clean white walls and light wood furniture, creating a modern, space-efficient, and comfortable aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBhMJ-aX3tQ0zwoBikcAFAx5XoXMbSYAiPyYyhoTgWYHM597qM8VahYvByYY1bkyxRlHch6a1H_9vsqG9d07_UN4sP7ewfRW7jzGzJJytueA5_d0550r5ZY1L1J8J8QXm9WEAxGh2TnrD08Z19UGI7ktCkSz9Yper2TGzeH7AC_hUvfADPtN1Upr1NDgK72WeYgcIDjQp6wwUtrnQXp9MQ3TI-yst7EoMUy6eBhKRgCBLvxzRrB20cu')"></div>
+<div class="absolute top-2 left-2 bg-primary-container text-on-secondary font-caption text-caption px-2 py-1 rounded-md flex items-center gap-1 shadow-sm">
+<span class="material-symbols-outlined text-[14px]" data-icon="check_circle" data-weight="fill" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+                                    Đã kiểm duyệt
+                                </div>
+</div>
+<div class="p-4">
+<h3 class="font-label-md text-label-md text-on-surface mb-1">Phòng có gác lửng Tầng 2</h3>
+<p class="font-body-md text-body-md text-on-surface-variant mb-2">Phòng đơn • 18m²</p>
+<div class="flex flex-wrap gap-2 mb-4">
+<span class="bg-surface-tint/10 text-on-surface-variant font-caption text-caption px-2 py-1 rounded text-xs">Tự do giờ giấc</span>
+<span class="bg-surface-tint/10 text-on-surface-variant font-caption text-caption px-2 py-1 rounded text-xs">Nấu ăn trong phòng</span>
+</div>
+<div class="flex justify-between items-end mt-4">
+<div class="font-headline-md text-headline-md text-primary">2.8tr <span class="font-body-md text-body-md text-on-surface-variant font-normal">/tháng</span></div>
+<button class="bg-surface-container-high hover:bg-surface-container-highest text-on-surface font-label-md text-label-md px-3 py-2 rounded-lg transition-colors">Xem chi tiết</button>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Vị trí -->
+<section>
+<h2 class="font-headline-md text-headline-md text-on-surface mb-6">Vị trí &amp; Tiện ích xung quanh</h2>
+<div class="bg-surface-container-lowest rounded-xl shadow-sm border border-surface-container-highest overflow-hidden">
+<!-- Placeholder for Map -->
+<div class="h-64 bg-surface-container-low relative" data-location="Hà Nội, Việt Nam" style="">
+<div class="bg-cover bg-center w-full h-full opacity-80" data-alt="A clean, minimalist vector-style map interface showing a neighborhood in Hanoi. The map focuses on streets, highlighting a central pin for a building location, and nearby points of interest like universities marked with subtle icons. The color scheme relies on soft grays, whites, and brand-aligned greens for markers, ensuring high readability and a modern aesthetic." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBdiIen7o0HrVCsVLSxGI8f8Oj6PlZ2Sd3qNvWupwlGI28c8okGZWeXPSeugZ7KW6161cWuT1MU5w1lhbPS2CKDVB6bxLmxzKPQK4Lj61slOlsfOxpDwb3KXpNUxhfl5po6FAIZm2PtyeGdwXMhNYSc1fFDFoXoUkAoSh8VCY_qlRN6i56ofcbJWyebcZV_H6u4N-XW7M6MwloM9jkk5JSkGkeXuninBfEtWLrhBdBpYYJm2jhLk9gA')"></div>
+<div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-primary">
+<span class="material-symbols-outlined text-[40px]" data-icon="location_on" data-weight="fill" style="font-variation-settings: 'FILL' 1;">location_on</span>
+</div>
+</div>
+<div class="p-6">
+<p class="font-body-md text-body-md text-on-surface-variant mb-4">
+                                123 Đường Xuân Thủy, Dịch Vọng Hậu, Cầu Giấy, Hà Nội
+                            </p>
+<div class="space-y-3">
+<div class="flex items-center justify-between border-b border-surface-container-highest pb-3">
+<div class="flex items-center gap-2">
+<div class="bg-primary-container/10 p-2 rounded-full text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="school">school</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface">Đại học Quốc gia Hà Nội</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Cách 800 m</span>
+</div>
+<div class="flex items-center justify-between border-b border-surface-container-highest pb-3">
+<div class="flex items-center gap-2">
+<div class="bg-primary-container/10 p-2 rounded-full text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="school">school</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface">Đại học Sư phạm Hà Nội</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Cách 1.2 km</span>
+</div>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="bg-primary-container/10 p-2 rounded-full text-primary">
+<span class="material-symbols-outlined text-[18px]" data-icon="local_hospital">local_hospital</span>
+</div>
+<span class="font-body-md text-body-md text-on-surface">Bệnh viện E</span>
+</div>
+<span class="font-label-md text-label-md text-on-surface-variant">Cách 2.0 km</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Sidebar (Desktop) / Bottom Sticky (Mobile) -->
+<div class="lg:col-span-1">
+<div class="sticky top-[104px]">
+<!-- Về chủ trọ -->
+<section class="bg-surface-container-lowest rounded-xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] border border-surface-container-highest p-6">
+<h3 class="font-headline-md text-headline-md text-on-surface mb-6">Về chủ trọ</h3>
+<div class="flex items-start gap-4 mb-6">
+<img alt="Ảnh chủ trọ" class="w-16 h-16 rounded-full object-cover" data-alt="A professional and friendly portrait photograph of a Vietnamese property owner. The person is smiling gently, well-lit with soft natural light, and the background is slightly blurred (bokeh) showing a modern office or residential setting. The image conveys trust, reliability, and approachability, suitable for a verified host profile on a rental platform." src="https://lh3.googleusercontent.com/aida-public/AB6AXuARqoE6ygUo_oQEkZNq5j3Jmd3I6WMy_UngG6TiVS7hLYHjdQt9Scm2meq8nxLPCij9SrSvba-lBtLxriZT-PVyfjDFlRCEfRWQbsjr3eIiI7OiSx8r-YGMqVBS0LZoHJnZhW2Cw6UAyWZQ126MU56_IWb4-ZcYkYiij7LYAgLL10Ph7KLHtiOK3FiDSmwCc6uU1ET3coX3GDpbCEcIH8-6cf8w6qRXlRE_IWUYxevsLtysQH_TBQHs"/>
+<div>
+<h4 class="font-label-md text-label-md text-on-surface text-lg">Nguyễn Văn A</h4>
+<p class="font-body-md text-body-md text-on-surface-variant text-sm mb-1">Đã đăng 12 phòng</p>
+<div class="flex items-center gap-1 text-secondary-container">
+<span class="material-symbols-outlined text-[16px]" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px]" data-icon="star_half" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star_half</span>
+<span class="font-label-md text-label-md text-on-surface-variant ml-1">4.8 (24 đánh giá)</span>
+</div>
+</div>
+</div>
+<div class="space-y-3">
+<button class="w-full bg-primary-container text-on-primary-container font-label-md text-label-md px-4 py-3 rounded-lg hover:bg-surface-tint hover:text-on-primary transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+                                Gọi điện thoại
+                            </button>
+<button class="w-full border border-primary-container text-primary-container font-label-md text-label-md px-4 py-3 rounded-lg hover:bg-surface-container-low transition-colors flex items-center justify-center gap-2">
+<span class="material-symbols-outlined" data-icon="chat">chat</span>
+                                Nhắn tin ngay
+                            </button>
+</div>
+</section>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) - Adjusted for contextual task -->
+<!-- The user requested a "sticky 'Liên hệ chủ trọ' button on mobile bottom", which overrides standard global nav for this specific transactional view -->
+<div class="md:hidden fixed bottom-0 left-0 w-full bg-surface border-t border-surface-container-highest p-4 z-50 shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
+<div class="flex gap-3 max-w-container-max mx-auto">
+<button class="flex-1 bg-primary-container text-on-primary-container font-label-md text-label-md px-4 py-3 rounded-lg hover:bg-surface-tint hover:text-on-primary transition-colors flex items-center justify-center gap-2 shadow-sm">
+<span class="material-symbols-outlined" data-icon="call">call</span>
+                Liên hệ chủ trọ
+            </button>
+</div>
+</div>
+<!-- Footer -->
+<footer class="bg-surface-container-highest dark:bg-surface-container-high full-width py-12 px-margin-desktop mb-20 md:mb-0">
+<div class="max-w-container-max mx-auto grid grid-cols-1 md:grid-cols-4 gap-8">
+<div class="md:col-span-1">
+<div class="font-headline-md text-headline-md font-bold text-primary mb-4">TroXinh</div>
+<p class="font-body-md text-body-md text-on-surface dark:text-on-surface-variant">© 2024 TroXinh - Nền tảng nhà trọ sinh viên hàng đầu Việt Nam</p>
+</div>
+<div class="md:col-span-3 grid grid-cols-2 md:grid-cols-4 gap-4">
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-outline hover:text-primary transition-colors" href="#">Về chúng tôi</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-outline hover:text-primary transition-colors" href="#">Quy định đăng tin</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-outline hover:text-primary transition-colors" href="#">Chính sách bảo mật</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-outline hover:text-primary transition-colors" href="#">Liên hệ hỗ trợ</a>
+<a class="font-label-md text-label-md text-on-surface-variant dark:text-outline hover:text-primary transition-colors col-span-2 md:col-span-1 mt-2 md:mt-0" href="#">Hướng dẫn an toàn</a>
+</div>
+</div>
+</footer>
+</body></html>

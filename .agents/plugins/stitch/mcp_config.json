@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "stitch": {
+      "command": "cmd.exe",
+      "args": ["/c", "npx", "-y", "@_davideast/stitch-mcp", "proxy"],
+      "env": {
+        "STITCH_API_KEY": "AQ.Ab8RN6IvNVcSsPKj9586KwliYvK4J4Z1gT-FbFIC3OclG5n4Mg"
+      }
+    }
+  }
+}

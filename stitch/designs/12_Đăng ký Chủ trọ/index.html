@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+
+<html lang="vi"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Đăng ký - Chủ trọ</title>
+<!-- Material Symbols -->
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<!-- Google Fonts: Be Vietnam Pro -->
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "surface-tint": "#006d37",
+                        "on-tertiary-fixed-variant": "#004b6f",
+                        "on-secondary-fixed-variant": "#6e3900",
+                        "primary": "#006d37",
+                        "error-container": "#ffdad6",
+                        "secondary": "#904d00",
+                        "secondary-fixed": "#ffdcc3",
+                        "surface-dim": "#dadada",
+                        "on-primary-fixed-variant": "#005228",
+                        "primary-fixed-dim": "#61de8a",
+                        "primary-fixed": "#7efba4",
+                        "tertiary-fixed": "#cae6ff",
+                        "inverse-surface": "#2f3131",
+                        "on-primary-fixed": "#00210c",
+                        "inverse-on-surface": "#f1f1f1",
+                        "on-background": "#1a1c1c",
+                        "tertiary-fixed-dim": "#8ccdff",
+                        "on-tertiary-fixed": "#001e2f",
+                        "on-secondary": "#ffffff",
+                        "surface-bright": "#f9f9f9",
+                        "inverse-primary": "#61de8a",
+                        "surface-container-highest": "#e2e2e2",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "secondary-container": "#ffa454",
+                        "on-surface": "#1a1c1c",
+                        "on-error-container": "#93000a",
+                        "surface-container-high": "#e8e8e8",
+                        "secondary-fixed-dim": "#ffb77d",
+                        "background": "#f9f9f9",
+                        "on-surface-variant": "#3d4a3f",
+                        "primary-container": "#27ae60",
+                        "on-error": "#ffffff",
+                        "tertiary-container": "#35a1e0",
+                        "outline": "#6d7a6e",
+                        "tertiary": "#006492",
+                        "surface-container": "#eeeeee",
+                        "on-primary-container": "#00391a",
+                        "surface-container-low": "#f3f3f3",
+                        "on-secondary-container": "#713b00",
+                        "surface-variant": "#e2e2e2",
+                        "outline-variant": "#bccabc",
+                        "on-tertiary-container": "#00344f",
+                        "error": "#ba1a1a",
+                        "on-secondary-fixed": "#2f1500",
+                        "surface": "#f9f9f9"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "gutter": "24px",
+                        "margin-mobile": "16px",
+                        "container-max": "1200px",
+                        "margin-desktop": "40px"
+                    },
+                    "fontFamily": {
+                        "body-lg": ["Be Vietnam Pro"],
+                        "caption": ["Be Vietnam Pro"],
+                        "display-lg": ["Be Vietnam Pro"],
+                        "headline-md": ["Be Vietnam Pro"],
+                        "headline-lg-mobile": ["Be Vietnam Pro"],
+                        "label-md": ["Be Vietnam Pro"],
+                        "headline-lg": ["Be Vietnam Pro"],
+                        "body-md": ["Be Vietnam Pro"]
+                    },
+                    "fontSize": {
+                        "body-lg": ["18px", { "lineHeight": "28px", "fontWeight": "400" }],
+                        "caption": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "display-lg": ["48px", { "lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700" }],
+                        "headline-md": ["24px", { "lineHeight": "32px", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["28px", { "lineHeight": "36px", "fontWeight": "700" }],
+                        "label-md": ["14px", { "lineHeight": "20px", "fontWeight": "600" }],
+                        "headline-lg": ["32px", { "lineHeight": "40px", "letterSpacing": "-0.01em", "fontWeight": "700" }],
+                        "body-md": ["16px", { "lineHeight": "24px", "fontWeight": "400" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .material-symbols-outlined[data-weight="fill"] {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-background min-h-screen flex flex-col font-body-md">
+<!-- Shared Component: TopNavBar -->
+<header class="docked full-width top-0 sticky z-50 bg-surface dark:bg-surface-dim shadow-sm">
+<div class="flex justify-between items-center w-full px-margin-desktop max-w-container-max mx-auto h-20">
+<!-- Brand -->
+<div class="flex items-center gap-4">
+<a class="font-headline-lg text-headline-lg font-bold text-primary dark:text-primary-fixed" href="#">TroXinh</a>
+<!-- Search bar on left logic implied by JSON -->
+<div class="hidden md:flex items-center bg-surface-container-low rounded-full px-4 py-2 ml-4 border border-outline-variant focus-within:border-primary transition-colors">
+<span class="material-symbols-outlined text-on-surface-variant mr-2">search</span>
+<input class="bg-transparent border-none focus:ring-0 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant outline-none" placeholder="Tìm kiếm khu vực..." type="text"/>
+</div>
+</div>
+<!-- Navigation Links (All inactive for Sign Up flow) -->
+<nav class="hidden lg:flex items-center gap-8">
+<a class="text-on-surface-variant dark:text-outline-variant font-label-md text-label-md hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Tìm phòng</a>
+<a class="text-on-surface-variant dark:text-outline-variant font-label-md text-label-md hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Ở ghép</a>
+<a class="text-on-surface-variant dark:text-outline-variant font-label-md text-label-md hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Đồ cũ</a>
+<a class="text-on-surface-variant dark:text-outline-variant font-label-md text-label-md hover:text-primary dark:hover:text-primary-fixed transition-colors" href="#">Tin tức</a>
+</nav>
+<!-- Actions -->
+<div class="flex items-center gap-4">
+<div class="hidden md:flex gap-2">
+<button aria-label="notifications" class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors p-2">notifications</button>
+<button aria-label="favorite" class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors p-2">favorite</button>
+</div>
+<a class="hidden md:block font-label-md text-label-md text-on-surface-variant hover:text-primary transition-colors" href="#">Đăng nhập</a>
+<a class="bg-primary text-on-primary font-label-md text-label-md px-6 py-2 rounded-full hover:bg-on-primary-fixed-variant transition-colors shadow-sm" href="#">Đăng tin</a>
+<img alt="Ảnh đại diện người dùng" class="w-10 h-10 rounded-full object-cover border border-outline-variant ml-2" data-alt="A clean, minimalist abstract avatar representing a user profile, utilizing soft green tones from the brand palette." src="https://lh3.googleusercontent.com/aida-public/AB6AXuAmguYZ0RxzzrXHCJgx809RUg0SGw4EDC5tOio0PuRuuvMBu7SGpLudqtiNorxbPJ99i3hi5hpN6sryz6gCPphE6N5b_xHTFbRkYyPzrJ91kkaEDC2IVwGnioV8g-_HJUgVBgt2M-glGL2TjV_YTwJS2ZQT1064AE0soOm45RO3_wLw5OaxBiguo7q9nyNiV-tyc4wq95gzLJgNOXByv5jUDUhQRqi1VF2GRx6vyZ_1m_OdwsLkYbVJ"/>
+</div>
+</div>
+</header>
+<!-- Main Content -->
+<main class="flex-grow flex items-center justify-center p-margin-mobile md:p-margin-desktop">
+<div class="w-full max-w-container-max bg-surface-container-lowest rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.06)] overflow-hidden flex flex-col lg:flex-row">
+<!-- Left Side: Illustration -->
+<div class="hidden lg:block lg:w-1/2 relative bg-surface-container-low" style="min-height: 600px;">
+<div class="absolute inset-0 bg-cover bg-center" data-alt="A beautifully styled 3D illustration of a modern house and a floating golden key. The scene is brightly lit with a soft, natural daylight aesthetic. The color palette features clean whites, soft grays, and subtle accents of the brand's primary green, creating a welcoming and trustworthy atmosphere." style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuB3wPfoAiTHLilNoIhf-8FZIkHPkODrEm30entdv59BFKHcOsIgxYWZqzDXSvRmZZubePutrmxsHTTDerMNLrrhoGPt3wrlK3ASwAX9nyeJ2Yqe3eguSeIwIMRIj8CBk1dhj-hkGb6bN0yfL79HSpR5uSzCFiUNCiZI8uEIzgrea3_ghGUff0XnGp6wnm0oxe7rFpGvOjEeFK19Ay0IavIVcXmpL1yIGk3HQMDfPscf4vlItE3E3BUB')"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-surface-tint/20 to-transparent"></div>
+</div>
+<!-- Right Side: Form Container -->
+<div class="w-full lg:w-1/2 p-8 md:p-12 lg:p-16 flex flex-col justify-center">
+<!-- Header -->
+<div class="mb-8 text-center lg:text-left">
+<h1 class="font-headline-lg-mobile md:font-headline-lg text-on-surface mb-2">Đăng ký tài khoản</h1>
+<p class="font-body-md text-body-md text-on-surface-variant">Tạo tài khoản để bắt đầu kết nối với cộng đồng.</p>
+</div>
+<!-- Role Toggle -->
+<div class="flex bg-surface-container rounded-full p-1 mb-8 w-full max-w-sm mx-auto lg:mx-0">
+<button class="flex-1 text-center py-2 px-4 rounded-full font-label-md text-label-md text-on-surface-variant hover:bg-surface-container-high transition-colors">Tôi là người thuê</button>
+<button class="flex-1 text-center py-2 px-4 rounded-full font-label-md text-label-md bg-surface-container-lowest text-primary shadow-sm">Tôi là chủ trọ</button>
+</div>
+<!-- Form -->
+<form class="space-y-6">
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="fullname">Họ và tên</label>
+<input class="w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-4 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50" id="fullname" placeholder="Nhập họ và tên của bạn" type="text"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="phone">Số điện thoại</label>
+<input class="w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-4 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50" id="phone" placeholder="Nhập số điện thoại" type="tel"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="email">Email</label>
+<input class="w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-4 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50" id="email" placeholder="Nhập địa chỉ email" type="email"/>
+</div>
+<div>
+<label class="block font-label-md text-label-md text-on-surface mb-2" for="password">Mật khẩu</label>
+<input class="w-full bg-surface-bright border border-outline-variant rounded-lg px-4 py-4 font-body-md text-body-md text-on-surface focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all placeholder:text-on-surface-variant/50" id="password" placeholder="Tạo mật khẩu" type="password"/>
+</div>
+<!-- Trust Message -->
+<div class="bg-tertiary-fixed border border-tertiary-fixed-dim rounded-lg p-4 flex items-start gap-3 mt-8">
+<span class="material-symbols-outlined text-tertiary" data-weight="fill">verified_user</span>
+<p class="font-body-md text-body-md text-on-tertiary-fixed text-sm">Tin đăng của bạn sẽ được đội ngũ TroXinh kiểm duyệt trước khi hiển thị công khai.</p>
+</div>
+<!-- Submit Action -->
+<button class="w-full bg-tertiary-container text-on-tertiary-container font-label-md text-label-md text-lg py-4 rounded-lg shadow-sm hover:opacity-90 active:scale-[0.98] transition-all mt-8 font-bold" type="submit">
+                        Đăng ký
+                    </button>
+</form>
+<div class="mt-6 text-center font-body-md text-body-md text-on-surface-variant">
+                    Đã có tài khoản? <a class="text-primary font-bold hover:underline" href="#">Đăng nhập</a>
+</div>
+</div>
+</div>
+</main>
+</body></html>

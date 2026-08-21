@@ -1,0 +1,191 @@
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { useAppStore } from '../store/useAppStore';
+import { DashboardSidebar } from '../components/layout/DashboardSidebar';
+import { Button } from '../components/ui/Button';
+import { Badge } from '../components/ui/Badge';
+import { formatPrice } from '../components/ui/Cards';
+import {
+  Home,
+  PlusCircle,
+  TrendingUp,
+  CheckCircle2,
+  Clock,
+  Building2,
+  Eye,
+  Heart,
+  Calendar,
+  AlertCircle,
+  ChevronRight,
+  Sparkles,
+} from 'lucide-react';
+
+export const OwnerDashboardPage: React.FC = () => {
+  const { rooms, buildings, currentUser, updateRoomStatus, showToast } = useAppStore();
+  const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
+
+  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
+
+  const totalRooms = myRooms.length;
+  const availableRooms = myRooms.filter((r) => r.status === 'Còn trống').length;
+  const rentedRooms = myRooms.filter((r) => r.status === 'Đã cho thuê').length;
+  const pendingRooms = myRooms.filter((r) => r.status === 'Chờ duyệt').length;
+
+  const filteredRooms = myRooms.filter((r) => {
+    if (selectedStatusTab === 'all') return true;
+    return r.status === selectedStatusTab;
+  });
+
+  return (
+    <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
+      {/* Desktop Sidebar */}
+      <DashboardSidebar role="owner" />
+
+      {/* Main Dashboard Content */}
+      <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-8 overflow-y-auto">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
+              Bảng Điều Khiển Chủ Trọ
+            </h1>
+            <p className="text-xs text-gray-500 mt-1">
+              Quản lý danh sách phòng, trạng thái cho thuê và lượt tiếp cận khách thuê
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5">
+            <Link to="/chu-tro/toa-nha/tao-moi">
+              <Button variant="outline" size="md" leftIcon={<Building2 className="w-4 h-4 text-[#006d37]" />}>
+                Thêm Tòa Nhà
+              </Button>
+            </Link>
+            <Link to="/chu-tro/phong/tao-moi">
+              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                Đăng Phòng Mới
+              </Button>
+            </Link>
+          </div>
+        </div>
+
+        {/* 4 Stat Cards Bar */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs text-gray-500 font-semibold">
+              <span>Tổng số phòng</span>
+              <Building2 className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-gray-900">{totalRooms}</div>
+            <p className="text-[11px] text-emerald-600 font-medium">↑ 2 tòa nhà đang vận hành</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-emerald-200 shadow-xs space-y-2 bg-emerald-50/30">
+            <div className="flex items-center justify-between text-xs text-emerald-800 font-semibold">
+              <span>Đang còn trống</span>
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-[#006d37]">{availableRooms}</div>
+            <p className="text-[11px] text-gray-500 font-medium">Sẵn sàng đón khách xem</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-2">
+            <div className="flex items-center justify-between text-xs text-gray-500 font-semibold">
+              <span>Đã cho thuê</span>
+              <Home className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-gray-700">{rentedRooms}</div>
+            <p className="text-[11px] text-emerald-600 font-medium">Tỷ lệ lấp đầy 75%</p>
+          </div>
+
+          <div className="bg-white p-5 rounded-2xl border border-amber-200 shadow-xs space-y-2 bg-amber-50/30">
+            <div className="flex items-center justify-between text-xs text-amber-800 font-semibold">
+              <span>Đang chờ duyệt</span>
+              <Clock className="w-4 h-4 text-amber-600" />
+            </div>
+            <div className="text-2xl sm:text-3xl font-black text-amber-700">{pendingRooms}</div>
+            <p className="text-[11px] text-gray-500 font-medium">Xử lý trong vòng 24h</p>
+          </div>
+        </div>
+
+        {/* Room Management Section */}
+        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-6">
+          {/* Status Tabs */}
+          <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-gray-100">
+            <div className="flex items-center gap-2 overflow-x-auto">
+              {[
+                { key: 'all', label: `Tất cả (${myRooms.length})` },
+                { key: 'Còn trống', label: `Còn trống (${availableRooms})` },
+                { key: 'Đã cho thuê', label: `Đã cho thuê (${rentedRooms})` },
+                { key: 'Chờ duyệt', label: `Chờ duyệt (${pendingRooms})` },
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setSelectedStatusTab(tab.key as any)}
+                  className={`px-3.5 py-2 text-xs font-bold rounded-xl transition ${
+                    selectedStatusTab === tab.key
+                      ? 'bg-[#006d37] text-white shadow-xs'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            <Link to="/chu-tro/phong/tao-moi">
+              <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                Thêm phòng
+              </Button>
+            </Link>
+          </div>
+
+          {/* Rooms Table / Grid */}
+          <div className="space-y-4">
+            {filteredRooms.map((room) => (
+              <div
+                key={room.id}
+                className="p-4 rounded-2xl border border-gray-200 hover:border-[#006d37]/40 bg-white transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs"
+              >
+                <div className="flex items-center gap-4">
+                  <img
+                    src={room.images[0]}
+                    alt={room.title}
+                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0"
+                  />
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-sm text-gray-900">{room.roomNumber} - {room.title}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{room.buildingName} • {room.area} m²</p>
+                    <div className="text-xs font-bold text-[#006d37]">
+                      {formatPrice(room.price)}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status selector & Actions */}
+                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                  <select
+                    value={room.status}
+                    onChange={(e) => updateRoomStatus(room.id, e.target.value as any)}
+                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-semibold text-gray-800 focus:ring-2 focus:ring-[#006d37]"
+                  >
+                    <option value="Còn trống">Còn trống</option>
+                    <option value="Đã cho thuê">Đã cho thuê</option>
+                    <option value="Chờ duyệt">Chờ duyệt</option>
+                  </select>
+
+                  <Link to={`/chu-tro/phong/${room.id}`}>
+                    <Button variant="outline" size="sm">
+                      Chi tiết & Thống kê →
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+};
