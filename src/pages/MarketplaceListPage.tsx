@@ -81,29 +81,45 @@ export const MarketplaceListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-      {/* Header Banner */}
-      <div className="bg-linear-to-r from-amber-800 via-[#904d00] to-amber-700 rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-        <div className="space-y-2 max-w-xl">
-          <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-xs">
-            <ShoppingBag className="w-4 h-4" />
-            <span>Chợ Sinh Viên Sang Nhượng & Tặng Đồ</span>
-          </div>
-          <h1 className="text-2xl sm:text-4xl font-extrabold tracking-tight">
-            Chợ Đồ Cũ Sinh Viên - Tiết Kiệm Tối Đa
-          </h1>
-          <p className="text-amber-100 text-xs sm:text-sm leading-relaxed">
-            Mua bán bàn ghế, tủ lạnh, quạt, giáo trình giá rẻ từ các anh chị khóa trên hoặc nhận đồ tặng 0 đồng.
-          </p>
-        </div>
+      {/* Header Banner with Custom Marketplace Illustration Backdrop */}
+      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: `url('/images/marketplace-banner.jpg')` }}
+        />
+        {/* Sophisticated Dark Gradient & Frosted Overlay for Maximum Contrast & Readability */}
+        <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
+        <div className="absolute inset-0 bg-linear-to-t from-slate-950/70 via-transparent to-transparent" />
 
-        <Button
-          variant="secondary"
-          size="lg"
-          onClick={handlePostItem}
-          leftIcon={<PlusCircle className="w-5 h-5" />}
-        >
-          Đăng Món Đồ Mới
-        </Button>
+        {/* Content Container */}
+        <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+          <div className="space-y-3 max-w-xl">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/15 hover:bg-white/20 rounded-full text-xs font-bold text-amber-300 border border-amber-400/30 backdrop-blur-md shadow-xs">
+              <ShoppingBag className="w-4 h-4 text-amber-400" />
+              <span>Chợ Sinh Viên Sang Nhượng & Tặng Đồ 0đ</span>
+            </div>
+            <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+              Chợ Đồ Cũ Sinh Viên <br />
+              <span className="text-[#f59e0b]">Tiết Kiệm Tối Đa Chi Phí</span>
+            </h1>
+            <p className="text-gray-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-lg">
+              Mua bán bàn ghế, tủ lạnh, quạt điện, giáo trình giá rẻ từ các anh chị khóa trên hoặc nhận đồ tặng 0 đồng tại các cụm trọ sinh viên Hà Nội.
+            </p>
+          </div>
+
+          <div className="shrink-0 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={handlePostItem}
+              leftIcon={<PlusCircle className="w-5 h-5" />}
+              className="font-bold shadow-lg"
+            >
+              Đăng Món Đồ Mới
+            </Button>
+          </div>
+        </div>
       </div>
 
       {/* Category Pills & Pricing Filter */}
