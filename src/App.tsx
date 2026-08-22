@@ -8,52 +8,65 @@ import { useAppStore } from './store/useAppStore';
 import { Button } from './components/ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
 
-// Pages
-import { LandingPage } from './pages/LandingPage';
-import { SearchPage } from './pages/SearchPage';
-import { MapViewPage } from './pages/MapViewPage';
-import { RoomDetailPage } from './pages/RoomDetailPage';
-import { BuildingDetailPage } from './pages/BuildingDetailPage';
-import { RoommateListPage } from './pages/RoommateListPage';
-import { RoommateDetailPage } from './pages/RoommateDetailPage';
-import { MarketplaceListPage } from './pages/MarketplaceListPage';
-import { MarketplaceDetailPage } from './pages/MarketplaceDetailPage';
-import { TrustVerificationPage } from './pages/TrustVerificationPage';
+// Lazy Loaded Pages
+const LandingPage = React.lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
+const SearchPage = React.lazy(() => import('./pages/SearchPage').then((m) => ({ default: m.SearchPage })));
+const MapViewPage = React.lazy(() => import('./pages/MapViewPage').then((m) => ({ default: m.MapViewPage })));
+const RoomDetailPage = React.lazy(() => import('./pages/RoomDetailPage').then((m) => ({ default: m.RoomDetailPage })));
+const BuildingDetailPage = React.lazy(() => import('./pages/BuildingDetailPage').then((m) => ({ default: m.BuildingDetailPage })));
+const RoommateListPage = React.lazy(() => import('./pages/RoommateListPage').then((m) => ({ default: m.RoommateListPage })));
+const RoommateDetailPage = React.lazy(() => import('./pages/RoommateDetailPage').then((m) => ({ default: m.RoommateDetailPage })));
+const MarketplaceListPage = React.lazy(() => import('./pages/MarketplaceListPage').then((m) => ({ default: m.MarketplaceListPage })));
+const MarketplaceDetailPage = React.lazy(() => import('./pages/MarketplaceDetailPage').then((m) => ({ default: m.MarketplaceDetailPage })));
+const TrustVerificationPage = React.lazy(() => import('./pages/TrustVerificationPage').then((m) => ({ default: m.TrustVerificationPage })));
 
 // Auth Pages
-import { LoginPage } from './pages/LoginPage';
-import { RegisterPage } from './pages/RegisterPage';
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
-import { OtpVerificationPage } from './pages/OtpVerificationPage';
+const LoginPage = React.lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
+const RegisterPage = React.lazy(() => import('./pages/RegisterPage').then((m) => ({ default: m.RegisterPage })));
+const ForgotPasswordPage = React.lazy(() => import('./pages/ForgotPasswordPage').then((m) => ({ default: m.ForgotPasswordPage })));
+const OtpVerificationPage = React.lazy(() => import('./pages/OtpVerificationPage').then((m) => ({ default: m.OtpVerificationPage })));
 
 // Renter Pages & Owner Upgrade
-import { RenterOnboardingPage } from './pages/RenterOnboardingPage';
-import { RenterProfilePage } from './pages/RenterProfilePage';
-import { SavedRoomsPage } from './pages/SavedRoomsPage';
-import { NotificationsPage } from './pages/NotificationsPage';
-import { ChatPage } from './pages/ChatPage';
-import { BookingPage } from './pages/BookingPage';
-import { OwnerUpgradePage } from './pages/OwnerUpgradePage';
-import { OwnerApplicationStatusPage } from './pages/OwnerApplicationStatusPage';
+const RenterOnboardingPage = React.lazy(() => import('./pages/RenterOnboardingPage').then((m) => ({ default: m.RenterOnboardingPage })));
+const RenterProfilePage = React.lazy(() => import('./pages/RenterProfilePage').then((m) => ({ default: m.RenterProfilePage })));
+const SavedRoomsPage = React.lazy(() => import('./pages/SavedRoomsPage').then((m) => ({ default: m.SavedRoomsPage })));
+const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
+const ChatPage = React.lazy(() => import('./pages/ChatPage').then((m) => ({ default: m.ChatPage })));
+const BookingPage = React.lazy(() => import('./pages/BookingPage').then((m) => ({ default: m.BookingPage })));
+const OwnerUpgradePage = React.lazy(() => import('./pages/OwnerUpgradePage').then((m) => ({ default: m.OwnerUpgradePage })));
+const OwnerApplicationStatusPage = React.lazy(() => import('./pages/OwnerApplicationStatusPage').then((m) => ({ default: m.OwnerApplicationStatusPage })));
 
 // Owner Pages
-import { OwnerOnboardingPage } from './pages/OwnerOnboardingPage';
-import { OwnerDashboardPage } from './pages/OwnerDashboardPage';
-import { OwnerBuildingListPage } from './pages/OwnerBuildingListPage';
-import { OwnerCreateBuildingPage } from './pages/OwnerCreateBuildingPage';
-import { OwnerCreateRoomPage } from './pages/OwnerCreateRoomPage';
-import { OwnerRoomDetailPage } from './pages/OwnerRoomDetailPage';
-import { OwnerProfilePage } from './pages/OwnerProfilePage';
+const OwnerOnboardingPage = React.lazy(() => import('./pages/OwnerOnboardingPage').then((m) => ({ default: m.OwnerOnboardingPage })));
+const OwnerDashboardPage = React.lazy(() => import('./pages/OwnerDashboardPage').then((m) => ({ default: m.OwnerDashboardPage })));
+const OwnerBuildingListPage = React.lazy(() => import('./pages/OwnerBuildingListPage').then((m) => ({ default: m.OwnerBuildingListPage })));
+const OwnerCreateBuildingPage = React.lazy(() => import('./pages/OwnerCreateBuildingPage').then((m) => ({ default: m.OwnerCreateBuildingPage })));
+const OwnerCreateRoomPage = React.lazy(() => import('./pages/OwnerCreateRoomPage').then((m) => ({ default: m.OwnerCreateRoomPage })));
+const OwnerRoomDetailPage = React.lazy(() => import('./pages/OwnerRoomDetailPage').then((m) => ({ default: m.OwnerRoomDetailPage })));
+const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
 
 // Admin Pages
-import { AdminModerationPage } from './pages/AdminModerationPage';
-import { AdminOwnerApplicationsPage } from './pages/AdminOwnerApplicationsPage';
-import { AdminUsersPage } from './pages/AdminUsersPage';
-import { AdminAnalyticsPage } from './pages/AdminAnalyticsPage';
+const AdminModerationPage = React.lazy(() => import('./pages/AdminModerationPage').then((m) => ({ default: m.AdminModerationPage })));
+const AdminOwnerApplicationsPage = React.lazy(() => import('./pages/AdminOwnerApplicationsPage').then((m) => ({ default: m.AdminOwnerApplicationsPage })));
+const AdminUsersPage = React.lazy(() => import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
+const AdminAnalyticsPage = React.lazy(() => import('./pages/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })));
 
 // QA & 404
-import { DebugPage } from './pages/DebugPage';
-import { NotFoundPage } from './pages/NotFoundPage';
+const DebugPage = React.lazy(() => import('./pages/DebugPage').then((m) => ({ default: m.DebugPage })));
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage').then((m) => ({ default: m.NotFoundPage })));
+
+// Page Loading Skeleton Fallback
+const PageSkeleton = () => (
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 space-y-6 animate-pulse">
+    <div className="h-8 bg-gray-200 rounded-2xl w-1/3" />
+    <div className="h-4 bg-gray-200 rounded-xl w-1/2" />
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 pt-6">
+      <div className="h-72 bg-gray-200/70 rounded-3xl" />
+      <div className="h-72 bg-gray-200/70 rounded-3xl" />
+      <div className="h-72 bg-gray-200/70 rounded-3xl" />
+    </div>
+  </div>
+);
 
 // Scroll to top on route change
 const ScrollToTop = () => {
@@ -124,9 +137,10 @@ export const App: React.FC = () => {
         <Navbar />
 
         <div className="flex-1">
-          <Routes>
-            {/* Public Core Routes */}
-            <Route path="/" element={<LandingPage />} />
+          <React.Suspense fallback={<PageSkeleton />}>
+            <Routes>
+              {/* Public Core Routes */}
+              <Route path="/" element={<LandingPage />} />
             <Route path="/tim-kiem" element={<SearchPage />} />
             <Route path="/tim-phong" element={<SearchPage />} />
             <Route path="/ban-do" element={<MapViewPage />} />
@@ -309,7 +323,8 @@ export const App: React.FC = () => {
             <Route path="/404" element={<NotFoundPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Routes>
-        </div>
+        </React.Suspense>
+      </div>
 
         <Footer />
         <MobileBottomNav />

@@ -11,6 +11,7 @@ import { initialReviews } from '../data/mockData';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { ImageWithFallback } from '../components/ui/ImageWithFallback';
 import { MiniRoomMap } from '../components/map/TroXinhMap';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   ShieldCheck,
   Heart,
@@ -102,6 +103,14 @@ export const RoomDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title={`${room.title} - ${formatPrice(room.price)} | TroXinh`}
+        description={`${room.area}m² tại ${room.district}, ${room.address}. Gần ${room.nearestSchool}. Đầy đủ tiện nghi: ${room.amenities.slice(0, 4).join(', ')}. Liên hệ ngay để đặt lịch xem phòng.`}
+        image={room.images[0]}
+        url={`/phong/${room.id}`}
+        type="article"
+      />
+
       {/* Breadcrumb Header */}
       <div className="flex items-center gap-2 text-xs text-gray-500 overflow-x-auto">
         <Link to="/" className="hover:text-[#006d37]">Trang chủ</Link>

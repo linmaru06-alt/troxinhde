@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { GuestPromptBanner } from '../components/search/GuestPromptBanner';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   Search,
   Filter,
@@ -99,6 +100,11 @@ export const SearchPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      <SEOHead
+        title={selectedDistrict ? `Tìm Phòng Trọ ${selectedDistrict} | TroXinh Hà Nội` : `Tìm Phòng Trọ Hà Nội (${filteredRooms.length} phòng) | TroXinh`}
+        description={`Xem ${filteredRooms.length} phòng trọ đã kiểm duyệt tại Hà Nội ${selectedDistrict ? `khu vực ${selectedDistrict}` : ''}. Lọc theo khoảng cách trường học, mức giá, tiện nghi.`}
+        url={`/tim-kiem${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+      />
       {/* Top Search Header & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>

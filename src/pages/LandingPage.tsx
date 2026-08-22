@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { RoomCard, RoommateCard, MarketplaceCard } from '../components/ui/Cards';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   Search,
   MapPin,
@@ -64,6 +65,12 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="space-y-16 sm:space-y-24 pb-12">
+      <SEOHead
+        title="TroXinh - Tìm Phòng Trọ Sinh Viên Đã Kiểm Duyệt tại Hà Nội"
+        description="Nền tảng tìm phòng trọ uy tín dành cho sinh viên Hà Nội. 100% phòng đã kiểm duyệt PCCC & an ninh, giá minh bạch, kết nối trực tiếp với chủ trọ."
+        url="/"
+      />
+
       {/* 1. HERO SECTION */}
       <section className="relative overflow-hidden pt-8 pb-16 md:pt-16 md:pb-24 bg-linear-to-b from-emerald-50/80 via-[#f9f9f9] to-[#f9f9f9]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
