@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RoomCard } from '../components/ui/Cards';
+import { ImageWithFallback } from '../components/ui/ImageWithFallback';
 import {
   Building2,
   MapPin,
@@ -50,9 +51,12 @@ export const BuildingDetailPage: React.FC = () => {
 
       {/* Hero Banner with Building Image */}
       <div className="relative aspect-21/9 w-full overflow-hidden rounded-3xl bg-gray-900 shadow-xl">
-        <img
+        <ImageWithFallback
           src={building.images[0]}
           alt={building.name}
+          preset="hero"
+          loading="eager"
+          fallback="building"
           className="w-full h-full object-cover opacity-80"
         />
         <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent" />

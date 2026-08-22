@@ -8,6 +8,7 @@ import { Badge } from '../components/ui/Badge';
 import { RoomCard, formatPrice } from '../components/ui/Cards';
 import { Room } from '../types';
 import { PlusCircle, Eye, Upload, ShieldCheck, Home } from 'lucide-react';
+import { ImageUploader } from '../components/ui/ImageUploader';
 
 export const OwnerCreateRoomPage: React.FC = () => {
   const navigate = useNavigate();
@@ -20,13 +21,16 @@ export const OwnerCreateRoomPage: React.FC = () => {
   const [deposit, setDeposit] = useState<number>(3800000);
   const [area, setArea] = useState<number>(24);
   const [type, setType] = useState<Room['type']>('Studio');
+  const [images, setImages] = useState<string[]>([
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
+  ]);
   const [description, setDescription] = useState<string>(
     'Phòng mới tinh có máy lạnh, ban công riêng đón gió, giờ giấc tự do không chung chủ.'
   );
 
   const selectedBuilding = buildings.find((b) => b.id === buildingId) || buildings[0];
 
-  // Live preview mockup
+  // Live preview mockup (Real-time updates with uploaded images)
   const previewRoom: Room = {
     id: 'preview_room',
     buildingId,
@@ -46,7 +50,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
     status: 'Chờ duyệt',
     verified: false,
     amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
-    images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+    images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     distanceToSchoolKm: 0.5,
     nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
     address: selectedBuilding?.address || 'Ngõ 165 Cầu Giấy, P. Dịch Vọng',
@@ -77,7 +81,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
       status: 'Chờ duyệt',
       verified: false,
       amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
-      images: ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
       distanceToSchoolKm: 0.5,
       nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
       address: selectedBuilding.address,
@@ -181,6 +185,18 @@ export const OwnerCreateRoomPage: React.FC = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-[#006d37]"
+                />
+              </div>
+
+              {/* Real Cloudinary Image Uploader */}
+              <div className="pt-2">
+                <ImageUploader
+                  folder="troxinh/rooms"
+                  maxFiles={10}
+                  label="Ảnh phòng trọ thực tế"
+                  helperText="Tối đa 10 ảnh. Ảnh đầu tiên sẽ tự động làm ảnh bìa hiển thị trên thẻ xem trước"
+                  onComplete={(urls) => setImages(urls)}
+                  existingUrls={images}
                 />
               </div>
 

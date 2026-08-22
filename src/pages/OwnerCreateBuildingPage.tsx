@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Check,
 } from 'lucide-react';
+import { ImageUploader } from '../components/ui/ImageUploader';
 
 export const OwnerCreateBuildingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +29,10 @@ export const OwnerCreateBuildingPage: React.FC = () => {
   const [description, setDescription] = useState<string>(
     'Tòa nhà mới xây 100%, trang bị đầy đủ PCCC và camera an ninh 24/7. Giờ giấc tự do.'
   );
+  const [images, setImages] = useState<string[]>([
+    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
+    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
+  ]);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     'Wifi tốc độ cao',
     'Bảo vệ 24/7',
@@ -67,10 +72,7 @@ export const OwnerCreateBuildingPage: React.FC = () => {
       totalRooms,
       availableRooms: totalRooms,
       amenities: selectedAmenities,
-      images: [
-        'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
-        'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
-      ],
+      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
       verifiedBadge: false,
       rating: 5.0,
       reviewCount: 0,
@@ -167,6 +169,18 @@ export const OwnerCreateBuildingPage: React.FC = () => {
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   className="w-full rounded-xl border border-gray-300 p-3 text-sm focus:ring-2 focus:ring-[#006d37]"
+                />
+              </div>
+
+              {/* Real Cloudinary Image Uploader */}
+              <div className="pt-2">
+                <ImageUploader
+                  folder="troxinh/buildings"
+                  maxFiles={5}
+                  label="Ảnh tòa nhà / khu trọ"
+                  helperText="Ảnh đầu tiên sẽ hiển thị làm ảnh bìa tòa nhà"
+                  onComplete={(urls) => setImages(urls)}
+                  existingUrls={images}
                 />
               </div>
 

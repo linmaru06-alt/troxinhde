@@ -8,6 +8,8 @@ import { ReportModal } from '../components/modals/ReportModal';
 import { LoginPromptModal } from '../components/modals/LoginPromptModal';
 import { GuestViewingBar } from '../components/rooms/GuestViewingBar';
 import { initialReviews } from '../data/mockData';
+import { ImageUploader } from '../components/ui/ImageUploader';
+import { ImageWithFallback } from '../components/ui/ImageWithFallback';
 import {
   ShieldCheck,
   Heart,
@@ -42,6 +44,7 @@ export const RoomDetailPage: React.FC = () => {
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [newReviewText, setNewReviewText] = useState<string>('');
   const [newReviewStars, setNewReviewStars] = useState<number>(5);
+  const [reviewImages, setReviewImages] = useState<string[]>([]);
 
   const room = rooms.find((r) => r.id === id) || rooms[0];
   const building = buildings.find((b) => b.id === room.buildingId) || buildings[0];
@@ -116,9 +119,12 @@ export const RoomDetailPage: React.FC = () => {
           {/* 1. Image Gallery */}
           <div className="space-y-3">
             <div className="relative aspect-16/10 w-full overflow-hidden rounded-3xl bg-gray-100 shadow-md">
-              <img
+              <ImageWithFallback
                 src={room.images[activeImageIndex] || room.images[0]}
                 alt={room.title}
+                preset="gallery"
+                loading="eager"
+                fallback="room"
                 className="w-full h-full object-cover"
               />
               <div className="absolute top-4 left-4 flex gap-2">
@@ -164,7 +170,7 @@ export const RoomDetailPage: React.FC = () => {
                       activeImageIndex === idx ? 'border-[#006d37] scale-105' : 'border-transparent opacity-70 hover:opacity-100'
                     }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <ImageWithFallback src={img} alt="" preset="thumbnail" fallback="room" className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -493,6 +499,18 @@ export const RoomDetailPage: React.FC = () => {
                   onChange={(e) => setNewReviewText(e.target.value)}
                   placeholder="Chia sẻ cảm nhận chân thật về phòng, chủ nhà, an ninh xung quanh..."
                   className="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
+                />
+              </div>
+
+              {/* Review Images Cloudinary Uploader */}
+              <div>
+                <ImageUploader
+                  folder="troxinh/reviews"
+                  maxFiles={3}
+                  label="Thêm ảnh thực tế (tùy chọn)"
+                  helperText="Tối đa 3 ảnh. Giúp người thuê sau tin tưởng hơn"
+                  onComplete={(urls) => setReviewImages(urls)}
+                  existingUrls={reviewImages}
                 />
               </div>
 

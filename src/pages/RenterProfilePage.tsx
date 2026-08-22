@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RolePermissionSection } from '../components/profile/RolePermissionSection';
+import { AvatarUploader } from '../components/ui/AvatarUploader';
 import {
   User,
   Phone,
@@ -22,7 +23,7 @@ import {
 } from 'lucide-react';
 
 export const RenterProfilePage: React.FC = () => {
-  const { currentUser, savedRoomIds, bookings, logout } = useAppStore();
+  const { currentUser, setCurrentUser, savedRoomIds, bookings, logout } = useAppStore();
 
   if (!currentUser) {
     return (
@@ -38,10 +39,15 @@ export const RenterProfilePage: React.FC = () => {
       {/* Profile Header Card */}
       <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 pb-6 border-b border-gray-100 text-center sm:text-left">
-          <img
-            src={currentUser.avatarUrl}
-            alt={currentUser.name}
-            className="w-24 h-24 rounded-full object-cover ring-4 ring-emerald-100 shadow-md"
+          <AvatarUploader
+            currentUrl={currentUser.avatarUrl}
+            size="lg"
+            folder="troxinh/avatars"
+            onComplete={(urls) => {
+              if (urls[0] && currentUser) {
+                setCurrentUser({ ...currentUser, avatarUrl: urls[0] });
+              }
+            }}
           />
           <div className="space-y-1.5 flex-1">
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">

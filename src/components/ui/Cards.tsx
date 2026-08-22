@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Badge } from './Badge';
+import { ImageWithFallback } from './ImageWithFallback';
 import { Heart, MapPin, Sparkles, Navigation, CheckCircle } from 'lucide-react';
 
 export const formatPrice = (price: number): string => {
@@ -29,10 +30,12 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
-          <img
+          <ImageWithFallback
             src={room.images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'}
             alt={room.title}
+            preset="thumbnail"
             loading="lazy"
+            fallback="room"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </Link>
@@ -112,10 +115,12 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
       className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
     >
       <div className="relative aspect-16/10 w-full overflow-hidden bg-gray-100">
-        <img
+        <ImageWithFallback
           src={building.images[0]}
           alt={building.name}
+          preset="hero"
           loading="lazy"
+          fallback="building"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">
@@ -162,11 +167,16 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
       <div>
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
-            <img
-              src={post.userAvatar}
-              alt={post.userName}
-              className="w-12 h-12 rounded-full object-cover border-2 border-emerald-100"
-            />
+            <div className="w-12 h-12 rounded-full overflow-hidden border-2 border-emerald-100 shrink-0">
+              <ImageWithFallback
+                src={post.userAvatar}
+                alt={post.userName}
+                preset="avatar"
+                loading="lazy"
+                fallback="avatar"
+                className="w-full h-full object-cover"
+              />
+            </div>
             <div>
               <div className="flex items-center gap-1.5">
                 <h4 className="font-bold text-gray-900">{post.userName}</h4>
@@ -230,10 +240,12 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
       className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
     >
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
-        <img
+        <ImageWithFallback
           src={item.images[0]}
           alt={item.name}
+          preset="market"
           loading="lazy"
+          fallback="item"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <div className="absolute top-3 left-3">
