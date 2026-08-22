@@ -38,7 +38,13 @@ export const LoginPage: React.FC = () => {
       if (nextUrl) {
         navigate(nextUrl);
       } else {
-        navigate('/tim-kiem');
+        if (phone === '0912345678') {
+          navigate('/chu-tro');
+        } else if (phone === '1900888899') {
+          navigate('/admin');
+        } else {
+          navigate('/tim-kiem');
+        }
       }
     }, 350);
   };
