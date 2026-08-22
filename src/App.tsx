@@ -75,12 +75,11 @@ const PageSkeleton = () => (
   </div>
 );
 
-// Scroll to top on route change
-const ScrollToTop = () => {
-  const { pathname } = useLocation();
-  React.useEffect(() => {
-    window.scrollTo(0, 0);
-  }, [pathname]);
+import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
+
+// Route change handler: auto-closes panels/dropdowns/sheets & resets scroll
+const RouteNavigationHandler = () => {
+  useCloseOnNavigate();
   return null;
 };
 
@@ -139,7 +138,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <ScrollToTop />
+      <RouteNavigationHandler />
       <div className="flex flex-col min-h-screen">
         <Navbar />
 
