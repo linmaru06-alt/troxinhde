@@ -89,7 +89,7 @@ export const RoomDetailPage: React.FC = () => {
       roomId: room.id,
       userId: currentUser?.id || 'guest',
       userName: currentUser?.name || 'Khách thuê',
-      userAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
       stars: newReviewStars,
       criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
       text: newReviewText.trim(),

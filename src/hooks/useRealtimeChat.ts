@@ -48,7 +48,7 @@ export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
             threadId: newRow.thread_id || threadId,
             senderId: newRow.sender_id,
             senderName: newRow.sender_name || 'Người dùng',
-            senderAvatar: newRow.sender_avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+            senderAvatar: newRow.sender_avatar || '/images/user-avatar.jpg',
             text: newRow.text || newRow.content || '',
             createdAt: newRow.created_at || new Date().toISOString(),
             status: 'sent',

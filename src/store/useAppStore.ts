@@ -362,7 +362,7 @@ export const useAppStore = create<AppState>()(
           name: 'Người Dùng Mới',
           phone,
           role: targetRole,
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          avatarUrl: '/images/user-avatar.jpg',
           verified: true,
           ownerApplicationStatus: targetRole === 'owner' ? 'approved' : 'none',
           createdAt: new Date().toISOString(),
@@ -378,7 +378,7 @@ export const useAppStore = create<AppState>()(
           name,
           phone,
           role: 'user', // Always standard user after registration
-          avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          avatarUrl: '/images/user-avatar.jpg',
           verified: true,
           ownerApplicationStatus: 'none',
           createdAt: new Date().toISOString(),
@@ -705,7 +705,7 @@ export const useAppStore = create<AppState>()(
           threadId,
           senderId: currentUser?.id || 'user_guest',
           senderName: currentUser?.name || 'Khách',
-          senderAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+          senderAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
           text,
           createdAt: new Date().toISOString(),
           status: 'sent',
@@ -742,7 +742,7 @@ export const useAppStore = create<AppState>()(
             {
               id: currentUser?.id || 'guest',
               name: currentUser?.name || 'Tôi',
-              avatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+              avatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
               role: currentUser?.role || 'user',
             },
             {

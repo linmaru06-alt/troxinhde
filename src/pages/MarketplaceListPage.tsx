@@ -60,7 +60,7 @@ export const MarketplaceListPage: React.FC = () => {
       userId: currentUser?.id || 'user_1',
       userName: currentUser?.name || 'Người dùng Trọ Xinh',
       userPhone: currentUser?.phone || '0987654321',
-      userAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
+      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
       name: title,
       price: pricingType === 'Miễn phí' ? 0 : Number(price),
       pricingType,
