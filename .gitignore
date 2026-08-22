@@ -2,8 +2,12 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.*
+!.env.example
 .vercel
-.env.local
-.env.*.local
+.stitch-mcp
+.vscode
 .DS_Store
 Thumbs.db
+
