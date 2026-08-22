@@ -23,8 +23,8 @@ export const OwnerUpgradePage: React.FC = () => {
   const { currentUser, submitOwnerApplication, showToast } = useAppStore();
 
   const [buildingName, setBuildingName] = useState<string>('Nhà Trọ Sinh Viên Xanh');
-  const [address, setAddress] = useState<string>('480/12 Điện Biên Phủ, Phường 25');
-  const [district, setDistrict] = useState<string>('Quận Bình Thạnh');
+  const [address, setAddress] = useState<string>('Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng');
+  const [district, setDistrict] = useState<string>('Quận Cầu Giấy');
   const [totalRooms, setTotalRooms] = useState<number>(12);
   const [cccdNumber, setCccdNumber] = useState<string>('079098001234');
   const [legalDocsNote, setLegalDocsNote] = useState<string>(
@@ -203,7 +203,7 @@ export const OwnerUpgradePage: React.FC = () => {
               required
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Ví dụ: 480/12 Điện Biên Phủ, P.25"
+              placeholder="Ví dụ: Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng"
             />
             <div className="space-y-1.5 text-left">
               <label className="block text-sm font-medium text-gray-700">Khu vực / Quận</label>
@@ -212,11 +212,13 @@ export const OwnerUpgradePage: React.FC = () => {
                 onChange={(e) => setDistrict(e.target.value)}
                 className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
               >
-                <option value="Quận Bình Thạnh">Quận Bình Thạnh</option>
-                <option value="Quận Tân Bình">Quận Tân Bình</option>
-                <option value="TP. Thủ Đức">TP. Thủ Đức</option>
-                <option value="Quận 10">Quận 10</option>
-                <option value="Quận Gò Vấp">Quận Gò Vấp</option>
+                <option value="Quận Cầu Giấy">Quận Cầu Giấy</option>
+                <option value="Quận Đống Đa">Quận Đống Đa</option>
+                <option value="Quận Hai Bà Trưng">Quận Hai Bà Trưng</option>
+                <option value="Quận Thanh Xuân">Quận Thanh Xuân</option>
+                <option value="Quận Nam Từ Liêm">Quận Nam Từ Liêm</option>
+                <option value="Quận Hà Đông">Quận Hà Đông</option>
+                <option value="Quận Ba Đình">Quận Ba Đình</option>
               </select>
             </div>
           </div>

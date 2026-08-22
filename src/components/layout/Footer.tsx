@@ -29,7 +29,7 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Khám Phá</h4>
             <ul className="space-y-2 text-xs">
               <li>
-                <Link to="/tim-kiem" className="hover:text-[#006d37] transition">Tìm phòng trọ TP.HCM</Link>
+                <Link to="/tim-kiem" className="hover:text-[#006d37] transition">Tìm phòng trọ Hà Nội</Link>
               </li>
               <li>
                 <Link to="/ban-do" className="hover:text-[#006d37] transition">Bản đồ nhà trọ theo giá</Link>
@@ -79,7 +79,7 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mt-0.5" />
-                <span>Tòa nhà Innovation Hub, Quận 1, TP. Hồ Chí Minh</span>
+                <span>Tòa nhà Innovation Hub, Quận Cầu Giấy, TP. Hà Nội</span>
               </div>
             </div>
           </div>

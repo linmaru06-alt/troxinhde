@@ -27,7 +27,15 @@ export const LandingPage: React.FC = () => {
   const [selectedPrice, setSelectedPrice] = useState<string>('');
   const [selectedType, setSelectedType] = useState<string>('');
 
-  const districts = ['Quận Bình Thạnh', 'Quận Tân Bình', 'TP. Thủ Đức', 'Quận 10', 'Quận Gò Vấp', 'Quận 1'];
+  const districts = [
+    'Quận Cầu Giấy',
+    'Quận Đống Đa',
+    'Quận Hai Bà Trưng',
+    'Quận Thanh Xuân',
+    'Quận Nam Từ Liêm',
+    'Quận Hà Đông',
+    'Quận Ba Đình',
+  ];
   const priceRanges = [
     { label: 'Dưới 2 triệu', value: '0-2000000' },
     { label: '2 - 3.5 triệu', value: '2000000-3500000' },
@@ -63,7 +71,7 @@ export const LandingPage: React.FC = () => {
             {/* Pill Badge */}
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-[#006d37] border border-emerald-200 text-xs font-bold shadow-xs">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Nền tảng phòng trọ đã kiểm duyệt 100% tại TP.HCM</span>
+              <span>Nền tảng phòng trọ đã kiểm duyệt 100% tại Hà Nội</span>
             </div>
 
             {/* Headline */}
@@ -94,7 +102,7 @@ export const LandingPage: React.FC = () => {
                   onChange={(e) => setSelectedDistrict(e.target.value)}
                   className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
                 >
-                  <option value="">Tất cả khu vực (TP.HCM)</option>
+                  <option value="">Tất cả khu vực (Hà Nội)</option>
                   {districts.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
@@ -142,14 +150,14 @@ export const LandingPage: React.FC = () => {
               <div className="sm:col-span-3 flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
                 <div className="flex items-center gap-2 text-xs text-gray-500 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
                   <span className="font-semibold text-gray-700 shrink-0">Tìm nhanh:</span>
-                  {['Gần HUTECH', 'Gần Bách Khoa', 'Làng Đại Học', 'Dưới 3tr'].map((tag) => (
+                  {['Gần ĐHQG', 'Gần Bách Khoa', 'Khu Chùa Láng', 'Dưới 3tr'].map((tag) => (
                     <button
                       key={tag}
                       type="button"
                       onClick={() => {
-                        if (tag === 'Gần HUTECH' || tag === 'Bình Thạnh') setSelectedDistrict('Quận Bình Thạnh');
-                        if (tag === 'Gần Bách Khoa') setSelectedDistrict('Quận Tân Bình');
-                        if (tag === 'Làng Đại Học') setSelectedDistrict('TP. Thủ Đức');
+                        if (tag === 'Gần ĐHQG' || tag === 'Cầu Giấy') setSelectedDistrict('Quận Cầu Giấy');
+                        if (tag === 'Gần Bách Khoa') setSelectedDistrict('Quận Hai Bà Trưng');
+                        if (tag === 'Khu Chùa Láng') setSelectedDistrict('Quận Đống Đa');
                         if (tag === 'Dưới 3tr') setSelectedPrice('0-3500000');
                       }}
                       className="px-2.5 py-1 bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-lg transition shrink-0"

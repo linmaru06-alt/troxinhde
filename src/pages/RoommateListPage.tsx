@@ -48,7 +48,7 @@ export const RoommateListPage: React.FC = () => {
             Tìm Bạn Cùng Phòng Hợp Gu & San Sẻ Chi Phí
           </h1>
           <p className="text-emerald-100 text-xs sm:text-sm leading-relaxed">
-            Kết nối với sinh viên và người đi làm văn minh, có cùng thói quen sinh hoạt và mức ngân sách tại TP.HCM.
+            Kết nối với sinh viên và người đi làm văn minh, có cùng thói quen sinh hoạt và mức ngân sách tại Hà Nội.
           </p>
         </div>
 
@@ -85,9 +85,13 @@ export const RoommateListPage: React.FC = () => {
             className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-2 text-xs font-medium text-gray-800"
           >
             <option value="">Tất cả khu vực</option>
-            <option value="Quận Bình Thạnh">Quận Bình Thạnh</option>
-            <option value="Quận Tân Bình">Quận Tân Bình</option>
-            <option value="TP. Thủ Đức">TP. Thủ Đức</option>
+            <option value="Quận Cầu Giấy">Quận Cầu Giấy</option>
+            <option value="Quận Đống Đa">Quận Đống Đa</option>
+            <option value="Quận Hai Bà Trưng">Quận Hai Bà Trưng</option>
+            <option value="Quận Thanh Xuân">Quận Thanh Xuân</option>
+            <option value="Quận Nam Từ Liêm">Quận Nam Từ Liêm</option>
+            <option value="Quận Hà Đông">Quận Hà Đông</option>
+            <option value="Quận Ba Đình">Quận Ba Đình</option>
           </select>
         </div>
 

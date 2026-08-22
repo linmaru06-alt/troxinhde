@@ -54,7 +54,15 @@ export const SearchPage: React.FC = () => {
     setSearchParams(new URLSearchParams());
   };
 
-  const districts = ['Quận Bình Thạnh', 'Quận Tân Bình', 'TP. Thủ Đức', 'Quận 10', 'Quận Gò Vấp', 'Quận 1'];
+  const districts = [
+    'Quận Cầu Giấy',
+    'Quận Đống Đa',
+    'Quận Hai Bà Trưng',
+    'Quận Thanh Xuân',
+    'Quận Nam Từ Liêm',
+    'Quận Hà Đông',
+    'Quận Ba Đình',
+  ];
   const roomTypes = ['Phòng đơn', 'Studio', 'Phòng ghép', 'Căn hộ mini'];
   const amenitiesList = ['Máy lạnh', 'Tủ lạnh', 'Gác lửng', 'Ban công', 'Bếp', 'Wifi', 'Bảo vệ 24/7'];
 
@@ -98,7 +106,7 @@ export const SearchPage: React.FC = () => {
             Danh Sách Phòng Trọ Cho Thuê
           </h1>
           <p className="text-xs sm:text-sm text-gray-500 mt-1">
-            Hiển thị <span className="font-bold text-[#006d37]">{filteredRooms.length}</span> phòng trọ đã qua kiểm duyệt thực tế tại TP.HCM
+            Hiển thị <span className="font-bold text-[#006d37]">{filteredRooms.length}</span> phòng trọ đã qua kiểm duyệt thực tế tại Hà Nội
           </p>
         </div>
 

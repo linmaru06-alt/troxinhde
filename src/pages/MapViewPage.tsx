@@ -38,7 +38,7 @@ export const MapViewPage: React.FC = () => {
           </Link>
           <div>
             <h2 className="text-sm font-bold text-gray-900 leading-tight">Bản Đồ Nhà Trọ Đã Kiểm Duyệt</h2>
-            <p className="text-[11px] text-gray-500">TP. Hồ Chí Minh ({rooms.length} phòng)</p>
+            <p className="text-[11px] text-gray-500">Khu vực Hà Nội ({rooms.length} phòng)</p>
           </div>
         </div>
 
@@ -111,18 +111,18 @@ export const MapViewPage: React.FC = () => {
             <path d="M200,-50 Q400,300 350,800" fill="none" stroke="#cbd5e1" strokeWidth="18" />
             <path d="M100,500 Q500,450 900,900" fill="none" stroke="#cbd5e1" strokeWidth="16" />
             <circle cx="450" cy="350" r="140" fill="#d1fae5" opacity="0.4" />
-            <text x="400" y="350" fill="#006d37" fontSize="13" fontWeight="bold">Sông Sài Gòn</text>
+            <text x="400" y="350" fill="#006d37" fontSize="13" fontWeight="bold">Sông Hồng</text>
           </svg>
 
           {/* University Landmark Badges on Map */}
           <div className="absolute top-[20%] left-[25%] bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-700 shadow-md border border-gray-200 pointer-events-none flex items-center gap-1">
-            🎓 ĐH Bách Khoa TP.HCM
+            🎓 ĐH Quốc Gia Hà Nội
           </div>
           <div className="absolute top-[40%] left-[60%] bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-700 shadow-md border border-gray-200 pointer-events-none flex items-center gap-1">
-            🎓 ĐH HUTECH
+            🎓 ĐH Bách Khoa Hà Nội
           </div>
           <div className="absolute top-[65%] left-[70%] bg-white/90 backdrop-blur-xs px-2.5 py-1 rounded-full text-[10px] font-bold text-gray-700 shadow-md border border-gray-200 pointer-events-none flex items-center gap-1">
-            🎓 Làng Đại Học Quốc Gia
+            🎓 ĐH Ngoại Thương Hà Nội
           </div>
 
           {/* Map Price Pins */}

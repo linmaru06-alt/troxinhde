@@ -52,8 +52,8 @@ export const AdminAnalyticsPage: React.FC = () => {
           <div className="space-y-3 text-xs">
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span>Quận Bình Thạnh</span>
-                <span>45% (Gần HUTECH, FTU)</span>
+                <span>Quận Cầu Giấy</span>
+                <span>45% (Gần ĐHQG, Sư Phạm, Báo Chí)</span>
               </div>
               <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full bg-[#006d37] rounded-full w-[45%]" />
@@ -62,8 +62,8 @@ export const AdminAnalyticsPage: React.FC = () => {
 
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span>TP. Thủ Đức</span>
-                <span>30% (Làng Đại Học QG)</span>
+                <span>Quận Đống Đa</span>
+                <span>30% (Khu Chùa Láng, FTU, Ngoại Giao)</span>
               </div>
               <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full bg-[#27ae60] rounded-full w-[30%]" />
@@ -72,8 +72,8 @@ export const AdminAnalyticsPage: React.FC = () => {
 
             <div>
               <div className="flex justify-between font-semibold mb-1">
-                <span>Quận Tân Bình</span>
-                <span>25% (Gần ĐH Bách Khoa)</span>
+                <span>Quận Hai Bà Trưng</span>
+                <span>25% (Cụm Bách - Kinh - Xây)</span>
               </div>
               <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                 <div className="h-full bg-[#35a1e0] rounded-full w-[25%]" />
