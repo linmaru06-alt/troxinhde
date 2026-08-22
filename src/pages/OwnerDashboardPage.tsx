@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -23,6 +24,9 @@ import {
 export const OwnerDashboardPage: React.FC = () => {
   const { rooms, buildings, currentUser, updateRoomStatus, showToast } = useAppStore();
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
+
+  // Supabase Real-time Room Status Subscription
+  useRealtimeRoomStatus();
 
   const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
 

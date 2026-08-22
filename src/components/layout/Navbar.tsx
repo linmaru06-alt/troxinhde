@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import {
@@ -24,11 +25,10 @@ import {
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, savedRoomIds, notifications, threads, logout } = useAppStore();
+  const { currentUser, savedRoomIds, threads, logout } = useAppStore();
+  const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-
-  const unreadNotifs = notifications.filter((n) => !n.read).length;
   const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
   const navLinks = [

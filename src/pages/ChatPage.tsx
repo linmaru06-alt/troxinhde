@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { Button } from '../components/ui/Button';
 import { formatPrice } from '../components/ui/Cards';
 import {
@@ -17,11 +18,19 @@ import {
 
 export const ChatPage: React.FC = () => {
   const { threadId } = useParams<{ threadId?: string }>();
-  const { threads, messages, currentUser, sendMessage } = useAppStore();
+  const { threads, currentUser } = useAppStore();
 
   const [activeThreadId, setActiveThreadId] = useState<string>(threadId || threads[0]?.id || '');
   const [inputText, setInputText] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Supabase Real-time Chat & Presence Hook
+  const {
+    messages: threadMessages,
+    sendMessage: realtimeSendMessage,
+    isOtherOnline,
+    lastSeenText,
+  } = useRealtimeChat(activeThreadId);
 
   useEffect(() => {
     if (threadId) {
@@ -30,8 +39,6 @@ export const ChatPage: React.FC = () => {
   }, [threadId]);
 
   const activeThread = threads.find((t) => t.id === activeThreadId) || threads[0];
-  const threadMessages = messages.filter((m) => m.threadId === activeThreadId);
-
   const otherParticipant = activeThread?.participants.find((p) => p.id !== currentUser?.id) || activeThread?.participants[1];
 
   const quickReplies = [
@@ -44,16 +51,17 @@ export const ChatPage: React.FC = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [threadMessages.length]);
 
-  const handleSend = (e: React.FormEvent) => {
+  const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || !activeThreadId) return;
-    sendMessage(activeThreadId, inputText);
+    const textToSend = inputText;
     setInputText('');
+    await realtimeSendMessage(textToSend);
   };
 
-  const handleQuickReply = (text: string) => {
+  const handleQuickReply = async (text: string) => {
     if (!activeThreadId) return;
-    sendMessage(activeThreadId, text);
+    await realtimeSendMessage(text);
   };
 
   return (
@@ -119,14 +127,24 @@ export const ChatPage: React.FC = () => {
                   <Link to="/tin-nhan" className="md:hidden p-1.5 rounded-xl hover:bg-gray-100 text-gray-600">
                     <ArrowLeft className="w-5 h-5" />
                   </Link>
-                  <img
-                    src={otherParticipant?.avatar}
-                    alt={otherParticipant?.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
+                  <div className="relative">
+                    <img
+                      src={otherParticipant?.avatar}
+                      alt={otherParticipant?.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <span
+                      className={`absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white ${
+                        isOtherOnline ? 'bg-emerald-500' : 'bg-gray-400'
+                      }`}
+                    />
+                  </div>
                   <div>
                     <h3 className="text-sm font-bold text-gray-900">{otherParticipant?.name}</h3>
-                    <p className="text-[11px] text-emerald-600 font-medium">● Đang trực tuyến</p>
+                    <p className={`text-[11px] font-medium flex items-center gap-1 ${isOtherOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isOtherOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
+                      {lastSeenText}
+                    </p>
                   </div>
                 </div>
 
