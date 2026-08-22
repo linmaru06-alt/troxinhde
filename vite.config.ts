@@ -22,12 +22,12 @@ export default defineConfig({
         start_url: '/',
         icons: [
           {
-            src: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=192&h=192&fit=crop',
+            src: '/logo.png',
             sizes: '192x192',
             type: 'image/png',
           },
           {
-            src: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=512&h=512&fit=crop',
+            src: '/logo.png',
             sizes: '512x512',
             type: 'image/png',
           },

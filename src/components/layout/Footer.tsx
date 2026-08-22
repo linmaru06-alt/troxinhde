@@ -9,10 +9,12 @@ export const Footer: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
           {/* Col 1: Brand & Trust */}
           <div className="space-y-4 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-9 h-9 rounded-xl bg-linear-to-br from-[#006d37] to-[#27ae60] flex items-center justify-center text-white shadow-md">
-                <Home className="w-5 h-5" />
-              </div>
+            <Link to="/" className="flex items-center gap-2.5 group">
+              <img
+                src="/images/logo.png"
+                alt="Trọ Xinh Logo"
+                className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30 shadow-sm group-hover:scale-105 transition-transform"
+              />
               <span className="text-xl font-black text-[#006d37]">Trọ Xinh</span>
             </Link>
             <p className="text-xs text-gray-500 leading-relaxed">

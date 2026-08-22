@@ -54,10 +54,12 @@ export const LoginPage: React.FC = () => {
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 animate-fadeIn">
         {/* Brand Header */}
         <div className="text-center space-y-2">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-linear-to-br from-[#006d37] to-[#27ae60] flex items-center justify-center text-white shadow-md">
-              <Home className="w-6 h-6" />
-            </div>
+          <Link to="/" className="inline-flex items-center gap-2.5 group">
+            <img
+              src="/images/logo.png"
+              alt="Trọ Xinh Logo"
+              className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/20 shadow-md group-hover:scale-105 transition-transform"
+            />
             <span className="text-2xl font-black text-[#006d37]">Trọ Xinh</span>
           </Link>
           <h1 className="text-xl font-bold text-gray-900">Đăng Nhập Tài Khoản</h1>

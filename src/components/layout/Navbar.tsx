@@ -48,9 +48,11 @@ export const Navbar: React.FC = () => {
           {/* Logo & Brand */}
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <div className="w-10 h-10 rounded-2xl bg-linear-to-br from-[#006d37] to-[#27ae60] flex items-center justify-center text-white shadow-md shadow-emerald-900/10 group-hover:scale-105 transition-transform duration-200">
-                <Home className="w-5 h-5" />
-              </div>
+              <img
+                src="/images/logo.png"
+                alt="Trọ Xinh Logo"
+                className="w-10 h-10 rounded-2xl object-cover ring-2 ring-emerald-500/20 shadow-md group-hover:scale-105 transition-transform duration-200"
+              />
               <div className="flex flex-col">
                 <span className="text-xl font-black tracking-tight text-[#006d37] leading-none">
                   Trọ Xinh
