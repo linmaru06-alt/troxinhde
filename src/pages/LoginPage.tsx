@@ -8,12 +8,12 @@ import { Home, Phone, Lock, LogIn, Sparkles, ShieldCheck } from 'lucide-react';
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginWithPhone, loginAsRole, showToast } = useAppStore();
+  const { loginWithPhone, showToast } = useAppStore();
 
   const nextUrl = searchParams.get('next');
 
-  const [phone, setPhone] = useState<string>('0987654321');
-  const [password, setPassword] = useState<string>('123456');
+  const [phone, setPhone] = useState<string>('');
+  const [password, setPassword] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -43,13 +43,6 @@ export const LoginPage: React.FC = () => {
     }, 350);
   };
 
-  const handleQuickDemoLogin = (role: 'user' | 'owner' | 'admin') => {
-    loginAsRole(role);
-    if (role === 'owner') navigate('/chu-tro');
-    else if (role === 'admin') navigate('/admin');
-    else navigate('/tim-kiem');
-  };
-
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 animate-fadeIn">
@@ -65,7 +58,7 @@ export const LoginPage: React.FC = () => {
           <p className="text-xs text-gray-500">Truy cập để quản lý phòng, danh sách đã lưu và trò chuyện</p>
         </div>
 
-        {/* Form (Standard login without role toggle) */}
+        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <Input
             label="Số điện thoại"
@@ -111,35 +104,8 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        {/* QA / Demo quick account selector */}
-        <div className="pt-2 border-t border-gray-100 space-y-2">
-          <span className="text-[11px] font-bold text-gray-400 uppercase tracking-wider block text-center">
-            Tài khoản mẫu thử nghiệm (QA 1-Click):
-          </span>
-          <div className="grid grid-cols-3 gap-2">
-            <button
-              onClick={() => handleQuickDemoLogin('user')}
-              className="px-2 py-1.5 bg-emerald-50 text-[#006d37] hover:bg-emerald-100 rounded-xl text-[11px] font-bold transition border border-emerald-200"
-            >
-              👤 Người Thuê
-            </button>
-            <button
-              onClick={() => handleQuickDemoLogin('owner')}
-              className="px-2 py-1.5 bg-amber-50 text-amber-900 hover:bg-amber-100 rounded-xl text-[11px] font-bold transition border border-amber-200"
-            >
-              🏢 Chủ Trọ
-            </button>
-            <button
-              onClick={() => handleQuickDemoLogin('admin')}
-              className="px-2 py-1.5 bg-blue-50 text-[#006492] hover:bg-blue-100 rounded-xl text-[11px] font-bold transition border border-blue-200"
-            >
-              🛡️ Admin
-            </button>
-          </div>
-        </div>
-
         {/* Register CTA */}
-        <div className="text-center text-xs text-gray-600">
+        <div className="text-center text-xs text-gray-600 pt-2 border-t border-gray-100">
           Chưa có tài khoản?{' '}
           <Link to="/dang-ky" className="font-bold text-[#006d37] hover:underline">
             Đăng ký tài khoản ngay

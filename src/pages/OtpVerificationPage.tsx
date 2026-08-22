@@ -12,7 +12,7 @@ export const OtpVerificationPage: React.FC = () => {
   const phone = searchParams.get('phone') || '0987654321';
   const role = (searchParams.get('role') as any) || 'renter';
 
-  const [otp, setOtp] = useState<string[]>(['1', '2', '3', '4', '5', '6']);
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState<number>(45);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
@@ -61,7 +61,7 @@ export const OtpVerificationPage: React.FC = () => {
 
   const handleResend = () => {
     setCountdown(45);
-    showToast('Đã gửi lại mã OTP (Mã demo: 123456)', '', 'info');
+    showToast('Đã gửi lại mã OTP tới số điện thoại của bạn', '', 'info');
   };
 
   return (

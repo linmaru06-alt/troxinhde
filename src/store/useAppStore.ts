@@ -105,7 +105,7 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      currentUser: initialUsers[0], // Default logged in as User (authenticated)
+      currentUser: null, // Default guest unauthenticated state
       ownerApplications: initialOwnerApplications,
       rooms: initialRooms,
       buildings: initialBuildings,
@@ -114,9 +114,9 @@ export const useAppStore = create<AppState>()(
       notifications: initialNotifications,
       threads: initialThreads,
       messages: initialMessages,
-      savedRoomIds: ['room_1', 'room_2'],
-      savedRoommateIds: ['rm_1'],
-      savedItemIds: ['item_1'],
+      savedRoomIds: [],
+      savedRoommateIds: [],
+      savedItemIds: [],
       bookings: [],
       toasts: [],
 
