@@ -71,32 +71,41 @@ export const LandingPage: React.FC = () => {
         url="/"
       />
 
-      {/* 1. HERO SECTION */}
-      <section className="relative overflow-hidden pt-8 pb-16 md:pt-16 md:pb-24 bg-linear-to-b from-emerald-50/80 via-[#f9f9f9] to-[#f9f9f9]">
+      {/* 1. HERO SECTION WITH ILLUSTRATED BACKDROP */}
+      <section className="relative overflow-hidden pt-10 pb-20 md:pt-16 md:pb-28 bg-[#f9f9f9] border-b border-gray-200/60">
+        {/* Background Illustration & Overlay */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 sm:opacity-75 transition-opacity"
+          style={{ backgroundImage: `url('/images/hero-banner.jpg')` }}
+        />
+        {/* Gradient overlays for crisp text contrast */}
+        <div className="absolute inset-0 bg-linear-to-b from-white/90 via-white/75 to-[#f9f9f9]/95" />
+        <div className="absolute inset-0 bg-radial from-transparent via-white/40 to-white/90" />
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto mb-10 space-y-4">
             {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white text-[#006d37] border border-emerald-200 text-xs font-bold shadow-xs">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md text-[#006d37] border border-emerald-300 text-xs font-black shadow-md">
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               <span>Nền tảng phòng trọ đã kiểm duyệt 100% tại Hà Nội</span>
             </div>
 
             {/* Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-extrabold text-gray-900 tracking-tight leading-tight sm:leading-none">
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight leading-tight sm:leading-none drop-shadow-xs">
               Tìm trọ an tâm, <br className="hidden sm:inline" />
-              <span className="text-[#006d37] relative">
+              <span className="text-[#006d37] relative inline-block">
                 không lo phòng ảo
-                <span className="absolute bottom-1 left-0 right-0 h-2.5 bg-emerald-200/50 -z-10 rounded-full" />
+                <span className="absolute bottom-1 left-0 right-0 h-3 bg-emerald-300/40 -z-10 rounded-full" />
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed">
-              Mỗi phòng trọ trên Trọ Xinh đều được đội ngũ kiểm định trực tiếp tại chỗ. Đúng giá, đúng hình, hỗ trợ bảo vệ tiền cọc cho sinh viên và người đi làm.
+            <p className="text-sm sm:text-base text-gray-700 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-xs">
+              Mỗi phòng trọ trên Trọ Xinh đều được đội ngũ kiểm định trực tiếp tại chỗ. Đúng giá, đúng hình, hỗ trợ bảo vệ tiền cọc cho sinh viên và người đi làm tại Hà Nội.
             </p>
           </div>
 
           {/* Search Box */}
-          <div className="max-w-4xl mx-auto bg-white rounded-3xl p-4 sm:p-6 shadow-xl border border-gray-100">
+          <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/80 ring-1 ring-black/5">
             <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               {/* District Select */}
               <div className="space-y-1.5 text-left">
@@ -107,7 +116,7 @@ export const LandingPage: React.FC = () => {
                 <select
                   value={selectedDistrict}
                   onChange={(e) => setSelectedDistrict(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
+                  className="w-full bg-gray-50/90 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
                 >
                   <option value="">Tất cả khu vực (Hà Nội)</option>
                   {districts.map((d) => (
