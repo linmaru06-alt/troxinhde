@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { RoomCard, RoommateCard, MarketplaceCard } from '../components/ui/Cards';
 import { SEOHead } from '../components/seo/SEOHead';
+import { SearchAutocomplete } from '../components/search/SearchAutocomplete';
 import {
   Search,
   MapPin,
@@ -105,8 +106,29 @@ export const LandingPage: React.FC = () => {
           </div>
 
           {/* Search Box */}
-          <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/80 ring-1 ring-black/5">
-            <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/80 ring-1 ring-black/5 space-y-4">
+            {/* Smart Autocomplete Search Bar */}
+            <div className="w-full text-left space-y-1.5">
+              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-[#006d37]" />
+                Tìm kiếm thông minh (Trường ĐH, Quận, Địa danh nổi tiếng)
+              </label>
+              <SearchAutocomplete
+                placeholder="Gõ tên trường ĐH hoặc khu vực (vd: Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)"
+                onSelect={(val, type) => {
+                  if (type === 'district') {
+                    navigate(`/tim-kiem?khuVuc=${encodeURIComponent(val)}`);
+                  } else if (type === 'university') {
+                    navigate(`/tim-kiem?truong=${encodeURIComponent(val)}&q=${encodeURIComponent(val)}`);
+                  } else {
+                    navigate(`/tim-kiem?q=${encodeURIComponent(val)}`);
+                  }
+                }}
+              />
+            </div>
+
+            {/* Structured 3-Column Filter Row */}
+            <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-3 border-t border-gray-100">
               {/* District Select */}
               <div className="space-y-1.5 text-left">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">

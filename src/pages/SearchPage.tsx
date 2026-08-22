@@ -9,6 +9,7 @@ import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { GuestPromptBanner } from '../components/search/GuestPromptBanner';
 import { SEOHead } from '../components/seo/SEOHead';
+import { SearchAutocomplete } from '../components/search/SearchAutocomplete';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Search,
@@ -34,6 +35,7 @@ export const SearchPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Filters State from URL
+  const searchQuery = searchParams.get('q') || searchParams.get('truong') || '';
   const selectedDistrict = searchParams.get('khuVuc') || '';
   const selectedPrice = searchParams.get('gia') || '';
   const selectedType = searchParams.get('loai') || '';
@@ -73,9 +75,32 @@ export const SearchPage: React.FC = () => {
   const roomTypes = ['Phòng đơn', 'Studio', 'Phòng ghép', 'Căn hộ mini'];
   const amenitiesList = ['Máy lạnh', 'Tủ lạnh', 'Gác lửng', 'Ban công', 'Bếp', 'Wifi', 'Bảo vệ 24/7'];
 
+// Helper to remove Vietnamese tones for fuzzy searching
+function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
   // Filtered & Sorted Rooms
   const filteredRooms = useMemo(() => {
     return rooms.filter((r) => {
+      // Keyword/University/Landmark search query filter
+      if (searchQuery) {
+        const normQ = removeVietnameseTones(searchQuery.trim());
+        const matchTitle = removeVietnameseTones(r.title).includes(normQ);
+        const matchAddress = removeVietnameseTones(r.address).includes(normQ);
+        const matchDistrict = removeVietnameseTones(r.district).includes(normQ);
+        const matchDesc = removeVietnameseTones(r.description).includes(normQ);
+        const matchSchool = r.nearestSchool && removeVietnameseTones(r.nearestSchool).includes(normQ);
+        if (!matchTitle && !matchAddress && !matchDistrict && !matchDesc && !matchSchool) {
+          return false;
+        }
+      }
+
       // District filter
       if (selectedDistrict && r.district !== selectedDistrict) return false;
 
@@ -104,9 +129,9 @@ export const SearchPage: React.FC = () => {
       if (selectedSort === 'distance') return a.distanceToSchoolKm - b.distanceToSchoolKm;
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [rooms, selectedDistrict, selectedPrice, selectedType, selectedSort, selectedAmenity]);
+  }, [rooms, searchQuery, selectedDistrict, selectedPrice, selectedType, selectedSort, selectedAmenity]);
 
-  const activeFilterCount = [selectedDistrict, selectedPrice, selectedType, selectedAmenity].filter(Boolean).length;
+  const activeFilterCount = [searchQuery, selectedDistrict, selectedPrice, selectedType, selectedAmenity].filter(Boolean).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -115,6 +140,27 @@ export const SearchPage: React.FC = () => {
         description={`Xem ${filteredRooms.length} phòng trọ đã kiểm duyệt tại Hà Nội ${selectedDistrict ? `khu vực ${selectedDistrict}` : ''}. Lọc theo khoảng cách trường học, mức giá, tiện nghi.`}
         url={`/tim-kiem${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
       />
+
+      {/* Instant Search Autocomplete Bar on /tim-kiem */}
+      <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-gray-200 shadow-xs">
+        <SearchAutocomplete
+          initialValue={searchQuery}
+          placeholder="Tìm phòng theo trường ĐH, quận, hoặc địa danh (vd: Bách Khoa, Cầu Giấy, Chùa Láng...)"
+          onSelect={(val, type) => {
+            if (type === 'district') {
+              updateParam('khuVuc', val);
+            } else if (type === 'university') {
+              const next = new URLSearchParams(searchParams);
+              next.set('truong', val);
+              next.set('q', val);
+              setSearchParams(next);
+            } else {
+              updateParam('q', val);
+            }
+          }}
+        />
+      </div>
+
       {/* Top Search Header & Breadcrumbs */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
@@ -155,6 +201,17 @@ export const SearchPage: React.FC = () => {
       {activeFilterCount > 0 && (
         <div className="flex items-center gap-2 flex-wrap text-xs">
           <span className="text-gray-500 font-semibold">Đang lọc:</span>
+          {searchQuery && (
+            <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#006d37] px-2.5 py-1 rounded-full border border-emerald-200 font-medium">
+              Từ khóa: "{searchQuery}"
+              <button onClick={() => {
+                const next = new URLSearchParams(searchParams);
+                next.delete('q');
+                next.delete('truong');
+                setSearchParams(next);
+              }}><X className="w-3 h-3 hover:text-rose-600" /></button>
+            </span>
+          )}
           {selectedDistrict && (
             <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#006d37] px-2.5 py-1 rounded-full border border-emerald-200 font-medium">
               Khu vực: {selectedDistrict}
