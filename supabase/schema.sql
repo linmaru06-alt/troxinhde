@@ -153,7 +153,47 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 8. KÍCH HOẠT REALTIME CHO SUPABASE
+-- 8. BẢNG GIAO DỊCH & THANH TOÁN (TRANSACTIONS)
+CREATE TABLE IF NOT EXISTS public.transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  order_code VARCHAR(50) UNIQUE NOT NULL,
+  plan_id VARCHAR(50),
+  room_id UUID REFERENCES public.rooms(id) ON DELETE SET NULL,
+  amount NUMERIC(12, 2) NOT NULL,
+  status VARCHAR(50) DEFAULT 'pending' CHECK (status IN ('pending', 'success', 'failed', 'expired')),
+  payment_method VARCHAR(50) DEFAULT 'vietqr',
+  payos_payment_link_id TEXT,
+  activated_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 9. BẢNG GÓI THUÊ BAO CHỦ TRỌ (USER_SUBSCRIPTIONS)
+CREATE TABLE IF NOT EXISTS public.user_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES public.users(id) ON DELETE CASCADE,
+  plan_id VARCHAR(50) NOT NULL,
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 10. BẢNG ĐẨY TIN PHÒNG TRỌ (ROOM_BOOSTS)
+CREATE TABLE IF NOT EXISTS public.room_boosts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+  boost_type VARCHAR(50) DEFAULT 'featured',
+  started_at TIMESTAMPTZ DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
+  transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 11. KÍCH HOẠT REALTIME CHO SUPABASE
 ALTER PUBLICATION supabase_realtime ADD TABLE public.messages;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
+ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
+

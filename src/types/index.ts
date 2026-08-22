@@ -245,7 +245,7 @@ export interface SubscriptionPlan {
   description: string;
 }
 
-export type PaymentMethod = 'momo' | 'vnpay' | 'banking';
+export type PaymentMethod = 'momo' | 'vnpay' | 'banking' | 'vietqr';
 
 export interface PaymentTransaction {
   id: string;
