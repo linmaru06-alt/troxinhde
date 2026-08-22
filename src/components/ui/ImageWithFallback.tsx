@@ -74,16 +74,23 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
     );
   }
 
+  const isLocalImage = optimizedSrc && !optimizedSrc.startsWith('http') && !optimizedSrc.startsWith('data:');
+  const webpSrc = isLocalImage ? optimizedSrc.replace(/\.(jpg|jpeg|png)$/i, '.webp') : '';
+
   return (
-    <img
-      src={optimizedSrc}
-      alt={alt}
-      loading={loading}
-      width={width}
-      height={height}
-      onError={() => setHasError(true)}
-      className={className}
-      onClick={onClick}
-    />
+    <picture className="contents">
+      {isLocalImage && <source srcSet={webpSrc} type="image/webp" />}
+      <img
+        src={optimizedSrc}
+        alt={alt}
+        loading={loading}
+        decoding="async"
+        width={width}
+        height={height}
+        onError={() => setHasError(true)}
+        className={className}
+        onClick={onClick}
+      />
+    </picture>
   );
 };

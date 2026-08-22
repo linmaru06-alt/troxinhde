@@ -6,6 +6,7 @@ import { useOutsideClick } from '../../hooks/useOutsideClick';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
+import { OptimizedImage } from '../ui/OptimizedImage';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Home,
@@ -54,9 +55,13 @@ export const Navbar: React.FC = () => {
           {/* Logo & Brand */}
           <div className="flex items-center gap-6">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <img
+              <OptimizedImage
                 src="/images/logo.png"
                 alt="Trọ Xinh Logo"
+                priority={true}
+                loading="eager"
+                width={40}
+                height={40}
                 className="w-10 h-10 rounded-2xl object-cover ring-2 ring-emerald-500/20 shadow-md group-hover:scale-105 transition-transform duration-200"
               />
               <div className="flex flex-col">
@@ -176,9 +181,11 @@ export const Navbar: React.FC = () => {
                   className="flex items-center gap-2 p-1.5 rounded-2xl hover:bg-gray-100 transition border border-gray-200/80"
                   aria-expanded={isAvatarDropdownOpen}
                 >
-                  <img
+                  <OptimizedImage
                     src={currentUser.avatarUrl}
                     alt={currentUser.name}
+                    width={32}
+                    height={32}
                     className="w-8 h-8 rounded-xl object-cover ring-1 ring-gray-200"
                   />
                   <div className="hidden md:flex flex-col text-left">

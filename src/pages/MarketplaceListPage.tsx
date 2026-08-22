@@ -86,7 +86,7 @@ export const MarketplaceListPage: React.FC = () => {
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('/images/marketplace-banner.jpg')` }}
+          style={{ backgroundImage: `url('/images/marketplace-banner.webp')` }}
         />
         {/* Sophisticated Dark Gradient & Frosted Overlay for Maximum Contrast & Readability */}
         <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />

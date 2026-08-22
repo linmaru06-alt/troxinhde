@@ -77,7 +77,7 @@ export const LandingPage: React.FC = () => {
         {/* Background Illustration & Overlay */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 sm:opacity-75 transition-opacity"
-          style={{ backgroundImage: `url('/images/hero-banner.jpg')` }}
+          style={{ backgroundImage: `url('/images/hero-banner.webp')` }}
         />
         {/* Gradient overlays for crisp text contrast */}
         <div className="absolute inset-0 bg-linear-to-b from-white/90 via-white/75 to-[#f9f9f9]/95" />
@@ -304,7 +304,7 @@ export const LandingPage: React.FC = () => {
           {/* Background Illustration */}
           <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url('/images/roommate-banner.jpg')` }}
+            style={{ backgroundImage: `url('/images/roommate-banner.webp')` }}
           />
           {/* Dark gradient & frosted overlay */}
           <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/85 to-slate-950/50" />

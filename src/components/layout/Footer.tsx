@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Home, ShieldCheck, Phone, Mail, MapPin, Heart } from 'lucide-react';
+import { OptimizedImage } from '../ui/OptimizedImage';
 
 export const Footer: React.FC = () => {
   return (
@@ -10,9 +11,12 @@ export const Footer: React.FC = () => {
           {/* Col 1: Brand & Trust */}
           <div className="space-y-4 md:col-span-1">
             <Link to="/" className="flex items-center gap-2.5 group">
-              <img
+              <OptimizedImage
                 src="/images/logo.png"
                 alt="Trọ Xinh Logo"
+                loading="lazy"
+                width={36}
+                height={36}
                 className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30 shadow-sm group-hover:scale-105 transition-transform"
               />
               <span className="text-xl font-black text-[#006d37]">Trọ Xinh</span>
