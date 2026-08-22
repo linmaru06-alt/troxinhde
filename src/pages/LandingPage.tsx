@@ -278,29 +278,43 @@ export const LandingPage: React.FC = () => {
 
       {/* 4. ROOMMATE MATCHING PREVIEW */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-linear-to-r from-emerald-900 via-[#006d37] to-emerald-800 rounded-3xl p-6 sm:p-10 text-white shadow-xl">
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
-            <div className="space-y-2 max-w-xl">
-              <span className="px-3 py-1 bg-white/20 rounded-full text-xs font-semibold backdrop-blur-xs">
-                Cộng Đồng Sinh Viên
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-bold">Tìm Bạn Ở Ghép Hợp Gu & San Sẻ Chi Phí</h2>
-              <p className="text-emerald-100 text-xs sm:text-sm">
-                Kết nối với sinh viên cùng trường, cùng thói quen sinh hoạt. Xem trước thông tin phòng đã liên kết.
-              </p>
+        <div className="relative overflow-hidden rounded-3xl p-6 sm:p-10 text-white shadow-2xl border border-gray-900/10">
+          {/* Background Illustration */}
+          <div
+            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url('/images/roommate-banner.jpg')` }}
+          />
+          {/* Dark gradient & frosted overlay */}
+          <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/85 to-slate-950/50" />
+          <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-transparent to-transparent" />
+
+          <div className="relative z-10">
+            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
+              <div className="space-y-2 max-w-xl">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/30 backdrop-blur-md">
+                  <Users className="w-3.5 h-3.5" />
+                  Cộng Đồng Sinh Viên Hà Nội
+                </span>
+                <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
+                  Tìm Bạn Ở Ghép <span className="text-[#4ade80]">Hợp Gu & San Sẻ Chi Phí</span>
+                </h2>
+                <p className="text-gray-100 text-xs sm:text-sm md:text-base font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] leading-relaxed">
+                  Kết nối với sinh viên cùng trường, cùng thói quen sinh hoạt. Xem trước thông tin phòng đã liên kết và kiểm duyệt.
+                </p>
+              </div>
+
+              <Link to="/roommate" className="shrink-0">
+                <Button variant="secondary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />} className="font-bold shadow-lg">
+                  Khám Phá Bạn Ghép
+                </Button>
+              </Link>
             </div>
 
-            <Link to="/roommate">
-              <Button variant="secondary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                Khám Phá Bạn Ghép
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {roommates.slice(0, 3).map((post) => (
-              <RoommateCard key={post.id} post={post} />
-            ))}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {roommates.slice(0, 3).map((post) => (
+                <RoommateCard key={post.id} post={post} />
+              ))}
+            </div>
           </div>
         </div>
       </section>
