@@ -49,6 +49,16 @@ export const Footer: React.FC = () => {
               <li>
                 <Link to="/ve-chung-toi/kiem-duyet" className="hover:text-[#006d37] transition">Quy trình kiểm duyệt 24h</Link>
               </li>
+              <li>
+                <Link to="/hop-dong-mau" className="hover:text-[#006d37] transition font-semibold text-emerald-800 flex items-center gap-1">
+                  📄 Mẫu hợp đồng thuê trọ
+                </Link>
+              </li>
+              <li>
+                <Link to="/bien-ban-dat-coc" className="hover:text-[#006d37] transition font-semibold text-emerald-800 flex items-center gap-1">
+                  📝 Mẫu biên bản đặt cọc
+                </Link>
+              </li>
             </ul>
           </div>
 

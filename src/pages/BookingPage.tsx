@@ -13,6 +13,8 @@ import {
   ArrowLeft,
   Home,
   ShieldCheck,
+  FileText,
+  Download,
 } from 'lucide-react';
 
 export const BookingPage: React.FC = () => {
@@ -97,6 +99,32 @@ export const BookingPage: React.FC = () => {
               <p className="text-gray-600">📅 Ngày hẹn: <strong className="text-gray-900">{date}</strong></p>
               <p className="text-gray-600">⏰ Khung giờ: <strong className="text-gray-900">{selectedSlot}</strong></p>
               <p className="text-gray-600">📍 Địa chỉ: {room.address}, {room.district}</p>
+            </div>
+
+            {/* Legal Contract & Deposit Prep Section */}
+            <div className="p-4 bg-blue-50/80 rounded-2xl border border-blue-200 text-left space-y-3 text-xs">
+              <div className="flex items-center gap-2 text-blue-900 font-bold text-sm">
+                <FileText className="w-4 h-4 text-blue-600" />
+                Chuẩn Bị Cho Buổi Xem Phòng & Ký Kết
+              </div>
+              <p className="text-gray-600 leading-relaxed">
+                Tải hoặc tham khảo trước mẫu hợp đồng thuê phòng trọ và biên bản cọc chuẩn pháp lý để đảm bảo quyền lợi khi ưng ý phòng.
+              </p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Link to="/hop-dong-mau" target="_blank" className="flex-1 min-w-[140px]">
+                  <Button variant="outline" size="sm" fullWidth leftIcon={<FileText className="w-3.5 h-3.5 text-blue-600" />}>
+                    Xem Hợp Đồng Mẫu
+                  </Button>
+                </Link>
+                <Link to="/bien-ban-dat-coc" target="_blank" className="flex-1 min-w-[140px]">
+                  <Button variant="outline" size="sm" fullWidth leftIcon={<Download className="w-3.5 h-3.5 text-blue-600" />}>
+                    Mẫu Biên Bản Cọc
+                  </Button>
+                </Link>
+              </div>
+              <p className="text-[11px] text-gray-500 italic">
+                💡 Mẹo an tâm: In sẵn 2 bản hợp đồng khi đến xem phòng, mỗi bên giữ 1 bản có chữ ký gốc.
+              </p>
             </div>
 
             <div className="flex gap-3">

@@ -280,6 +280,13 @@ export const RoomDetailPage: React.FC = () => {
                     <li>Hợp đồng thuê tối thiểu 06 tháng, thanh toán tiền phòng đầu tháng.</li>
                   </ul>
                 </div>
+
+                <div className="p-3.5 bg-emerald-50/70 border border-emerald-200 rounded-xl flex items-center justify-between text-xs">
+                  <span className="text-emerald-900 font-medium">Bảo vệ quyền lợi thuê trọ:</span>
+                  <Link to="/hop-dong-mau" target="_blank" className="font-bold text-[#006d37] hover:underline flex items-center gap-1">
+                    Tải mẫu hợp đồng tham khảo →
+                  </Link>
+                </div>
               </div>
             )}
 
