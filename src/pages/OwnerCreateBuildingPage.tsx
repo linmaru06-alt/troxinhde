@@ -12,8 +12,11 @@ import {
   Upload,
   ShieldCheck,
   Check,
+  MapPin,
+  Plus,
 } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
+import { MapPinPicker } from '../components/map/TroXinhMap';
 
 export const OwnerCreateBuildingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -26,13 +29,14 @@ export const OwnerCreateBuildingPage: React.FC = () => {
   const [address, setAddress] = useState<string>('Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng');
   const [district, setDistrict] = useState<string>('Quận Cầu Giấy');
   const [totalRooms, setTotalRooms] = useState<number>(20);
-  const [description, setDescription] = useState<string>(
-    'Tòa nhà mới xây 100%, trang bị đầy đủ PCCC và camera an ninh 24/7. Giờ giấc tự do.'
+  const [description, setDescription] = useState<string>
+    ('Tòa nhà mới xây 100%, trang bị đầy đủ PCCC và camera an ninh 24/7. Giờ giấc tự do.'
   );
   const [images, setImages] = useState<string[]>([
     'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
     'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
   ]);
+  const [geo, setGeo] = useState<{ lat: number; lng: number }>({ lat: 21.0333, lng: 105.7937 });
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     'Wifi tốc độ cao',
     'Bảo vệ 24/7',
@@ -77,7 +81,7 @@ export const OwnerCreateBuildingPage: React.FC = () => {
       rating: 5.0,
       reviewCount: 0,
       description,
-      geo: { lat: 21.0333, lng: 105.7937 },
+      geo,
       nearbyUniversities: [{ name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 }],
     });
 
@@ -118,7 +122,7 @@ export const OwnerCreateBuildingPage: React.FC = () => {
           {/* STEP 1 */}
           {step === 1 && (
             <div className="space-y-5 animate-fadeIn">
-              <h2 className="text-lg font-bold text-gray-900">Bước 1: Khai Báo Thông Tin Cơ Bản</h2>
+              <h2 className="text-lg font-bold text-gray-900">Bước 1: Khai Báo Thông Tin Cơ Bản & Định Vị Tòa Nhà</h2>
               <Input
                 label="Tên tòa nhà / Khu nhà trọ"
                 required
@@ -127,13 +131,31 @@ export const OwnerCreateBuildingPage: React.FC = () => {
                 placeholder="Ví dụ: Tòa Nhà Xanh Trọ Xinh"
               />
 
+              {/* Map Pin Picker */}
+              <div className="space-y-2 text-left">
+                <label className="block text-sm font-medium text-gray-700">
+                  Chọn vị trí tòa nhà trên bản đồ (Click hoặc Kéo ghim)
+                </label>
+                <MapPinPicker
+                  initialLat={geo.lat}
+                  initialLng={geo.lng}
+                  onLocationChange={(loc) => {
+                    setGeo({ lat: loc.lat, lng: loc.lng });
+                    if (loc.address) {
+                      setAddress(loc.address);
+                    }
+                  }}
+                  className="h-72 rounded-2xl overflow-hidden shadow-inner"
+                />
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Địa chỉ số nhà, tên đường"
                   required
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
-                  placeholder="Ví dụ: 480/12 Điện Biên Phủ"
+                  placeholder="Ví dụ: 18 Ngõ 165 Cầu Giấy"
                 />
                 <div className="space-y-1.5 text-left">
                   <label className="block text-sm font-medium text-gray-700">Khu vực / Quận</label>

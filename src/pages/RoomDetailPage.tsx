@@ -10,6 +10,7 @@ import { GuestViewingBar } from '../components/rooms/GuestViewingBar';
 import { initialReviews } from '../data/mockData';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { ImageWithFallback } from '../components/ui/ImageWithFallback';
+import { MiniRoomMap } from '../components/map/TroXinhMap';
 import {
   ShieldCheck,
   Heart,
@@ -275,15 +276,28 @@ export const RoomDetailPage: React.FC = () => {
 
             {/* Tab 3: Location */}
             {activeTab === 'location' && (
-              <div className="space-y-4">
-                <h3 className="text-sm font-bold text-gray-900">Khoảng cách tới các trường đại học:</h3>
-                <div className="space-y-2">
-                  {building.nearbyUniversities.map((u, i) => (
-                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs">
-                      <span className="font-bold text-gray-800">🎓 {u.name}</span>
-                      <span className="text-[#006d37] font-semibold">Cách {u.distanceKm} km (5-10 phút đi xe)</span>
-                    </div>
-                  ))}
+              <div className="space-y-5">
+                {/* Real Interactive Mini Map */}
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">Vị trí thực tế trên bản đồ:</h3>
+                  <MiniRoomMap
+                    roomTitle={room.title}
+                    buildingName={building?.name}
+                    nearestSchool={room.nearestSchool}
+                    className="h-72 rounded-2xl overflow-hidden"
+                  />
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-gray-900 mb-2">Khoảng cách tới các trường đại học:</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {building.nearbyUniversities.map((u, i) => (
+                      <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs">
+                        <span className="font-bold text-gray-800">🎓 {u.name}</span>
+                        <span className="text-[#006d37] font-semibold">Cách {u.distanceKm} km</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

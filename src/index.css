@@ -62,3 +62,66 @@
     background-position: 200% 0;
   }
 }
+
+/* Leaflet Custom Pin & Popup Styles */
+.leaflet-container {
+  font-family: inherit !important;
+  z-index: 10 !important;
+}
+
+.leaflet-popup-content-wrapper {
+  padding: 0 !important;
+  border-radius: 1.25rem !important;
+  overflow: hidden !important;
+  box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.15), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
+  border: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.leaflet-popup-content {
+  margin: 0 !important;
+  line-height: inherit !important;
+}
+
+.leaflet-popup-tip {
+  background: white !important;
+}
+
+.custom-price-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-price-pin .pin-body {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.custom-price-pin .pin-body.available {
+  background-color: #ffffff;
+  color: #006d37;
+  border: 1.5px solid #006d37;
+}
+
+.custom-price-pin .pin-body.available:hover,
+.custom-price-pin .pin-body.active {
+  background-color: #006d37;
+  color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 10px 15px -3px rgba(0, 109, 55, 0.4);
+}
+
+.custom-price-pin .pin-body.rented {
+  background-color: #f3f4f6;
+  color: #9ca3af;
+  border: 1px solid #d1d5db;
+}
+
