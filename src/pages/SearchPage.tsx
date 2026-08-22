@@ -89,6 +89,10 @@ export const SearchPage: React.FC = () => {
 
       return true;
     }).sort((a, b) => {
+      // Prioritize boosted rooms at the top
+      if (a.isBoosted && !b.isBoosted) return -1;
+      if (!a.isBoosted && b.isBoosted) return 1;
+
       if (selectedSort === 'price_asc') return a.price - b.price;
       if (selectedSort === 'price_desc') return b.price - a.price;
       if (selectedSort === 'distance') return a.distanceToSchoolKm - b.distanceToSchoolKm;

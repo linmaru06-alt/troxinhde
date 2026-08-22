@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
@@ -19,16 +19,20 @@ import {
   AlertCircle,
   ChevronRight,
   Sparkles,
+  Crown,
+  Rocket,
 } from 'lucide-react';
 
 export const OwnerDashboardPage: React.FC = () => {
-  const { rooms, buildings, currentUser, updateRoomStatus, showToast } = useAppStore();
+  const { rooms, buildings, currentUser, ownerSubscription, updateRoomStatus, showToast } = useAppStore();
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
 
   // Supabase Real-time Room Status Subscription
   useRealtimeRoomStatus();
 
   const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
+  const currentPlan =
+    SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
 
   const totalRooms = myRooms.length;
   const availableRooms = myRooms.filter((r) => r.status === 'Còn trống').length;
@@ -46,7 +50,40 @@ export const OwnerDashboardPage: React.FC = () => {
       <DashboardSidebar role="owner" />
 
       {/* Main Dashboard Content */}
-      <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-8 overflow-y-auto">
+      <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
+        {/* Subscription Plan Active Strip Banner */}
+        <div className="bg-linear-to-r from-emerald-900 to-[#006d37] text-white rounded-2xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0">
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm sm:text-base">{currentPlan.name}</span>
+                <span className="text-[10px] font-bold bg-amber-400 text-amber-950 px-2 py-0.2 rounded-full">
+                  {totalRooms}/{currentPlan.roomLimit === 999 ? '∞' : currentPlan.roomLimit} phòng
+                </span>
+              </div>
+              <p className="text-xs text-emerald-100/90 mt-0.5">
+                Hạn sử dụng đến: {new Date(ownerSubscription.expiresAt).toLocaleDateString('vi-VN')}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <Link to="/chu-tro/quan-ly-goi">
+              <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition">
+                Quản lý gói & Hóa đơn
+              </button>
+            </Link>
+            <Link to="/nang-cap">
+              <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs">
+                Nâng cấp gói ⭐
+              </button>
+            </Link>
+          </div>
+        </div>
+
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -179,9 +216,15 @@ export const OwnerDashboardPage: React.FC = () => {
                     <option value="Chờ duyệt">Chờ duyệt</option>
                   </select>
 
+                  <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
+                    <Button variant="outline" size="sm" leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}>
+                      Đẩy Tin
+                    </Button>
+                  </Link>
+
                   <Link to={`/chu-tro/phong/${room.id}`}>
                     <Button variant="outline" size="sm">
-                      Chi tiết & Thống kê →
+                      Chi tiết →
                     </Button>
                   </Link>
                 </div>

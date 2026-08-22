@@ -36,6 +36,11 @@ const BookingPage = React.lazy(() => import('./pages/BookingPage').then((m) => (
 const OwnerUpgradePage = React.lazy(() => import('./pages/OwnerUpgradePage').then((m) => ({ default: m.OwnerUpgradePage })));
 const OwnerApplicationStatusPage = React.lazy(() => import('./pages/OwnerApplicationStatusPage').then((m) => ({ default: m.OwnerApplicationStatusPage })));
 
+// Pricing & Payments
+const PricingPage = React.lazy(() => import('./pages/PricingPage').then((m) => ({ default: m.PricingPage })));
+const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
+const PaymentResultPage = React.lazy(() => import('./pages/PaymentResultPage').then((m) => ({ default: m.PaymentResultPage })));
+
 // Owner Pages
 const OwnerOnboardingPage = React.lazy(() => import('./pages/OwnerOnboardingPage').then((m) => ({ default: m.OwnerOnboardingPage })));
 const OwnerDashboardPage = React.lazy(() => import('./pages/OwnerDashboardPage').then((m) => ({ default: m.OwnerDashboardPage })));
@@ -43,6 +48,8 @@ const OwnerBuildingListPage = React.lazy(() => import('./pages/OwnerBuildingList
 const OwnerCreateBuildingPage = React.lazy(() => import('./pages/OwnerCreateBuildingPage').then((m) => ({ default: m.OwnerCreateBuildingPage })));
 const OwnerCreateRoomPage = React.lazy(() => import('./pages/OwnerCreateRoomPage').then((m) => ({ default: m.OwnerCreateRoomPage })));
 const OwnerRoomDetailPage = React.lazy(() => import('./pages/OwnerRoomDetailPage').then((m) => ({ default: m.OwnerRoomDetailPage })));
+const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
+const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
 
 // Admin Pages
@@ -163,6 +170,12 @@ export const App: React.FC = () => {
             <Route path="/quen-mat-khau" element={<ForgotPasswordPage />} />
             <Route path="/xac-thuc-otp" element={<OtpVerificationPage />} />
 
+            {/* Pricing & Checkout Routes */}
+            <Route path="/nang-cap" element={<PricingPage />} />
+            <Route path="/bang-gia" element={<PricingPage />} />
+            <Route path="/thanh-toan/:planId" element={<CheckoutPage />} />
+            <Route path="/thanh-toan/ket-qua" element={<PaymentResultPage />} />
+
             {/* Renter Features & Upgrade */}
             <Route path="/onboarding" element={<RenterOnboardingPage />} />
             <Route path="/onboarding/nguoi-thue" element={<RenterOnboardingPage />} />
@@ -262,6 +275,22 @@ export const App: React.FC = () => {
               element={
                 <OwnerRoute>
                   <NotificationsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/nang-cap-tin/:roomId"
+              element={
+                <OwnerRoute>
+                  <OwnerBoostRoomPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/quan-ly-goi"
+              element={
+                <OwnerRoute>
+                  <OwnerSubscriptionManagePage />
                 </OwnerRoute>
               }
             />

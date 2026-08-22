@@ -1,18 +1,25 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAppStore } from '../store/useAppStore';
+import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
+import { Modal } from '../components/ui/Modal';
 import { RoomCard, formatPrice } from '../components/ui/Cards';
 import { Room } from '../types';
-import { PlusCircle, Eye, Upload, ShieldCheck, Home } from 'lucide-react';
+import { PlusCircle, Eye, Upload, ShieldCheck, Home, AlertCircle, Crown, ArrowRight } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
 
 export const OwnerCreateRoomPage: React.FC = () => {
   const navigate = useNavigate();
-  const { buildings, addRoom, currentUser } = useAppStore();
+  const { buildings, addRoom, currentUser, rooms, ownerSubscription, showToast } = useAppStore();
+
+  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
+  const currentPlan =
+    SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
+  const isLimitReached = currentPlan.roomLimit !== 999 && myRooms.length >= currentPlan.roomLimit;
+  const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(isLimitReached);
 
   const [buildingId, setBuildingId] = useState<string>(buildings[0]?.id || 'bld_1');
   const [roomNumber, setRoomNumber] = useState<string>('P.305');
@@ -63,6 +70,17 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
   const handleCreate = (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isLimitReached) {
+      setShowUpgradeModal(true);
+      showToast(
+        'Đã đạt hạn mức gói!',
+        `Gói ${currentPlan.name} chỉ cho phép tối đa ${currentPlan.roomLimit} phòng. Vui lòng nâng cấp để tiếp tục.`,
+        'warning'
+      );
+      return;
+    }
+
     const id = addRoom({
       buildingId,
       buildingName: selectedBuilding.name,
@@ -97,6 +115,31 @@ export const OwnerCreateRoomPage: React.FC = () => {
       <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
+        {/* Limit Reached Warning Banner */}
+        {isLimitReached && (
+          <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0">
+                <AlertCircle className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-900">
+                  Bạn đã dùng hết {currentPlan.roomLimit}/{currentPlan.roomLimit} phòng của {currentPlan.name}
+                </p>
+                <p className="text-xs text-gray-600">
+                  Nâng cấp lên Gói Cơ Bản (99k) hoặc Gói Pro để mở rộng hạn mức đăng phòng.
+                </p>
+              </div>
+            </div>
+
+            <Link to="/nang-cap">
+              <Button variant="primary" size="sm" leftIcon={<Crown className="w-4 h-4" />}>
+                Nâng Cấp Ngay
+              </Button>
+            </Link>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Link to="/chu-tro" className="hover:text-[#006d37]">Bảng điều khiển</Link>
           <span>/</span>
@@ -217,6 +260,40 @@ export const OwnerCreateRoomPage: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {/* Upgrade Plan Modal */}
+        <Modal
+          isOpen={showUpgradeModal}
+          onClose={() => setShowUpgradeModal(false)}
+          title="Nâng Cấp Gói Để Tiếp Tục Đăng Phòng"
+        >
+          <div className="space-y-4 text-xs text-gray-600">
+            <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#006d37] text-white flex items-center justify-center shrink-0">
+                <Crown className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-extrabold text-gray-900 text-sm">Hạn mức hiện tại: {currentPlan.roomLimit} phòng</p>
+                <p className="text-gray-500">Bạn đã đăng đủ {myRooms.length}/{currentPlan.roomLimit} phòng của {currentPlan.name}.</p>
+              </div>
+            </div>
+
+            <p className="leading-relaxed">
+              Để quản lý nhiều phòng trọ hơn và nhận thêm các lượt Đẩy Tin Nổi Bật miễn phí, bạn vui lòng nâng cấp lên <strong>Gói Cơ Bản (99.000đ/tháng)</strong> hoặc <strong>Gói Pro VIP</strong>.
+            </p>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
+              <Button variant="outline" size="sm" onClick={() => setShowUpgradeModal(false)}>
+                Đóng
+              </Button>
+              <Link to="/nang-cap">
+                <Button variant="primary" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
+                  Xem Bảng Giá Nâng Cấp
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </Modal>
       </main>
     </div>
   );

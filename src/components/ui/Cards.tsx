@@ -42,6 +42,11 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
 
         {/* Top Badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pointer-events-none">
+          {room.isBoosted && (
+            <span className="bg-amber-400 text-amber-950 font-black text-[10px] px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1 border border-amber-300 animate-pulse">
+              ★ {room.boostBadge || 'Tin Nổi Bật'}
+            </span>
+          )}
           {room.verified && (
             <Badge variant="verified" size="sm">
               Đã kiểm duyệt

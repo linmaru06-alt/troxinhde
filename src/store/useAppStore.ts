@@ -12,6 +12,11 @@ import {
   Thread,
   Message,
   BookingRequest,
+  SubscriptionPlanId,
+  SubscriptionPlan,
+  PaymentMethod,
+  PaymentTransaction,
+  OwnerSubscription,
 } from '../types';
 import {
   initialUsers,
@@ -24,6 +29,60 @@ import {
   initialThreads,
   initialMessages,
 } from '../data/mockData';
+
+export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
+  {
+    id: 'free',
+    name: 'Gói Miễn Phí',
+    price: 0,
+    period: 'Vĩnh viễn',
+    roomLimit: 2,
+    badge: 'Khởi đầu',
+    features: [
+      'Đăng tối đa 02 phòng trọ',
+      'Được kiểm duyệt 100% PCCC',
+      'Hộp thư tin nhắn với khách thuê',
+      'Quản lý trạng thái phòng cơ bản',
+    ],
+    description: 'Dành cho chủ trọ cá nhân có 1-2 phòng lẻ cần cho thuê nhanh.',
+  },
+  {
+    id: 'basic',
+    name: 'Gói Cơ Bản',
+    price: 99000,
+    originalPrice: 149000,
+    period: 'Tháng',
+    roomLimit: 10,
+    popular: true,
+    badge: 'Phổ biến nhất 🔥',
+    features: [
+      'Đăng tối đa 10 phòng trọ',
+      'Tặng 01 lượt Đẩy Tin Nổi Bật 3 ngày/tháng',
+      'Ưu tiên duyệt tin trong 2 giờ',
+      'Thống kê số lượt xem & lưu phòng',
+      'Hỗ trợ kỹ thuật 24/7',
+    ],
+    description: 'Lựa chọn lý tưởng cho các chủ nhà trọ quản lý 1-2 tòa nhà vừa và nhỏ.',
+  },
+  {
+    id: 'pro',
+    name: 'Gói Chuyên Nghiệp (Pro VIP)',
+    price: 299000,
+    originalPrice: 450000,
+    period: 'Tháng',
+    roomLimit: 999,
+    badge: 'Dành cho chuỗi căn hộ ⭐',
+    features: [
+      'Không giới hạn số lượng phòng & tòa nhà',
+      'Tặng 05 lượt Đẩy Tin Nổi Bật VIP mỗi tháng',
+      'Huy hiệu "Đối Tác Vàng 5★" trên tất cả tin đăng',
+      'Tự động duyệt tin đăng ngay lập tức (AI Auto-Approve)',
+      'Phân tích chi tiết nguồn khách thuê & doanh thu',
+      'Chuyên viên CSKH riêng chăm sóc tài khoản',
+    ],
+    description: 'Dành cho chuỗi căn hộ dịch vụ, chung cư mini, nhà trọ quy mô lớn.',
+  },
+];
 
 export interface Toast {
   id: string;
@@ -47,6 +106,15 @@ interface AppState {
   savedItemIds: string[];
   bookings: BookingRequest[];
   toasts: Toast[];
+
+  // Payment & Subscription
+  ownerSubscription: OwnerSubscription;
+  paymentTransactions: PaymentTransaction[];
+  plans: SubscriptionPlan[];
+  upgradeSubscription: (planId: SubscriptionPlanId, method: PaymentMethod, amount: number) => PaymentTransaction;
+  cancelSubscription: () => void;
+  boostRoom: (roomId: string, days: number, boostTitle: string, amount: number, method: PaymentMethod) => PaymentTransaction;
+  validateCoupon: (code: string) => { valid: boolean; discountPercent: number; message: string };
 
   // Auth & Permissions
   setCurrentUser: (user: User | null) => void;
@@ -119,6 +187,148 @@ export const useAppStore = create<AppState>()(
       savedItemIds: [],
       bookings: [],
       toasts: [],
+
+      // Payment & Subscription Initial State
+      plans: SUBSCRIPTION_PLANS,
+      ownerSubscription: {
+        planId: 'free',
+        status: 'active',
+        expiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+        autoRenew: true,
+        startedAt: new Date().toISOString(),
+      },
+      paymentTransactions: [
+        {
+          id: 'tx_demo_1',
+          userId: 'user_owner_1',
+          userName: 'Trần Quốc Tuấn',
+          orderId: 'TRX_889201',
+          orderInfo: 'Nâng cấp Gói Cơ Bản (1 Tháng)',
+          amount: 99000,
+          method: 'momo',
+          status: 'success',
+          planId: 'basic',
+          createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
+        },
+      ],
+
+      upgradeSubscription: (planId, method, amount) => {
+        const { currentUser, showToast } = get();
+        const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId) || SUBSCRIPTION_PLANS[1];
+        const newExpiry = new Date(Date.now() + 30 * 86400000).toISOString();
+
+        const newTx: PaymentTransaction = {
+          id: `tx_${Date.now()}`,
+          userId: currentUser?.id || 'user_owner_1',
+          userName: currentUser?.name || 'Chủ Trọ',
+          orderId: `TRX_${Date.now().toString().slice(-6)}`,
+          orderInfo: `Nâng cấp ${plan.name}`,
+          amount,
+          method,
+          status: 'success',
+          planId,
+          createdAt: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          ownerSubscription: {
+            planId,
+            status: 'active',
+            expiresAt: newExpiry,
+            autoRenew: true,
+            startedAt: new Date().toISOString(),
+          },
+          paymentTransactions: [newTx, ...state.paymentTransactions],
+          notifications: [
+            {
+              id: `notif_${Date.now()}`,
+              userId: currentUser?.id || 'user_owner_1',
+              title: `Nâng cấp ${plan.name} thành công! 🎉`,
+              body: `Tài khoản của bạn đã được nâng cấp lên hạn mức ${plan.roomLimit === 999 ? 'không giới hạn' : plan.roomLimit} phòng trọ.`,
+              type: 'upgrade',
+              read: false,
+              ctaUrl: '/chu-tro/quan-ly-goi',
+              ctaLabel: 'Quản lý gói',
+              createdAt: new Date().toISOString(),
+            },
+            ...state.notifications,
+          ],
+        }));
+
+        showToast(`Thanh toán thành công! 🎉`, `Bạn đã kích hoạt thành công ${plan.name}`, 'success');
+        return newTx;
+      },
+
+      cancelSubscription: () => {
+        set((state) => ({
+          ownerSubscription: {
+            ...state.ownerSubscription,
+            autoRenew: false,
+          },
+        }));
+        get().showToast('Đã tắt tính năng tự động gia hạn', 'Gói hiện tại sẽ duy trì đến hết chu kỳ.', 'info');
+      },
+
+      boostRoom: (roomId, days, boostTitle, amount, method) => {
+        const { currentUser, rooms, showToast } = get();
+        const room = rooms.find((r) => r.id === roomId);
+        const boostExpiry = new Date(Date.now() + days * 86400000).toISOString();
+
+        const newTx: PaymentTransaction = {
+          id: `tx_boost_${Date.now()}`,
+          userId: currentUser?.id || 'user_owner_1',
+          userName: currentUser?.name || 'Chủ Trọ',
+          orderId: `BST_${Date.now().toString().slice(-6)}`,
+          orderInfo: `Đẩy tin "${room?.title || 'Phòng'}" (${days} ngày)`,
+          amount,
+          method,
+          status: 'success',
+          roomId,
+          createdAt: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          rooms: state.rooms.map((r) =>
+            r.id === roomId
+              ? {
+                  ...r,
+                  isBoosted: true,
+                  boostExpiresAt: boostExpiry,
+                  boostBadge: 'Tin Nổi Bật',
+                }
+              : r
+          ),
+          paymentTransactions: [newTx, ...state.paymentTransactions],
+          notifications: [
+            {
+              id: `notif_${Date.now()}`,
+              userId: currentUser?.id || 'user_owner_1',
+              title: `Đẩy tin phòng trọ thành công! 🚀`,
+              body: `Tin đăng "${room?.title}" sẽ được ưu tiên hiển thị đầu tiên trên trang tìm kiếm trong ${days} ngày.`,
+              type: 'system',
+              read: false,
+              ctaUrl: `/phong/${roomId}`,
+              ctaLabel: 'Xem tin phòng',
+              createdAt: new Date().toISOString(),
+            },
+            ...state.notifications,
+          ],
+        }));
+
+        showToast('Đẩy tin thành công! 🚀', `Tin đăng của bạn đã được đưa lên vị trí nổi bật`, 'success');
+        return newTx;
+      },
+
+      validateCoupon: (code: string) => {
+        const cleaned = code.trim().toUpperCase();
+        if (cleaned === 'TROXINH50' || cleaned === 'TROXINH') {
+          return { valid: true, discountPercent: 50, message: 'Áp dụng mã giảm giá 50% thành công! 🎉' };
+        }
+        if (cleaned === 'SINHVIEN' || cleaned === 'CHUTRO') {
+          return { valid: true, discountPercent: 20, message: 'Áp dụng mã ưu đãi 20% thành công! ✨' };
+        }
+        return { valid: false, discountPercent: 0, message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' };
+      },
 
       setCurrentUser: (user) => set({ currentUser: user }),
 

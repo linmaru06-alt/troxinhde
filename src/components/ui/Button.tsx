@@ -4,8 +4,9 @@ import { twMerge } from 'tailwind-merge';
 import { Loader2 } from 'lucide-react';
 
 export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive' | 'danger';
   size?: 'sm' | 'md' | 'lg';
+  fullWidth?: boolean;
   isLoading?: boolean;
   leftIcon?: React.ReactNode;
   rightIcon?: React.ReactNode;
@@ -16,6 +17,7 @@ export const Button: React.FC<ButtonProps> = ({
   className,
   variant = 'primary',
   size = 'md',
+  fullWidth = false,
   isLoading = false,
   disabled,
   leftIcon,
@@ -23,6 +25,8 @@ export const Button: React.FC<ButtonProps> = ({
   ...props
 }) => {
   const baseStyles = 'inline-flex items-center justify-center font-medium rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none disabled:cursor-not-allowed';
+
+  const normalizedVariant = variant === 'danger' ? 'destructive' : variant;
 
   const variants = {
     primary: 'bg-[#006d37] hover:bg-[#00552b] text-white shadow-sm hover:shadow-md focus:ring-[#006d37]/40',
@@ -40,7 +44,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <button
-      className={twMerge(clsx(baseStyles, variants[variant], sizes[size], className))}
+      className={twMerge(clsx(baseStyles, variants[normalizedVariant], sizes[size], fullWidth && 'w-full', className))}
       disabled={disabled || isLoading}
       {...props}
     >

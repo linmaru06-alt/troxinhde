@@ -69,6 +69,9 @@ export interface Room {
   description: string;
   views: number;
   savedCount: number;
+  isBoosted?: boolean;
+  boostExpiresAt?: string;
+  boostBadge?: string;
   createdAt: string;
 }
 
@@ -225,3 +228,45 @@ export interface Review {
   text: string;
   createdAt: string;
 }
+
+// Payment & Subscription Models
+export type SubscriptionPlanId = 'free' | 'basic' | 'pro';
+
+export interface SubscriptionPlan {
+  id: SubscriptionPlanId;
+  name: string;
+  price: number;
+  originalPrice?: number;
+  period: string;
+  roomLimit: number;
+  badge?: string;
+  popular?: boolean;
+  features: string[];
+  description: string;
+}
+
+export type PaymentMethod = 'momo' | 'vnpay' | 'banking';
+
+export interface PaymentTransaction {
+  id: string;
+  userId: string;
+  userName: string;
+  orderId: string;
+  orderInfo: string;
+  amount: number;
+  method: PaymentMethod;
+  status: 'success' | 'failed' | 'pending';
+  planId?: SubscriptionPlanId;
+  boostType?: '3days' | '7days' | '30days';
+  roomId?: string;
+  createdAt: string;
+}
+
+export interface OwnerSubscription {
+  planId: SubscriptionPlanId;
+  status: 'active' | 'cancelled' | 'expired';
+  expiresAt: string;
+  autoRenew: boolean;
+  startedAt: string;
+}
+
