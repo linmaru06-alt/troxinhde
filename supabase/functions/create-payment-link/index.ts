@@ -99,8 +99,8 @@ serve(async (req) => {
 
     // Fallback: Generate real VietQR Standard Payload (MB Bank TroXinh)
     const bankId = 'MB'; // MB Bank
-    const accountNo = '0398888888';
-    const accountName = 'CONG TY CP TRO XINH VIET NAM';
+    const accountNo = '0888110789';
+    const accountName = 'NGUYEN VU CHINH';
     const transferContent = `TROXINH ${orderCode}`;
     const vietQrUrl = `https://img.vietqr.io/image/${bankId}-${accountNo}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
       transferContent
@@ -117,6 +117,7 @@ serve(async (req) => {
           bankCode: 'MB',
           accountNumber: accountNo,
           accountName: accountName,
+          branch: 'Chi nhánh Đống Đa, Hà Nội',
           amount,
           transferContent,
         },

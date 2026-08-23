@@ -65,7 +65,7 @@ serve(async (req) => {
           </div>
         </div>
         <div style="text-align: center; font-size: 11px; color: #6b7280; padding: 16px; border-top: 1px solid #f3f4f6;">
-          © 2026 Trọ Xinh Việt Nam · Hotline: 1900 8888 99
+          © 2026 Trọ Xinh · Vận hành bởi Nguyễn Vũ Chính · Hotline: 0888 110 789
         </div>
       </div>
     `;

@@ -262,6 +262,10 @@ export const OwnerUpgradePage: React.FC = () => {
           >
             Gửi Hồ Sơ Xét Duyệt Lên Chủ Trọ (24h)
           </Button>
+
+          <div className="pt-2 text-center text-xs text-gray-500">
+            Cần tư vấn gói phù hợp? 📞 <a href="tel:0888110789" className="font-bold text-gray-800 hover:underline">0888 110 789</a> · 💬 <a href="https://zalo.me/0888110789" target="_blank" rel="noopener noreferrer" className="font-bold text-[#006d37] hover:underline">Zalo tư vấn</a>
+          </div>
         </form>
       </div>
     </div>

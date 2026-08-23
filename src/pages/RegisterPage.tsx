@@ -123,11 +123,16 @@ export const RegisterPage: React.FC = () => {
           <span>Bạn là chủ trọ? Sau khi tạo tài khoản, bạn có thể dễ dàng nộp hồ sơ nâng cấp thành Đối Tác Chủ Trọ.</span>
         </div>
 
-        <div className="text-center text-xs text-gray-600">
-          Đã có tài khoản?{' '}
-          <Link to="/dang-nhap" className="font-bold text-[#006d37] hover:underline">
-            Đăng nhập ngay
-          </Link>
+        <div className="text-center text-xs text-gray-600 space-y-2">
+          <div>
+            Đã có tài khoản?{' '}
+            <Link to="/dang-nhap" className="font-bold text-[#006d37] hover:underline">
+              Đăng nhập ngay
+            </Link>
+          </div>
+          <p className="text-[11px] text-gray-400">
+            Cần hỗ trợ? Liên hệ <a href="tel:0888110789" className="font-semibold text-gray-600 hover:underline">0888 110 789</a> hoặc <a href="https://zalo.me/0888110789" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#006d37] hover:underline">Zalo</a>
+          </p>
         </div>
       </div>
     </div>

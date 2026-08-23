@@ -22,6 +22,8 @@ const MarketplaceDetailPage = React.lazy(() => import('./pages/MarketplaceDetail
 const TrustVerificationPage = React.lazy(() => import('./pages/TrustVerificationPage').then((m) => ({ default: m.TrustVerificationPage })));
 const ContractTemplatePage = React.lazy(() => import('./pages/ContractTemplatePage').then((m) => ({ default: m.ContractTemplatePage })));
 const DepositContractPage = React.lazy(() => import('./pages/DepositContractPage').then((m) => ({ default: m.DepositContractPage })));
+const TermsPage = React.lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
+const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })));
 
 // Auth Pages
 const LoginPage = React.lazy(() => import('./pages/LoginPage').then((m) => ({ default: m.LoginPage })));
@@ -167,6 +169,8 @@ export const App: React.FC = () => {
             <Route path="/trust/da-kiem-duyet" element={<TrustVerificationPage />} />
             <Route path="/hop-dong-mau" element={<ContractTemplatePage />} />
             <Route path="/bien-ban-dat-coc" element={<DepositContractPage />} />
+            <Route path="/dieu-khoan" element={<TermsPage />} />
+            <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicyPage />} />
 
             {/* Auth Flow */}
             <Route path="/dang-nhap" element={<LoginPage />} />

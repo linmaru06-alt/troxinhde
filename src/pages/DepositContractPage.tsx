@@ -187,12 +187,12 @@ export const DepositContractPage: React.FC = () => {
         </div>
 
         {/* Footer */}
-        <div className="pt-6 border-t border-gray-200 flex items-center justify-between text-[11px] text-gray-400 font-sans">
+        <div className="pt-6 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-gray-500 font-sans gap-2">
           <span className="flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Biên bản mẫu cam kết an tâm cọc phòng từ Trọ Xinh (TroXinh.vn)
+            Biên bản được lập thông qua nền tảng Trọ Xinh (TroXinh.vn) · Vận hành bởi Nguyễn Vũ Chính
           </span>
-          <span>Hotline: 0987.654.321</span>
+          <span>Hotline hỗ trợ: 0888 110 789 · nguyenvuchinhb1hhb@gmail.com</span>
         </div>
       </div>
     </div>

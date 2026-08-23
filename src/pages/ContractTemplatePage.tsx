@@ -248,12 +248,12 @@ export const ContractTemplatePage: React.FC = () => {
         </div>
 
         {/* Footer Trust Stamp */}
-        <div className="pt-8 border-t border-gray-200 flex items-center justify-between text-[11px] text-gray-400 font-sans">
+        <div className="pt-8 border-t border-gray-200 flex flex-col sm:flex-row items-center justify-between text-[11px] text-gray-500 font-sans gap-2">
           <span className="flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            Mẫu hợp đồng kiểm duyệt bởi Nền tảng Cho Thuê Trọ Xinh (TroXinh.vn)
+            Mẫu hợp đồng chuẩn kiểm duyệt bởi Nền tảng Trọ Xinh (TroXinh.vn) · Vận hành bởi Nguyễn Vũ Chính (18 Ngõ 167 Tây Sơn, Đống Đa)
           </span>
-          <span>Hotline hỗ trợ pháp lý: 0987.654.321</span>
+          <span>Hỗ trợ pháp lý: nguyenvuchinhb1hhb@gmail.com · Hotline: 0888 110 789</span>
         </div>
       </div>
     </div>

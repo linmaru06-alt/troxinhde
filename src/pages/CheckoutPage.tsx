@@ -52,8 +52,8 @@ export const CheckoutPage: React.FC = () => {
   const basePrice = selectedPlan.price;
   const discountAmount = Math.round((basePrice * discountPercent) / 100);
   const priceAfterDiscount = basePrice - discountAmount;
-  const vatAmount = Math.round(priceAfterDiscount * 0.08); // 8% VAT
-  const totalAmount = priceAfterDiscount + vatAmount;
+  const vatAmount = 0; // Giai đoạn đầu: Chưa áp dụng VAT (Cá nhân kinh doanh)
+  const totalAmount = priceAfterDiscount;
 
   // Real-time payment polling hook
   const {
@@ -179,6 +179,9 @@ export const CheckoutPage: React.FC = () => {
 
               <p className="text-xs text-gray-500 font-medium">
                 Mở ứng dụng Ngân hàng (MB, VCB, Techcombank, BIDV, VPBank...) và chọn <strong>Quét mã QR</strong>
+              </p>
+              <p className="text-xs text-emerald-800 font-medium">
+                Cần hỗ trợ? Zalo: <a href="https://zalo.me/0888110789" target="_blank" rel="noopener noreferrer" className="underline font-bold">0888 110 789</a>
               </p>
 
               {/* Action Buttons */}
@@ -431,8 +434,8 @@ export const CheckoutPage: React.FC = () => {
                   )}
 
                   <div className="flex justify-between">
-                    <span>Thuế GTGT (VAT 8%)</span>
-                    <span className="font-semibold text-gray-800">{formatCurrency(vatAmount)}</span>
+                    <span>Thuế GTGT (VAT)</span>
+                    <span className="font-medium text-gray-500">Chưa áp dụng (0đ)</span>
                   </div>
 
                   <div className="pt-3 border-t border-gray-200 flex justify-between items-baseline">

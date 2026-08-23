@@ -40,7 +40,7 @@ export const LoginPage: React.FC = () => {
       } else {
         if (phone === '0912345678') {
           navigate('/chu-tro');
-        } else if (phone === '1900888899') {
+        } else if (phone === '0888110789' || phone === '1900888899') {
           navigate('/admin');
         } else {
           navigate('/tim-kiem');
@@ -113,11 +113,16 @@ export const LoginPage: React.FC = () => {
         </form>
 
         {/* Register CTA */}
-        <div className="text-center text-xs text-gray-600 pt-2 border-t border-gray-100">
-          Chưa có tài khoản?{' '}
-          <Link to="/dang-ky" className="font-bold text-[#006d37] hover:underline">
-            Đăng ký tài khoản ngay
-          </Link>
+        <div className="text-center text-xs text-gray-600 pt-2 border-t border-gray-100 space-y-2">
+          <div>
+            Chưa có tài khoản?{' '}
+            <Link to="/dang-ky" className="font-bold text-[#006d37] hover:underline">
+              Đăng ký tài khoản ngay
+            </Link>
+          </div>
+          <p className="text-[11px] text-gray-400">
+            Cần hỗ trợ? Liên hệ <a href="tel:0888110789" className="font-semibold text-gray-600 hover:underline">0888 110 789</a> hoặc <a href="https://zalo.me/0888110789" target="_blank" rel="noopener noreferrer" className="font-semibold text-[#006d37] hover:underline">Zalo</a>
+          </p>
         </div>
       </div>
     </div>

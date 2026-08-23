@@ -40,8 +40,9 @@ export async function createPaymentOrder(params: CreatePaymentRequest): Promise<
   const defaultBank = {
     bankName: 'Ngân hàng Quân Đội (MB Bank)',
     bankCode: 'MB',
-    accountNumber: '0398888888',
-    accountName: 'CONG TY CP TRO XINH VIET NAM',
+    accountNumber: '0888110789',
+    accountName: 'NGUYEN VU CHINH',
+    branch: 'Chi nhánh Đống Đa, Hà Nội',
   };
 
   // Generate unique 8-digit orderCode

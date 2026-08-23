@@ -98,6 +98,43 @@ export const TrustVerificationPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Contact & Founder Info */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-gray-100 text-center sm:text-left">
+          <div>
+            <span className="text-xs font-bold text-[#006d37] uppercase tracking-wider">Đội Ngũ Vận Hành</span>
+            <h3 className="text-base font-extrabold text-gray-900">Nguyễn Vũ Chính</h3>
+            <p className="text-xs text-gray-500">Người sáng lập & Vận hành Nền tảng Trọ Xinh</p>
+          </div>
+          <div className="text-xs text-gray-500 text-center sm:text-right">
+            <p>Trụ sở: 18 Ngõ 167 Tây Sơn, Đống Đa, Hà Nội</p>
+            <p>Cam kết thẩm định thực tế 100% trong 24 giờ</p>
+          </div>
+        </div>
+
+        <div className="pt-2 text-center space-y-2">
+          <p className="text-xs font-bold text-gray-900">Có thắc mắc về quy trình kiểm duyệt? Liên hệ ngay:</p>
+          <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+            <a href="tel:0888110789" className="font-bold text-[#006d37] hover:underline flex items-center gap-1">
+              📞 0888 110 789
+            </a>
+            <span>•</span>
+            <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-medium text-gray-600 hover:underline flex items-center gap-1">
+              📧 nguyenvuchinhb1hhb@gmail.com
+            </a>
+            <span>•</span>
+            <a
+              href="https://zalo.me/0888110789"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
+            >
+              💬 Zalo: 0888 110 789
+            </a>
+          </div>
+        </div>
+      </div>
+
       {/* Dual CTA */}
       <div className="bg-emerald-50 rounded-3xl p-8 border border-emerald-200 text-center space-y-4">
         <h2 className="text-xl font-bold text-gray-900">Sẵn sàng tìm trọ an tâm hôm nay?</h2>

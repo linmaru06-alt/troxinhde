@@ -1,7 +1,8 @@
 # 🏠 Trọ Xinh - Nền Tảng Thuê & Quản Lý Nhà Trọ Đã Kiểm Duyệt (TroXinh.vn)
 
 > **Tài liệu Kỹ Thuật & Hướng Dẫn Triển Khai Production (Developer & QA Manual)**  
-> *Phiên bản: 2.0.0-PROD | Khu vực hoạt động trọng điểm: Hà Nội*
+> *Phiên bản: 2.0.0-PROD | Khu vực hoạt động trọng điểm: Hà Nội*  
+> 📋 **Phiếu Thu Thập Thông Tin Triển Khai Thực Tế:** [docs/PHIEU_THU_THAP_THONG_TIN.md](file:///c:/Users/Windows/.gemini/antigravity-ide/scratch/tr%C3%B5inhdemo/docs/PHIEU_THU_THAP_THONG_TIN.md)
 
 ---
 

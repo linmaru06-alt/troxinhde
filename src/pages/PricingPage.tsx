@@ -299,6 +299,32 @@ export const PricingPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Contact Support Box */}
+        <div className="pt-4">
+          <div className="p-6 bg-white rounded-3xl border border-gray-200 text-center space-y-3 shadow-2xs">
+            <h3 className="text-sm font-bold text-gray-900">Còn thắc mắc về gói dịch vụ?</h3>
+            <p className="text-xs text-gray-500">Đội ngũ hỗ trợ của Trọ Xinh luôn sẵn sàng tư vấn trực tiếp:</p>
+            <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
+              <a href="tel:0888110789" className="font-bold text-[#006d37] hover:underline flex items-center gap-1">
+                📞 Gọi ngay: 0888 110 789
+              </a>
+              <span>•</span>
+              <a
+                href="https://zalo.me/0888110789"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-bold text-emerald-800 hover:underline flex items-center gap-1"
+              >
+                💬 Zalo: 0888 110 789
+              </a>
+              <span>•</span>
+              <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-medium text-gray-600 hover:underline flex items-center gap-1">
+                📧 nguyenvuchinhb1hhb@gmail.com
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

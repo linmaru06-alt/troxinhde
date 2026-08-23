@@ -201,6 +201,25 @@ export const PaymentResultPage: React.FC = () => {
               </>
             )}
           </div>
+
+          {/* Support Footer */}
+          <div className="pt-4 border-t border-gray-100 text-xs text-gray-500 space-y-1.5">
+            <p>Gặp sự cố thanh toán? Liên hệ ngay:</p>
+            <div className="flex flex-wrap items-center justify-center gap-3 font-semibold">
+              <a href="tel:0888110789" className="text-[#006d37] hover:underline">
+                📞 0888 110 789
+              </a>
+              <span>•</span>
+              <a
+                href="https://zalo.me/0888110789"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-emerald-800 hover:underline"
+              >
+                💬 Zalo: 0888 110 789
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
