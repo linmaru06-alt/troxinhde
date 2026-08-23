@@ -39,7 +39,7 @@ export const RoommateDetailPage: React.FC = () => {
   const handleContactChat = () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người đăng bài', 'warning');
-      navigate(`/dang-nhap?next=/roommate/${post.id}`);
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/roommate/${post.id}`)}`);
       return;
     }
     const threadId = getOrCreateThread(post.userId, post.linkedRoomId);

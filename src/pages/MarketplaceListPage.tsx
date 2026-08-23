@@ -43,7 +43,7 @@ export const MarketplaceListPage: React.FC = () => {
   const handlePostItem = () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đăng tin thanh lý đồ cũ', 'warning');
-      navigate('/dang-nhap?next=/cho-do-cu');
+      navigate('/dang-nhap?returnUrl=/cho-do-cu');
       return;
     }
     setIsModalOpen(true);

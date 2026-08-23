@@ -28,7 +28,7 @@ export const RoommateListPage: React.FC = () => {
   const handlePostClick = () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đăng tin tìm bạn cùng phòng', 'warning');
-      navigate('/dang-nhap?next=/roommate');
+      navigate('/dang-nhap?returnUrl=/roommate');
       return;
     }
     // Open create roommate post modal or form

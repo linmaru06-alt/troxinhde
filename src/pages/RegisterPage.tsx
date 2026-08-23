@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
@@ -7,7 +7,11 @@ import { Home, User, Phone, Lock, UserPlus, ShieldCheck } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { registerUser } = useAppStore();
+
+  const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
+  const roleParam = searchParams.get('role') || 'renter';
 
   const [name, setName] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
@@ -41,8 +45,9 @@ export const RegisterPage: React.FC = () => {
     setTimeout(() => {
       setIsLoading(false);
       registerUser({ name, phone });
-      // Navigate to OTP
-      navigate(`/xac-thuc-otp?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}`);
+      // Navigate to OTP with returnUrl & role
+      const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(phone)}&name=${encodeURIComponent(name)}&role=${roleParam}${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
+      navigate(otpUrl);
     }, 400);
   };
 
@@ -126,7 +131,10 @@ export const RegisterPage: React.FC = () => {
         <div className="text-center text-xs text-gray-600 space-y-2">
           <div>
             Đã có tài khoản?{' '}
-            <Link to="/dang-nhap" className="font-bold text-[#006d37] hover:underline">
+            <Link
+              to={returnUrl ? `/dang-nhap?returnUrl=${encodeURIComponent(returnUrl)}` : '/dang-nhap'}
+              className="font-bold text-[#006d37] hover:underline"
+            >
               Đăng nhập ngay
             </Link>
           </div>

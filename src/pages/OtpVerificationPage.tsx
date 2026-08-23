@@ -11,6 +11,7 @@ export const OtpVerificationPage: React.FC = () => {
 
   const phone = searchParams.get('phone') || '0987654321';
   const role = (searchParams.get('role') as any) || 'renter';
+  const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
   const [countdown, setCountdown] = useState<number>(45);
@@ -51,7 +52,9 @@ export const OtpVerificationPage: React.FC = () => {
       loginAsRole(role);
       showToast('Xác thực OTP thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh.', 'success');
 
-      if (role === 'owner') {
+      if (returnUrl) {
+        navigate(returnUrl);
+      } else if (role === 'owner') {
         navigate('/chu-tro/onboarding');
       } else {
         navigate('/onboarding');

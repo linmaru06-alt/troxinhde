@@ -497,12 +497,14 @@ export const RoomDetailPage: React.FC = () => {
               Bạn có thể gọi trực tiếp hoặc sao chép để liên hệ qua Zalo.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowPhoneConfirm(false)}>
-                Đóng
-              </Button>
-              <Button variant="primary" size="sm" className="flex-1" leftIcon={<Copy className="w-4 h-4" />} onClick={handleCallPhone}>
+              <Button variant="outline" size="sm" className="flex-1" onClick={handleCallPhone} leftIcon={<Copy className="w-3.5 h-3.5" />}>
                 Sao Chép Số
               </Button>
+              <a href={`tel:${room.ownerPhone}`} className="flex-1">
+                <Button variant="primary" size="sm" fullWidth leftIcon={<Phone className="w-3.5 h-3.5" />}>
+                  Gọi Ngay
+                </Button>
+              </a>
             </div>
           </div>
         </div>

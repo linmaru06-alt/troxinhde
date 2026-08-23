@@ -10,7 +10,7 @@ export const LoginPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { loginWithPhone, showToast } = useAppStore();
 
-  const nextUrl = searchParams.get('next');
+  const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
   const [phone, setPhone] = useState<string>('');
   const [password, setPassword] = useState<string>('');
@@ -35,12 +35,12 @@ export const LoginPage: React.FC = () => {
       setIsLoading(false);
       loginWithPhone(phone);
 
-      if (nextUrl) {
-        navigate(nextUrl);
+      if (returnUrl) {
+        navigate(returnUrl);
       } else {
         if (phone === '0912345678') {
           navigate('/chu-tro');
-        } else if (phone === '0888110789' || phone === '1900888899') {
+        } else if (phone === '0888110789') {
           navigate('/admin');
         } else {
           navigate('/tim-kiem');
@@ -116,7 +116,10 @@ export const LoginPage: React.FC = () => {
         <div className="text-center text-xs text-gray-600 pt-2 border-t border-gray-100 space-y-2">
           <div>
             Chưa có tài khoản?{' '}
-            <Link to="/dang-ky" className="font-bold text-[#006d37] hover:underline">
+            <Link
+              to={returnUrl ? `/dang-ky?returnUrl=${encodeURIComponent(returnUrl)}` : '/dang-ky'}
+              className="font-bold text-[#006d37] hover:underline"
+            >
               Đăng ký tài khoản ngay
             </Link>
           </div>

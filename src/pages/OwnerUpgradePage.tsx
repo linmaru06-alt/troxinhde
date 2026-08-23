@@ -44,7 +44,7 @@ export const OwnerUpgradePage: React.FC = () => {
         <p className="text-xs text-gray-500">
           Bạn cần đăng nhập tài khoản trước khi gửi hồ sơ đăng ký làm đối tác chủ trọ.
         </p>
-        <Link to="/dang-nhap?next=/nang-cap-chu-tro">
+        <Link to="/dang-nhap?returnUrl=/nang-cap-chu-tro">
           <Button variant="primary" size="md" className="w-full">
             Đăng Nhập Ngay
           </Button>

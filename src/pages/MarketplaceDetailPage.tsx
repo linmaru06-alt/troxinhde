@@ -36,7 +36,7 @@ export const MarketplaceDetailPage: React.FC = () => {
   const handleContactSeller = () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
-      navigate(`/dang-nhap?next=/cho-do-cu/${item.id}`);
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
       return;
     }
     const threadId = getOrCreateThread(item.userId);
@@ -95,7 +95,7 @@ export const MarketplaceDetailPage: React.FC = () => {
             </div>
 
             {/* Seller Contact Card */}
-            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-100 flex items-center justify-between gap-3">
+            <div className="p-4 bg-emerald-50/70 rounded-2xl border border-emerald-100 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
                 <img src={item.userAvatar} alt="" className="w-10 h-10 rounded-full object-cover" />
                 <div>
@@ -104,9 +104,18 @@ export const MarketplaceDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <Button variant="primary" size="sm" onClick={handleContactSeller} leftIcon={<MessageSquare className="w-4 h-4" />}>
-                Nhắn Tin
-              </Button>
+              <div className="flex items-center gap-2">
+                {item.userPhone && (
+                  <a href={`tel:${item.userPhone}`}>
+                    <Button variant="outline" size="sm" leftIcon={<Phone className="w-3.5 h-3.5" />}>
+                      Gọi Điện
+                    </Button>
+                  </a>
+                )}
+                <Button variant="primary" size="sm" onClick={handleContactSeller} leftIcon={<MessageSquare className="w-3.5 h-3.5" />}>
+                  Nhắn Tin
+                </Button>
+              </div>
             </div>
           </div>
         </div>
