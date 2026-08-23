@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Biên lai xác nhận thanh toán</title>
+  <style>
+    body { font-family: 'Be Vietnam Pro', -apple-system, sans-serif; background-color: #f9f9f9; margin: 0; padding: 20px; color: #1a1c1c; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #e5e7eb; }
+    .header { background-color: #006d37; padding: 24px; text-align: center; color: #ffffff; }
+    .body { padding: 30px 24px; font-size: 14px; line-height: 1.6; }
+    .receipt-box { background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 12px; padding: 16px; margin: 16px 0; }
+    .receipt-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 13px; }
+    .receipt-row:last-child { margin-bottom: 0; border-top: 1px dashed #d1d5db; padding-top: 8px; font-weight: 700; }
+    .button { display: inline-block; background-color: #006d37; color: #ffffff !important; padding: 12px 24px; border-radius: 12px; font-weight: 700; text-decoration: none; margin-top: 16px; }
+    .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #6b7280; border-top: 1px solid #f3f4f6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin:0;font-size:20px;">🧾 Biên Lai Thanh Toán Trọ Xinh</h1>
+    </div>
+    <div class="body">
+      <p>Xin chào <strong>{{fullName}}</strong>,</p>
+      <p>Giao dịch nâng cấp dịch vụ của bạn đã được hoàn tất thành công. Dưới đây là thông tin biên lai điện tử:</p>
+      
+      <div class="receipt-box">
+        <div class="receipt-row">
+          <span>Mã đơn hàng:</span>
+          <strong>#{{orderCode}}</strong>
+        </div>
+        <div class="receipt-row">
+          <span>Gói dịch vụ:</span>
+          <span>{{planName}}</span>
+        </div>
+        <div class="receipt-row">
+          <span>Phương thức:</span>
+          <span>VietQR / Chuyển khoản</span>
+        </div>
+        <div class="receipt-row">
+          <span>Tổng tiền thanh toán:</span>
+          <strong style="color:#006d37;">{{amount}} VND</strong>
+        </div>
+      </div>
+
+      <p>Quyền lợi gói đã được kích hoạt tự động vào tài khoản của bạn ngay lập tức.</p>
+
+      <div style="text-align: center;">
+        <a href="https://troxinh.vn/chu-tro" class="button">Vào Bảng Quản Trị</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>Trọ Xinh · Hotline: 1900 8888 99</p>
+    </div>
+  </div>
+</body>
+</html>

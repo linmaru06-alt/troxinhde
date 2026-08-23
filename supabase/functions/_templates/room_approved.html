@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <title>Tin đăng phòng đã được phê duyệt</title>
+  <style>
+    body { font-family: 'Be Vietnam Pro', -apple-system, sans-serif; background-color: #f9f9f9; margin: 0; padding: 20px; color: #1a1c1c; }
+    .container { max-width: 580px; margin: 0 auto; background: #ffffff; border-radius: 20px; overflow: hidden; border: 1px solid #e5e7eb; }
+    .header { background-color: #006d37; padding: 24px; text-align: center; color: #ffffff; }
+    .body { padding: 30px 24px; font-size: 14px; line-height: 1.6; }
+    .badge { display: inline-block; background-color: #d1fae5; color: #065f46; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+    .button { display: inline-block; background-color: #006d37; color: #ffffff !important; padding: 12px 24px; border-radius: 12px; font-weight: 700; text-decoration: none; margin-top: 20px; }
+    .footer { padding: 20px 24px; text-align: center; font-size: 11px; color: #6b7280; border-top: 1px solid #f3f4f6; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1 style="margin:0;font-size:20px;">Trọ Xinh — Kiểm Duyệt Tin Đăng</h1>
+    </div>
+    <div class="body">
+      <span class="badge">Đã Phê Duyệt ✅</span>
+      <p>Xin chào <strong>{{ownerName}}</strong>,</p>
+      <p>Tin đăng phòng trọ <strong>"{{roomName}}"</strong> của bạn đã vượt qua khâu kiểm định an toàn PCCC và được phê duyệt chính thức hiển thị trên Trọ Xinh.</p>
+      <p>Khách thuê hiện đã có thể xem chi tiết, lưu yêu thích và gửi tin nhắn hoặc yêu cầu đặt lịch hẹn xem phòng với bạn.</p>
+      <div style="text-align: center;">
+        <a href="https://troxinh.vn/phong/{{roomId}}" class="button">Xem Tin Đăng Live</a>
+      </div>
+    </div>
+    <div class="footer">
+      <p>Trọ Xinh · Hà Nội</p>
+    </div>
+  </div>
+</body>
+</html>

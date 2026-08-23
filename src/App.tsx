@@ -4,6 +4,7 @@ import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
 import { ToastContainer } from './components/ui/ToastContainer';
+import { PushPermissionToast } from './components/ui/PushPermissionToast';
 import { useAppStore } from './store/useAppStore';
 import { Button } from './components/ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
@@ -360,6 +361,7 @@ export const App: React.FC = () => {
 
         <Footer />
         <MobileBottomNav />
+        <PushPermissionToast />
         <ToastContainer />
       </div>
     </BrowserRouter>
