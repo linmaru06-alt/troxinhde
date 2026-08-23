@@ -22,7 +22,11 @@ import {
   Gift,
   X,
   Download,
+  FileDown,
+  Loader2,
 } from 'lucide-react';
+import { generateInvoicePDF } from '../lib/generateInvoice';
+import { PaymentTransaction } from '../types';
 
 export const OwnerSubscriptionManagePage: React.FC = () => {
   const navigate = useNavigate();
@@ -37,6 +41,59 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
 
   const [showCancelModal, setShowCancelModal] = useState<boolean>(false);
   const [retentionAccepted, setRetentionAccepted] = useState<boolean>(false);
+  const [downloadingTxId, setDownloadingTxId] = useState<string | null>(null);
+
+  const handleDownloadInvoice = async (tx: PaymentTransaction) => {
+    setDownloadingTxId(tx.id);
+    try {
+      const createdDate = new Date(tx.createdAt);
+      const expiredDate = new Date(createdDate);
+      expiredDate.setDate(expiredDate.getDate() + 30);
+
+      const planInfo = SUBSCRIPTION_PLANS.find((p) => p.id === tx.planId) || {
+        name: tx.orderInfo || 'Gói Dịch Vụ Chủ Trọ',
+        description: 'Đăng tin phòng trọ & tiếp cận khách thuê đã kiểm duyệt',
+      };
+
+      const formatMethodName = (m: string) => {
+        if (m === 'vietqr' || m === 'banking') return 'Chuyển khoản VietQR MB Bank';
+        if (m === 'momo') return 'Ví Điện Tử MoMo';
+        if (m === 'vnpay') return 'Cổng VNPay';
+        return 'Chuyển khoản Ngân hàng';
+      };
+
+      await generateInvoicePDF({
+        orderCode: tx.orderId,
+        orderDate: createdDate.toLocaleDateString('vi-VN'),
+        orderTime: createdDate.toLocaleTimeString('vi-VN'),
+        paymentMethod: formatMethodName(tx.method),
+        buyerName: tx.userName || currentUser?.name || 'Đối Tác Chủ Trọ',
+        buyerPhone: currentUser?.phone || '0912 345 678',
+        buyerEmail: currentUser?.email || 'khachhang@troxinh.vn',
+        planName: planInfo.name,
+        planDescription: planInfo.description,
+        planDuration: '30 ngày',
+        startDate: createdDate.toLocaleDateString('vi-VN'),
+        endDate: expiredDate.toLocaleDateString('vi-VN'),
+        unitPrice: tx.amount,
+        vatRate: 0,
+        vatAmount: 0,
+        totalAmount: tx.amount,
+        sellerName: 'Nguyễn Vũ Chính',
+        sellerAddress: '18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội',
+        sellerPhone: '0888 110 789',
+        sellerEmail: 'nguyenvuchinhb1hhb@gmail.com',
+        sellerBank: 'MB Bank (Ngân hàng Quân Đội) — STK: 0888110789',
+      });
+
+      showToast('Tải biên lai thành công!', `Biên lai giao dịch #${tx.orderId} đã được xuất thành công!`, 'success');
+    } catch (error) {
+      console.error('[Invoice Error]', error);
+      showToast('Có lỗi xảy ra', 'Không thể tạo biên lai PDF. Vui lòng thử lại.', 'error');
+    } finally {
+      setDownloadingTxId(null);
+    }
+  };
 
   const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
   const currentPlan =
@@ -215,15 +272,29 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => showToast('Tải biên lai', `Biên lai #${tx.orderId} đã được xuất thành công!`, 'success')}
-                          className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-600 hover:text-[#006d37] transition inline-flex items-center gap-1"
-                          title="Tải biên lai VAT"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span className="text-[11px]">PDF</span>
-                        </button>
+                        {tx.status === 'success' ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-[#006d37] border-emerald-600 hover:bg-emerald-50 gap-1.5 text-[11px] py-1 px-2.5 rounded-xl inline-flex items-center font-bold shadow-2xs"
+                            onClick={() => handleDownloadInvoice(tx)}
+                            disabled={downloadingTxId === tx.id}
+                          >
+                            {downloadingTxId === tx.id ? (
+                              <>
+                                <Loader2 className="w-3 h-3 animate-spin text-[#006d37]" />
+                                <span>Đang tạo...</span>
+                              </>
+                            ) : (
+                              <>
+                                <FileDown className="w-3 h-3 text-[#006d37]" />
+                                <span>Tải biên lai</span>
+                              </>
+                            )}
+                          </Button>
+                        ) : (
+                          <span className="text-[11px] text-gray-400">—</span>
+                        )}
                       </td>
                     </tr>
                   ))}

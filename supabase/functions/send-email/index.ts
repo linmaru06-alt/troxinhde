@@ -52,20 +52,33 @@ serve(async (req) => {
     const htmlContent = `
       <div style="font-family: sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e5e7eb; border-radius: 16px;">
         <div style="background-color: #006d37; color: white; padding: 20px; text-align: center; border-radius: 12px 12px 0 0;">
-          <h2 style="margin:0;">Trọ Xinh Việt Nam</h2>
+          <h2 style="margin:0; font-size: 20px;">Trọ Xinh (TroXinh.vn)</h2>
+          <p style="margin: 4px 0 0 0; font-size: 12px; opacity: 0.9;">Nền tảng tìm kiếm & quản lý phòng trọ đã kiểm duyệt</p>
         </div>
         <div style="padding: 24px; color: #1a1c1c; font-size: 14px; line-height: 1.6;">
-          <h3 style="color: #006d37;">${subject}</h3>
-          <p>Xin chào <strong>${data.fullName || data.ownerName || 'Bạn'}</strong>,</p>
-          <p>${data.message || 'Cảm ơn bạn đã tin dùng nền tảng Trọ Xinh.'}</p>
-          ${data.reason ? `<div style="background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;"><strong>Lý do:</strong> ${data.reason}</div>` : ''}
-          ${data.amount ? `<p><strong>Số tiền:</strong> ${data.amount} VND (#${data.orderCode})</p>` : ''}
+          <h3 style="color: #006d37; margin-top: 0;">${subject}</h3>
+          <p>Xin chào <strong>${data.fullName || data.ownerName || 'Quý đối tác'}</strong>,</p>
+          <p>${data.message || 'Cảm ơn bạn đã tin dùng và đồng hành cùng nền tảng Trọ Xinh.'}</p>
+          
+          ${type === 'payment_success' ? `
+            <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:12px; padding:16px; margin:16px 0;">
+              <h4 style="margin:0 0 8px 0; color:#166534;">🧾 Chi Tiết Biên Lai Thanh Toán</h4>
+              <p style="margin:4px 0;">• <strong>Mã đơn hàng:</strong> #${data.orderCode || data.orderId || 'TRX849201'}</p>
+              <p style="margin:4px 0;">• <strong>Dịch vụ:</strong> ${data.planName || 'Gói Dịch Vụ Chủ Trọ'}</p>
+              <p style="margin:4px 0;">• <strong>Số tiền:</strong> ${Number(data.amount || 99000).toLocaleString('vi-VN')} đ</p>
+              <p style="margin:4px 0;">• <strong>Đơn vị cung cấp:</strong> Nguyễn Vũ Chính (18 Ngõ 167 Tây Sơn, Đống Đa, Hà Nội)</p>
+              <p style="margin:4px 0;">• <strong>Hotline hỗ trợ:</strong> 0888 110 789 (Zalo)</p>
+            </div>
+          ` : ''}
+
+          ${data.reason ? `<div style="background:#fee2e2;color:#991b1b;padding:12px;border-radius:8px;margin:12px 0;"><strong>Lý do:</strong> ${data.reason}</div>` : ''}
+          
           <div style="text-align: center; margin-top: 24px;">
-            <a href="https://troxinh.vn" style="background:#006d37;color:white;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:bold;">Truy Cập Trọ Xinh</a>
+            <a href="https://troxinh.vn/chu-tro/quan-ly-goi" style="background:#006d37;color:white;padding:12px 24px;border-radius:8px;text-decoration:none;font-weight:bold;display:inline-block;">Quản Lý Gói & Tải Biên Lai PDF</a>
           </div>
         </div>
         <div style="text-align: center; font-size: 11px; color: #6b7280; padding: 16px; border-top: 1px solid #f3f4f6;">
-          © 2026 Trọ Xinh · Vận hành bởi Nguyễn Vũ Chính · Hotline: 0888 110 789
+          © 2026 Trọ Xinh · Vận hành bởi Nguyễn Vũ Chính · Hotline: 0888 110 789 · Email: nguyenvuchinhb1hhb@gmail.com
         </div>
       </div>
     `;

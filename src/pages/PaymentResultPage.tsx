@@ -1,10 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { SEOHead } from '../components/seo/SEOHead';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { formatCurrency } from '../components/ui/Cards';
+import { generateInvoicePDF } from '../lib/generateInvoice';
 import {
   CheckCircle2,
   XCircle,
@@ -17,6 +18,8 @@ import {
   RotateCcw,
   Calendar,
   AlertTriangle,
+  FileDown,
+  Loader2,
 } from 'lucide-react';
 
 export const PaymentResultPage: React.FC = () => {
@@ -45,6 +48,53 @@ export const PaymentResultPage: React.FC = () => {
     month: '2-digit',
     year: 'numeric',
   });
+
+  const [isGeneratingInvoice, setIsGeneratingInvoice] = useState<boolean>(false);
+  const { showToast } = useAppStore();
+
+  const handleDownloadInvoice = async () => {
+    setIsGeneratingInvoice(true);
+    try {
+      const now = new Date();
+      const formatMethodName = (m: string) => {
+        if (m === 'vietqr' || m === 'banking') return 'Chuyển khoản VietQR MB Bank';
+        if (m === 'momo') return 'Ví Điện Tử MoMo';
+        if (m === 'vnpay') return 'Cổng VNPay';
+        return 'Chuyển khoản Ngân hàng';
+      };
+
+      await generateInvoicePDF({
+        orderCode: String(orderId),
+        orderDate: now.toLocaleDateString('vi-VN'),
+        orderTime: now.toLocaleTimeString('vi-VN'),
+        paymentMethod: formatMethodName(method),
+        buyerName: currentUser?.name || 'Đối Tác Chủ Trọ',
+        buyerPhone: currentUser?.phone || '0912 345 678',
+        buyerEmail: currentUser?.email || 'khachhang@troxinh.vn',
+        planName: plan.name,
+        planDescription: plan.description,
+        planDuration: '30 ngày',
+        startDate: now.toLocaleDateString('vi-VN'),
+        endDate: formattedExpiry,
+        unitPrice: amount,
+        vatRate: 0,
+        vatAmount: 0,
+        totalAmount: amount,
+        sellerName: 'Nguyễn Vũ Chính',
+        sellerAddress: '18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội',
+        sellerPhone: '0888 110 789',
+        sellerEmail: 'nguyenvuchinhb1hhb@gmail.com',
+        sellerBank: 'MB Bank (Ngân hàng Quân Đội) — STK: 0888110789',
+      });
+
+      showToast('Tải biên lai thành công!', `Biên lai giao dịch #${orderId} đã được xuất thành công!`, 'success');
+    } catch (err) {
+      console.error('[Invoice Download Error]', err);
+      showToast('Có lỗi xảy ra', 'Không thể tạo biên lai PDF. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsGeneratingInvoice(false);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50/70 py-12">
@@ -98,55 +148,45 @@ export const PaymentResultPage: React.FC = () => {
               </div>
               <h1 className="text-2xl font-black text-gray-900">Thanh Toán Thất Bại</h1>
               <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                Giao dịch chưa thể hoàn tất hoặc tài khoản của bạn chưa bị trừ tiền. Bạn có thể thử lại hoặc liên hệ hỗ trợ.
+                Giao dịch chưa thể hoàn tất. Bạn có thể thử lại bằng phương thức thanh toán khác.
               </p>
             </div>
           )}
 
           {isPending && (
             <div className="space-y-3">
-              <div className="w-16 h-16 bg-amber-100 text-amber-600 rounded-full flex items-center justify-center mx-auto shadow-md">
-                <Clock className="w-10 h-10 stroke-[2.5]" />
+              <div className="w-16 h-16 bg-emerald-100 text-[#006d37] rounded-full flex items-center justify-center mx-auto shadow-md">
+                <Clock className="w-10 h-10 animate-spin" />
               </div>
-              <h1 className="text-2xl font-black text-gray-900">Đang Chờ Xác Nhận</h1>
+              <h1 className="text-2xl font-black text-gray-900">Đang Chờ Xác Nhận Giao Dịch</h1>
               <p className="text-xs text-gray-500 max-w-sm mx-auto">
-                Hệ thống đang đối soát với ngân hàng. Gói dịch vụ sẽ tự động kích hoạt trong 1-5 phút tới.
+                Hệ thống đang đồng bộ với cổng thanh toán. Gói dịch vụ sẽ được kích hoạt ngay khi nhận tiền.
               </p>
             </div>
           )}
 
-          {/* Transaction Receipt Card */}
-          <div className="bg-gray-50/80 rounded-2xl p-4 sm:p-6 text-left text-xs space-y-3 border border-gray-100">
-            <div className="flex justify-between items-center pb-3 border-b border-gray-200">
-              <span className="font-bold text-gray-700 flex items-center gap-1.5">
+          {/* Receipt Info Card */}
+          <div className="p-4 bg-gray-50 rounded-2xl border border-gray-200 text-left space-y-3 text-xs">
+            <div className="flex items-center justify-between font-bold text-gray-900 pb-2 border-b border-gray-200">
+              <span className="flex items-center gap-1.5">
                 <Receipt className="w-4 h-4 text-[#006d37]" />
-                Hóa Đơn Điện Tử
+                Chi Tiết Đơn Hàng
               </span>
-              <span className="font-mono text-gray-500 text-[11px]">#{orderId}</span>
+              <span className="font-mono text-gray-600">#{orderId}</span>
             </div>
 
             <div className="space-y-2 text-gray-600">
               <div className="flex justify-between">
-                <span>Dịch vụ:</span>
+                <span>Dịch vụ đăng ký:</span>
                 <span className="font-bold text-gray-900">{plan.name}</span>
               </div>
               <div className="flex justify-between">
                 <span>Phương thức:</span>
-                <span className="font-semibold text-gray-800 uppercase">{method}</span>
+                <span className="font-semibold uppercase text-gray-800">{method}</span>
               </div>
               <div className="flex justify-between">
-                <span>Thời gian giao dịch:</span>
-                <span className="text-gray-700">{new Date().toLocaleString('vi-VN')}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Hạn mức đăng phòng:</span>
-                <span className="font-bold text-[#006d37]">
-                  {plan.roomLimit === 999 ? 'Không giới hạn' : `${plan.roomLimit} phòng`}
-                </span>
-              </div>
-              <div className="flex justify-between pt-2 border-t border-gray-200 items-baseline">
-                <span className="font-bold text-gray-900">Tổng tiền thanh toán:</span>
-                <span className="text-base font-black text-[#006d37]">{formatCurrency(amount)}</span>
+                <span>Tổng tiền:</span>
+                <span className="font-black text-base text-[#006d37]">{formatCurrency(amount)}</span>
               </div>
             </div>
           </div>
@@ -166,6 +206,24 @@ export const PaymentResultPage: React.FC = () => {
                     Bắt Đầu Sử Dụng Ngay
                   </Button>
                 </Link>
+
+                <Button
+                  variant="outline"
+                  size="md"
+                  fullWidth
+                  onClick={handleDownloadInvoice}
+                  disabled={isGeneratingInvoice}
+                  leftIcon={
+                    isGeneratingInvoice ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-[#006d37]" />
+                    ) : (
+                      <FileDown className="w-4 h-4 text-[#006d37]" />
+                    )
+                  }
+                  className="border-emerald-600 text-[#006d37] hover:bg-emerald-50 font-bold"
+                >
+                  {isGeneratingInvoice ? 'Đang tạo biên lai PDF...' : 'Tải biên lai PDF'}
+                </Button>
 
                 <Link to="/chu-tro/phong/tao-moi">
                   <Button variant="outline" size="md" fullWidth leftIcon={<Building2 className="w-4 h-4" />}>
