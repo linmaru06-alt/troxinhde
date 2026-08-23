@@ -5,6 +5,7 @@ import { Button } from '../components/ui/Button';
 import { RoomCard, RoommateCard, MarketplaceCard } from '../components/ui/Cards';
 import { SEOHead } from '../components/seo/SEOHead';
 import { SearchAutocomplete } from '../components/search/SearchAutocomplete';
+import { AIRecommendationsSection } from '../components/rooms/AIRecommendationsSection';
 import {
   Search,
   MapPin,
@@ -242,35 +243,40 @@ export const LandingPage: React.FC = () => {
             <div>
               <h3 className="font-bold text-gray-900 text-base mb-1">Kiểm Duyệt Thực Tế 100%</h3>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Đội ngũ Trọ Xinh trực tiếp đến tận nơi xác minh địa chỉ, giá điện nước, tiện ích và giấy tờ chủ trọ.
+                Đội ngũ Trọ Xinh trực tiếp đến từng phòng quay video, thẩm định PCCC và đối soát hợp đồng trước khi duyệt.
               </p>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-emerald-100 shadow-xs flex items-start gap-4 hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
               <Lock className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base mb-1">Bảo Vệ Tiền Cọc An Toàn</h3>
+              <h3 className="font-bold text-gray-900 text-base mb-1">Minh Bạch & Trực Tiếp</h3>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Hợp đồng mẫu chuẩn pháp lý, minh bạch chi phí phát sinh, cam kết hoàn cọc nếu phòng không đúng cam kết.
+                Không phí môi giới, không cọc giữ chỗ qua trung gian mờ ám. Kết nối trực tiếp số điện thoại chủ nhà.
               </p>
             </div>
           </div>
 
           <div className="bg-white rounded-2xl p-6 border border-emerald-100 shadow-xs flex items-start gap-4 hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-blue-50 text-[#006492] flex items-center justify-center shrink-0">
-              <Users className="w-6 h-6" />
+            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+              <Award className="w-6 h-6" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base mb-1">Hệ Sinh Thái Sinh Viên</h3>
+              <h3 className="font-bold text-gray-900 text-base mb-1">Hợp Đồng & Biên Bản Chuẩn</h3>
               <p className="text-xs text-gray-500 leading-relaxed">
-                Tích hợp sẵn tìm bạn ở ghép tương đồng lối sống và chợ thanh lý đồ dùng sinh viên 0 đồng.
+                Cung cấp miễn phí mẫu hợp đồng thuê trọ và biên bản bàn giao thiết bị chuẩn pháp lý được luật sư biên soạn.
               </p>
             </div>
           </div>
         </div>
+      </section>
+
+      {/* AI RECOMMENDATIONS SECTION */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AIRecommendationsSection />
       </section>
 
       {/* 3. FEATURED VERIFIED LISTINGS */}

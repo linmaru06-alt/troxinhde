@@ -10,6 +10,7 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { GuestPromptBanner } from '../components/search/GuestPromptBanner';
 import { SEOHead } from '../components/seo/SEOHead';
 import { SearchAutocomplete } from '../components/search/SearchAutocomplete';
+import { AIRecommendationsSection } from '../components/rooms/AIRecommendationsSection';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   Search,
@@ -388,6 +389,11 @@ function removeVietnameseTones(str: string): string {
               ))}
             </div>
           )}
+
+          {/* AI-Powered Recommendations */}
+          <div className="pt-8">
+            <AIRecommendationsSection />
+          </div>
         </main>
       </div>
 

@@ -183,3 +183,16 @@ export async function incrementRoomView(roomId: string, userId?: string) {
     // view history logging failure should not break the UI
   }
 }
+
+export async function findRoomsNearLocation(targetLat: number, targetLng: number, radiusKm: number = 2.0) {
+  if (!isSupabaseConfigured) return [];
+
+  const { data, error } = await supabase.rpc('find_rooms_near_location', {
+    target_lat: targetLat,
+    target_lng: targetLng,
+    radius_km: radiusKm,
+  });
+
+  if (error) throw error;
+  return data || [];
+}
