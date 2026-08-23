@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { FLAGS } from '../lib/flags';
 import {
   Code,
   RotateCcw,
@@ -15,8 +16,8 @@ import {
 } from 'lucide-react';
 
 export const DebugPage: React.FC = () => {
-  // Production protection: automatically block debug dashboard in production or unless VITE_ENABLE_DEBUG=true
-  if (import.meta.env.PROD || import.meta.env.VITE_ENABLE_DEBUG !== 'true') {
+  // Production protection: automatically block debug dashboard in production or unless ENABLE_DEBUG is true
+  if (FLAGS.IS_PROD || !FLAGS.ENABLE_DEBUG) {
     return <Navigate to="/" replace />;
   }
 

@@ -29,6 +29,7 @@ import {
   initialThreads,
   initialMessages,
 } from '../data/mockData';
+import { signOut } from '../lib/api/auth';
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -393,6 +394,7 @@ export const useAppStore = create<AppState>()(
       },
 
       logout: () => {
+        signOut().catch(() => {});
         set({ currentUser: null });
         get().showToast('Đã đăng xuất', 'Hẹn gặp lại bạn!', 'info');
       },

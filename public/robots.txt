@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /admin
+Disallow: /debug
+Disallow: /chu-tro/
+Disallow: /chu-tro
+
+Sitemap: https://troxinh.vn/sitemap.xml

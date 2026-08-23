@@ -109,6 +109,16 @@ export const RoomDetailPage: React.FC = () => {
         image={room.images[0]}
         url={`/phong/${room.id}`}
         type="article"
+        accommodation={{
+          name: room.title,
+          description: room.description,
+          images: room.images,
+          address: room.address,
+          district: room.district,
+          price: room.price,
+          avgRating: 4.9,
+          reviewCount: userReviews.length || 5,
+        }}
       />
 
       {/* Breadcrumb Header */}
