@@ -26,6 +26,7 @@ import {
   FileText,
   CreditCard,
   Sparkles,
+  Plus,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -41,7 +42,7 @@ export const Navbar: React.FC = () => {
 
   const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
-  // Main navigation links: Replaced "Xác minh" & "Bảng giá" with "Tìm bạn cùng phòng" & "Chợ đồ cũ sinh viên"
+  // Main navigation links: Room rental, Map, Roommate, Student Marketplace
   const navLinks = [
     { to: '/tim-phong', label: 'Tìm phòng', icon: Compass },
     { to: '/ban-do', label: 'Xem bản đồ', icon: MapPin },
@@ -63,43 +64,46 @@ export const Navbar: React.FC = () => {
   };
 
   return (
-    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-2xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 sm:h-18">
+    <header className="sticky top-0 z-40 bg-[#00a854] border-b border-emerald-600/30 shadow-xs">
+      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between h-14 sm:h-16">
           {/* 1. Left: Mobile Menu Toggle & Brand Logo */}
-          <div className="flex items-center gap-3 sm:gap-6">
+          <div className="flex items-center gap-2 sm:gap-4">
             {/* Mobile Hamburger */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              className="lg:hidden p-2 rounded-xl text-gray-700 hover:bg-gray-100 transition"
+              className="lg:hidden w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs"
               title="Menu"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Original Brand Logo & Text */}
-            <Link to="/" className="flex items-center gap-2.5 group">
+            {/* White Pill Logo with Black Text */}
+            <Link
+              to="/"
+              className="flex items-center gap-2 px-3.5 py-1.5 bg-white rounded-full shadow-xs hover:shadow-md transition group"
+            >
               <OptimizedImage
                 src="/images/logo.png"
                 alt="Trọ Xinh Logo"
                 priority={true}
                 loading="eager"
-                width={38}
-                height={38}
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl object-cover ring-2 ring-emerald-500/20 shadow-md group-hover:scale-105 transition-transform duration-200"
+                width={28}
+                height={28}
+                className="w-7 h-7 rounded-lg object-cover ring-1 ring-emerald-500/20"
               />
               <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-black tracking-tight text-[#006d37] leading-none">
+                <span className="text-base sm:text-lg font-black tracking-tight text-gray-950 leading-none">
                   Trọ Xinh
                 </span>
-                <span className="text-[10px] font-bold text-gray-400 tracking-wider uppercase mt-0.5">
+                <span className="text-[9px] font-bold text-gray-500 tracking-wider uppercase mt-0.5">
                   TroXinh.vn
                 </span>
               </div>
             </Link>
 
-            {/* 2. Center: Desktop Main Navigation */}
-            <nav className="hidden lg:flex items-center gap-1 ml-4">
+            {/* 2. Center: Desktop Main Navigation with Black Bold Text */}
+            <nav className="hidden lg:flex items-center gap-1.5 ml-2">
               {navLinks.map((link) => {
                 const Icon = link.icon;
                 const active = isActive(link.to);
@@ -107,13 +111,13 @@ export const Navbar: React.FC = () => {
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black transition-all duration-150 ${
                       active
-                        ? 'bg-emerald-50 text-[#006d37]'
-                        : 'text-gray-600 hover:text-[#006d37] hover:bg-gray-50'
+                        ? 'bg-gray-950 text-white shadow-xs'
+                        : 'text-gray-950 hover:bg-black/10 hover:text-black'
                     }`}
                   >
-                    <Icon className={`w-4 h-4 ${active ? 'text-[#006d37]' : 'text-gray-400'}`} />
+                    <Icon className={`w-3.5 h-3.5 ${active ? 'text-[#00a854]' : 'text-gray-900 stroke-[2.5]'}`} />
                     <span>{link.label}</span>
                   </Link>
                 );
@@ -122,79 +126,74 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* 3. Right: Actions & User Menu */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Saved Rooms */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Saved Rooms (White Circle Button, Black Icon) */}
             <Link
               to="/da-luu"
-              className="p-2.5 rounded-xl text-gray-600 hover:text-rose-600 hover:bg-gray-50 transition relative"
+              className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
               title="Phòng đã lưu"
             >
-              <Heart className="w-4 h-4" />
+              <Heart className="w-4 h-4 text-gray-950 stroke-[2.5]" />
               {savedRoomIds.length > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
                   {savedRoomIds.length}
                 </span>
               )}
             </Link>
 
-            {/* Notifications */}
+            {/* Notifications (White Circle Button, Black Icon) */}
             <Link
               to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
-              className="p-2.5 rounded-xl text-gray-600 hover:text-[#006d37] hover:bg-gray-50 transition relative"
+              className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
               title="Thông báo"
             >
-              <Bell className="w-4 h-4" />
+              <Bell className="w-4 h-4 text-gray-950 stroke-[2.5]" />
               {unreadNotifs > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
                   {unreadNotifs}
                 </span>
               )}
             </Link>
 
-            {/* Chat */}
+            {/* Chat Pill (White Pill, Black Text) */}
             <Link
               to={currentUser?.role === 'owner' ? '/chu-tro/tin-nhan' : '/tin-nhan'}
-              className="hidden sm:flex p-2.5 rounded-xl text-gray-600 hover:text-[#006d37] hover:bg-gray-50 transition relative"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative"
               title="Tin nhắn"
             >
-              <MessageSquare className="w-4 h-4" />
+              <MessageSquare className="w-4 h-4 text-gray-950 stroke-[2.5]" />
+              <span>Tin nhắn</span>
               {unreadMessages > 0 && (
-                <span className="absolute top-1.5 right-1.5 w-4 h-4 bg-[#006d37] text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                <span className="ml-0.5 px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-black rounded-full">
                   {unreadMessages}
                 </span>
               )}
             </Link>
 
-            {/* Post / Landlord CTA Button */}
-            <Button
-              variant="outline"
-              size="sm"
+            {/* Post / Landlord CTA Button (Black Pill, Bold) */}
+            <button
               onClick={handlePostClick}
-              leftIcon={<PlusCircle className="w-4 h-4 text-[#006d37]" />}
-              className="hidden md:inline-flex text-xs font-bold text-[#006d37] border-emerald-300 hover:bg-emerald-50"
+              className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gray-950 hover:bg-black text-white text-xs font-black transition shadow-md"
             >
-              {currentUser?.role === 'owner' ? 'Đăng Phòng Mới' : 'Đăng Tin Cho Thuê'}
-            </Button>
+              <Plus className="w-3.5 h-3.5 stroke-[3]" />
+              <span>{currentUser?.role === 'owner' ? 'ĐĂNG PHÒNG' : 'ĐĂNG TIN'}</span>
+            </button>
 
             {/* Auth Buttons / User Avatar */}
             {!currentUser ? (
-              <div className="flex items-center gap-2">
-                <Link to="/dang-nhap">
-                  <Button variant="ghost" size="sm" className="text-xs font-bold">
-                    Đăng Nhập
-                  </Button>
-                </Link>
-                <Link to="/dang-ky" className="hidden sm:inline-block">
-                  <Button variant="primary" size="sm" className="text-xs font-bold">
-                    Đăng Ký
-                  </Button>
+              <div className="flex items-center gap-1.5">
+                <Link
+                  to="/dang-nhap"
+                  className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs"
+                >
+                  Đăng nhập
                 </Link>
               </div>
             ) : (
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={toggleAvatarDropdown}
-                  className="flex items-center gap-2 p-1.5 rounded-2xl hover:bg-gray-100 transition ring-1 ring-gray-200"
+                  className="flex items-center gap-1 p-0.5 rounded-full bg-white hover:ring-2 hover:ring-white transition shadow-2xs"
                   aria-expanded={isAvatarDropdownOpen}
                 >
                   <OptimizedImage
@@ -202,17 +201,9 @@ export const Navbar: React.FC = () => {
                     alt={currentUser.name}
                     width={32}
                     height={32}
-                    className="w-8 h-8 rounded-xl object-cover ring-1 ring-emerald-300"
+                    className="w-8 h-8 rounded-full object-cover"
                   />
-                  <div className="hidden sm:flex flex-col text-left">
-                    <span className="text-xs font-bold text-gray-900 leading-tight truncate max-w-[90px]">
-                      {currentUser.name}
-                    </span>
-                    <span className="text-[10px] text-gray-500 leading-none capitalize">
-                      {currentUser.role === 'owner' ? 'Chủ trọ' : currentUser.role === 'admin' ? 'Quản trị' : 'Người thuê'}
-                    </span>
-                  </div>
-                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-150 ${isAvatarDropdownOpen ? 'rotate-180' : ''}`} />
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-950 pr-1 transition-transform ${isAvatarDropdownOpen ? 'rotate-180' : ''}`} />
                 </button>
 
                 {/* Dropdown Menu */}
@@ -227,7 +218,7 @@ export const Navbar: React.FC = () => {
                       onClick={closeAllDropdowns}
                     >
                       <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-xs font-bold text-gray-900">{currentUser.name}</p>
+                        <p className="text-xs font-black text-gray-900">{currentUser.name}</p>
                         <p className="text-[11px] text-gray-500">{currentUser.phone}</p>
                         <div className="mt-1">
                           <Badge
@@ -242,7 +233,7 @@ export const Navbar: React.FC = () => {
 
                       <Link
                         to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
-                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#006d37] font-semibold"
+                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
                       >
                         <UserIcon className="w-4 h-4" />
                         <span>Trang cá nhân</span>
@@ -251,7 +242,7 @@ export const Navbar: React.FC = () => {
                       {currentUser.role === 'owner' ? (
                         <Link
                           to="/chu-tro"
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
                         >
                           <Building2 className="w-4 h-4" />
                           <span>Quản lý phòng & tòa nhà</span>
@@ -259,7 +250,7 @@ export const Navbar: React.FC = () => {
                       ) : (
                         <Link
                           to="/nang-cap-chu-tro"
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
                         >
                           <Building2 className="w-4 h-4" />
                           <span>Đăng ký làm chủ trọ</span>
@@ -269,7 +260,7 @@ export const Navbar: React.FC = () => {
                       {currentUser.role === 'admin' && (
                         <Link
                           to="/admin"
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
                         >
                           <ShieldCheck className="w-4 h-4" />
                           <span>Bảng quản trị</span>
@@ -278,7 +269,7 @@ export const Navbar: React.FC = () => {
 
                       <Link
                         to="/hop-dong-mau"
-                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-700 hover:bg-gray-50 font-semibold"
+                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
                       >
                         <FileText className="w-4 h-4" />
                         <span>Mẫu hợp đồng thuê</span>
@@ -288,7 +279,7 @@ export const Navbar: React.FC = () => {
 
                       <button
                         onClick={logout}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-semibold text-left"
+                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-bold text-left"
                       >
                         <LogOut className="w-4 h-4" />
                         <span>Đăng xuất</span>
@@ -325,50 +316,47 @@ export const Navbar: React.FC = () => {
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                   <div className="flex items-center gap-2">
                     <OptimizedImage src="/images/logo.png" alt="Logo" width={28} height={28} className="w-7 h-7 rounded-lg" />
-                    <span className="font-black text-[#006d37]">Trọ Xinh Hà Nội</span>
+                    <span className="font-black text-gray-950">Trọ Xinh Hà Nội</span>
                   </div>
                   <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-gray-700 font-bold text-sm">
                     ✕
                   </button>
                 </div>
 
-                <div className="space-y-1 text-xs font-bold text-gray-800">
-                  <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50 hover:text-[#006d37]">
-                    <Compass className="w-4 h-4 text-[#006d37]" />
+                <div className="space-y-1 text-xs font-black text-gray-950">
+                  <Link to="/" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50">
+                    <Compass className="w-4 h-4 text-[#00a854]" />
                     <span>Trang chủ</span>
                   </Link>
-                  <Link to="/tim-phong" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50 hover:text-[#006d37]">
-                    <Compass className="w-4 h-4 text-[#006d37]" />
+                  <Link to="/tim-phong" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50">
+                    <Compass className="w-4 h-4 text-[#00a854]" />
                     <span>Tìm phòng trọ</span>
                   </Link>
-                  <Link to="/ban-do" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50 hover:text-[#006d37]">
-                    <MapPin className="w-4 h-4 text-[#006d37]" />
+                  <Link to="/ban-do" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50">
+                    <MapPin className="w-4 h-4 text-[#00a854]" />
                     <span>Xem trên bản đồ</span>
                   </Link>
-                  <Link to="/tim-ban-cung-phong" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50 hover:text-[#006d37]">
-                    <Users className="w-4 h-4 text-[#006d37]" />
+                  <Link to="/tim-ban-cung-phong" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50">
+                    <Users className="w-4 h-4 text-[#00a854]" />
                     <span>Tìm bạn cùng phòng</span>
                   </Link>
-                  <Link to="/cho-do-cu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50 hover:text-[#006d37]">
-                    <ShoppingBag className="w-4 h-4 text-[#006d37]" />
+                  <Link to="/cho-do-cu" onClick={() => setIsMobileMenuOpen(false)} className="flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-emerald-50">
+                    <ShoppingBag className="w-4 h-4 text-[#00a854]" />
                     <span>Chợ đồ cũ sinh viên</span>
                   </Link>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-gray-100 text-center">
-                <Button
-                  variant="primary"
-                  size="md"
-                  fullWidth
+                <button
                   onClick={() => {
                     setIsMobileMenuOpen(false);
                     handlePostClick();
                   }}
-                  leftIcon={<PlusCircle className="w-4 h-4" />}
+                  className="w-full py-2.5 bg-gray-950 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md"
                 >
-                  Đăng Tin Cho Thuê
-                </Button>
+                  <Plus className="w-4 h-4" /> ĐĂNG TIN PHÒNG TRỌ
+                </button>
               </div>
             </motion.div>
           </div>

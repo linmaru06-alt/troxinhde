@@ -4,7 +4,6 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { RoomCard, RoommateCard, MarketplaceCard } from '../components/ui/Cards';
 import { SEOHead } from '../components/seo/SEOHead';
-import { SearchAutocomplete } from '../components/search/SearchAutocomplete';
 import { AIRecommendationsSection } from '../components/rooms/AIRecommendationsSection';
 import {
   Search,
@@ -13,18 +12,14 @@ import {
   CheckCircle2,
   Sparkles,
   ArrowRight,
-  Building2,
-  Navigation,
   Clock,
-  Home,
-  DollarSign,
   Users,
   ShoppingBag,
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { rooms, roommates, marketplaceItems, currentUser } = useAppStore();
+  const { rooms, roommates, marketplaceItems } = useAppStore();
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -49,7 +44,7 @@ export const LandingPage: React.FC = () => {
     { label: '💵 Dưới 3.5 triệu', query: { gia: '0-3500000' } },
     { label: '🛋️ Studio khép kín', query: { loai: 'Studio' } },
     { label: '🏢 Căn hộ mini', query: { loai: 'Căn hộ mini' } },
-    { label: '🛡️ Đã đối chiếu thông tin', query: { xacMinh: 'true' } },
+    { label: '🛡️ Mới xác minh', query: { xacMinh: 'true' } },
   ];
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -72,60 +67,64 @@ export const LandingPage: React.FC = () => {
   return (
     <div className="space-y-12 sm:space-y-16 pb-16 bg-[#f8f9fa]">
       <SEOHead
-        title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Sinh Viên Đã Kiểm Duyệt tại Hà Nội"
+        title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
         description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, tìm bạn ở ghép và chợ đồ cũ sinh viên."
         url="/"
       />
 
-      {/* 1. ORIGINAL GREEN HERO SECTION WITH FLOATING SEARCH CARD */}
-      <section className="relative overflow-hidden pt-10 pb-16 md:pt-16 md:pb-24 bg-linear-to-b from-emerald-50/70 via-emerald-50/30 to-[#f8f9fa] border-b border-gray-200/60">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-8 space-y-4">
-            {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white text-[#006d37] border border-emerald-200 text-xs font-black shadow-xs">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Nền tảng phòng trọ đã đối chiếu thông tin 100% tại Hà Nội</span>
+      {/* 1. GREEN HERO BANNER WITH BLACK TEXT */}
+      <section className="relative bg-gradient-to-b from-[#00a854] to-[#009249] pt-8 pb-16 md:pt-12 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-emerald-600/40">
+        <div className="max-w-6xl mx-auto text-center relative z-10 space-y-4">
+          {/* Slogan Banner with 3D Icons & Black Bold Text */}
+          <div className="relative max-w-3xl mx-auto py-2">
+            {/* Left Decorative Floating Badges */}
+            <div className="hidden md:flex flex-col items-center absolute -left-12 top-0 text-3xl animate-bounce duration-1000 select-none pointer-events-none opacity-90">
+              <span>🏠</span>
+              <span className="text-xl">🛋️</span>
             </div>
 
-            {/* Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight leading-tight sm:leading-none">
-              Tìm trọ an tâm, <br className="hidden sm:inline" />
-              <span className="text-[#006d37] relative inline-block">
-                không lo phòng ảo
-                <span className="absolute bottom-1 left-0 right-0 h-3 bg-emerald-200/50 -z-10 rounded-full" />
-              </span>
+            {/* Right Decorative Floating Badges */}
+            <div className="hidden md:flex flex-col items-center absolute -right-12 top-0 text-3xl animate-bounce duration-700 select-none pointer-events-none opacity-90">
+              <span>🛵</span>
+              <span className="text-xl">🎓</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
+              Giá tốt, gần bạn, chốt nhanh!
             </h1>
 
-            <p className="text-sm sm:text-base text-gray-600 max-w-2xl mx-auto leading-relaxed font-medium">
-              Đúng giá, đúng hình, biết trước toàn bộ chi phí dự kiến và đặt lịch hẹn trực tiếp với chủ trọ.
+            <p className="text-xs sm:text-sm text-gray-950 font-bold max-w-xl mx-auto mt-2 opacity-90">
+              Tìm phòng trọ sinh viên đã đối chiếu danh tính & thông tin thực tế tại Hà Nội
             </p>
           </div>
+        </div>
 
-          {/* Search Card */}
-          <div className="max-w-4xl mx-auto bg-white rounded-3xl p-3 sm:p-5 shadow-xl border border-gray-200/80 ring-1 ring-black/5 space-y-3">
-            <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-center gap-2.5">
-              {/* Search input with autocomplete */}
-              <div className="relative flex-1 w-full flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-4 py-3 transition focus-within:ring-2 focus-within:ring-[#006d37] focus-within:bg-white">
+        {/* 2. FLOATING DOCKED SEARCH BAR */}
+        <div className="max-w-4xl mx-auto -mb-24 sm:-mb-26 px-2 relative z-20">
+          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-gray-100 ring-1 ring-black/5 space-y-3">
+            <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-center gap-2">
+              {/* Search input */}
+              <div className="relative flex-1 w-full flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-4 py-2.5 transition focus-within:ring-2 focus-within:ring-[#00a854] focus-within:bg-white">
                 <Search className="w-5 h-5 text-gray-400 shrink-0 mr-2.5" />
                 <input
                   type="text"
-                  placeholder="Gõ tên trường ĐH hoặc khu vực (Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)..."
+                  placeholder="Tìm phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none placeholder:text-gray-400"
+                  className="w-full bg-transparent text-xs sm:text-sm font-bold text-gray-900 focus:outline-none placeholder:text-gray-400 placeholder:font-normal"
                 />
               </div>
 
               {/* Location / District Dropdown */}
-              <div className="relative w-full md:w-60 shrink-0">
-                <div className="flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-3.5 py-3 transition focus-within:ring-2 focus-within:ring-[#006d37] focus-within:bg-white">
-                  <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mr-1.5" />
+              <div className="relative w-full md:w-56 shrink-0">
+                <div className="flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-3.5 py-2.5 transition focus-within:ring-2 focus-within:ring-[#00a854] focus-within:bg-white">
+                  <MapPin className="w-4 h-4 text-[#00a854] shrink-0 mr-1.5" />
                   <select
                     value={selectedDistrict}
                     onChange={(e) => setSelectedDistrict(e.target.value)}
                     className="w-full bg-transparent text-xs sm:text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
                   >
-                    <option value="">Tất cả khu vực (Hà Nội)</option>
+                    <option value="">Chọn khu vực (Toàn Hà Nội)</option>
                     {districts.map((d) => (
                       <option key={d} value={d}>{d}</option>
                     ))}
@@ -133,30 +132,31 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Search Button */}
-              <Button
+              {/* Search Button (Black Button with White Text) */}
+              <button
                 type="submit"
-                variant="primary"
-                size="lg"
-                leftIcon={<Search className="w-4 h-4" />}
-                className="w-full md:w-auto px-7 py-3 font-bold rounded-2xl shadow-md shrink-0"
+                className="w-full md:w-auto px-7 py-3 bg-gray-950 hover:bg-black text-white font-black text-sm rounded-2xl transition shadow-md flex items-center justify-center gap-1.5 shrink-0"
               >
-                Tìm Phòng Trọ
-              </Button>
+                <Search className="w-4 h-4 stroke-[3]" />
+                <span>Tìm kiếm</span>
+              </button>
             </form>
           </div>
         </div>
       </section>
 
-      {/* 2. QUICK FILTER PILLS */}
+      {/* Spacing for floating search bar */}
+      <div className="h-10 sm:h-12" />
+
+      {/* 3. QUICK FILTER PILLS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-200/80 shadow-xs">
           <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-gray-100">
-            <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-[#006d37]" />
+            <span className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#00a854]" />
               Tìm nhanh theo nhu cầu sinh viên
             </span>
-            <Link to="/tim-phong" className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-0.5">
+            <Link to="/tim-phong" className="text-xs font-black text-[#00a854] hover:underline flex items-center gap-0.5">
               Xem tất cả phòng →
             </Link>
           </div>
@@ -166,7 +166,7 @@ export const LandingPage: React.FC = () => {
               <button
                 key={idx}
                 onClick={() => handleQuickPillClick(pill.query)}
-                className="px-3.5 py-2 rounded-2xl bg-gray-50 hover:bg-emerald-50 hover:text-[#006d37] hover:border-emerald-200 border border-gray-200/80 text-xs font-bold text-gray-700 transition shrink-0 shadow-2xs"
+                className="px-3.5 py-2 rounded-2xl bg-gray-50 hover:bg-emerald-50 hover:text-[#00a854] hover:border-emerald-200 border border-gray-200/80 text-xs font-bold text-gray-900 transition shrink-0 shadow-2xs"
               >
                 {pill.label}
               </button>
@@ -175,11 +175,11 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 3. TRUST HIGHLIGHTS */}
+      {/* 4. TRUST HIGHLIGHTS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#00a854] flex items-center justify-center shrink-0">
               <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
@@ -191,7 +191,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#00a854] flex items-center justify-center shrink-0">
               <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
@@ -203,7 +203,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs flex items-start gap-3.5">
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#00a854] flex items-center justify-center shrink-0">
               <Clock className="w-5 h-5" />
             </div>
             <div>
@@ -216,11 +216,11 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 4. VERIFIED ROOMS FEED */}
+      {/* 5. VERIFIED ROOMS FEED */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-200">
           <div>
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#006d37] text-[11px] font-bold mb-1">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#00a854] text-[11px] font-bold mb-1">
               <ShieldCheck className="w-3.5 h-3.5" />
               <span>Đã đối chiếu trong 30 ngày qua</span>
             </div>
@@ -243,16 +243,16 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 5. AI RECOMMENDATIONS SECTION */}
+      {/* 6. AI RECOMMENDATIONS SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <AIRecommendationsSection />
       </section>
 
-      {/* 6. ROOMMATE SECTION (TÌM BẠN CÙNG PHÒNG) */}
+      {/* 7. ROOMMATE SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-200">
           <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-emerald-100 text-[#006d37]">
+            <div className="p-2 rounded-xl bg-emerald-100 text-[#00a854]">
               <Users className="w-5 h-5" />
             </div>
             <div>
@@ -277,7 +277,7 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 7. MARKETPLACE SECTION (CHỢ ĐỒ CŨ SINH VIÊN) */}
+      {/* 8. MARKETPLACE SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-200">
           <div className="flex items-center gap-2">
@@ -306,31 +306,31 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 8. CTA FOR LANDLORDS */}
+      {/* 9. CTA FOR LANDLORDS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-[#006d37] to-[#004e27] rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="bg-gradient-to-r from-[#00a854] to-[#006d37] rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="space-y-2 text-center md:text-left">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+            <span className="text-xs font-black uppercase tracking-wider text-emerald-200">
               Dành riêng cho chủ trọ tại Hà Nội
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950">
               Bạn có phòng trống cần tìm khách thuê tử tế?
             </h2>
-            <p className="text-xs sm:text-sm text-emerald-100 max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-gray-900 font-bold max-w-xl leading-relaxed">
               Tiếp cận hơn 50.000 sinh viên tại các trường ĐHQG, Bách Khoa, Kinh Tế, Ngoại Thương. Đăng tin nhanh chóng, quản lý lịch hẹn thông minh.
             </p>
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
             <Link to="/nang-cap-chu-tro">
-              <Button variant="secondary" size="lg" className="font-black">
-                Đăng Ký Làm Chủ Trọ
-              </Button>
+              <button className="px-6 py-3 bg-gray-950 hover:bg-black text-white font-black rounded-2xl text-xs sm:text-sm shadow-md transition">
+                Đăng ký làm chủ trọ
+              </button>
             </Link>
             <Link to="/bang-gia">
-              <Button variant="outline" size="lg" className="text-white border-white/40 hover:bg-white/10">
-                Xem Bảng Giá Gói VIP
-              </Button>
+              <button className="px-6 py-3 bg-white/20 hover:bg-white/30 text-gray-950 font-black rounded-2xl text-xs sm:text-sm border border-black/10 transition">
+                Xem bảng giá gói VIP
+              </button>
             </Link>
           </div>
         </div>
