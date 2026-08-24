@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
-import { ShieldCheck, RotateCcw, ArrowRight, Sparkles, PhoneCall } from 'lucide-react';
+import { useAppStore } from '../store/useAppStore';
+import { ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
 import { sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginAsRole, loginWithPhone, showToast } = useAppStore();
+  const { loginWithPhone, registerUser, showToast } = useAppStore();
 
   const phone = searchParams.get('phone') || '0988110789';
-  const role = (searchParams.get('role') as any) || 'renter';
-  const name = searchParams.get('name') || '';
+  const role = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
+  const name = searchParams.get('name');
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
@@ -20,12 +20,13 @@ export const OtpVerificationPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [verificationId, setVerificationId] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Tự động gửi OTP khi mở trang
+  // Tự động gọi gửi OTP khi mở trang
   useEffect(() => {
     let isMounted = true;
-    async function initOtp() {
+    async function triggerSend() {
       const res = await sendPhoneOtp(phone, 'recaptcha-container');
       if (isMounted && res.success && res.verificationId) {
         setVerificationId(res.verificationId);
@@ -36,12 +37,16 @@ export const OtpVerificationPage: React.FC = () => {
             'info'
           );
         } else {
-          showToast('Đã gửi tin nhắn SMS chứa mã OTP!', 'Vui lòng kiểm tra hộp thư tin nhắn.', 'success');
+          showToast(
+            'Đã gửi tin nhắn SMS chứa mã OTP!',
+            'Vui lòng kiểm tra hộp thư tin nhắn điện thoại.',
+            'success'
+          );
         }
       }
     }
+    triggerSend();
 
-    initOtp();
     return () => {
       isMounted = false;
     };
@@ -100,8 +105,14 @@ export const OtpVerificationPage: React.FC = () => {
     setIsLoading(false);
 
     if (res.success) {
-      loginWithPhone(phone, role);
-      showToast('Xác thực OTP thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh.', 'success');
+      if (name) {
+        // Đăng ký mới
+        registerUser({ name, phone });
+      } else {
+        // Đăng nhập số điện thoại
+        loginWithPhone(phone, role);
+        showToast('Xác thực OTP thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh.', 'success');
+      }
 
       if (returnUrl) {
         navigate(returnUrl);
@@ -131,7 +142,11 @@ export const OtpVerificationPage: React.FC = () => {
           'info'
         );
       } else {
-        showToast('Đã gửi lại mã OTP thành công!', 'Vui lòng kiểm tra tin nhắn SMS.', 'success');
+        showToast(
+          'Đã gửi lại mã OTP thành công!',
+          'Vui lòng kiểm tra tin nhắn SMS trên máy.',
+          'success'
+        );
       }
     }
   };
@@ -139,15 +154,19 @@ export const OtpVerificationPage: React.FC = () => {
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 text-center animate-fadeIn">
-        {/* Invisible reCAPTCHA container */}
+        {/* Invisible Google reCAPTCHA Anchor */}
         <div id="recaptcha-container"></div>
 
+        {/* Icon */}
         <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
           <ShieldCheck className="w-8 h-8" />
         </div>
 
+        {/* Header */}
         <div className="space-y-1">
-          <h1 className="text-xl font-bold text-gray-900">Xác Thực Số Điện Thoại</h1>
+          <h1 className="text-xl font-bold text-gray-900">
+            {name ? 'Xác Thực SĐT Để Hoàn Tất Đăng Ký' : 'Xác Thực Số Điện Thoại'}
+          </h1>
           <p className="text-xs text-gray-500">
             Mã OTP 6 chữ số đã được gửi đến số điện thoại: <strong className="text-gray-900">{phone}</strong>
           </p>
@@ -159,19 +178,19 @@ export const OtpVerificationPage: React.FC = () => {
           </div>
         )}
 
-        {/* 6 Digit Input Boxes */}
+        {/* OTP Input Boxes */}
         <form onSubmit={handleVerify} className="space-y-6">
           <div className="flex justify-center gap-2 sm:gap-2.5" onPaste={handlePaste}>
-            {otp.map((digit, index) => (
+            {otp.map((digit, idx) => (
               <input
-                key={index}
-                ref={(el) => (inputsRef.current[index] = el)}
+                key={idx}
+                ref={(el) => (inputsRef.current[idx] = el)}
                 type="text"
                 inputMode="numeric"
                 maxLength={1}
                 value={digit}
-                onChange={(e) => handleChange(e.target.value, index)}
-                onKeyDown={(e) => handleKeyDown(e, index)}
+                onChange={(e) => handleChange(e.target.value, idx)}
+                onKeyDown={(e) => handleKeyDown(e, idx)}
                 className="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-black rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent bg-gray-50 text-gray-900"
               />
             ))}
@@ -179,14 +198,16 @@ export const OtpVerificationPage: React.FC = () => {
 
           <div className="text-xs text-gray-500">
             {countdown > 0 ? (
-              <span>Gửi lại mã OTP sau <strong className="text-[#00a854]">{countdown}s</strong></span>
+              <span>
+                Gửi lại mã OTP sau <strong className="text-[#00a854]">{countdown}s</strong>
+              </span>
             ) : (
               <button
                 type="button"
                 onClick={handleResend}
                 className="font-bold text-[#00a854] hover:underline flex items-center gap-1 mx-auto"
               >
-                <RotateCcw className="w-3.5 h-3.5" /> Gửi lại mã OTP ngay
+                <RefreshCw className="w-3.5 h-3.5" /> Gửi lại mã OTP ngay
               </button>
             )}
           </div>
@@ -199,7 +220,7 @@ export const OtpVerificationPage: React.FC = () => {
             isLoading={isLoading}
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
-            Xác Nhận & Đăng Nhập
+            {name ? 'Xác Nhận & Tạo Tài Khoản' : 'Xác Nhận & Đăng Nhập'}
           </Button>
 
           <div className="pt-2 text-center">

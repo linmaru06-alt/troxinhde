@@ -2,13 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { useAppStore } from '../store/useAppStore';
 import { User, Phone, Lock, UserPlus, ShieldCheck } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { registerUser } = useAppStore();
 
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
   const roleParam = searchParams.get('role') || 'renter';
@@ -43,15 +41,14 @@ export const RegisterPage: React.FC = () => {
     }
 
     setIsLoading(true);
+    // Chuyển sang màn hình xác thực OTP để gửi SMS về điện thoại (Chưa đăng nhập vội)
     setTimeout(() => {
       setIsLoading(false);
-      registerUser({ name: name.trim(), phone: cleanPhone });
-      // Navigate to OTP with returnUrl & role
       const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&name=${encodeURIComponent(
         name.trim()
       )}&role=${roleParam}${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
       navigate(otpUrl);
-    }, 400);
+    }, 300);
   };
 
   return (
