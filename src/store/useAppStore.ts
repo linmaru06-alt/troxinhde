@@ -12,6 +12,7 @@ import {
   Thread,
   Message,
   BookingRequest,
+  ReportItem,
   SubscriptionPlanId,
   SubscriptionPlan,
   PaymentMethod,
@@ -106,6 +107,7 @@ interface AppState {
   savedRoommateIds: string[];
   savedItemIds: string[];
   bookings: BookingRequest[];
+  reports: ReportItem[];
   toasts: Toast[];
 
   // Payment & Subscription
@@ -156,6 +158,10 @@ interface AppState {
   createBooking: (booking: Omit<BookingRequest, 'id' | 'createdAt' | 'status'>) => string;
   updateBookingStatus: (bookingId: string, status: BookingRequest['status'], note?: string) => void;
 
+  // Reports
+  addReport: (report: Omit<ReportItem, 'id' | 'createdAt' | 'status'>) => string;
+  resolveReport: (reportId: string, action: 'hide_listing' | 'dismiss') => void;
+
   // Messages
   sendMessage: (threadId: string, text: string) => void;
   getOrCreateThread: (contactId: string, roomId?: string) => string;
@@ -188,6 +194,20 @@ export const useAppStore = create<AppState>()(
       savedRoommateIds: [],
       savedItemIds: [],
       bookings: [],
+      reports: [
+        {
+          id: 'rep_1',
+          targetId: 'room_1',
+          targetTitle: 'Phòng Studio Full Đồ Ban Công Thoáng Mát',
+          targetType: 'room',
+          reporterName: 'Nguyễn Thùy Linh',
+          reporterPhone: '0977112233',
+          reason: 'Chủ nhà thu phụ phí trái quy định',
+          detail: 'Chủ nhà yêu cầu đóng thêm 300k tiền dọn vệ sinh hành lang mà không báo trước trong tin đăng.',
+          status: 'pending',
+          createdAt: new Date(Date.now() - 2 * 86400000).toISOString(),
+        },
+      ],
       toasts: [],
 
       // Payment & Subscription Initial State
@@ -725,6 +745,41 @@ export const useAppStore = create<AppState>()(
           };
         });
         get().showToast('Đã cập nhật lịch hẹn!', `Trạng thái: ${status}`, 'success');
+      },
+
+      addReport: (data) => {
+        const newId = `rep_${Date.now()}`;
+        const newReport: ReportItem = {
+          ...data,
+          id: newId,
+          status: 'pending',
+          createdAt: new Date().toISOString(),
+        };
+        set((state) => ({
+          reports: [newReport, ...state.reports],
+        }));
+        get().showToast('Đã gửi báo cáo vi phạm!', 'Ban quản trị sẽ kiểm tra và đối chiếu thực tế.', 'success');
+        return newId;
+      },
+
+      resolveReport: (reportId, action) => {
+        set((state) => {
+          const report = state.reports.find((r) => r.id === reportId);
+          if (action === 'hide_listing' && report && report.targetType === 'room') {
+            return {
+              reports: state.reports.map((r) => (r.id === reportId ? { ...r, status: 'resolved' as const } : r)),
+              rooms: state.rooms.map((room) => (room.id === report.targetId ? { ...room, status: 'Bị từ chối' as const } : room)),
+            };
+          }
+          return {
+            reports: state.reports.map((r) => (r.id === reportId ? { ...r, status: action === 'hide_listing' ? 'resolved' as const : 'dismissed' as const } : r)),
+          };
+        });
+        get().showToast(
+          action === 'hide_listing' ? 'Đã hạ tin đăng vi phạm!' : 'Đã bỏ qua báo cáo',
+          '',
+          action === 'hide_listing' ? 'warning' : 'info'
+        );
       },
 
       sendMessage: (threadId, text) => {

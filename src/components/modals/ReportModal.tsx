@@ -15,8 +15,9 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   isOpen,
   onClose,
   targetTitle = 'Tin đăng này',
+  targetId,
 }) => {
-  const { showToast } = useAppStore();
+  const { currentUser, addReport } = useAppStore();
   const [reason, setReason] = useState<string>('Phòng không giống thực tế / Tin ảo');
   const [detail, setDetail] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -26,6 +27,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     'Phòng không giống thực tế / Tin ảo',
     'Chủ nhà thu phụ phí trái quy định',
     'Địa chỉ hoặc hình ảnh không chính xác',
+    'Phòng đã cho thuê nhưng không cập nhật',
     'Dấu hiệu lừa đảo / yêu cầu cọc mờ ám',
     'Thái độ giao tiếp không chuẩn mực',
     'Lý do khác',
@@ -38,13 +40,21 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     setTimeout(() => {
       setIsSubmitting(false);
       setIsSuccess(true);
-      showToast('Đã gửi báo cáo vi phạm', 'Cảm ơn bạn đã chung tay bảo vệ cộng đồng Trọ Xinh.', 'success');
+      addReport({
+        targetId: targetId || 'target_item',
+        targetTitle,
+        targetType: 'room',
+        reporterName: currentUser?.name || 'Người dùng ẩn danh',
+        reporterPhone: currentUser?.phone,
+        reason,
+        detail,
+      });
 
       setTimeout(() => {
         setIsSuccess(false);
         onClose();
-      }, 2000);
-    }, 600);
+      }, 1500);
+    }, 400);
   };
 
   return (

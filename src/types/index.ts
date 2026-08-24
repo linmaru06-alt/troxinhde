@@ -212,6 +212,19 @@ export interface BookingRequest {
   createdAt: string;
 }
 
+export interface ReportItem {
+  id: string;
+  targetId: string;
+  targetTitle: string;
+  targetType: 'room' | 'roommate' | 'marketplace';
+  reporterName: string;
+  reporterPhone?: string;
+  reason: string;
+  detail?: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  createdAt: string;
+}
+
 export interface Review {
   id: string;
   roomId: string;
