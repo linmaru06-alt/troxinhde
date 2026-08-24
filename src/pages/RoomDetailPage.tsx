@@ -41,7 +41,7 @@ import {
 export const RoomDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rooms, buildings, currentUser, savedRoomIds, toggleSaveRoom, showToast, getOrCreateThread } = useAppStore();
+  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast, getOrCreateThread } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
@@ -55,9 +55,9 @@ export const RoomDetailPage: React.FC = () => {
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [revealedPhone, setRevealedPhone] = useState<boolean>(false);
 
-  const room = rooms.find((r) => r.id === id) || rooms[0];
-  const building = buildings.find((b) => b.id === room.buildingId) || buildings[0];
-  const isSaved = savedRoomIds.includes(room.id);
+  const room = (rooms || []).find((r) => r.id === id) || (rooms || [])[0];
+  const building = (buildings || []).find((b) => room && b.id === room.buildingId) || (buildings || [])[0];
+  const isSaved = room ? (savedRoomIds || []).includes(room.id) : false;
 
   if (!room) {
     return (
