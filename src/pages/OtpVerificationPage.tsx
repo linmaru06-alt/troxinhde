@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
-import { OtpInput } from '../components/ui/OtpInput';
 import { useAppStore } from '../store/useAppStore';
 import { Mail, Phone, ArrowRight, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
@@ -18,7 +17,9 @@ export const OtpVerificationPage: React.FC = () => {
   const name = searchParams.get('name') || '';
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
-  const [otpValue, setOtpValue] = useState<string>('');
+  // Mảng lưu trữ độc lập giá trị cho từng ô (6 ô riêng biệt)
+  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const [activeIndex, setActiveIndex] = useState<number>(0);
   const [countdown, setCountdown] = useState<number>(60);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -27,9 +28,23 @@ export const OtpVerificationPage: React.FC = () => {
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'email' | 'phone'>('email');
 
+  // 6 refs riêng biệt cho 6 ô input
+  const inputRef0 = useRef<HTMLInputElement>(null);
+  const inputRef1 = useRef<HTMLInputElement>(null);
+  const inputRef2 = useRef<HTMLInputElement>(null);
+  const inputRef3 = useRef<HTMLInputElement>(null);
+  const inputRef4 = useRef<HTMLInputElement>(null);
+  const inputRef5 = useRef<HTMLInputElement>(null);
+
+  const inputRefs = [inputRef0, inputRef1, inputRef2, inputRef3, inputRef4, inputRef5];
   const hasSentRef = useRef<boolean>(false);
 
-  // 1. Tự động gửi mã OTP khi mở trang lần đầu
+  // 1. Tự động focus ô đầu tiên khi mở trang
+  useEffect(() => {
+    inputRefs[0].current?.focus();
+  }, []);
+
+  // 2. Tự động gửi mã OTP khi mở trang lần đầu
   useEffect(() => {
     if (hasSentRef.current) return;
     hasSentRef.current = true;
@@ -67,7 +82,7 @@ export const OtpVerificationPage: React.FC = () => {
     triggerInitialSend();
   }, [email, phone, showToast]);
 
-  // 2. Đồng hồ đếm ngược 60s
+  // 3. Đồng hồ đếm ngược 60s
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -75,35 +90,7 @@ export const OtpVerificationPage: React.FC = () => {
     }
   }, [countdown]);
 
-  // 3. Xử lý gửi lại mã OTP
-  const handleResend = async () => {
-    if (countdown > 0 || isSending) return;
-
-    setIsSending(true);
-    setErrorMsg('');
-    setOtpValue(''); // Reset toàn bộ ô nhập về trống khi gửi lại mã
-
-    if (email) {
-      const res = await sendEmailOtp(email);
-      setIsSending(false);
-      if (res.success) {
-        setCountdown(60);
-        showToast('Đã gửi lại mã OTP mới! 📧', 'Vui lòng kiểm tra hòm thư Gmail (hoặc Spam).', 'success');
-      } else {
-        setErrorMsg(res.error || 'Gửi lại mã thất bại.');
-      }
-    } else if (phone) {
-      const res = await sendPhoneOtp(phone, 'recaptcha-container');
-      setIsSending(false);
-      if (res.success && res.verificationId) {
-        setVerificationId(res.verificationId);
-        setCountdown(60);
-        showToast('Đã gửi lại mã OTP SMS mới!', 'Vui lòng kiểm tra tin nhắn điện thoại.', 'info');
-      }
-    }
-  };
-
-  // 4. Xử lý Xác thực (Được gọi tự động khi gõ đủ 6 số hoặc bấm nút)
+  // 4. Xử lý Xác thực mã OTP
   const handleVerifyOtp = useCallback(
     async (codeToVerify: string) => {
       if (isLoading) return;
@@ -147,7 +134,6 @@ export const OtpVerificationPage: React.FC = () => {
         const userId = verifiedUser?.id || verifiedUser?.uid || `usr_${Date.now()}`;
 
         if (name) {
-          // Lưu vào Supabase Database
           await syncUserToSupabase({
             id: userId,
             name: name.trim(),
@@ -179,7 +165,6 @@ export const OtpVerificationPage: React.FC = () => {
 
         setIsLoading(false);
 
-        // Chuyển trang ngay lập tức
         if (returnUrl) {
           navigate(decodeURIComponent(returnUrl), { replace: true });
         } else if (role === 'owner') {
@@ -190,13 +175,138 @@ export const OtpVerificationPage: React.FC = () => {
       } else {
         setIsLoading(false);
         setIsErrorShake(true);
-        // Tự động xóa mã đã nhập để người dùng gõ lại dễ dàng
-        setOtpValue('');
+        // Reset 6 ô về trống khi sai và focus lại ô 1
+        setOtp(['', '', '', '', '', '']);
+        inputRefs[0].current?.focus();
         setTimeout(() => setIsErrorShake(false), 600);
       }
     },
     [isLoading, authMode, email, phone, verificationId, name, role, returnUrl, registerUser, loginWithPhone, showToast, navigate]
   );
+
+  // 5. Xử lý khi gõ phím vào từng ô
+  const handleChange = (val: string, index: number) => {
+    if (isLoading) return;
+
+    // Chỉ nhận ký tự số
+    const numbersOnly = val.replace(/\D/g, '');
+    if (!numbersOnly) {
+      const newOtp = [...otp];
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
+    }
+
+    // Lấy số cuối cùng vừa gõ vào ô này
+    const singleDigit = numbersOnly.slice(-1);
+    const newOtp = [...otp];
+    newOtp[index] = singleDigit;
+    setOtp(newOtp);
+    setErrorMsg('');
+
+    // Tự động nhảy con trỏ sang ô tiếp theo
+    if (index < 5) {
+      inputRefs[index + 1].current?.focus();
+      inputRefs[index + 1].current?.select();
+      setActiveIndex(index + 1);
+    }
+
+    // Tự động kích hoạt xác thực ngay khi đủ 6 số!
+    const fullCode = newOtp.join('');
+    if (fullCode.length === 6 && !newOtp.includes('')) {
+      handleVerifyOtp(fullCode);
+    }
+  };
+
+  // 6. Xử lý phím đặc biệt (Backspace, Arrow keys)
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
+    if (isLoading) return;
+
+    if (e.key === 'Backspace') {
+      e.preventDefault();
+      const newOtp = [...otp];
+
+      if (newOtp[index]) {
+        // Ô hiện tại có số -> Xóa số ô hiện tại
+        newOtp[index] = '';
+        setOtp(newOtp);
+      } else if (index > 0) {
+        // Ô hiện tại trống -> Lùi về ô trước và xóa số ô trước
+        newOtp[index - 1] = '';
+        setOtp(newOtp);
+        inputRefs[index - 1].current?.focus();
+        inputRefs[index - 1].current?.select();
+        setActiveIndex(index - 1);
+      }
+    } else if (e.key === 'ArrowLeft' && index > 0) {
+      e.preventDefault();
+      inputRefs[index - 1].current?.focus();
+      inputRefs[index - 1].current?.select();
+      setActiveIndex(index - 1);
+    } else if (e.key === 'ArrowRight' && index < 5) {
+      e.preventDefault();
+      inputRefs[index + 1].current?.focus();
+      inputRefs[index + 1].current?.select();
+      setActiveIndex(index + 1);
+    }
+  };
+
+  // 7. Xử lý Auto-Paste mã OTP (VD: Copy "123456")
+  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    if (isLoading) return;
+
+    const pastedData = e.clipboardData.getData('text');
+    const numbersOnly = pastedData.replace(/\D/g, '').slice(0, 6);
+
+    if (!numbersOnly) return;
+
+    const newOtp = ['', '', '', '', '', ''];
+    for (let i = 0; i < numbersOnly.length; i++) {
+      newOtp[i] = numbersOnly[i];
+    }
+    setOtp(newOtp);
+
+    const focusIdx = Math.min(numbersOnly.length, 5);
+    inputRefs[focusIdx].current?.focus();
+    inputRefs[focusIdx].current?.select();
+    setActiveIndex(focusIdx);
+
+    if (numbersOnly.length === 6) {
+      handleVerifyOtp(numbersOnly);
+    }
+  };
+
+  // 8. Xử lý gửi lại mã
+  const handleResend = async () => {
+    if (countdown > 0 || isSending) return;
+
+    setIsSending(true);
+    setErrorMsg('');
+    setOtp(['', '', '', '', '', '']); // Reset 6 ô về rỗng
+    inputRefs[0].current?.focus();
+
+    if (email) {
+      const res = await sendEmailOtp(email);
+      setIsSending(false);
+      if (res.success) {
+        setCountdown(60);
+        showToast('Đã gửi lại mã OTP mới! 📧', 'Vui lòng kiểm tra hòm thư Gmail (hoặc Spam).', 'success');
+      } else {
+        setErrorMsg(res.error || 'Gửi lại mã thất bại.');
+      }
+    } else if (phone) {
+      const res = await sendPhoneOtp(phone, 'recaptcha-container');
+      setIsSending(false);
+      if (res.success && res.verificationId) {
+        setVerificationId(res.verificationId);
+        setCountdown(60);
+        showToast('Đã gửi lại mã OTP SMS mới!', 'Vui lòng kiểm tra tin nhắn điện thoại.', 'info');
+      }
+    }
+  };
+
+  const isFullOtp = otp.every((d) => d !== '');
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
@@ -227,28 +337,57 @@ export const OtpVerificationPage: React.FC = () => {
         )}
 
         <div className="space-y-6">
-          {/* Component OTPInput tối ưu cao cấp */}
-          <OtpInput
-            length={6}
-            value={otpValue}
-            onChange={(val) => {
-              setOtpValue(val);
-              setErrorMsg('');
-            }}
-            onComplete={(fullCode) => {
-              // Tự động gọi xác thực ngay khi nhập đủ 6 số!
-              handleVerifyOtp(fullCode);
-            }}
-            disabled={isLoading}
-            isError={isErrorShake}
-            autoFocus={true}
-          />
+          {/* 6 Ô NHẬP RIÊNG BIỆT 100% VỚI VALUE TỪNG Ô ĐỘC LẬP */}
+          <div
+            className={`flex items-center justify-center gap-2 sm:gap-3 select-none ${
+              isErrorShake ? 'animate-shake' : ''
+            }`}
+          >
+            {otp.map((digit, idx) => {
+              const isFilled = digit !== '';
+              const isFocused = activeIndex === idx;
+
+              return (
+                <input
+                  key={idx}
+                  ref={inputRefs[idx]}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={1}
+                  value={otp[idx]}
+                  disabled={isLoading}
+                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
+                  onChange={(e) => handleChange(e.target.value, idx)}
+                  onKeyDown={(e) => handleKeyDown(e, idx)}
+                  onPaste={handlePaste}
+                  onFocus={(e) => {
+                    setActiveIndex(idx);
+                    e.target.select();
+                  }}
+                  onBlur={() => setActiveIndex(-1)}
+                  aria-label={`Mã OTP số ${idx + 1}`}
+                  className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-black rounded-2xl border-2 outline-hidden transition-all duration-200 shadow-2xs ${
+                    isLoading ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : ''
+                  } ${
+                    isErrorShake
+                      ? 'border-red-500 bg-red-50/50 text-red-700 ring-4 ring-red-500/10'
+                      : isFocused
+                      ? 'border-[#00a854] bg-white text-gray-900 ring-4 ring-emerald-500/20 scale-105 shadow-md'
+                      : isFilled
+                      ? 'border-emerald-600/40 bg-emerald-50/30 text-gray-900 font-black'
+                      : 'border-gray-200 bg-gray-50/60 text-gray-900 hover:border-gray-300'
+                  }`}
+                />
+              );
+            })}
+          </div>
 
           <div className="text-center space-y-1">
             <p className="text-xs text-gray-500">
               {authMode === 'email' ? (
                 <>
-                  Vui lòng mở ứng dụng <strong className="text-gray-900">Gmail</strong> trên điện thoại hoặc máy tính để lấy mã.
+                  Vui lòng mở ứng dụng <strong className="text-gray-900">Gmail</strong> trên điện thoại hoặc máy tính để lấy mã 6 số.
                 </>
               ) : (
                 <>
@@ -265,8 +404,8 @@ export const OtpVerificationPage: React.FC = () => {
             size="lg"
             className="w-full"
             isLoading={isLoading}
-            disabled={otpValue.length < 6 || isLoading}
-            onClick={() => handleVerifyOtp(otpValue)}
+            disabled={!isFullOtp || isLoading}
+            onClick={() => handleVerifyOtp(otp.join(''))}
             rightIcon={!isLoading ? <ArrowRight className="w-4 h-4" /> : undefined}
           >
             {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Tiếp Tục'}
