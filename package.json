@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "sync": "git add -A && git commit -m \"sync: automatic update\" && git push origin main",
     "stitch:doctor": "node -e \"import('./scripts/fetch-info.mjs')\""
   },
   "dependencies": {

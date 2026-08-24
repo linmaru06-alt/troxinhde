@@ -38,8 +38,9 @@ export const AIRecommendationsSection: React.FC = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="space-y-1.5">
+          
           <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#006d37] text-white text-xs font-black shadow-xs">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00a854] text-white text-xs font-black shadow-xs">
               <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" /> AI Recommendations
             </span>
             <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1">
@@ -56,7 +57,7 @@ export const AIRecommendationsSection: React.FC = () => {
 
         <Link
           to="/tim-kiem"
-          className="inline-flex items-center gap-1 text-xs font-bold text-[#006d37] hover:text-[#00532a] shrink-0"
+          className="inline-flex items-center gap-1 text-xs font-bold text-[#00a854] hover:text-[#008f47] shrink-0"
         >
           Xem tất cả <ArrowRight className="w-4 h-4" />
         </Link>
@@ -81,7 +82,7 @@ export const AIRecommendationsSection: React.FC = () => {
 
             {/* AI Explanation Tooltip / Box */}
             <div className="bg-emerald-50/80 border border-emerald-100 rounded-xl p-2.5 text-[11px] text-emerald-900 leading-snug">
-              <span className="font-bold text-[#006d37]">Vì sao gợi ý: </span>
+              <span className="font-bold text-[#00a854]">Vì sao gợi ý: </span>
               {reason}
             </div>
           </div>
