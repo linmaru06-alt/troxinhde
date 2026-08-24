@@ -92,7 +92,6 @@ export async function sendPhoneOtp(
     } catch (error: any) {
       console.error('[Firebase Auth] Chi tiết lỗi gửi SMS từ Google:', error);
       
-      // Xử lý thông báo lỗi chi tiết
       let friendlyError = 'Không thể gửi tin nhắn SMS.';
       if (error.code === 'auth/invalid-phone-number') {
         friendlyError = 'Số điện thoại không đúng định dạng.';
@@ -106,7 +105,7 @@ export async function sendPhoneOtp(
         friendlyError = `${error.message}`;
       }
 
-      // Nếu lỗi do domain hoặc cấu hình, fallback sang chế độ demo để người dùng không bị kẹt
+      // Fallback sang mã sinh ngẫu nhiên khi Firebase gặp lỗi
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
       const mockVerificationId = `verif_${Date.now()}`;
       if (typeof window !== 'undefined') {
@@ -139,7 +138,7 @@ export async function sendPhoneOtp(
 }
 
 /**
- * Xác minh mã OTP 6 số người dùng nhập vào
+ * Xác minh mã OTP 6 số người dùng nhập vào (Khóa chặt bảo mật, KHÔNG cho nhập bừa)
  */
 export async function verifyPhoneOtp(
   verificationId: string,
@@ -147,6 +146,15 @@ export async function verifyPhoneOtp(
   phone: string
 ): Promise<VerifyOtpResult> {
   const cleanCode = otpCode.trim();
+
+  // Kiểm tra độ dài hợp lệ
+  if (!cleanCode || cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
+    return {
+      success: false,
+      phone,
+      error: 'Mã xác thực phải gồm đúng 6 chữ số!',
+    };
+  }
 
   // 1. Xác thực bằng Firebase confirmationResult thật
   if (window.confirmationResult) {
@@ -158,7 +166,7 @@ export async function verifyPhoneOtp(
         user: result.user,
       };
     } catch (error: any) {
-      console.error('[Firebase Auth] Lỗi khi kiểm tra mã OTP:', error);
+      console.error('[Firebase Auth] Mã OTP không khớp trên Firebase:', error);
       return {
         success: false,
         phone,
@@ -167,31 +175,31 @@ export async function verifyPhoneOtp(
     }
   }
 
-  // 2. Xác thực bằng Fallback trong sessionStorage
-  if (typeof window !== 'undefined') {
+  // 2. Xác thực bằng mã chính xác trong sessionStorage (nếu chạy fallback)
+  if (typeof window !== 'undefined' && verificationId) {
     const savedOtp = sessionStorage.getItem(`otp_${verificationId}`);
-    if (savedOtp && savedOtp === cleanCode) {
-      sessionStorage.removeItem(`otp_${verificationId}`);
-      return {
-        success: true,
-        phone,
-        user: { phoneNumber: phone, uid: `usr_${Date.now()}` },
-      };
+    if (savedOtp) {
+      if (savedOtp === cleanCode) {
+        sessionStorage.removeItem(`otp_${verificationId}`);
+        return {
+          success: true,
+          phone,
+          user: { phoneNumber: phone, uid: `usr_${Date.now()}` },
+        };
+      } else {
+        return {
+          success: false,
+          phone,
+          error: 'Mã OTP không chính xác. Vui lòng kiểm tra lại!',
+        };
+      }
     }
   }
 
-  // Mã test nhanh 123456 / 888888
-  if (cleanCode === '123456' || cleanCode === '888888') {
-    return {
-      success: true,
-      phone,
-      user: { phoneNumber: phone, uid: `usr_${Date.now()}` },
-    };
-  }
-
+  // Bắt buộc từ chối nếu không trùng khớp
   return {
     success: false,
     phone,
-    error: 'Mã xác thực OTP không đúng. Vui lòng kiểm tra lại!',
+    error: 'Mã xác thực OTP không đúng hoặc đã hết hạn!',
   };
 }
