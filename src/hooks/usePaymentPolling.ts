@@ -2,12 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkPaymentStatus } from '../lib/payos';
 import { useAppStore } from '../store/useAppStore';
-import { SubscriptionPlanId } from '../types';
+import { PaymentMethod, SubscriptionPlanId } from '../types';
 
 export function usePaymentPolling(
-  orderCode: number | null,
+  orderCode: number | string | null,
   planId: string,
   totalAmount: number,
+  method: PaymentMethod = 'vietqr',
   onSuccess?: () => void
 ) {
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success' | 'failed' | 'expired'>('idle');
@@ -48,11 +49,13 @@ export function usePaymentPolling(
       if (result.status === 'success') {
         setStatus('success');
         clearInterval(pollInterval);
-        upgradeSubscription(planId as SubscriptionPlanId, 'vietqr', totalAmount);
+        upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
         showToast('🎉 Thanh toán thành công!', `Gói dịch vụ #${orderCode} đã được kích hoạt.`, 'success');
         if (onSuccess) onSuccess();
         setTimeout(() => {
-          navigate(`/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=vietqr&status=success`);
+          navigate(
+            `/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
+          );
         }, 1500);
       } else if (result.status === 'failed' || attempts >= MAX_ATTEMPTS) {
         setStatus(attempts >= MAX_ATTEMPTS ? 'expired' : 'failed');
@@ -61,15 +64,17 @@ export function usePaymentPolling(
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [orderCode, status, planId, totalAmount, navigate, upgradeSubscription, showToast, onSuccess]);
+  }, [orderCode, status, planId, totalAmount, method, navigate, upgradeSubscription, showToast, onSuccess]);
 
   const triggerManualSuccess = () => {
     setStatus('success');
-    upgradeSubscription(planId as SubscriptionPlanId, 'vietqr', totalAmount);
+    upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
     showToast('🎉 Xác nhận thanh toán thành công!', `Gói dịch vụ đã được kích hoạt.`, 'success');
     if (onSuccess) onSuccess();
     setTimeout(() => {
-      navigate(`/thanh-toan/ket-qua?orderId=${orderCode || Date.now()}&amount=${totalAmount}&plan=${planId}&method=vietqr&status=success`);
+      navigate(
+        `/thanh-toan/ket-qua?orderId=${orderCode || Date.now()}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
+      );
     }, 1200);
   };
 
