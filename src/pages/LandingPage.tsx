@@ -65,43 +65,28 @@ export const LandingPage: React.FC = () => {
   const featuredMarketplace = marketplaceItems.slice(0, 4);
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-16 bg-[#f8f9fa]">
+    <div className="space-y-10 sm:space-y-14 pb-16 bg-[#f8f9fa]">
       <SEOHead
         title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
         description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, tìm bạn ở ghép và chợ đồ cũ sinh viên."
         url="/"
       />
 
-      {/* 1. GREEN HERO BANNER WITH BLACK TEXT */}
-      <section className="relative bg-gradient-to-b from-[#00a854] to-[#009249] pt-8 pb-16 md:pt-12 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-emerald-600/40">
-        <div className="max-w-6xl mx-auto text-center relative z-10 space-y-4">
-          {/* Slogan Banner with 3D Icons & Black Bold Text */}
-          <div className="relative max-w-3xl mx-auto py-2">
-            {/* Left Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -left-12 top-0 text-3xl animate-bounce duration-1000 select-none pointer-events-none opacity-90">
-              <span>🏠</span>
-              <span className="text-xl">🛋️</span>
-            </div>
-
-            {/* Right Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -right-12 top-0 text-3xl animate-bounce duration-700 select-none pointer-events-none opacity-90">
-              <span>🛵</span>
-              <span className="text-xl">🎓</span>
-            </div>
-
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
-              Phòng thật, giá chuẩn, đặt lịch trực tiếp!
-            </h1>
-
-            <p className="text-xs sm:text-sm text-gray-950 font-bold max-w-xl mx-auto mt-2 opacity-90">
-              Biết rõ tổng chi phí hàng tháng, đối chiếu thực tế và kết nối trực tiếp với chủ trọ tại Hà Nội
-            </p>
+      {/* 1. CLAYMATION 3D GREEN HERO BANNER */}
+      <section className="relative overflow-hidden bg-gradient-to-b from-[#00a854] to-[#008f47] pt-3 pb-12 sm:pb-16 md:pb-20 px-2 sm:px-4 lg:px-8 border-b border-emerald-600/40">
+        <div className="max-w-7xl mx-auto relative">
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl border border-white/20 ring-1 ring-black/10">
+            <img
+              src="/images/green-hero-banner.png"
+              alt="Trọ Xinh - Thuê đồ đạc, Tìm bạn trọ, Phòng trọ cho thuê"
+              className="w-full h-auto object-cover max-h-[300px] sm:max-h-[360px] md:max-h-[420px] select-none"
+            />
           </div>
         </div>
 
-        {/* 2. FLOATING DOCKED SEARCH BAR */}
-        <div className="max-w-4xl mx-auto -mb-24 sm:-mb-26 px-2 relative z-20">
-          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-gray-100 ring-1 ring-black/5 space-y-3">
+        {/* 2. FLOATING DOCKED SEARCH BAR (Gối lên mép dưới của Banner) */}
+        <div className="max-w-4xl mx-auto -mt-6 sm:-mt-8 md:-mt-10 px-2 relative z-20">
+          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-gray-200/80 ring-1 ring-black/10 space-y-3">
             <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-center gap-2">
               {/* Search input */}
               <div className="relative flex-1 w-full flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-4 py-2.5 transition focus-within:ring-2 focus-within:ring-[#00a854] focus-within:bg-white">
@@ -132,7 +117,7 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Search Button (Black Button with White Text) */}
+              {/* Search Button */}
               <button
                 type="submit"
                 className="w-full md:w-auto px-7 py-3 bg-gray-950 hover:bg-black text-white font-black text-sm rounded-2xl transition shadow-md flex items-center justify-center gap-1.5 shrink-0"
@@ -144,9 +129,6 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </section>
-
-      {/* Spacing for floating search bar */}
-      <div className="h-10 sm:h-12" />
 
       {/* 3. QUICK FILTER PILLS */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
