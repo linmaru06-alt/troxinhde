@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -9,7 +9,6 @@ import { Button } from '../ui/Button';
 import { OptimizedImage } from '../ui/OptimizedImage';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
-  Home,
   Compass,
   MapPin,
   Heart,
@@ -24,6 +23,9 @@ import {
   ChevronDown,
   PlusCircle,
   Sparkles,
+  FileText,
+  CreditCard,
+  Grid,
 } from 'lucide-react';
 
 export const Navbar: React.FC = () => {
@@ -33,20 +35,31 @@ export const Navbar: React.FC = () => {
   const { isAvatarDropdownOpen, toggleAvatarDropdown, closeAllDropdowns } = useUIStore();
   const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
+  const [isUtilitiesOpen, setIsUtilitiesOpen] = useState(false);
+  const utilitiesRef = useRef<HTMLDivElement>(null);
+  useOutsideClick(utilitiesRef, () => setIsUtilitiesOpen(false), isUtilitiesOpen);
+
   const dropdownRef = useRef<HTMLDivElement>(null);
   useOutsideClick(dropdownRef, closeAllDropdowns, isAvatarDropdownOpen);
 
   const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
-  const navLinks = [
-    { to: '/tim-kiem', label: 'Tìm Phòng', icon: Compass },
-    { to: '/ban-do', label: 'Bản Đồ', icon: MapPin },
-    { to: '/roommate', label: 'Ở Ghép', icon: Users },
-    { to: '/cho-do-cu', label: 'Chợ Đồ Cũ', icon: ShoppingBag },
-    { to: '/ve-chung-toi/kiem-duyet', label: 'Kiểm Duyệt 100%', icon: ShieldCheck },
+  // Core navigation links focusing on Verified Rental Marketplace
+  const coreNavLinks = [
+    { to: '/tim-phong', label: 'Tìm phòng', icon: Compass },
+    { to: '/ban-do', label: 'Xem bản đồ', icon: MapPin },
+    { to: '/trust/da-kiem-duyet', label: 'Quy trình xác minh', icon: ShieldCheck },
+    { to: '/bang-gia', label: 'Bảng giá chủ trọ', icon: CreditCard },
   ];
 
-  const isActive = (path: string) => location.pathname === path;
+  // Secondary utility links
+  const utilityLinks = [
+    { to: '/tim-ban-cung-phong', label: 'Tìm bạn cùng phòng', desc: 'Kết nối sinh viên ở ghép văn minh', icon: Users },
+    { to: '/cho-do-cu', label: 'Chợ đồ cũ sinh viên', desc: 'Pass đồ nội thất & đồ gia dụng', icon: ShoppingBag },
+    { to: '/hop-dong-mau', label: 'Mẫu hợp đồng thuê trọ', desc: 'Bảo vệ quyền lợi chuẩn pháp lý', icon: FileText },
+  ];
+
+  const isActive = (path: string) => location.pathname === path || (path === '/tim-phong' && location.pathname === '/tim-kiem');
 
   return (
     <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200/80 shadow-2xs">
@@ -76,7 +89,7 @@ export const Navbar: React.FC = () => {
 
             {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex items-center gap-1">
-              {navLinks.map((link) => {
+              {coreNavLinks.map((link) => {
                 const Icon = link.icon;
                 const active = isActive(link.to);
                 return (
@@ -94,6 +107,61 @@ export const Navbar: React.FC = () => {
                   </Link>
                 );
               })}
+
+              {/* Dropdown Tiện ích sinh viên */}
+              <div className="relative" ref={utilitiesRef}>
+                <button
+                  onClick={() => setIsUtilitiesOpen(!isUtilitiesOpen)}
+                  className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all duration-150 ${
+                    ['/tim-ban-cung-phong', '/roommate', '/cho-do-cu', '/hop-dong-mau'].includes(location.pathname)
+                      ? 'bg-emerald-50 text-[#006d37]'
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100/70'
+                  }`}
+                >
+                  <Grid className="w-4 h-4 text-gray-400" />
+                  <span>Tiện ích</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isUtilitiesOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                <AnimatePresence>
+                  {isUtilitiesOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -6, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: 'easeOut' }}
+                      className="absolute left-0 mt-2 w-72 bg-white rounded-2xl shadow-xl border border-gray-200 p-2 z-50 overflow-hidden"
+                      onClick={() => setIsUtilitiesOpen(false)}
+                    >
+                      <div className="px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        Tiện ích bổ trợ
+                      </div>
+                      {utilityLinks.map((item) => {
+                        const Icon = item.icon;
+                        return (
+                          <Link
+                            key={item.to}
+                            to={item.to}
+                            className="flex items-start gap-3 p-2.5 rounded-xl hover:bg-gray-50 transition text-left group"
+                          >
+                            <div className="p-2 rounded-lg bg-gray-100 text-gray-600 group-hover:bg-emerald-50 group-hover:text-[#006d37] shrink-0 mt-0.5">
+                              <Icon className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <p className="text-xs font-bold text-gray-900 group-hover:text-[#006d37]">
+                                {item.label}
+                              </p>
+                              <p className="text-[11px] text-gray-500 leading-tight mt-0.5">
+                                {item.desc}
+                              </p>
+                            </div>
+                          </Link>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </nav>
           </div>
 
@@ -148,7 +216,7 @@ export const Navbar: React.FC = () => {
             {currentUser?.role === 'owner' && (
               <Link to="/chu-tro" className="hidden sm:block">
                 <Button variant="secondary" size="sm" leftIcon={<Building2 className="w-4 h-4" />}>
-                  Quản Lý Nhà Trọ
+                  Quản lý nhà trọ
                 </Button>
               </Link>
             )}
@@ -156,19 +224,19 @@ export const Navbar: React.FC = () => {
             {currentUser?.role === 'admin' && (
               <Link to="/admin" className="hidden sm:block">
                 <Button variant="primary" size="sm" leftIcon={<ShieldCheck className="w-4 h-4" />}>
-                  Bảng Quản Trị
+                  Bảng quản trị
                 </Button>
               </Link>
             )}
 
-            {currentUser && currentUser.role === 'user' && (
+            {(!currentUser || currentUser.role === 'user') && (
               <Link to="/nang-cap-chu-tro" className="hidden sm:block">
                 <Button
                   variant="outline"
                   size="sm"
                   leftIcon={<PlusCircle className="w-4 h-4 text-[#006d37]" />}
                 >
-                  {currentUser.ownerApplicationStatus === 'pending' ? 'Hồ Sơ Đang Duyệt ⏳' : 'Đăng Phòng / Làm Chủ Trọ'}
+                  {currentUser?.ownerApplicationStatus === 'pending' ? 'Hồ sơ đang duyệt ⏳' : 'Đăng phòng cho thuê'}
                 </Button>
               </Link>
             )}
@@ -193,7 +261,7 @@ export const Navbar: React.FC = () => {
                       {currentUser.name}
                     </span>
                     <span className="text-[10px] text-gray-500">
-                      {currentUser.role === 'owner' ? 'Chủ Trọ Đối Tác' : currentUser.role === 'admin' ? 'Admin Quản Trị' : 'Người Thuê'}
+                      {currentUser.role === 'owner' ? 'Chủ trọ đối tác' : currentUser.role === 'admin' ? 'Quản trị viên' : 'Người thuê'}
                     </span>
                   </div>
                   <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${isAvatarDropdownOpen ? 'rotate-180' : ''}`} />
@@ -219,7 +287,7 @@ export const Navbar: React.FC = () => {
                             size="sm"
                             showIcon={false}
                           >
-                            {currentUser.role === 'owner' ? '🏢 Chủ Trọ' : currentUser.role === 'admin' ? '🛡️ Quản Trị Viên' : '👤 Người Thuê'}
+                            {currentUser.role === 'owner' ? '🏢 Chủ trọ' : currentUser.role === 'admin' ? '🛡️ Quản trị viên' : '👤 Người thuê'}
                           </Badge>
                         </div>
                       </div>
@@ -238,7 +306,7 @@ export const Navbar: React.FC = () => {
                           className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
                         >
                           <Building2 className="w-4 h-4" />
-                          <span>Nâng cấp lên Chủ Trọ</span>
+                          <span>Nâng cấp lên chủ trọ</span>
                         </Link>
                       )}
 
@@ -248,7 +316,7 @@ export const Navbar: React.FC = () => {
                           className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
                         >
                           <Building2 className="w-4 h-4" />
-                          <span>Bảng Quản Trị Tòa Nhà</span>
+                          <span>Bảng quản trị tòa nhà</span>
                         </Link>
                       )}
 
@@ -258,7 +326,7 @@ export const Navbar: React.FC = () => {
                           className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#006d37] hover:bg-emerald-50 font-bold"
                         >
                           <ShieldCheck className="w-4 h-4" />
-                          <span>Duyệt Tin & Hồ Sơ</span>
+                          <span>Duyệt tin & hồ sơ</span>
                         </Link>
                       )}
 
@@ -279,12 +347,12 @@ export const Navbar: React.FC = () => {
               <div className="flex items-center gap-2">
                 <Link to="/dang-nhap">
                   <Button variant="outline" size="sm">
-                    Đăng Nhập
+                    Đăng nhập
                   </Button>
                 </Link>
                 <Link to="/dang-ky">
                   <Button variant="primary" size="sm">
-                    Đăng Ký
+                    Đăng ký
                   </Button>
                 </Link>
               </div>

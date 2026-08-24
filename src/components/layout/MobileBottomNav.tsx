@@ -2,10 +2,10 @@ import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import {
+  Home,
   Compass,
   MapPin,
   Heart,
-  Users,
   User as UserIcon,
   LayoutDashboard,
   Building2,
@@ -13,7 +13,7 @@ import {
   MessageSquare,
   ShieldCheck,
   BarChart3,
-  Code,
+  Users,
 } from 'lucide-react';
 
 interface NavLinkItem {
@@ -35,30 +35,31 @@ export const MobileBottomNav: React.FC = () => {
     return null;
   }
 
-  // Renter / Standard User / Guest tabs
+  // Renter / Standard User / Guest tabs (Strict 5 items)
   const userTabs: NavLinkItem[] = [
-    { to: '/tim-kiem', label: 'Khám phá', icon: Compass },
+    { to: '/', label: 'Trang chủ', icon: Home },
+    { to: '/tim-phong', label: 'Tìm phòng', icon: Compass },
     { to: '/ban-do', label: 'Bản đồ', icon: MapPin },
     { to: '/da-luu', label: 'Đã lưu', icon: Heart, badge: savedRoomIds.length },
-    { to: '/roommate', label: 'Ở ghép', icon: Users },
-    { to: currentUser ? '/toi' : '/dang-nhap', label: 'Tôi', icon: UserIcon },
+    { to: currentUser ? '/toi' : '/dang-nhap', label: 'Tài khoản', icon: UserIcon },
   ];
 
-  // Owner tabs
+  // Owner tabs (Strict 5 items)
   const ownerTabs: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan', icon: LayoutDashboard },
-    { to: '/chu-tro/toa-nha', label: 'Tòa nhà', icon: Building2 },
+    { to: '/chu-tro/toa-nha', label: 'Nhà & Phòng', icon: Building2 },
     { to: '/chu-tro/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/thong-bao', label: 'Thông báo', icon: Bell, badge: unreadNotifs },
-    { to: '/chu-tro/toi', label: 'Tôi', icon: UserIcon },
+    { to: '/chu-tro/toi', label: 'Tài khoản', icon: UserIcon },
   ];
 
-  // Admin tabs
+  // Admin tabs (Strict 5 items)
   const adminTabs: NavLinkItem[] = [
     { to: '/admin', label: 'Kiểm duyệt', icon: ShieldCheck, badge: unreadNotifs },
+    { to: '/admin/don-chu-tro', label: 'Chủ trọ', icon: Building2 },
     { to: '/admin/nguoi-dung', label: 'Người dùng', icon: Users },
     { to: '/admin/thong-ke', label: 'Thống kê', icon: BarChart3 },
-    { to: '/debug', label: 'Debug QA', icon: Code },
+    { to: '/toi', label: 'Tài khoản', icon: UserIcon },
   ];
 
   const currentTabs =
@@ -69,7 +70,7 @@ export const MobileBottomNav: React.FC = () => {
       <div className="grid grid-cols-5 h-16 max-w-lg mx-auto">
         {currentTabs.map((tab) => {
           const Icon = tab.icon;
-          const isActive = location.pathname === tab.to;
+          const isActive = location.pathname === tab.to || (tab.to === '/tim-phong' && location.pathname === '/tim-kiem');
           return (
             <Link
               key={tab.to}
