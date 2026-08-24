@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
+import { OtpInput } from '../components/ui/OtpInput';
 import { useAppStore } from '../store/useAppStore';
-import { Mail, ArrowRight, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import { Mail, Phone, ArrowRight, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
 import { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
 import { syncUserToSupabase } from '../lib/supabaseAuthSync';
 
@@ -17,62 +18,56 @@ export const OtpVerificationPage: React.FC = () => {
   const name = searchParams.get('name') || '';
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
-  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
+  const [otpValue, setOtpValue] = useState<string>('');
   const [countdown, setCountdown] = useState<number>(60);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
   const [verificationId, setVerificationId] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
+  const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'email' | 'phone'>('email');
 
-  const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
+  const hasSentRef = useRef<boolean>(false);
 
-  // Tự động gửi mã OTP khi mở trang
+  // 1. Tự động gửi mã OTP khi mở trang lần đầu
   useEffect(() => {
-    let isMounted = true;
+    if (hasSentRef.current) return;
+    hasSentRef.current = true;
 
-    async function triggerSend() {
+    async function triggerInitialSend() {
       setIsSending(true);
       if (email) {
         setAuthMode('email');
         const res = await sendEmailOtp(email);
-        if (isMounted) {
-          setIsSending(false);
-          if (res.success) {
-            showToast(
-              'Đã gửi mã xác thực về Gmail! 📧',
-              `Vui lòng kiểm tra hộp thư đến của ${email}.`,
-              'success'
-            );
-          } else {
-            setErrorMsg(res.error || 'Không thể gửi email xác thực.');
-          }
+        setIsSending(false);
+        if (res.success) {
+          showToast(
+            'Đã gửi mã xác thực về Gmail! 📧',
+            `Vui lòng kiểm tra hộp thư đến của ${email}.`,
+            'success'
+          );
+        } else {
+          setErrorMsg(res.error || 'Không thể gửi email xác thực.');
         }
       } else if (phone) {
         setAuthMode('phone');
         const res = await sendPhoneOtp(phone, 'recaptcha-container');
-        if (isMounted) {
-          setIsSending(false);
-          if (res.success && res.verificationId) {
-            setVerificationId(res.verificationId);
-            showToast(
-              'Đã kích hoạt gửi OTP SMS!',
-              'Vui lòng kiểm tra tin nhắn trên điện thoại của bạn.',
-              'info'
-            );
-          }
+        setIsSending(false);
+        if (res.success && res.verificationId) {
+          setVerificationId(res.verificationId);
+          showToast(
+            'Đã kích hoạt gửi OTP SMS!',
+            'Vui lòng kiểm tra tin nhắn trên điện thoại.',
+            'info'
+          );
         }
       }
     }
 
-    triggerSend();
+    triggerInitialSend();
+  }, [email, phone, showToast]);
 
-    return () => {
-      isMounted = false;
-    };
-  }, [email, phone]);
-
-  // Đếm ngược 60s
+  // 2. Đồng hồ đếm ngược 60s
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -80,45 +75,20 @@ export const OtpVerificationPage: React.FC = () => {
     }
   }, [countdown]);
 
-  const handleChange = (val: string, index: number) => {
-    if (isNaN(Number(val))) return;
-    const nextOtp = [...otp];
-    nextOtp[index] = val.slice(-1);
-    setOtp(nextOtp);
-    setErrorMsg('');
-
-    if (val && index < 5) {
-      inputsRef.current[index + 1]?.focus();
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent, index: number) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      inputsRef.current[index - 1]?.focus();
-    }
-  };
-
-  const handlePaste = (e: React.ClipboardEvent) => {
-    e.preventDefault();
-    const pastedData = e.clipboardData.getData('text').trim();
-    if (/^\d{6}$/.test(pastedData)) {
-      const digits = pastedData.split('');
-      setOtp(digits);
-      inputsRef.current[5]?.focus();
-    }
-  };
-
+  // 3. Xử lý gửi lại mã OTP
   const handleResend = async () => {
     if (countdown > 0 || isSending) return;
+
     setIsSending(true);
     setErrorMsg('');
+    setOtpValue(''); // Reset toàn bộ ô nhập về trống khi gửi lại mã
 
     if (email) {
       const res = await sendEmailOtp(email);
       setIsSending(false);
       if (res.success) {
         setCountdown(60);
-        showToast('Đã gửi lại mã OTP! 📧', 'Vui lòng kiểm tra hòm thư Gmail (hoặc Spam).', 'success');
+        showToast('Đã gửi lại mã OTP mới! 📧', 'Vui lòng kiểm tra hòm thư Gmail (hoặc Spam).', 'success');
       } else {
         setErrorMsg(res.error || 'Gửi lại mã thất bại.');
       }
@@ -128,91 +98,105 @@ export const OtpVerificationPage: React.FC = () => {
       if (res.success && res.verificationId) {
         setVerificationId(res.verificationId);
         setCountdown(60);
-        showToast('Đã gửi lại mã OTP SMS!', 'Vui lòng kiểm tra tin nhắn điện thoại.', 'info');
+        showToast('Đã gửi lại mã OTP SMS mới!', 'Vui lòng kiểm tra tin nhắn điện thoại.', 'info');
       }
     }
   };
 
-  const handleVerify = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const code = otp.join('');
-    if (code.length < 6) {
-      setErrorMsg('Vui lòng nhập đủ 6 chữ số của mã OTP.');
-      return;
-    }
+  // 4. Xử lý Xác thực (Được gọi tự động khi gõ đủ 6 số hoặc bấm nút)
+  const handleVerifyOtp = useCallback(
+    async (codeToVerify: string) => {
+      if (isLoading) return;
+      const cleanCode = codeToVerify.trim();
 
-    setIsLoading(true);
-    setErrorMsg('');
-
-    let isSuccess = false;
-    let verifiedUser: any = null;
-
-    if (authMode === 'email' && email) {
-      const res = await verifyEmailOtp(email, code);
-      if (res.success) {
-        isSuccess = true;
-        verifiedUser = res.user;
-      } else {
-        setErrorMsg(res.error || 'Mã xác thực từ email không chính xác hoặc đã hết hạn.');
-      }
-    } else if (phone) {
-      const res = await verifyPhoneOtp(verificationId, code, phone);
-      if (res.success) {
-        isSuccess = true;
-        verifiedUser = res.user;
-      } else {
-        setErrorMsg(res.error || 'Mã OTP không chính xác.');
-      }
-    }
-
-    if (isSuccess) {
-      const userId = verifiedUser?.id || verifiedUser?.uid || `usr_${Date.now()}`;
-
-      if (name) {
-        // Đăng ký mới -> Lưu vào Supabase
-        await syncUserToSupabase({
-          id: userId,
-          name: name.trim(),
-          phone: phone || undefined,
-          email: email || undefined,
-          role: role === 'owner' ? 'owner' : 'user',
-          avatar_url: '/images/user-avatar.jpg',
-          verified: true,
-          auth_provider: 'email_otp',
-          owner_application_status: role === 'owner' ? 'pending' : 'none',
-        });
-
-        registerUser({
-          id: userId,
-          name: name.trim(),
-          phone: phone || '',
-          email: email || '',
-        });
-
-        showToast(
-          'Đăng ký tài khoản thành công! 🎉',
-          `Chào mừng ${name} đến với Trọ Xinh!`,
-          'success'
-        );
-      } else {
-        // Đăng nhập bằng OTP
-        loginWithPhone(phone || email, role === 'owner' ? 'owner' : 'user');
-        showToast('Đăng nhập thành công! 👋', 'Chào mừng bạn quay trở lại Trọ Xinh.', 'success');
+      if (cleanCode.length < 6) {
+        setErrorMsg('Vui lòng nhập đủ 6 chữ số của mã OTP.');
+        return;
       }
 
-      setIsLoading(false);
+      setIsLoading(true);
+      setErrorMsg('');
+      setIsErrorShake(false);
 
-      if (returnUrl) {
-        navigate(decodeURIComponent(returnUrl), { replace: true });
-      } else if (role === 'owner') {
-        navigate('/chu-tro', { replace: true });
-      } else {
-        navigate('/', { replace: true });
+      let isSuccess = false;
+      let verifiedUser: any = null;
+
+      try {
+        if (authMode === 'email' && email) {
+          const res = await verifyEmailOtp(email, cleanCode);
+          if (res.success) {
+            isSuccess = true;
+            verifiedUser = res.user;
+          } else {
+            setErrorMsg(res.error || 'Mã xác thực từ email không chính xác hoặc đã hết hạn.');
+          }
+        } else if (phone) {
+          const res = await verifyPhoneOtp(verificationId, cleanCode, phone);
+          if (res.success) {
+            isSuccess = true;
+            verifiedUser = res.user;
+          } else {
+            setErrorMsg(res.error || 'Mã OTP không chính xác.');
+          }
+        }
+      } catch (err: any) {
+        setErrorMsg('Đã xảy ra lỗi khi kiểm tra mã OTP. Vui lòng thử lại.');
       }
-    } else {
-      setIsLoading(false);
-    }
-  };
+
+      if (isSuccess) {
+        const userId = verifiedUser?.id || verifiedUser?.uid || `usr_${Date.now()}`;
+
+        if (name) {
+          // Lưu vào Supabase Database
+          await syncUserToSupabase({
+            id: userId,
+            name: name.trim(),
+            phone: phone || undefined,
+            email: email || undefined,
+            role: role === 'owner' ? 'owner' : 'user',
+            avatar_url: '/images/user-avatar.jpg',
+            verified: true,
+            auth_provider: authMode === 'email' ? 'email_otp' : 'phone_otp',
+            owner_application_status: role === 'owner' ? 'pending' : 'none',
+          });
+
+          registerUser({
+            id: userId,
+            name: name.trim(),
+            phone: phone || '',
+            email: email || '',
+          });
+
+          showToast(
+            'Đăng ký tài khoản thành công! 🎉',
+            `Chào mừng ${name} đến với Trọ Xinh!`,
+            'success'
+          );
+        } else {
+          loginWithPhone(phone || email, role === 'owner' ? 'owner' : 'user');
+          showToast('Đăng nhập thành công! 👋', 'Chào mừng bạn quay trở lại Trọ Xinh.', 'success');
+        }
+
+        setIsLoading(false);
+
+        // Chuyển trang ngay lập tức
+        if (returnUrl) {
+          navigate(decodeURIComponent(returnUrl), { replace: true });
+        } else if (role === 'owner') {
+          navigate('/chu-tro', { replace: true });
+        } else {
+          navigate('/', { replace: true });
+        }
+      } else {
+        setIsLoading(false);
+        setIsErrorShake(true);
+        // Tự động xóa mã đã nhập để người dùng gõ lại dễ dàng
+        setOtpValue('');
+        setTimeout(() => setIsErrorShake(false), 600);
+      }
+    },
+    [isLoading, authMode, email, phone, verificationId, name, role, returnUrl, registerUser, loginWithPhone, showToast, navigate]
+  );
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
@@ -223,12 +207,14 @@ export const OtpVerificationPage: React.FC = () => {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-14 h-14 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
-            <Mail className="w-7 h-7" />
+            {authMode === 'email' ? <Mail className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
           </div>
           <h1 className="text-xl font-bold text-gray-900">Xác Thực Mã OTP</h1>
           <p className="text-xs text-gray-500">
             Mã OTP 6 số đã được gửi tự động tới:{' '}
-            <strong className="text-gray-900 block mt-1 font-semibold">{email || phone}</strong>
+            <strong className="text-gray-900 block mt-1 font-semibold break-all">
+              {email || phone}
+            </strong>
           </p>
         </div>
 
@@ -240,44 +226,52 @@ export const OtpVerificationPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleVerify} className="space-y-6">
-          {/* 6-box OTP input */}
-          <div className="flex justify-center gap-2 sm:gap-3" onPaste={handlePaste}>
-            {otp.map((digit, idx) => (
-              <input
-                key={idx}
-                ref={(el) => (inputsRef.current[idx] = el)}
-                type="text"
-                inputMode="numeric"
-                maxLength={1}
-                value={digit}
-                onChange={(e) => handleChange(e.target.value, idx)}
-                onKeyDown={(e) => handleKeyDown(e, idx)}
-                className="w-11 h-13 sm:w-12 sm:h-14 text-center text-xl font-black rounded-2xl border-2 border-gray-200 focus:border-[#00a854] focus:ring-4 focus:ring-emerald-500/15 outline-hidden transition-all bg-gray-50/50 focus:bg-white text-gray-900 shadow-2xs"
-                autoFocus={idx === 0}
-              />
-            ))}
-          </div>
+        <div className="space-y-6">
+          {/* Component OTPInput tối ưu cao cấp */}
+          <OtpInput
+            length={6}
+            value={otpValue}
+            onChange={(val) => {
+              setOtpValue(val);
+              setErrorMsg('');
+            }}
+            onComplete={(fullCode) => {
+              // Tự động gọi xác thực ngay khi nhập đủ 6 số!
+              handleVerifyOtp(fullCode);
+            }}
+            disabled={isLoading}
+            isError={isErrorShake}
+            autoFocus={true}
+          />
 
           <div className="text-center space-y-1">
             <p className="text-xs text-gray-500">
-              Vui lòng mở ứng dụng <strong>Gmail</strong> trên điện thoại hoặc máy tính để lấy mã 6 số.
+              {authMode === 'email' ? (
+                <>
+                  Vui lòng mở ứng dụng <strong className="text-gray-900">Gmail</strong> trên điện thoại hoặc máy tính để lấy mã.
+                </>
+              ) : (
+                <>
+                  Vui lòng kiểm tra hộp thư tin nhắn <strong className="text-gray-900">SMS</strong> trên điện thoại của bạn.
+                </>
+              )}
             </p>
           </div>
 
-          {/* Submit button */}
+          {/* Nút Xác nhận */}
           <Button
-            type="submit"
+            type="button"
             variant="primary"
             size="lg"
             className="w-full"
             isLoading={isLoading}
-            disabled={otp.join('').length < 6}
-            rightIcon={<ArrowRight className="w-4 h-4" />}
+            disabled={otpValue.length < 6 || isLoading}
+            onClick={() => handleVerifyOtp(otpValue)}
+            rightIcon={!isLoading ? <ArrowRight className="w-4 h-4" /> : undefined}
           >
-            Xác Nhận & Kích Hoạt Tài Khoản
+            {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Tiếp Tục'}
           </Button>
-        </form>
+        </div>
 
         {/* Resend OTP */}
         <div className="pt-2 text-center text-xs text-gray-500 flex items-center justify-center gap-1.5">
