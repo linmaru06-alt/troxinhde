@@ -90,11 +90,11 @@ export const LandingPage: React.FC = () => {
             </div>
 
             <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
-              Giá tốt, gần bạn, chốt nhanh!
+              Phòng thật, giá chuẩn, đặt lịch trực tiếp!
             </h1>
 
             <p className="text-xs sm:text-sm text-gray-950 font-bold max-w-xl mx-auto mt-2 opacity-90">
-              Tìm phòng trọ sinh viên đã đối chiếu danh tính & thông tin thực tế tại Hà Nội
+              Biết rõ tổng chi phí hàng tháng, đối chiếu thực tế và kết nối trực tiếp với chủ trọ tại Hà Nội
             </p>
           </div>
         </div>
