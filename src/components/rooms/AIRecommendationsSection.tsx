@@ -5,13 +5,13 @@ import { Sparkles, Bot, ArrowRight, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const AIRecommendationsSection: React.FC = () => {
-  const { rooms, currentUser } = useAppStore();
+  const { rooms = [], currentUser } = useAppStore();
   const [recommendedRooms, setRecommendedRooms] = useState<Array<{ room: any; reason: string; score: number }>>([]);
 
   useEffect(() => {
     // Top approved rooms with dynamic AI-like personalized scoring & explanations
-    if (rooms && rooms.length > 0) {
-      const approved = rooms.filter((r) => r.status === 'Còn trống');
+    if (rooms && Array.isArray(rooms) && rooms.length > 0) {
+      const approved = (rooms || []).filter((r) => r && r.status === 'Còn trống');
       const scored = approved.slice(0, 4).map((room, idx) => {
         const reasons = [
           `Phù hợp với khu vực ${room.district} có giao thông thuận tiện và gần các trường đại học lớn.`,

@@ -22,7 +22,7 @@ export function useRealtimeRoomStatus() {
           const updatedRoom = payload.new;
           if (!updatedRoom) return;
 
-          const existing = rooms.find((r) => r.id === updatedRoom.id);
+          const existing = (rooms || []).find((r) => r.id === updatedRoom.id);
           const oldStatus = existing?.status;
           const newStatus = updatedRoom.status;
 

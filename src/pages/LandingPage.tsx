@@ -19,7 +19,7 @@ import {
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { rooms, roommates, marketplaceItems } = useAppStore();
+  const { rooms = [], roommates = [], marketplaceItems = [] } = useAppStore();
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -60,9 +60,9 @@ export const LandingPage: React.FC = () => {
     navigate(`/tim-phong?${params.toString()}`);
   };
 
-  const verifiedRooms = rooms.filter((r) => r.verified && r.status === 'Còn trống').slice(0, 6);
-  const featuredRoommates = roommates.slice(0, 3);
-  const featuredMarketplace = marketplaceItems.slice(0, 4);
+  const verifiedRooms = (rooms || []).filter((r) => r.verified && r.status === 'Còn trống').slice(0, 6);
+  const featuredRoommates = (roommates || []).slice(0, 3);
+  const featuredMarketplace = (marketplaceItems || []).slice(0, 4);
 
   return (
     <div className="space-y-10 sm:space-y-14 pb-16 bg-[#f8f9fa]">
@@ -238,7 +238,7 @@ export const LandingPage: React.FC = () => {
 
           <Link to="/tim-phong">
             <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả ({rooms.length} phòng)
+              Xem tất cả ({(rooms || []).length} phòng)
             </Button>
           </Link>
         </div>
@@ -272,7 +272,7 @@ export const LandingPage: React.FC = () => {
 
           <Link to="/tim-ban-cung-phong">
             <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả ({roommates.length} bài đăng)
+              Xem tất cả ({(roommates || []).length} bài đăng)
             </Button>
           </Link>
         </div>
@@ -301,7 +301,7 @@ export const LandingPage: React.FC = () => {
 
           <Link to="/cho-do-cu">
             <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả ({marketplaceItems.length} món đồ)
+              Xem tất cả ({(marketplaceItems || []).length} món đồ)
             </Button>
           </Link>
         </div>

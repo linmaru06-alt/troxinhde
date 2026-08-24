@@ -13,7 +13,7 @@ export function useRealtimeNotifications() {
   } = useAppStore();
 
   const unreadCount = useMemo(() => {
-    return storeNotifications.filter((n) => !n.read).length;
+    return (storeNotifications || []).filter((n) => !n.read).length;
   }, [storeNotifications]);
 
   useEffect(() => {

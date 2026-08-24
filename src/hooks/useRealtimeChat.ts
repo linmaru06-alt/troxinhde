@@ -21,7 +21,7 @@ export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
       setMessages([]);
       return;
     }
-    const currentThreadMsgs = storeMessages.filter((m) => m.threadId === threadId);
+    const currentThreadMsgs = (storeMessages || []).filter((m) => m.threadId === threadId);
     setMessages(currentThreadMsgs);
   }, [threadId, storeMessages]);
 
