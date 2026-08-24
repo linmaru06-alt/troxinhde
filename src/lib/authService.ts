@@ -1,4 +1,4 @@
-import { auth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from './firebase';
+import { auth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, firebaseConfig } from './firebase';
 
 declare global {
   interface Window {
@@ -38,7 +38,7 @@ export function formatVietnamesePhone(phone: string): string {
 }
 
 /**
- * Gửi mã xác thực OTP 6 số về số điện thoại thật
+ * Gửi mã xác thực OTP 6 số về số điện thoại thật qua Firebase
  */
 export async function sendPhoneOtp(
   phone: string,
@@ -46,23 +46,35 @@ export async function sendPhoneOtp(
 ): Promise<SendOtpResult> {
   const formattedPhone = formatVietnamesePhone(phone);
 
-  // 1. Kiểm tra cấu hình Firebase thật
   const hasRealFirebase = Boolean(
-    import.meta.env.VITE_FIREBASE_API_KEY &&
-    !import.meta.env.VITE_FIREBASE_API_KEY.includes('DemoKey')
+    firebaseConfig.apiKey &&
+    !firebaseConfig.apiKey.includes('DemoKey')
   );
 
   if (hasRealFirebase && typeof window !== 'undefined') {
     try {
-      if (!window.recaptchaVerifier) {
-        window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-          size: 'invisible',
-          callback: () => {
-            // reCAPTCHA solved
-          },
-        });
+      // Đảm bảo dọn dẹp verifier cũ trước khi tạo mới
+      if (window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {
+          // ignore
+        }
+        window.recaptchaVerifier = undefined;
       }
 
+      // Khởi tạo reCAPTCHA vô hình
+      window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+        size: 'invisible',
+        callback: () => {
+          console.log('[Firebase Auth] reCAPTCHA verified successfully');
+        },
+        'expired-callback': () => {
+          console.warn('[Firebase Auth] reCAPTCHA expired, please retry');
+        },
+      });
+
+      console.log(`[Firebase Auth] Đang gửi SMS thật tới ${formattedPhone}...`);
       const confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
@@ -70,6 +82,7 @@ export async function sendPhoneOtp(
       );
 
       window.confirmationResult = confirmationResult;
+      console.log('[Firebase Auth] Đã gửi SMS thành công qua Firebase!');
 
       return {
         success: true,
@@ -77,15 +90,42 @@ export async function sendPhoneOtp(
         isSimulated: false,
       };
     } catch (error: any) {
-      console.warn('[Firebase Auth] Gửi OTP thất bại, chuyển sang chế độ mô phỏng trực quan:', error);
+      console.error('[Firebase Auth] Chi tiết lỗi gửi SMS từ Google:', error);
+      
+      // Xử lý thông báo lỗi chi tiết
+      let friendlyError = 'Không thể gửi tin nhắn SMS.';
+      if (error.code === 'auth/invalid-phone-number') {
+        friendlyError = 'Số điện thoại không đúng định dạng.';
+      } else if (error.code === 'auth/quota-exceeded') {
+        friendlyError = 'Đã vượt quá số lượng SMS miễn phí trong ngày.';
+      } else if (error.code === 'auth/captcha-check-failed') {
+        friendlyError = 'Xác minh bảo mật captcha không thành công.';
+      } else if (error.code === 'auth/too-many-requests') {
+        friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng đợi vài phút.';
+      } else if (error.message) {
+        friendlyError = `${error.message}`;
+      }
+
+      // Nếu lỗi do domain hoặc cấu hình, fallback sang chế độ demo để người dùng không bị kẹt
+      const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
+      const mockVerificationId = `verif_${Date.now()}`;
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem(`otp_${mockVerificationId}`, generatedOtp);
+      }
+
+      return {
+        success: true,
+        verificationId: mockVerificationId,
+        isSimulated: true,
+        demoOtp: generatedOtp,
+        error: friendlyError,
+      };
     }
   }
 
-  // 2. Chế độ Smart Fallback / Development (Đảm bảo luôn test được 100%)
+  // Chế độ Demo khi không có cấu hình
   const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
-  const mockVerificationId = `verif_${Date.now()}_${Math.random().toString(36).substr(2, 6)}`;
-
-  // Lưu tạm vào sessionStorage để xác minh
+  const mockVerificationId = `verif_${Date.now()}`;
   if (typeof window !== 'undefined') {
     sessionStorage.setItem(`otp_${mockVerificationId}`, generatedOtp);
   }
@@ -108,7 +148,7 @@ export async function verifyPhoneOtp(
 ): Promise<VerifyOtpResult> {
   const cleanCode = otpCode.trim();
 
-  // 1. Nếu có Firebase ConfirmationResult
+  // 1. Xác thực bằng Firebase confirmationResult thật
   if (window.confirmationResult) {
     try {
       const result = await window.confirmationResult.confirm(cleanCode);
@@ -118,16 +158,16 @@ export async function verifyPhoneOtp(
         user: result.user,
       };
     } catch (error: any) {
-      console.error('[Firebase Auth] Mã OTP không chính xác:', error);
+      console.error('[Firebase Auth] Lỗi khi kiểm tra mã OTP:', error);
       return {
         success: false,
         phone,
-        error: 'Mã OTP không chính xác hoặc đã hết hạn. Vui lòng thử lại!',
+        error: 'Mã OTP từ tin nhắn SMS không chính xác hoặc đã hết hạn!',
       };
     }
   }
 
-  // 2. Kiểm tra mã Fallback trong sessionStorage
+  // 2. Xác thực bằng Fallback trong sessionStorage
   if (typeof window !== 'undefined') {
     const savedOtp = sessionStorage.getItem(`otp_${verificationId}`);
     if (savedOtp && savedOtp === cleanCode) {
@@ -140,7 +180,7 @@ export async function verifyPhoneOtp(
     }
   }
 
-  // Mặc định hỗ trợ mã test nhanh 123456 hoặc 888888 trong môi trường dev
+  // Mã test nhanh 123456 / 888888
   if (cleanCode === '123456' || cleanCode === '888888') {
     return {
       success: true,
