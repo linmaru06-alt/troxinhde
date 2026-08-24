@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
-import { Phone, Lock, LogIn, Mail, AlertCircle } from 'lucide-react';
+import { Phone, Lock, LogIn, Mail, AlertCircle, ShieldCheck, Building2, User } from 'lucide-react';
 import { loginWithEmailPassword, loginWithGoogle } from '../lib/authService';
 
 export const LoginPage: React.FC = () => {
@@ -30,21 +30,24 @@ export const LoginPage: React.FC = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
 
   // 1. Xử lý đăng nhập bằng Email & Mật khẩu
-  const handleEmailLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEmailLogin = async (e?: React.FormEvent, customEmail?: string, customPass?: string) => {
+    if (e) e.preventDefault();
     setError('');
 
-    if (!email.trim()) {
+    const targetEmail = customEmail || email;
+    const targetPass = customPass || password;
+
+    if (!targetEmail.trim()) {
       setError('Vui lòng nhập địa chỉ Email.');
       return;
     }
-    if (!password) {
+    if (!targetPass) {
       setError('Vui lòng nhập mật khẩu.');
       return;
     }
 
     setIsLoading(true);
-    const res = await loginWithEmailPassword(email, password);
+    const res = await loginWithEmailPassword(targetEmail, targetPass);
     setIsLoading(false);
 
     if (res.success && res.user) {
@@ -58,7 +61,7 @@ export const LoginPage: React.FC = () => {
       });
 
       if (returnUrl) {
-        navigate(returnUrl);
+        navigate(decodeURIComponent(returnUrl));
       } else if (res.user.role === 'owner') {
         navigate('/chu-tro');
       } else if (res.user.role === 'admin') {
@@ -110,8 +113,10 @@ export const LoginPage: React.FC = () => {
         avatarUrl: res.user.avatarUrl,
       });
 
+      showToast('Đăng nhập Google thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
+
       if (returnUrl) {
-        navigate(returnUrl);
+        navigate(decodeURIComponent(returnUrl));
       } else if (res.user.role === 'owner') {
         navigate('/chu-tro');
       } else if (res.user.role === 'admin') {
@@ -120,42 +125,47 @@ export const LoginPage: React.FC = () => {
         navigate('/tim-phong');
       }
     } else {
-      setError(res.error || 'Đăng nhập bằng Google không thành công.');
+      setError(res.error || 'Không thể đăng nhập bằng Google.');
     }
+  };
+
+  // Chọn tài khoản demo 1 chạm
+  const selectDemoAccount = (demoEmail: string, demoPass: string) => {
+    setLoginMode('email');
+    setEmail(demoEmail);
+    setPassword(demoPass);
+    handleEmailLogin(undefined, demoEmail, demoPass);
   };
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 animate-fadeIn">
-        {/* Header & Logo */}
+        {/* Header */}
         <div className="text-center space-y-2">
-          <Link to="/" className="inline-flex items-center gap-2.5 group">
-            <img
-              src="/images/logo.png"
-              alt="Trọ Xinh Logo"
-              className="w-12 h-12 rounded-2xl object-cover ring-2 ring-emerald-500/20 shadow-md group-hover:scale-105 transition-transform"
-            />
-            <span className="text-2xl font-black text-[#00a854]">Trọ Xinh</span>
-          </Link>
-          <h1 className="text-xl font-bold text-gray-900">Đăng Nhập Tài Khoản</h1>
-          <p className="text-xs text-gray-500">Tìm phòng an tâm, kết nối chủ trọ chính chủ</p>
+          <div className="w-14 h-14 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
+            <LogIn className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900">Đăng Nhập Trọ Xinh</h1>
+          <p className="text-xs text-gray-500">
+            Chào mừng bạn quay trở lại nền tảng thuê trọ sinh viên Hà Nội
+          </p>
         </div>
 
-        {/* Tab Switcher: Email / Phone OTP */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl">
+        {/* Tab Selection */}
+        <div className="flex p-1 bg-gray-100/80 rounded-2xl">
           <button
             type="button"
             onClick={() => {
               setLoginMode('email');
               setError('');
             }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
               loginMode === 'email'
-                ? 'bg-white text-gray-900 shadow-sm'
+                ? 'bg-white text-gray-900 shadow-xs'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
           >
-            <Mail className="w-3.5 h-3.5" /> Email & Mật Khẩu
+            Email & Mật Khẩu
           </button>
           <button
             type="button"
@@ -163,17 +173,17 @@ export const LoginPage: React.FC = () => {
               setLoginMode('phone');
               setError('');
             }}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all flex items-center justify-center gap-1.5 ${
+            className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
               loginMode === 'phone'
-                ? 'bg-white text-[#00a854] shadow-sm'
+                ? 'bg-white text-gray-900 shadow-xs'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
           >
-            <Phone className="w-3.5 h-3.5" /> Mã SMS OTP
+            Mã SMS OTP
           </button>
         </div>
 
-        {/* Error Alert */}
+        {/* Error message */}
         {error && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2 animate-shake">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -183,7 +193,7 @@ export const LoginPage: React.FC = () => {
 
         {/* FORM 1: EMAIL & PASSWORD */}
         {loginMode === 'email' && (
-          <form onSubmit={handleEmailLogin} className="space-y-4">
+          <form onSubmit={(e) => handleEmailLogin(e)} className="space-y-4">
             <Input
               label="Địa chỉ Email"
               type="email"
@@ -263,11 +273,44 @@ export const LoginPage: React.FC = () => {
           </form>
         )}
 
+        {/* Tài khoản Demo 1-Chạm */}
+        <div className="pt-2">
+          <div className="text-[11px] font-bold text-gray-500 uppercase tracking-wider text-center mb-2">
+            Hoặc Đăng Nhập 1-Chạm Bằng Tài Khoản Mẫu:
+          </div>
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              type="button"
+              onClick={() => selectDemoAccount('admin@troxinh.vn', '12345678')}
+              className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-[11px] font-bold flex flex-col items-center gap-1 transition"
+            >
+              <ShieldCheck className="w-4 h-4 text-purple-600" />
+              <span>Admin</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => selectDemoAccount('chutro@troxinh.vn', '12345678')}
+              className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex flex-col items-center gap-1 transition"
+            >
+              <Building2 className="w-4 h-4 text-amber-600" />
+              <span>Chủ Trọ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => selectDemoAccount('nguoithue@troxinh.vn', '12345678')}
+              className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex flex-col items-center gap-1 transition"
+            >
+              <User className="w-4 h-4 text-[#00a854]" />
+              <span>Sinh Viên</span>
+            </button>
+          </div>
+        </div>
+
         {/* Social Login Separator */}
         <div className="relative flex py-1 items-center">
           <div className="flex-grow border-t border-gray-200"></div>
           <span className="flex-shrink mx-4 text-gray-400 text-xs font-medium uppercase tracking-wider">
-            hoặc đăng nhập nhanh bằng
+            hoặc
           </span>
           <div className="flex-grow border-t border-gray-200"></div>
         </div>

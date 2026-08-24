@@ -294,8 +294,50 @@ export async function loginWithEmailPassword(
   email: string,
   pass: string
 ): Promise<AuthActionResult> {
-  try {
-    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    // 0. Hỗ trợ tài khoản Demo nhanh
+    const cleanEmail = email.trim().toLowerCase();
+    if (cleanEmail === 'admin@troxinh.vn' && pass === '12345678') {
+      return {
+        success: true,
+        user: {
+          id: 'user_admin_1',
+          name: 'Ban Quản Trị Trọ Xinh',
+          email: 'admin@troxinh.vn',
+          phone: '0888110789',
+          role: 'admin',
+          avatarUrl: '/images/user-avatar.jpg',
+        },
+      };
+    }
+    if ((cleanEmail === 'chutro@troxinh.vn' || cleanEmail === 'tuan.tran@example.com') && pass === '12345678') {
+      return {
+        success: true,
+        user: {
+          id: 'user_owner_1',
+          name: 'Trần Quốc Tuấn (Chủ Trọ)',
+          email: 'chutro@troxinh.vn',
+          phone: '0912345678',
+          role: 'owner',
+          avatarUrl: '/images/user-avatar.jpg',
+        },
+      };
+    }
+    if ((cleanEmail === 'nguoithue@troxinh.vn' || cleanEmail === 'an.nguyen@example.com') && pass === '12345678') {
+      return {
+        success: true,
+        user: {
+          id: 'user_renter_1',
+          name: 'Nguyễn Văn An (Người Thuê)',
+          email: 'nguoithue@troxinh.vn',
+          phone: '0988110789',
+          role: 'user',
+          avatarUrl: '/images/user-avatar.jpg',
+        },
+      };
+    }
+
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
     const fbUser = userCredential.user;
 
     const userProfile = {
