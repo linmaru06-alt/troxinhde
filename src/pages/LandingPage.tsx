@@ -2,33 +2,32 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
-import { RoomCard, RoommateCard, MarketplaceCard } from '../components/ui/Cards';
+import { RoomCard } from '../components/ui/Cards';
 import { SEOHead } from '../components/seo/SEOHead';
 import { SearchAutocomplete } from '../components/search/SearchAutocomplete';
 import { AIRecommendationsSection } from '../components/rooms/AIRecommendationsSection';
 import {
   Search,
   MapPin,
-  DollarSign,
-  Home,
   ShieldCheck,
   CheckCircle2,
   Sparkles,
-  Users,
-  ShoppingBag,
   ArrowRight,
   Building2,
-  Lock,
-  Award,
+  Navigation,
+  ChevronDown,
+  Clock,
+  Home,
+  Check,
+  Plus,
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { rooms, roommates, marketplaceItems, currentUser } = useAppStore();
+  const { rooms, currentUser } = useAppStore();
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedPrice, setSelectedPrice] = useState<string>('');
-  const [selectedType, setSelectedType] = useState<string>('');
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const districts = [
     'Quận Cầu Giấy',
@@ -38,369 +37,245 @@ export const LandingPage: React.FC = () => {
     'Quận Nam Từ Liêm',
     'Quận Hà Đông',
     'Quận Ba Đình',
-  ];
-  const priceRanges = [
-    { label: 'Dưới 2 triệu', value: '0-2000000' },
-    { label: '2 - 3.5 triệu', value: '2000000-3500000' },
-    { label: '3.5 - 5 triệu', value: '3500000-5000000' },
-    { label: 'Trên 5 triệu', value: '5000000-99999999' },
+    'Quận Hoàng Mai',
+    'Quận Bắc Từ Liêm',
   ];
 
-  const handleSearch = (e: React.FormEvent) => {
+  const quickPillFilters: { label: string; query: Record<string, string> }[] = [
+    { label: '🏢 Tất cả phòng', query: {} },
+    { label: '🎓 Gần ĐHQG / Sư Phạm', query: { khuVuc: 'Quận Cầu Giấy', truong: 'Đại học Quốc Gia Hà Nội' } },
+    { label: '🎓 Gần Bách Khoa - KTQD', query: { khuVuc: 'Quận Hai Bà Trưng', truong: 'Đại học Bách Khoa' } },
+    { label: '🎓 Gần Ngoại Thương - Luật', query: { khuVuc: 'Quận Đống Đa', truong: 'Đại học Ngoại Thương' } },
+    { label: '💵 Dưới 3.5 triệu', query: { gia: '0-3500000' } },
+    { label: '🛋️ Studio khép kín', query: { loai: 'Studio' } },
+    { label: '🏢 Căn hộ mini', query: { loai: 'Căn hộ mini' } },
+    { label: '🛡️ Mới xác minh', query: { xacMinh: 'true' } },
+  ];
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
+    if (searchQuery.trim()) params.set('q', searchQuery.trim());
     if (selectedDistrict) params.set('khuVuc', selectedDistrict);
-    if (selectedPrice) params.set('gia', selectedPrice);
-    if (selectedType) params.set('loai', selectedType);
-    navigate(`/tim-kiem?${params.toString()}`);
+    navigate(`/tim-phong?${params.toString()}`);
   };
 
-  const handleOwnerPostClick = () => {
-    if (currentUser?.role === 'owner') {
-      navigate('/chu-tro/phong/tao-moi');
-    } else {
-      navigate('/dang-nhap?role=owner&next=/chu-tro/phong/tao-moi');
-    }
+  const handleQuickPillClick = (filterQuery: Record<string, string>) => {
+    const params = new URLSearchParams(filterQuery);
+    navigate(`/tim-phong?${params.toString()}`);
   };
 
-  const verifiedRooms = rooms.filter((r) => r.verified && r.status === 'Còn trống').slice(0, 4);
+  const verifiedRooms = rooms.filter((r) => r.verified && r.status === 'Còn trống').slice(0, 6);
 
   return (
-    <div className="space-y-16 sm:space-y-24 pb-12">
+    <div className="space-y-12 sm:space-y-16 pb-16 bg-[#f8f9fa]">
       <SEOHead
-        title="TroXinh - Tìm Phòng Trọ Sinh Viên Đã Kiểm Duyệt tại Hà Nội"
-        description="Nền tảng tìm phòng trọ uy tín dành cho sinh viên Hà Nội. 100% phòng đã kiểm duyệt PCCC & an ninh, giá minh bạch, kết nối trực tiếp với chủ trọ."
+        title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
+        description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, liên hệ và đặt lịch hẹn trực tiếp với chủ trọ."
         url="/"
       />
 
-      {/* 1. HERO SECTION WITH ILLUSTRATED BACKDROP */}
-      <section className="relative overflow-hidden pt-10 pb-20 md:pt-16 md:pb-28 bg-[#f9f9f9] border-b border-gray-200/60">
-        {/* Background Illustration & Overlay */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-60 sm:opacity-75 transition-opacity"
-          style={{ backgroundImage: `url('/images/hero-banner.webp')` }}
-        />
-        {/* Gradient overlays for crisp text contrast */}
-        <div className="absolute inset-0 bg-linear-to-b from-white/90 via-white/75 to-[#f9f9f9]/95" />
-        <div className="absolute inset-0 bg-radial from-transparent via-white/40 to-white/90" />
-
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center max-w-3xl mx-auto mb-10 space-y-4">
-            {/* Pill Badge */}
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 backdrop-blur-md text-[#006d37] border border-emerald-300 text-xs font-black shadow-md">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Nền tảng phòng trọ đã kiểm duyệt 100% tại Hà Nội</span>
+      {/* 1. CHỢ TỐT STYLE HERO BANNER SECTION */}
+      <section className="relative bg-gradient-to-b from-[#ffba00] to-[#f7b928] pt-8 pb-16 md:pt-12 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-amber-400/50">
+        <div className="max-w-6xl mx-auto text-center relative z-10 space-y-6">
+          {/* Slogan Banner with 3D Icons */}
+          <div className="relative max-w-3xl mx-auto py-2">
+            {/* Left Decorative Floating Badges */}
+            <div className="hidden md:flex flex-col items-center absolute -left-12 top-0 text-3xl animate-bounce duration-1000 select-none pointer-events-none opacity-90">
+              <span>🏠</span>
+              <span className="text-xl">🛋️</span>
             </div>
 
-            {/* Headline */}
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-900 tracking-tight leading-tight sm:leading-none drop-shadow-xs">
-              Tìm trọ an tâm, <br className="hidden sm:inline" />
-              <span className="text-[#006d37] relative inline-block">
-                không lo phòng ảo
-                <span className="absolute bottom-1 left-0 right-0 h-3 bg-emerald-300/40 -z-10 rounded-full" />
-              </span>
+            {/* Right Decorative Floating Badges */}
+            <div className="hidden md:flex flex-col items-center absolute -right-12 top-0 text-3xl animate-bounce duration-700 select-none pointer-events-none opacity-90">
+              <span>🛵</span>
+              <span className="text-xl">🎓</span>
+            </div>
+
+            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
+              Giá tốt, gần bạn, chốt nhanh!
             </h1>
 
-            <p className="text-sm sm:text-base text-gray-700 max-w-2xl mx-auto leading-relaxed font-medium drop-shadow-xs">
-              Mỗi phòng trọ trên Trọ Xinh đều được đội ngũ kiểm định trực tiếp tại chỗ. Đúng giá, đúng hình, hỗ trợ bảo vệ tiền cọc cho sinh viên và người đi làm tại Hà Nội.
+            <p className="text-xs sm:text-sm text-gray-900 font-semibold max-w-xl mx-auto mt-2">
+              Tìm phòng trọ sinh viên đã đối chiếu danh tính & thông tin thực tế tại Hà Nội
             </p>
           </div>
+        </div>
 
-          {/* Search Box */}
-          <div className="max-w-4xl mx-auto bg-white/95 backdrop-blur-md rounded-3xl p-5 sm:p-7 shadow-2xl border border-white/80 ring-1 ring-black/5 space-y-4">
-            {/* Smart Autocomplete Search Bar */}
-            <div className="w-full text-left space-y-1.5">
-              <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#006d37]" />
-                Tìm kiếm thông minh (Trường ĐH, Quận, Địa danh nổi tiếng)
-              </label>
-              <SearchAutocomplete
-                placeholder="Gõ tên trường ĐH hoặc khu vực (vd: Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)"
-                onSelect={(val, type) => {
-                  if (type === 'district') {
-                    navigate(`/tim-kiem?khuVuc=${encodeURIComponent(val)}`);
-                  } else if (type === 'university') {
-                    navigate(`/tim-kiem?truong=${encodeURIComponent(val)}&q=${encodeURIComponent(val)}`);
-                  } else {
-                    navigate(`/tim-kiem?q=${encodeURIComponent(val)}`);
-                  }
-                }}
-              />
-            </div>
-
-            {/* Structured 3-Column Filter Row */}
-            <form onSubmit={handleSearch} className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-3 border-t border-gray-100">
-              {/* District Select */}
-              <div className="space-y-1.5 text-left">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-[#006d37]" />
-                  Khu Vực / Quận
-                </label>
-                <select
-                  value={selectedDistrict}
-                  onChange={(e) => setSelectedDistrict(e.target.value)}
-                  className="w-full bg-gray-50/90 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
-                >
-                  <option value="">Tất cả khu vực (Hà Nội)</option>
-                  {districts.map((d) => (
-                    <option key={d} value={d}>{d}</option>
-                  ))}
-                </select>
+        {/* 2. FLOATING DOCKED SEARCH BAR (CHỢ TỐT STYLE) */}
+        <div className="max-w-4xl mx-auto -mb-24 sm:-mb-26 px-2 relative z-20">
+          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-gray-100 ring-1 ring-black/5 space-y-3">
+            <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-center gap-2">
+              {/* Search input with autocomplete */}
+              <div className="relative flex-1 w-full flex items-center bg-gray-50/80 hover:bg-gray-100/80 rounded-2xl border border-gray-200 px-4 py-2.5 transition focus-within:ring-2 focus-within:ring-[#006d37] focus-within:bg-white">
+                <Search className="w-5 h-5 text-gray-400 shrink-0 mr-2.5" />
+                <input
+                  type="text"
+                  placeholder="Tìm phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none placeholder:text-gray-400 placeholder:font-normal"
+                />
               </div>
 
-              {/* Price Range Select */}
-              <div className="space-y-1.5 text-left">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
-                  <DollarSign className="w-3.5 h-3.5 text-[#006d37]" />
-                  Mức Giá Thuê
-                </label>
-                <select
-                  value={selectedPrice}
-                  onChange={(e) => setSelectedPrice(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
-                >
-                  <option value="">Tất cả mức giá</option>
-                  {priceRanges.map((p) => (
-                    <option key={p.value} value={p.value}>{p.label}</option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Room Type Select */}
-              <div className="space-y-1.5 text-left">
-                <label className="block text-xs font-bold text-gray-700 uppercase tracking-wide flex items-center gap-1.5">
-                  <Home className="w-3.5 h-3.5 text-[#006d37]" />
-                  Loại Phòng
-                </label>
-                <select
-                  value={selectedType}
-                  onChange={(e) => setSelectedType(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
-                >
-                  <option value="">Tất cả loại phòng</option>
-                  <option value="Phòng đơn">Phòng đơn</option>
-                  <option value="Studio">Studio ban công</option>
-                  <option value="Phòng ghép">Phòng ghép / KTX</option>
-                  <option value="Căn hộ mini">Căn hộ mini</option>
-                </select>
-              </div>
-
-              {/* CTA Buttons */}
-              <div className="sm:col-span-3 flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
-                <div className="flex items-center gap-2 text-xs text-gray-500 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0">
-                  <span className="font-semibold text-gray-700 shrink-0">Tìm nhanh:</span>
-                  {['Gần ĐHQG', 'Gần Bách Khoa', 'Khu Chùa Láng', 'Dưới 3tr'].map((tag) => (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => {
-                        if (tag === 'Gần ĐHQG' || tag === 'Cầu Giấy') setSelectedDistrict('Quận Cầu Giấy');
-                        if (tag === 'Gần Bách Khoa') setSelectedDistrict('Quận Hai Bà Trưng');
-                        if (tag === 'Khu Chùa Láng') setSelectedDistrict('Quận Đống Đa');
-                        if (tag === 'Dưới 3tr') setSelectedPrice('0-3500000');
-                      }}
-                      className="px-2.5 py-1 bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-lg transition shrink-0"
-                    >
-                      {tag}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="flex items-center gap-2 w-full sm:w-auto">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    size="md"
-                    onClick={handleOwnerPostClick}
-                    className="w-full sm:w-auto"
+              {/* Location / District Dropdown */}
+              <div className="relative w-full md:w-56 shrink-0">
+                <div className="flex items-center bg-gray-50/80 hover:bg-gray-100/80 rounded-2xl border border-gray-200 px-3.5 py-2.5 transition focus-within:ring-2 focus-within:ring-[#006d37] focus-within:bg-white">
+                  <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mr-1.5" />
+                  <select
+                    value={selectedDistrict}
+                    onChange={(e) => setSelectedDistrict(e.target.value)}
+                    className="w-full bg-transparent text-xs sm:text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
                   >
-                    Đăng Phòng Cho Thuê
-                  </Button>
-
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    size="md"
-                    leftIcon={<Search className="w-4 h-4" />}
-                    className="w-full sm:w-auto"
-                  >
-                    Tìm Phòng Trọ
-                  </Button>
+                    <option value="">Chọn khu vực (Toàn Hà Nội)</option>
+                    {districts.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
+
+              {/* Search Button */}
+              <button
+                type="submit"
+                className="w-full md:w-auto px-7 py-3 bg-[#ffba00] hover:bg-[#f0af00] text-gray-950 font-black text-sm rounded-2xl transition shadow-md flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <Search className="w-4 h-4 stroke-[3]" />
+                <span>Tìm kiếm</span>
+              </button>
             </form>
           </div>
         </div>
       </section>
 
-      {/* 2. TRUST COMMITMENTS */}
+      {/* Spacing for floating search bar */}
+      <div className="h-10 sm:h-12" />
+
+      {/* 3. QUICK CATEGORY PILLS (CHỢ TỐT FILTER CHIPS) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white rounded-2xl p-6 border border-emerald-100 shadow-xs flex items-start gap-4 hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
-              <ShieldCheck className="w-6 h-6" />
+        <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-200/80 shadow-xs">
+          <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-gray-100">
+            <span className="text-xs font-extrabold uppercase tracking-wider text-gray-500 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-[#ffba00]" />
+              Tìm nhanh theo nhu cầu sinh viên
+            </span>
+            <Link to="/tim-phong" className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-0.5">
+              Xem tất cả phòng →
+            </Link>
+          </div>
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            {quickPillFilters.map((pill, idx) => (
+              <button
+                key={idx}
+                onClick={() => handleQuickPillClick(pill.query)}
+                className="px-3.5 py-2 rounded-2xl bg-gray-50 hover:bg-emerald-50 hover:text-[#006d37] hover:border-emerald-200 border border-gray-200/80 text-xs font-bold text-gray-700 transition shrink-0 shadow-2xs"
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* 4. TRUST VALUE HIGHLIGHTS */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+              <ShieldCheck className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base mb-1">Kiểm Duyệt Thực Tế 100%</h3>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Đội ngũ Trọ Xinh trực tiếp đến từng phòng quay video, thẩm định PCCC và đối soát hợp đồng trước khi duyệt.
+              <h3 className="font-bold text-gray-900 text-sm mb-0.5">Chủ trọ đã xác minh</h3>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Đối chiếu CCCD và số điện thoại chính chủ trước khi kích hoạt tin đăng.
               </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-emerald-100 shadow-xs flex items-start gap-4 hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
-              <Lock className="w-6 h-6" />
+          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+              <CheckCircle2 className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base mb-1">Minh Bạch & Trực Tiếp</h3>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Không phí môi giới, không cọc giữ chỗ qua trung gian mờ ám. Kết nối trực tiếp số điện thoại chủ nhà.
+              <h3 className="font-bold text-gray-900 text-sm mb-0.5">Biết rõ tổng chi phí</h3>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Minh bạch đơn giá điện, nước, cọc, dịch vụ. Không lo phụ phí ẩn phát sinh.
               </p>
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-6 border border-emerald-100 shadow-xs flex items-start gap-4 hover:shadow-md transition">
-            <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
-              <Award className="w-6 h-6" />
+          <div className="bg-white rounded-2xl p-5 border border-emerald-100 shadow-xs flex items-start gap-3.5">
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
+              <Clock className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-gray-900 text-base mb-1">Hợp Đồng & Biên Bản Chuẩn</h3>
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Cung cấp miễn phí mẫu hợp đồng thuê trọ và biên bản bàn giao thiết bị chuẩn pháp lý được luật sư biên soạn.
+              <h3 className="font-bold text-gray-900 text-sm mb-0.5">Đặt lịch xem trực tiếp</h3>
+              <p className="text-[11px] text-gray-500 leading-relaxed">
+                Chọn ngày giờ rảnh, chủ trọ xác nhận 2 chiều, nhắc hẹn tự động chống bùng lịch.
               </p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* AI RECOMMENDATIONS SECTION */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AIRecommendationsSection />
-      </section>
-
-      {/* 3. FEATURED VERIFIED LISTINGS */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
+      {/* 5. VERIFIED ROOMS FEED */}
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-200">
           <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-[#006d37] uppercase tracking-wider mb-1">
-              <Sparkles className="w-4 h-4" />
-              Nổi bật hôm nay
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 text-[#006d37] text-[11px] font-bold mb-1">
+              <ShieldCheck className="w-3.5 h-3.5" />
+              <span>Đã kiểm tra trong 30 ngày qua</span>
             </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Phòng Trọ Đã Kiểm Duyệt
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+              Phòng Trọ Đã Đối Chiếu Mới Nhất
             </h2>
           </div>
 
-          <Link to="/tim-kiem" className="inline-flex items-center gap-1 text-sm font-bold text-[#006d37] hover:underline">
-            Xem tất cả {rooms.length} phòng <ArrowRight className="w-4 h-4" />
+          <Link to="/tim-phong">
+            <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
+              Xem tất cả ({rooms.length} phòng)
+            </Button>
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {verifiedRooms.map((room) => (
             <RoomCard key={room.id} room={room} />
           ))}
         </div>
       </section>
 
-      {/* 4. ROOMMATE MATCHING PREVIEW */}
+      {/* 6. AI RECOMMENDATIONS SECTION */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="relative overflow-hidden rounded-3xl p-6 sm:p-10 text-white shadow-2xl border border-gray-900/10">
-          {/* Background Illustration */}
-          <div
-            className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-            style={{ backgroundImage: `url('/images/roommate-banner.webp')` }}
-          />
-          {/* Dark gradient & frosted overlay */}
-          <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/85 to-slate-950/50" />
-          <div className="absolute inset-0 bg-linear-to-t from-slate-950/80 via-transparent to-transparent" />
-
-          <div className="relative z-10">
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6 mb-8">
-              <div className="space-y-2 max-w-xl">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/20 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/30 backdrop-blur-md">
-                  <Users className="w-3.5 h-3.5" />
-                  Cộng Đồng Sinh Viên Hà Nội
-                </span>
-                <h2 className="text-2xl sm:text-4xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
-                  Tìm Bạn Ở Ghép <span className="text-[#4ade80]">Hợp Gu & San Sẻ Chi Phí</span>
-                </h2>
-                <p className="text-gray-100 text-xs sm:text-sm md:text-base font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] leading-relaxed">
-                  Kết nối với sinh viên cùng trường, cùng thói quen sinh hoạt. Xem trước thông tin phòng đã liên kết và kiểm duyệt.
-                </p>
-              </div>
-
-              <Link to="/roommate" className="shrink-0">
-                <Button variant="secondary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />} className="font-bold shadow-lg">
-                  Khám Phá Bạn Ghép
-                </Button>
-              </Link>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {roommates.slice(0, 3).map((post) => (
-                <RoommateCard key={post.id} post={post} />
-              ))}
-            </div>
-          </div>
-        </div>
+        <AIRecommendationsSection />
       </section>
 
-      {/* 5. SECONDHAND MARKETPLACE PREVIEW */}
+      {/* 7. CTA FOR LANDLORDS (BANNER DÀNH CHO CHỦ TRỌ) */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-600 uppercase tracking-wider mb-1">
-              <ShoppingBag className="w-4 h-4" />
-              Chợ Đồ Cũ Sinh Viên
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Thanh Lý Nhanh - Tặng Đồ 0 Đồng
+        <div className="bg-gradient-to-r from-[#006d37] to-[#004e27] rounded-3xl p-6 sm:p-10 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 text-center md:text-left">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">
+              Dành riêng cho chủ trọ tại Hà Nội
+            </span>
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight">
+              Bạn có phòng trống cần tìm khách thuê tử tế?
             </h2>
-          </div>
-
-          <Link to="/cho-do-cu" className="inline-flex items-center gap-1 text-sm font-bold text-[#006d37] hover:underline">
-            Xem chợ đồ cũ <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-          {marketplaceItems.slice(0, 6).map((item) => (
-            <MarketplaceCard key={item.id} item={item} />
-          ))}
-        </div>
-      </section>
-
-      {/* 6. OWNER BANNER */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-amber-50/80 rounded-3xl p-8 sm:p-12 border border-amber-200/60 flex flex-col md:flex-row items-center justify-between gap-8">
-          <div className="space-y-3 max-w-xl text-center md:text-left">
-            <div className="inline-flex items-center gap-2 px-3 py-1 bg-amber-100 text-amber-900 rounded-full text-xs font-bold">
-              <Building2 className="w-4 h-4 text-amber-700" />
-              Dành riêng cho chủ nhà trọ & căn hộ
-            </div>
-            <h2 className="text-2xl sm:text-3xl font-black text-gray-900">
-              Bạn Có Phòng Trọ Trống Cần Cho Thuê Nhanh?
-            </h2>
-            <p className="text-xs sm:text-sm text-gray-600 leading-relaxed">
-              Tiếp cận hơn 50.000+ sinh viên và người đi làm uy tín mỗi tháng. Được hỗ trợ chụp ảnh, kiểm duyệt và quản lý phòng tự động qua phần mềm SaaS miễn phí.
+            <p className="text-xs sm:text-sm text-emerald-100 max-w-xl leading-relaxed">
+              Tiếp cận hơn 50.000 sinh viên tại các trường ĐHQG, Bách Khoa, Kinh Tế, Ngoại Thương. Đăng tin nhanh chóng, quản lý lịch hẹn thông minh.
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto shrink-0">
-            <Button
-              variant="primary"
-              size="lg"
-              onClick={handleOwnerPostClick}
-              leftIcon={<Building2 className="w-5 h-5" />}
-            >
-              Đăng Phòng Ngay
-            </Button>
-            <Link to="/dang-ky?role=owner">
-              <Button variant="outline" size="lg" className="w-full sm:w-auto">
-                Đăng Ký Chủ Trọ
-              </Button>
+          <div className="flex flex-col sm:flex-row gap-3 shrink-0">
+            <Link to="/nang-cap-chu-tro">
+              <button className="px-6 py-3 bg-[#ffba00] hover:bg-[#f0af00] text-gray-950 font-black rounded-2xl text-xs sm:text-sm shadow-md transition">
+                Đăng ký làm chủ trọ
+              </button>
+            </Link>
+            <Link to="/bang-gia">
+              <button className="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-bold rounded-2xl text-xs sm:text-sm border border-white/30 transition">
+                Xem bảng giá gói VIP
+              </button>
             </Link>
           </div>
         </div>
