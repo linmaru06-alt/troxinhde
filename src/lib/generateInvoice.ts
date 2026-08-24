@@ -97,6 +97,9 @@ export async function generateInvoicePDF(invoiceData: InvoiceProps): Promise<voi
   root.render(React.createElement(InvoiceTemplate, enrichedData));
 
   // 3. Wait for DOM render & images/fonts
+  if (document.fonts) {
+    await document.fonts.ready;
+  }
   await new Promise((resolve) => setTimeout(resolve, 450));
 
   try {

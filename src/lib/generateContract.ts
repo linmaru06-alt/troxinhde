@@ -20,31 +20,46 @@ export async function generateContractPDF(
     throw new Error(`Element #${elementId} not found`);
   }
 
-  // Create canvas from DOM element
+  // Ensure all fonts (especially Vietnamese Be Vietnam Pro) are fully loaded
+  if (document.fonts) {
+    await document.fonts.ready;
+  }
+
+  // Create high-res canvas from DOM element
   const canvas = await html2canvas(element, {
     scale: 2,
     useCORS: true,
     logging: false,
     backgroundColor: '#ffffff',
+    windowWidth: 1200,
+    onclone: (clonedDoc) => {
+      const clonedElement = clonedDoc.getElementById(elementId);
+      if (clonedElement) {
+        clonedElement.style.fontFamily = "'Be Vietnam Pro', 'Segoe UI', Arial, sans-serif";
+        clonedElement.style.letterSpacing = 'normal';
+      }
+    },
   });
 
   const pdf = new jsPDF('p', 'mm', 'a4');
-  const imgWidth = 210; // A4 width mm
-  const imgHeight = (canvas.height * imgWidth) / canvas.width;
+  const pdfWidth = 210; // A4 width mm
+  const pdfHeight = 297; // A4 height mm
+  const imgWidth = pdfWidth;
+  const imgHeight = (canvas.height * pdfWidth) / canvas.width;
 
-  // If content spans multiple pages
-  const pageHeight = 297; // A4 height mm
   let heightLeft = imgHeight;
   let position = 0;
 
-  pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-  heightLeft -= pageHeight;
+  // Add first page
+  pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+  heightLeft -= pdfHeight;
 
-  while (heightLeft >= 0) {
+  // Multi-page handling
+  while (heightLeft > 0) {
     position = heightLeft - imgHeight;
     pdf.addPage();
-    pdf.addImage(canvas.toDataURL('image/png'), 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
+    pdf.addImage(canvas.toDataURL('image/png', 1.0), 'PNG', 0, position, imgWidth, imgHeight, undefined, 'FAST');
+    heightLeft -= pdfHeight;
   }
 
   const filename = `${filenamePrefix}_${new Date().toISOString().slice(0, 10)}.pdf`;
