@@ -1,96 +1,164 @@
-import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
-import { corsHeaders } from '../_shared/cors.ts';
-
-// Helper to create HMAC SHA-256 in Deno Web Crypto API
-async function createHmacSha256(key: string, message: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(key);
-  const cryptoKey = await crypto.subtle.importKey(
-    'raw',
-    keyData,
-    { name: 'HMAC', hash: 'SHA-256' },
-    false,
-    ['sign']
-  );
-  const signature = await crypto.subtle.sign(
-    'HMAC',
-    cryptoKey,
-    encoder.encode(message)
-  );
-  return Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, '0'))
-    .join('');
-}
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
 
 serve(async (req: Request) => {
-  // Handle CORS Preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response(null, {
+      headers: {
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey',
+      }
+    })
   }
 
   try {
-    const {
-      amount,
-      orderInfo,
-      orderId = `TRX_${Date.now()}`,
-      redirectUrl = 'https://troxinh.vn/thanh-toan/ket-qua',
-      ipnUrl = 'https://troxinh.vn/api/momo-webhook',
-      extraData = '',
-    } = await req.json();
+    const body = await req.json()
+    const { 
+      amount,       // Số tiền VND (VD: 99000)
+      planId,       // 'basic' | 'pro' | 'boost_7d' | 'boost_30d'
+      userId = 'GUEST_USER', // UUID người dùng
+      planName = 'Dịch vụ Trọ Xinh', // 'Gói Cơ Bản' | 'Gói Pro'
+      roomId,       // UUID phòng (nếu là boost)
+    } = body
 
-    const partnerCode = Deno.env.get('MOMO_PARTNER_CODE') || 'MOMOBK88202029';
-    const accessKey = Deno.env.get('MOMO_ACCESS_KEY') || 'klm05XEdG9SEKitY';
-    const secretKey = Deno.env.get('MOMO_SECRET_KEY') || 'at67qH6mk8w5Y1nAyMoYKMWACiEi2Aca';
-    const requestId = `REQ_${Date.now()}`;
-    const requestType = 'captureWallet';
+    // ── Cấu hình MoMo ──────────────────────────────────
+    const partnerCode = Deno.env.get('MOMO_PARTNER_CODE') || 'MOMO'
+    const accessKey   = Deno.env.get('MOMO_ACCESS_KEY') || 'F8BBA842ECF85'
+    const secretKey   = Deno.env.get('MOMO_SECRET_KEY') || 'K951B6PE1waDMi640xX08PD3vg6EkVlz'
+    const endpoint    = Deno.env.get('MOMO_ENDPOINT') || 'https://test-payment.momo.vn/v2/gateway/api/create'
+    const ipnUrl      = Deno.env.get('MOMO_IPN_URL') || 'https://troxinh.vn/api/momo-webhook'
+    const redirectUrl = Deno.env.get('MOMO_REDIRECT_URL') || 'https://troxinh.vn/thanh-toan/ket-qua'
 
-    const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&ipnUrl=${ipnUrl}&orderId=${orderId}&orderInfo=${orderInfo}&partnerCode=${partnerCode}&redirectUrl=${redirectUrl}&requestId=${requestId}&requestType=${requestType}`;
-    const signature = await createHmacSha256(secretKey, rawSignature);
+    // ── Tạo orderId và requestId unique ────────────────
+    const timestamp   = Date.now()
+    const userPrefix  = typeof userId === 'string' ? userId.slice(0, 8) : 'GUEST'
+    const orderId     = `TROXINH_${userPrefix}_${timestamp}`
+    const requestId   = `REQ_${timestamp}_${Math.random().toString(36).slice(2, 8).toUpperCase()}`
 
-    const requestBody = {
+    // ── Thông tin đơn hàng ──────────────────────────────
+    const orderInfo   = `Tro Xinh - ${planName}`  // max 255 ký tự
+    const extraData   = btoa(JSON.stringify({       // base64 encode
+      userId, planId, roomId: roomId || null
+    }))
+
+    // ── Tạo chữ ký HMAC-SHA256 ─────────────────────────
+    // Thứ tự fields PHẢI đúng theo tài liệu MoMo
+    const rawSignature = [
+      `accessKey=${accessKey}`,
+      `amount=${amount}`,
+      `extraData=${extraData}`,
+      `ipnUrl=${ipnUrl}`,
+      `orderId=${orderId}`,
+      `orderInfo=${orderInfo}`,
+      `partnerCode=${partnerCode}`,
+      `redirectUrl=${redirectUrl}`,
+      `requestId=${requestId}`,
+      `requestType=payWithMethod`,
+    ].join('&')
+
+    const encoder  = new TextEncoder()
+    const keyData  = encoder.encode(secretKey)
+    const msgData  = encoder.encode(rawSignature)
+    
+    const cryptoKey = await crypto.subtle.importKey(
+      'raw', keyData, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+    )
+    const signBuffer = await crypto.subtle.sign('HMAC', cryptoKey, msgData)
+    const signature  = Array.from(new Uint8Array(signBuffer))
+      .map(b => b.toString(16).padStart(2, '0'))
+      .join('')
+
+    // ── Gọi MoMo API ───────────────────────────────────
+    const momoPayload = {
       partnerCode,
-      partnerName: 'Trọ Xinh Hà Nội',
-      storeId: 'TroXinhStore',
       requestId,
       amount: Number(amount),
       orderId,
       orderInfo,
       redirectUrl,
       ipnUrl,
-      lang: 'vi',
+      requestType  : 'payWithMethod',
       extraData,
-      requestType,
+      lang         : 'vi',
       signature,
-    };
-
-    // MoMo Sandbox / Production Endpoint
-    const momoEndpoint = Deno.env.get('MOMO_ENDPOINT') || 'https://test-payment.momo.vn/v2/gateway/api/create';
-
-    let payUrl = `${redirectUrl}?orderId=${orderId}&amount=${amount}&resultCode=0&message=Thanh+toan+thanh+cong`;
-    let responseData: any = { payUrl, orderId, resultCode: 0 };
-
-    try {
-      const response = await fetch(momoEndpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-      const data = await response.json();
-      if (data && data.payUrl) {
-        responseData = data;
-      }
-    } catch {
-      // Fallback sandbox simulation for offline testing
     }
 
-    return new Response(JSON.stringify(responseData), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
-    });
+    const momoRes  = await fetch(endpoint, {
+      method  : 'POST',
+      headers : { 'Content-Type': 'application/json' },
+      body    : JSON.stringify(momoPayload),
+    })
+
+    const momoData = await momoRes.json()
+
+    // ── Kiểm tra kết quả từ MoMo ───────────────────────
+    if (momoData.resultCode !== 0) {
+      return new Response(JSON.stringify({
+        success : false,
+        message : momoData.message || 'Tạo đơn MoMo thất bại',
+        code    : momoData.resultCode,
+        details : momoData,
+      }), { 
+        status: 400,
+        headers: { 
+          'Content-Type': 'application/json',
+          'Access-Control-Allow-Origin': '*',
+        }
+      })
+    }
+
+    // ── Lưu pending transaction vào Supabase nếu có cấu hình ───
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
+
+    if (supabaseUrl && supabaseServiceKey) {
+      try {
+        const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2')
+        const supabase = createClient(supabaseUrl, supabaseServiceKey)
+
+        await supabase.from('transactions').insert({
+          user_id         : userId,
+          order_code      : orderId,
+          plan_id         : planId,
+          room_id         : roomId || null,
+          amount          : Number(amount),
+          status          : 'pending',
+          payment_method  : 'momo',
+          idempotency_key : `momo_${userId}_${planId}_${Math.floor(timestamp / 86400000)}_${timestamp}`,
+        })
+      } catch (dbErr: any) {
+        console.warn('Lưu giao dịch vào Supabase thất bại:', dbErr?.message || dbErr)
+      }
+    }
+
+    // ── Trả về cho client ───────────────────────────────
+    return new Response(JSON.stringify({
+      success       : true,
+      orderId,
+      requestId,
+      payUrl        : momoData.payUrl,       // Link redirect sang MoMo Web
+      deeplink      : momoData.deeplink,     // Mở app MoMo trực tiếp
+      qrCodeUrl     : momoData.qrCodeUrl,    // URL ảnh QR code
+      resultCode    : momoData.resultCode,
+      message       : momoData.message,
+    }), {
+      headers: {
+        'Content-Type'                : 'application/json',
+        'Access-Control-Allow-Origin' : '*',
+      }
+    })
+
   } catch (error: any) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 400,
-    });
+    return new Response(JSON.stringify({
+      success : false,
+      message : 'Lỗi server. Vui lòng thử lại.',
+      error   : error?.message || String(error),
+    }), { 
+      status: 500,
+      headers: { 
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+      }
+    })
   }
-});
+})
