@@ -72,29 +72,29 @@ export const LandingPage: React.FC = () => {
         url="/"
       />
 
-      {/* 1. BRIGHT GREEN WITH YELLOWISH CENTER GLOW HERO BANNER */}
+      {/* 1. BRIGHT GREEN WITH YELLOWISH CENTER GLOW HERO BANNER (CHỢ TỐT EXACT STRUCTURE) */}
       <section
-        className="relative pt-10 pb-16 sm:pb-20 md:pt-14 md:pb-24 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/40 shadow-xs"
+        className="relative pt-8 pb-14 sm:pt-10 sm:pb-16 md:pt-12 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/30"
         style={{
           background: 'radial-gradient(ellipse 85% 85% at 50% 45%, #fff9a6 0%, #a7f3d0 38%, #34d399 70%, #10b981 100%)',
         }}
       >
-        <div className="max-w-6xl mx-auto text-center relative z-10 space-y-4">
+        <div className="max-w-6xl mx-auto text-center relative z-10 space-y-3 sm:space-y-4">
           {/* Slogan Banner with 3D Icons & Black Bold Text */}
           <div className="relative max-w-3xl mx-auto py-2">
             {/* Left Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -left-12 top-0 text-3xl animate-bounce duration-1000 select-none pointer-events-none opacity-95">
+            <div className="hidden md:flex flex-col items-center absolute -left-14 top-0 text-3xl animate-bounce duration-1000 select-none pointer-events-none opacity-95">
               <span>🏠</span>
               <span className="text-xl">🛋️</span>
             </div>
 
             {/* Right Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -right-12 top-0 text-3xl animate-bounce duration-700 select-none pointer-events-none opacity-95">
+            <div className="hidden md:flex flex-col items-center absolute -right-14 top-0 text-3xl animate-bounce duration-700 select-none pointer-events-none opacity-95">
               <span>🛵</span>
               <span className="text-xl">🎓</span>
             </div>
 
-            <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
+            <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
               Phòng thật, giá chuẩn, đặt lịch trực tiếp!
             </h1>
 
@@ -103,55 +103,60 @@ export const LandingPage: React.FC = () => {
             </p>
           </div>
         </div>
+
+        {/* 2. FLOATING DOCKED SEARCH BAR (EXACTLY 50% ON BANNER, 50% ON BODY WITH GREEN BUTTON) */}
+        <div className="absolute left-0 right-0 bottom-0 translate-y-1/2 z-30 px-3 sm:px-4">
+          <div className="max-w-4xl mx-auto">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="bg-white rounded-2xl md:rounded-full p-2 sm:p-2.5 shadow-2xl border border-gray-200/90 ring-1 ring-black/5 flex flex-col md:flex-row items-center gap-2"
+            >
+              {/* Search Input */}
+              <div className="flex-1 w-full flex items-center px-3.5 py-1.5 text-gray-900">
+                <Search className="w-5 h-5 text-gray-400 shrink-0 mr-3" />
+                <input
+                  type="text"
+                  placeholder="Tìm sản phẩm, phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy...)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none placeholder:text-gray-400"
+                />
+              </div>
+
+              {/* Location Selector Pill (Chợ Tốt Style) */}
+              <div className="w-full md:w-auto shrink-0 flex items-center">
+                <div className="w-full md:w-56 flex items-center bg-white hover:bg-gray-50 rounded-xl md:rounded-full border border-gray-200 px-3.5 py-2 transition cursor-pointer shadow-2xs">
+                  <MapPin className="w-4 h-4 text-[#00a854] shrink-0 mr-2" />
+                  <select
+                    value={selectedDistrict}
+                    onChange={(e) => setSelectedDistrict(e.target.value)}
+                    className="w-full bg-transparent text-xs font-bold text-gray-900 focus:outline-none cursor-pointer"
+                  >
+                    <option value="">Chọn khu vực (Toàn HN)</option>
+                    {districts.map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Search Action CTA Button (GREEN BUTTON) */}
+              <button
+                type="submit"
+                className="w-full md:w-auto px-8 py-2.5 bg-[#00a854] hover:bg-[#008f47] text-white font-black text-xs sm:text-sm rounded-xl md:rounded-full transition shadow-md flex items-center justify-center gap-1.5 shrink-0"
+              >
+                <span>Tìm kiếm</span>
+              </button>
+            </form>
+          </div>
+        </div>
       </section>
 
-      {/* 2. FLOATING DOCKED SEARCH BAR (EXACTLY 50% ON GREEN BANNER, 50% ON WHITE BODY) */}
-      <div className="max-w-4xl mx-auto -mt-8 sm:-mt-9 md:-mt-10 px-3 sm:px-4 relative z-30">
-        <form
-          onSubmit={handleSearchSubmit}
-          className="bg-white rounded-2xl sm:rounded-full p-2 sm:p-2.5 shadow-2xl border border-gray-200/90 ring-1 ring-black/5 flex flex-col md:flex-row items-center gap-2"
-        >
-          {/* Search Input */}
-          <div className="flex-1 w-full flex items-center px-3.5 py-1.5 text-gray-900">
-            <Search className="w-5 h-5 text-gray-400 shrink-0 mr-3" />
-            <input
-              type="text"
-              placeholder="Tìm sản phẩm, phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy...)..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none placeholder:text-gray-400"
-            />
-          </div>
-
-          {/* Location Selector Pill (Chợ Tốt Style) */}
-          <div className="w-full md:w-auto shrink-0 flex items-center">
-            <div className="w-full md:w-56 flex items-center bg-white hover:bg-gray-50 rounded-xl sm:rounded-full border border-gray-200 px-3.5 py-2 transition cursor-pointer shadow-2xs">
-              <MapPin className="w-4 h-4 text-[#ffba00] shrink-0 mr-2" />
-              <select
-                value={selectedDistrict}
-                onChange={(e) => setSelectedDistrict(e.target.value)}
-                className="w-full bg-transparent text-xs font-bold text-gray-900 focus:outline-none cursor-pointer"
-              >
-                <option value="">Chọn khu vực (Toàn HN)</option>
-                {districts.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* Search Action CTA Button (Chợ Tốt Yellow Button) */}
-          <button
-            type="submit"
-            className="w-full md:w-auto px-7 py-2.5 bg-[#ffba00] hover:bg-[#f0af00] text-gray-950 font-black text-xs sm:text-sm rounded-xl sm:rounded-full transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
-          >
-            <span>Tìm kiếm</span>
-          </button>
-        </form>
-      </div>
+      {/* Spacer for bottom half of docked search bar */}
+      <div className="h-9 sm:h-11 md:h-13" />
 
       {/* 3. QUICK FILTER PILLS */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-200/80 shadow-xs">
           <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-gray-100">
             <span className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
