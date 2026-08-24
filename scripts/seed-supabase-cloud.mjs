@@ -20,6 +20,7 @@ async function seedData() {
   } catch (err) {
     console.error('Lỗi khi seed data:', err);
   }
+  
 }
 
 seedData();
