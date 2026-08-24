@@ -24,11 +24,11 @@ interface NavLinkItem {
 }
 
 export const MobileBottomNav: React.FC = () => {
-  const { currentUser, notifications, threads, savedRoomIds, bookings } = useAppStore();
+  const { currentUser, notifications = [], threads = [], savedRoomIds = [], bookings = [] } = useAppStore();
   const location = useLocation();
 
-  const unreadNotifs = notifications.filter((n) => !n.read).length;
-  const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const unreadNotifs = (notifications || []).filter((n) => !n.read).length;
+  const unreadMessages = (threads || []).reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
   // Hidden on specific fullscreen auth pages
   if (['/dang-nhap', '/dang-ky', '/quen-mat-khau', '/xac-thuc-otp'].includes(location.pathname)) {
@@ -40,7 +40,7 @@ export const MobileBottomNav: React.FC = () => {
     { to: '/', label: 'Trang chủ', icon: Home },
     { to: '/tim-phong', label: 'Tìm phòng', icon: Compass },
     { to: '/ban-do', label: 'Bản đồ', icon: MapPin },
-    { to: '/toi', label: 'Lịch hẹn', icon: Calendar, badge: bookings.length },
+    { to: '/toi', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).length },
     { to: currentUser ? '/toi' : '/dang-nhap', label: 'Tài khoản', icon: UserIcon },
   ];
 
@@ -48,7 +48,7 @@ export const MobileBottomNav: React.FC = () => {
   const ownerTabs: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan', icon: LayoutDashboard },
     { to: '/chu-tro/toa-nha', label: 'Phòng trọ', icon: Building2 },
-    { to: '/chu-tro', label: 'Lịch hẹn', icon: Calendar, badge: bookings.length },
+    { to: '/chu-tro', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).length },
     { to: '/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/toi', label: 'Tài khoản', icon: UserIcon },
   ];

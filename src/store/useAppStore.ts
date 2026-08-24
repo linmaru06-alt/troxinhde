@@ -898,7 +898,7 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'troxinh_storage_v2',
+      name: 'troxinh_storage_v3',
     }
   )
 );

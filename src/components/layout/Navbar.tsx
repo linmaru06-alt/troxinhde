@@ -29,7 +29,7 @@ import {
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { currentUser, savedRoomIds, threads, logout } = useAppStore();
+  const { currentUser, savedRoomIds = [], threads = [], logout } = useAppStore();
   const { isAvatarDropdownOpen, toggleAvatarDropdown, closeAllDropdowns } = useUIStore();
   const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
@@ -41,7 +41,7 @@ export const Navbar: React.FC = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
   useOutsideClick(dropdownRef, closeAllDropdowns, isAvatarDropdownOpen);
 
-  const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const unreadMessages = (threads || []).reduce((acc, t) => acc + (t.unreadCount || 0), 0);
 
   // Main navigation links: Room rental, Map, Roommate, Student Marketplace
   const navLinks = [
