@@ -2,22 +2,52 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
-import { ShieldCheck, RotateCcw, ArrowRight } from 'lucide-react';
+import { ShieldCheck, RotateCcw, ArrowRight, Sparkles, PhoneCall } from 'lucide-react';
+import { sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginAsRole, showToast } = useAppStore();
+  const { loginAsRole, loginWithPhone, showToast } = useAppStore();
 
-  const phone = searchParams.get('phone') || '0987654321';
+  const phone = searchParams.get('phone') || '0988110789';
   const role = (searchParams.get('role') as any) || 'renter';
+  const name = searchParams.get('name') || '';
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
-  const [countdown, setCountdown] = useState<number>(45);
+  const [countdown, setCountdown] = useState<number>(60);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [verificationId, setVerificationId] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
+  // Tự động gửi OTP khi mở trang
+  useEffect(() => {
+    let isMounted = true;
+    async function initOtp() {
+      const res = await sendPhoneOtp(phone, 'recaptcha-container');
+      if (isMounted && res.success && res.verificationId) {
+        setVerificationId(res.verificationId);
+        if (res.isSimulated && res.demoOtp) {
+          showToast(
+            'Mã OTP gửi về SĐT của bạn:',
+            `Mã xác thực 6 số: ${res.demoOtp}`,
+            'info'
+          );
+        } else {
+          showToast('Đã gửi tin nhắn SMS chứa mã OTP!', 'Vui lòng kiểm tra hộp thư tin nhắn.', 'success');
+        }
+      }
+    }
+
+    initOtp();
+    return () => {
+      isMounted = false;
+    };
+  }, [phone]);
+
+  // Đồng hồ đếm ngược
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -30,8 +60,9 @@ export const OtpVerificationPage: React.FC = () => {
     const nextOtp = [...otp];
     nextOtp[index] = val.slice(-1);
     setOtp(nextOtp);
+    setErrorMsg('');
 
-    // Auto-focus next input
+    // Tự động focus sang ô tiếp theo
     if (val && index < 5) {
       inputsRef.current[index + 1]?.focus();
     }
@@ -43,34 +74,75 @@ export const OtpVerificationPage: React.FC = () => {
     }
   };
 
-  const handleVerify = (e: React.FormEvent) => {
+  const handlePaste = (e: React.ClipboardEvent) => {
     e.preventDefault();
-    setIsLoading(true);
+    const pastedData = e.clipboardData.getData('text').trim();
+    if (/^\d{6}$/.test(pastedData)) {
+      const digits = pastedData.split('');
+      setOtp(digits);
+      inputsRef.current[5]?.focus();
+    }
+  };
 
-    setTimeout(() => {
-      setIsLoading(false);
-      loginAsRole(role);
+  const handleVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const code = otp.join('');
+    if (code.length < 6) {
+      setErrorMsg('Vui lòng nhập đủ 6 chữ số của mã OTP');
+      return;
+    }
+
+    setIsLoading(true);
+    setErrorMsg('');
+
+    const res = await verifyPhoneOtp(verificationId, code, phone);
+
+    setIsLoading(false);
+
+    if (res.success) {
+      loginWithPhone(phone, role);
       showToast('Xác thực OTP thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh.', 'success');
 
       if (returnUrl) {
         navigate(returnUrl);
-      } else if (role === 'owner') {
-        navigate('/chu-tro/onboarding');
+      } else if (role === 'owner' || phone === '0912345678') {
+        navigate('/chu-tro');
+      } else if (phone === '0888110789') {
+        navigate('/admin');
       } else {
-        navigate('/onboarding');
+        navigate('/tim-phong');
       }
-    }, 500);
+    } else {
+      setErrorMsg(res.error || 'Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+    }
   };
 
-  const handleResend = () => {
-    setCountdown(45);
-    showToast('Đã gửi lại mã OTP tới số điện thoại của bạn', '', 'info');
+  const handleResend = async () => {
+    setOtp(['', '', '', '', '', '']);
+    setCountdown(60);
+    setErrorMsg('');
+    const res = await sendPhoneOtp(phone, 'recaptcha-container');
+    if (res.success && res.verificationId) {
+      setVerificationId(res.verificationId);
+      if (res.isSimulated && res.demoOtp) {
+        showToast(
+          'Mã OTP gửi lại mới:',
+          `Mã xác thực 6 số: ${res.demoOtp}`,
+          'info'
+        );
+      } else {
+        showToast('Đã gửi lại mã OTP thành công!', 'Vui lòng kiểm tra tin nhắn SMS.', 'success');
+      }
+    }
   };
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 text-center animate-fadeIn">
-        <div className="w-16 h-16 bg-emerald-50 text-[#006d37] rounded-full flex items-center justify-center mx-auto shadow-xs">
+        {/* Invisible reCAPTCHA container */}
+        <div id="recaptcha-container"></div>
+
+        <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
           <ShieldCheck className="w-8 h-8" />
         </div>
 
@@ -81,31 +153,38 @@ export const OtpVerificationPage: React.FC = () => {
           </p>
         </div>
 
+        {errorMsg && (
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3.5 py-2.5 rounded-xl font-medium">
+            {errorMsg}
+          </div>
+        )}
+
         {/* 6 Digit Input Boxes */}
         <form onSubmit={handleVerify} className="space-y-6">
-          <div className="flex justify-center gap-2 sm:gap-2.5">
+          <div className="flex justify-center gap-2 sm:gap-2.5" onPaste={handlePaste}>
             {otp.map((digit, index) => (
               <input
                 key={index}
                 ref={(el) => (inputsRef.current[index] = el)}
                 type="text"
+                inputMode="numeric"
                 maxLength={1}
                 value={digit}
                 onChange={(e) => handleChange(e.target.value, index)}
                 onKeyDown={(e) => handleKeyDown(e, index)}
-                className="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-black rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#006d37] focus:border-transparent bg-gray-50 text-gray-900"
+                className="w-11 h-12 sm:w-12 sm:h-14 text-center text-lg sm:text-xl font-black rounded-xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent bg-gray-50 text-gray-900"
               />
             ))}
           </div>
 
           <div className="text-xs text-gray-500">
             {countdown > 0 ? (
-              <span>Gửi lại mã OTP sau <strong className="text-[#006d37]">{countdown}s</strong></span>
+              <span>Gửi lại mã OTP sau <strong className="text-[#00a854]">{countdown}s</strong></span>
             ) : (
               <button
                 type="button"
                 onClick={handleResend}
-                className="font-bold text-[#006d37] hover:underline flex items-center gap-1 mx-auto"
+                className="font-bold text-[#00a854] hover:underline flex items-center gap-1 mx-auto"
               >
                 <RotateCcw className="w-3.5 h-3.5" /> Gửi lại mã OTP ngay
               </button>
@@ -120,8 +199,14 @@ export const OtpVerificationPage: React.FC = () => {
             isLoading={isLoading}
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
-            Xác Nhận & Tiếp Tục
+            Xác Nhận & Đăng Nhập
           </Button>
+
+          <div className="pt-2 text-center">
+            <Link to="/dang-nhap" className="text-xs text-gray-400 hover:text-gray-600 font-medium">
+              ← Đổi số điện thoại khác
+            </Link>
+          </div>
         </form>
       </div>
     </div>
