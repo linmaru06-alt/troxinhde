@@ -47,7 +47,12 @@ export const AdminUsersPage: React.FC = () => {
     if (filterTab === 'owner' && u.role !== 'owner') return false;
     if (filterTab === 'pending_owner' && u.ownerApplicationStatus !== 'pending') return false;
     if (filterTab === 'blocked') return false; // Demo no blocked users
-    if (search && !u.name.toLowerCase().includes(search.toLowerCase()) && !u.phone.includes(search)) {
+    if (
+      search &&
+      !u.name.toLowerCase().includes(search.toLowerCase()) &&
+      !(u.phone || '').includes(search) &&
+      !(u.email || '').toLowerCase().includes(search.toLowerCase())
+    ) {
       return false;
     }
     return true;

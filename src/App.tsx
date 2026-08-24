@@ -8,6 +8,8 @@ import { PushPermissionToast } from './components/ui/PushPermissionToast';
 import { useAppStore } from './store/useAppStore';
 import { Button } from './components/ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
+import { ProtectedRoute } from './components/auth/ProtectedRoute';
+import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 
 // Lazy Loaded Pages
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
@@ -173,9 +175,30 @@ export const App: React.FC = () => {
             <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicyPage />} />
 
             {/* Auth Flow */}
-            <Route path="/dang-nhap" element={<LoginPage />} />
-            <Route path="/dang-ky" element={<RegisterPage />} />
-            <Route path="/quen-mat-khau" element={<ForgotPasswordPage />} />
+            <Route
+              path="/dang-nhap"
+              element={
+                <PublicOnlyRoute>
+                  <LoginPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/dang-ky"
+              element={
+                <PublicOnlyRoute>
+                  <RegisterPage />
+                </PublicOnlyRoute>
+              }
+            />
+            <Route
+              path="/quen-mat-khau"
+              element={
+                <PublicOnlyRoute>
+                  <ForgotPasswordPage />
+                </PublicOnlyRoute>
+              }
+            />
             <Route path="/xac-thuc-otp" element={<OtpVerificationPage />} />
 
             {/* Pricing & Checkout Routes */}
@@ -187,13 +210,62 @@ export const App: React.FC = () => {
             {/* Renter Features & Upgrade */}
             <Route path="/onboarding" element={<RenterOnboardingPage />} />
             <Route path="/onboarding/nguoi-thue" element={<RenterOnboardingPage />} />
-            <Route path="/toi" element={<RenterProfilePage />} />
-            <Route path="/ho-so" element={<RenterProfilePage />} />
-            <Route path="/da-luu" element={<SavedRoomsPage />} />
-            <Route path="/thong-bao" element={<NotificationsPage />} />
-            <Route path="/tin-nhan" element={<ChatPage />} />
-            <Route path="/tin-nhan/:threadId" element={<ChatPage />} />
-            <Route path="/dat-lich/:roomId" element={<BookingPage />} />
+            <Route
+              path="/toi"
+              element={
+                <ProtectedRoute>
+                  <RenterProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ho-so"
+              element={
+                <ProtectedRoute>
+                  <RenterProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/da-luu"
+              element={
+                <ProtectedRoute>
+                  <SavedRoomsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/thong-bao"
+              element={
+                <ProtectedRoute>
+                  <NotificationsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tin-nhan"
+              element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tin-nhan/:threadId"
+              element={
+                <ProtectedRoute>
+                  <ChatPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/dat-lich/:roomId"
+              element={
+                <ProtectedRoute>
+                  <BookingPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/nang-cap-chu-tro" element={<OwnerUpgradePage />} />
             <Route path="/nang-cap-chu-tro/trang-thai" element={<OwnerApplicationStatusPage />} />
 

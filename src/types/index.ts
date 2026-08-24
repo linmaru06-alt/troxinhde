@@ -2,7 +2,7 @@ export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
 
 export interface User {
   id: string;
-  phone: string;
+  phone?: string;
   name: string;
   role: 'user' | 'owner' | 'admin';
   avatarUrl: string;

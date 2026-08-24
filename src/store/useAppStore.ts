@@ -31,6 +31,8 @@ import {
   initialMessages,
 } from '../data/mockData';
 import { signOut } from '../lib/api/auth';
+import { logoutAuth } from '../lib/authService';
+import { syncUserToSupabase } from '../lib/supabaseAuthSync';
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -122,8 +124,9 @@ interface AppState {
   // Auth & Permissions
   setCurrentUser: (user: User | null) => void;
   loginAsRole: (role: UserRole) => void;
-  loginWithPhone: (phone: string, roleHint?: UserRole) => boolean;
-  registerUser: (data: { name: string; phone: string }) => User;
+  loginWithPhone: (phone: string, roleHint?: UserRole, nameHint?: string, emailHint?: string) => boolean;
+  loginWithSocialUser: (userData: { id: string; name: string; email?: string; phone?: string; role?: UserRole; avatarUrl?: string }) => void;
+  registerUser: (data: { name: string; phone: string; email?: string; id?: string }) => User;
   logout: () => void;
 
   // Owner Upgrade Applications
@@ -370,19 +373,27 @@ export const useAppStore = create<AppState>()(
         );
       },
 
-      loginWithPhone: (phone, roleHint) => {
+      loginWithPhone: (phone, roleHint, nameHint, emailHint) => {
         const found = initialUsers.find((u) => u.phone === phone);
         if (found) {
           set({ currentUser: found });
+          syncUserToSupabase({
+            id: found.id,
+            name: found.name,
+            phone: found.phone,
+            email: found.email,
+            role: found.role as any,
+            avatar_url: found.avatarUrl,
+          });
           get().showToast(`Đăng nhập thành công`, `Chào mừng trở lại, ${found.name}!`, 'success');
           return true;
         }
-        // If not found in seed, create or log in as normal user
         const targetRole: 'user' | 'owner' | 'admin' = roleHint === 'owner' ? 'owner' : roleHint === 'admin' ? 'admin' : 'user';
         const newUser: User = {
           id: `user_${Date.now()}`,
-          name: 'Người Dùng Mới',
+          name: nameHint || 'Người Dùng Trọ Xinh',
           phone,
+          email: emailHint,
           role: targetRole,
           avatarUrl: '/images/user-avatar.jpg',
           verified: true,
@@ -390,22 +401,64 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: newUser });
+        syncUserToSupabase({
+          id: newUser.id,
+          name: newUser.name,
+          phone: newUser.phone,
+          email: newUser.email,
+          role: newUser.role as any,
+          avatar_url: newUser.avatarUrl,
+        });
         get().showToast(`Đăng nhập thành công`, `Chào mừng bạn đến với Trọ Xinh!`, 'success');
         return true;
       },
 
-      registerUser: ({ name, phone }) => {
+      loginWithSocialUser: (userData) => {
+        const userRole: 'user' | 'owner' | 'admin' = userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user';
+        const userObj: User = {
+          id: userData.id || `usr_${Date.now()}`,
+          name: userData.name || 'Người Dùng Google',
+          email: userData.email,
+          phone: userData.phone,
+          role: userRole,
+          avatarUrl: userData.avatarUrl || '/images/user-avatar.jpg',
+          verified: true,
+          ownerApplicationStatus: userRole === 'owner' ? 'approved' : 'none',
+          createdAt: new Date().toISOString(),
+        };
+        set({ currentUser: userObj });
+        syncUserToSupabase({
+          id: userObj.id,
+          name: userObj.name,
+          email: userObj.email,
+          phone: userObj.phone,
+          role: userObj.role as any,
+          avatar_url: userObj.avatarUrl,
+        });
+        get().showToast('Đăng nhập thành công! ✨', `Chào mừng ${userObj.name} quay lại.`, 'success');
+      },
+
+      registerUser: ({ name, phone, email, id }) => {
         const newUser: User = {
-          id: `user_${Date.now()}`,
+          id: id || `user_${Date.now()}`,
           name,
           phone,
-          role: 'user', // Always standard user after registration
+          email,
+          role: 'user',
           avatarUrl: '/images/user-avatar.jpg',
           verified: true,
           ownerApplicationStatus: 'none',
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: newUser });
+        syncUserToSupabase({
+          id: newUser.id,
+          name: newUser.name,
+          phone: newUser.phone,
+          email: newUser.email,
+          role: 'user',
+          avatar_url: newUser.avatarUrl,
+        });
         get().showToast(
           'Đăng ký tài khoản thành công! 🎉',
           `Chào mừng ${name} gia nhập cộng đồng Trọ Xinh.`,
@@ -416,6 +469,7 @@ export const useAppStore = create<AppState>()(
 
       logout: () => {
         signOut().catch(() => {});
+        logoutAuth().catch(() => {});
         set({ currentUser: null });
         get().showToast('Đã đăng xuất', 'Hẹn gặp lại bạn!', 'info');
       },

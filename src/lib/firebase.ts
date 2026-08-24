@@ -1,5 +1,18 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getAuth, Auth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult } from 'firebase/auth';
+import {
+  getAuth,
+  Auth,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  ConfirmationResult,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  signOut as firebaseSignOut,
+  User as FirebaseUser,
+} from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyBd2HY-2ICcxHb_9cjFNPJLWo2rCXGY_E0",
@@ -13,6 +26,8 @@ const firebaseConfig = {
 
 let app: FirebaseApp;
 let auth: Auth;
+const googleProvider = new GoogleAuthProvider();
+googleProvider.setCustomParameters({ prompt: 'select_account' });
 
 try {
   app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
@@ -24,5 +39,17 @@ try {
   auth = {} as Auth;
 }
 
-export { app, auth, RecaptchaVerifier, signInWithPhoneNumber, firebaseConfig };
-export type { ConfirmationResult };
+export {
+  app,
+  auth,
+  googleProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  firebaseSignOut,
+  firebaseConfig,
+};
+export type { ConfirmationResult, FirebaseUser };

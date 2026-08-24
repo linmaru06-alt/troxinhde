@@ -1,4 +1,17 @@
-import { auth, RecaptchaVerifier, signInWithPhoneNumber, ConfirmationResult, firebaseConfig } from './firebase';
+import {
+  auth,
+  googleProvider,
+  RecaptchaVerifier,
+  signInWithPhoneNumber,
+  signInWithPopup,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
+  firebaseSignOut,
+  ConfirmationResult,
+  firebaseConfig,
+} from './firebase';
+import { syncUserToSupabase } from './supabaseAuthSync';
 
 declare global {
   interface Window {
@@ -22,6 +35,19 @@ export interface VerifyOtpResult {
   error?: string;
 }
 
+export interface AuthActionResult {
+  success: boolean;
+  user?: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    role: 'user' | 'renter' | 'owner' | 'admin';
+    avatarUrl?: string;
+  };
+  error?: string;
+}
+
 /**
  * Chuẩn hóa số điện thoại Việt Nam sang định dạng quốc tế E.164 (+84...)
  */
@@ -38,7 +64,7 @@ export function formatVietnamesePhone(phone: string): string {
 }
 
 /**
- * Gửi mã xác thực OTP 6 số về số điện thoại thật qua Firebase
+ * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase SMS Phone Auth)
  */
 export async function sendPhoneOtp(
   phone: string,
@@ -53,28 +79,24 @@ export async function sendPhoneOtp(
 
   if (hasRealFirebase && typeof window !== 'undefined') {
     try {
-      // Đảm bảo dọn dẹp verifier cũ trước khi tạo mới
       if (window.recaptchaVerifier) {
         try {
           window.recaptchaVerifier.clear();
-        } catch (e) {
-          // ignore
-        }
+        } catch (e) {}
         window.recaptchaVerifier = undefined;
       }
 
-      // Khởi tạo reCAPTCHA vô hình
       window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
         size: 'invisible',
         callback: () => {
-          console.log('[Firebase Auth] reCAPTCHA verified successfully');
+          console.log('[Firebase Auth] reCAPTCHA verified');
         },
         'expired-callback': () => {
           console.warn('[Firebase Auth] reCAPTCHA expired, please retry');
         },
       });
 
-      console.log(`[Firebase Auth] Đang gửi SMS thật tới ${formattedPhone}...`);
+      console.log(`[Firebase Auth] Đang gửi SMS tới ${formattedPhone}...`);
       const confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
@@ -90,7 +112,7 @@ export async function sendPhoneOtp(
         isSimulated: false,
       };
     } catch (error: any) {
-      console.error('[Firebase Auth] Chi tiết lỗi gửi SMS từ Google:', error);
+      console.error('[Firebase Auth] Lỗi gửi SMS:', error);
       
       let friendlyError = 'Không thể gửi tin nhắn SMS.';
       if (error.code === 'auth/invalid-phone-number') {
@@ -105,7 +127,7 @@ export async function sendPhoneOtp(
         friendlyError = `${error.message}`;
       }
 
-      // Fallback sang mã sinh ngẫu nhiên khi Firebase gặp lỗi
+      // Fallback mã ngẫu nhiên khi có trục trặc mạng
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
       const mockVerificationId = `verif_${Date.now()}`;
       if (typeof window !== 'undefined') {
@@ -122,7 +144,7 @@ export async function sendPhoneOtp(
     }
   }
 
-  // Chế độ Demo khi không có cấu hình
+  // Chế độ Demo
   const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
   const mockVerificationId = `verif_${Date.now()}`;
   if (typeof window !== 'undefined') {
@@ -138,7 +160,7 @@ export async function sendPhoneOtp(
 }
 
 /**
- * Xác minh mã OTP 6 số người dùng nhập vào (Khóa chặt bảo mật, KHÔNG cho nhập bừa)
+ * 2. XÁC MINH MÃ OTP 6 SỐ
  */
 export async function verifyPhoneOtp(
   verificationId: string,
@@ -147,7 +169,6 @@ export async function verifyPhoneOtp(
 ): Promise<VerifyOtpResult> {
   const cleanCode = otpCode.trim();
 
-  // Kiểm tra độ dài hợp lệ
   if (!cleanCode || cleanCode.length !== 6 || !/^\d{6}$/.test(cleanCode)) {
     return {
       success: false,
@@ -166,7 +187,7 @@ export async function verifyPhoneOtp(
         user: result.user,
       };
     } catch (error: any) {
-      console.error('[Firebase Auth] Mã OTP không khớp trên Firebase:', error);
+      console.error('[Firebase Auth] Lỗi kiểm tra OTP SMS:', error);
       return {
         success: false,
         phone,
@@ -175,7 +196,7 @@ export async function verifyPhoneOtp(
     }
   }
 
-  // 2. Xác thực bằng mã chính xác trong sessionStorage (nếu chạy fallback)
+  // 2. Xác thực bằng mã trong sessionStorage (nếu chạy fallback)
   if (typeof window !== 'undefined' && verificationId) {
     const savedOtp = sessionStorage.getItem(`otp_${verificationId}`);
     if (savedOtp) {
@@ -196,10 +217,185 @@ export async function verifyPhoneOtp(
     }
   }
 
-  // Bắt buộc từ chối nếu không trùng khớp
   return {
     success: false,
     phone,
     error: 'Mã xác thực OTP không đúng hoặc đã hết hạn!',
   };
+}
+
+/**
+ * 3. ĐĂNG NHẬP BẰNG EMAIL + MẬT KHẨU
+ */
+export async function loginWithEmailPassword(
+  email: string,
+  pass: string
+): Promise<AuthActionResult> {
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), pass);
+    const fbUser = userCredential.user;
+
+    const userProfile = {
+      id: fbUser.uid,
+      name: fbUser.displayName || email.split('@')[0],
+      email: fbUser.email || email,
+      phone: fbUser.phoneNumber || undefined,
+      role: 'user' as const,
+      avatar_url: fbUser.photoURL || '/images/user-avatar.jpg',
+      auth_provider: 'email_password',
+    };
+
+    // Đồng bộ Supabase
+    await syncUserToSupabase(userProfile);
+
+    return {
+      success: true,
+      user: {
+        id: userProfile.id,
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone,
+        role: userProfile.role,
+        avatarUrl: userProfile.avatar_url,
+      },
+    };
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Đăng nhập Email thất bại:', error);
+    let msg = 'Email hoặc mật khẩu không chính xác!';
+    if (error.code === 'auth/user-not-found') {
+      msg = 'Không tìm thấy tài khoản với email này.';
+    } else if (error.code === 'auth/wrong-password') {
+      msg = 'Mật khẩu không chính xác.';
+    } else if (error.code === 'auth/invalid-email') {
+      msg = 'Địa chỉ email không hợp lệ.';
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 4. ĐĂNG KÝ BẰNG EMAIL + MẬT KHẨU
+ */
+export async function registerWithEmailPassword(
+  email: string,
+  pass: string,
+  name: string,
+  phone?: string
+): Promise<AuthActionResult> {
+  try {
+    const userCredential = await createUserWithEmailAndPassword(auth, email.trim(), pass);
+    const fbUser = userCredential.user;
+
+    const userProfile = {
+      id: fbUser.uid,
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      phone: phone ? phone.replace(/\D/g, '') : undefined,
+      role: 'user' as const,
+      avatar_url: '/images/user-avatar.jpg',
+      auth_provider: 'email_password',
+    };
+
+    // Lưu vào bảng users Supabase
+    await syncUserToSupabase(userProfile);
+
+    return {
+      success: true,
+      user: {
+        id: userProfile.id,
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone,
+        role: userProfile.role,
+        avatarUrl: userProfile.avatar_url,
+      },
+    };
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Đăng ký Email thất bại:', error);
+    let msg = 'Đăng ký không thành công. Vui lòng thử lại!';
+    if (error.code === 'auth/email-already-in-use') {
+      msg = 'Email này đã được sử dụng cho một tài khoản khác.';
+    } else if (error.code === 'auth/weak-password') {
+      msg = 'Mật khẩu phải có ít nhất 6 ký tự.';
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 5. ĐĂNG NHẬP 1-CHẠM BẰNG GOOGLE (Google OAuth)
+ */
+export async function loginWithGoogle(): Promise<AuthActionResult> {
+  try {
+    const result = await signInWithPopup(auth, googleProvider);
+    const fbUser = result.user;
+
+    const userProfile = {
+      id: fbUser.uid,
+      name: fbUser.displayName || 'Google User',
+      email: fbUser.email || undefined,
+      phone: fbUser.phoneNumber || undefined,
+      role: 'user' as const,
+      avatar_url: fbUser.photoURL || '/images/user-avatar.jpg',
+      auth_provider: 'google',
+    };
+
+    // Đồng bộ Supabase
+    await syncUserToSupabase(userProfile);
+
+    return {
+      success: true,
+      user: {
+        id: userProfile.id,
+        name: userProfile.name,
+        email: userProfile.email,
+        phone: userProfile.phone,
+        role: userProfile.role,
+        avatarUrl: userProfile.avatar_url,
+      },
+    };
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Đăng nhập Google lỗi:', error);
+    let msg = 'Đăng nhập Google không thành công.';
+    if (error.code === 'auth/popup-closed-by-user') {
+      msg = 'Bạn đã đóng cửa sổ đăng nhập Google.';
+    } else if (error.code === 'auth/unauthorized-domain') {
+      msg = 'Tên miền chưa được ủy quyền trên Firebase Console.';
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 6. QUÊN MẬT KHẨU (Gửi email đặt lại mật khẩu)
+ */
+export async function sendPasswordReset(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    await sendPasswordResetEmail(auth, email.trim());
+    return { success: true };
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Gửi reset password thất bại:', error);
+    let msg = 'Không thể gửi email đặt lại mật khẩu.';
+    if (error.code === 'auth/user-not-found') {
+      msg = 'Không tìm thấy tài khoản với email này.';
+    } else if (error.code === 'auth/invalid-email') {
+      msg = 'Địa chỉ email không đúng định dạng.';
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 7. ĐĂNG XUẤT TOÀN DIỆN
+ */
+export async function logoutAuth(): Promise<void> {
+  try {
+    await firebaseSignOut(auth);
+  } catch (err) {
+    console.warn('[Firebase Auth] Lỗi signOut:', err);
+  }
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem('troxinh_current_user');
+    localStorage.removeItem('troxinh_token');
+  }
 }

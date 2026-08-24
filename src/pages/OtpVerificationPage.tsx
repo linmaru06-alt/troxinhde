@@ -2,8 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { useAppStore } from '../store/useAppStore';
-import { ShieldCheck, ArrowRight, RefreshCw } from 'lucide-react';
+import { ShieldCheck, ArrowRight, RefreshCw, AlertCircle } from 'lucide-react';
 import { sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
+import { syncUserToSupabase } from '../lib/supabaseAuthSync';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -13,6 +14,7 @@ export const OtpVerificationPage: React.FC = () => {
   const phone = searchParams.get('phone') || '0988110789';
   const role = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
   const name = searchParams.get('name');
+  const email = searchParams.get('email');
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
   const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
@@ -23,7 +25,7 @@ export const OtpVerificationPage: React.FC = () => {
 
   const inputsRef = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Tự động gọi gửi OTP khi mở trang
+  // Tự động kích hoạt gửi SMS OTP khi mở trang
   useEffect(() => {
     let isMounted = true;
     async function triggerSend() {
@@ -39,7 +41,7 @@ export const OtpVerificationPage: React.FC = () => {
         } else {
           showToast(
             'Đã gửi tin nhắn SMS chứa mã OTP!',
-            'Vui lòng kiểm tra hộp thư tin nhắn điện thoại.',
+            'Vui lòng kiểm tra hộp thư tin nhắn trên điện thoại.',
             'success'
           );
         }
@@ -52,7 +54,7 @@ export const OtpVerificationPage: React.FC = () => {
     };
   }, [phone]);
 
-  // Đồng hồ đếm ngược
+  // Đồng hồ đếm ngược 60 giây
   useEffect(() => {
     if (countdown > 0) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
@@ -67,7 +69,7 @@ export const OtpVerificationPage: React.FC = () => {
     setOtp(nextOtp);
     setErrorMsg('');
 
-    // Tự động focus sang ô tiếp theo
+    // Tự động nhảy con trỏ sang ô tiếp theo
     if (val && index < 5) {
       inputsRef.current[index + 1]?.focus();
     }
@@ -93,7 +95,7 @@ export const OtpVerificationPage: React.FC = () => {
     e.preventDefault();
     const code = otp.join('');
     if (code.length < 6) {
-      setErrorMsg('Vui lòng nhập đủ 6 chữ số của mã OTP');
+      setErrorMsg('Vui lòng nhập đủ 6 chữ số của mã OTP.');
       return;
     }
 
@@ -102,17 +104,35 @@ export const OtpVerificationPage: React.FC = () => {
 
     const res = await verifyPhoneOtp(verificationId, code, phone);
 
-    setIsLoading(false);
-
     if (res.success) {
+      const userId = res.user?.uid || `user_${Date.now()}`;
+
       if (name) {
-        // Đăng ký mới
-        registerUser({ name, phone });
+        // Luồng ĐĂNG KÝ MỚI -> Lưu vào Supabase Database
+        await syncUserToSupabase({
+          id: userId,
+          name: name.trim(),
+          phone,
+          email: email || undefined,
+          role: 'user',
+          avatar_url: '/images/user-avatar.jpg',
+          verified: true,
+          auth_provider: 'phone_otp',
+        });
+
+        registerUser({
+          id: userId,
+          name: name.trim(),
+          phone,
+          email: email || undefined,
+        });
       } else {
-        // Đăng nhập số điện thoại
+        // Luồng ĐĂNG NHẬP SĐT
         loginWithPhone(phone, role);
         showToast('Xác thực OTP thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh.', 'success');
       }
+
+      setIsLoading(false);
 
       if (returnUrl) {
         navigate(returnUrl);
@@ -124,6 +144,7 @@ export const OtpVerificationPage: React.FC = () => {
         navigate('/tim-phong');
       }
     } else {
+      setIsLoading(false);
       setErrorMsg(res.error || 'Mã OTP không chính xác. Vui lòng kiểm tra lại!');
     }
   };
@@ -144,7 +165,7 @@ export const OtpVerificationPage: React.FC = () => {
       } else {
         showToast(
           'Đã gửi lại mã OTP thành công!',
-          'Vui lòng kiểm tra tin nhắn SMS trên máy.',
+          'Vui lòng kiểm tra tin nhắn SMS trên điện thoại.',
           'success'
         );
       }
@@ -152,33 +173,35 @@ export const OtpVerificationPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6">
+    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 text-center animate-fadeIn">
-        {/* Invisible Google reCAPTCHA Anchor */}
+        {/* Invisible Google reCAPTCHA Container */}
         <div id="recaptcha-container"></div>
 
-        {/* Icon */}
+        {/* Brand Icon */}
         <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
           <ShieldCheck className="w-8 h-8" />
         </div>
 
-        {/* Header */}
+        {/* Title */}
         <div className="space-y-1">
           <h1 className="text-xl font-bold text-gray-900">
-            {name ? 'Xác Thực SĐT Để Hoàn Tất Đăng Ký' : 'Xác Thực Số Điện Thoại'}
+            {name ? 'Xác Thực SĐT Để Tạo Tài Khoản' : 'Xác Thực Số Điện Thoại'}
           </h1>
           <p className="text-xs text-gray-500">
-            Mã OTP 6 chữ số đã được gửi đến số điện thoại: <strong className="text-gray-900">{phone}</strong>
+            Mã OTP 6 chữ số đã được gửi tới: <strong className="text-gray-900">{phone}</strong>
           </p>
         </div>
 
+        {/* Error Notification */}
         {errorMsg && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3.5 py-2.5 rounded-xl font-medium">
-            {errorMsg}
+          <div className="bg-rose-50 border border-rose-200 text-rose-700 text-xs px-3.5 py-2.5 rounded-2xl font-medium flex items-center gap-2 justify-center animate-shake">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* OTP Input Boxes */}
+        {/* 6 OTP Input Boxes */}
         <form onSubmit={handleVerify} className="space-y-6">
           <div className="flex justify-center gap-2 sm:gap-2.5" onPaste={handlePaste}>
             {otp.map((digit, idx) => (
@@ -220,12 +243,12 @@ export const OtpVerificationPage: React.FC = () => {
             isLoading={isLoading}
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
-            {name ? 'Xác Nhận & Tạo Tài Khoản' : 'Xác Nhận & Đăng Nhập'}
+            {name ? 'Xác Nhận & Hoàn Tất Đăng Ký' : 'Xác Nhận & Đăng Nhập'}
           </Button>
 
           <div className="pt-2 text-center">
             <Link to="/dang-nhap" className="text-xs text-gray-400 hover:text-gray-600 font-medium">
-              ← Đổi số điện thoại khác
+              ← Quay lại trang đăng nhập
             </Link>
           </div>
         </form>
