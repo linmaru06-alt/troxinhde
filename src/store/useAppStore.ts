@@ -154,6 +154,7 @@ interface AppState {
 
   // Bookings
   createBooking: (booking: Omit<BookingRequest, 'id' | 'createdAt' | 'status'>) => string;
+  updateBookingStatus: (bookingId: string, status: BookingRequest['status'], note?: string) => void;
 
   // Messages
   sendMessage: (threadId: string, text: string) => void;
@@ -697,6 +698,33 @@ export const useAppStore = create<AppState>()(
         }));
         get().showToast('Đặt lịch thành công!', 'Chủ trọ sẽ liên hệ sớm nhất để đón bạn', 'success');
         return newId;
+      },
+
+      updateBookingStatus: (bookingId, status, note) => {
+        set((state) => {
+          const target = state.bookings.find((b) => b.id === bookingId);
+          return {
+            bookings: state.bookings.map((b) =>
+              b.id === bookingId ? { ...b, status, note: note || b.note } : b
+            ),
+            notifications: target
+              ? [
+                  {
+                    id: `notif_${Date.now()}`,
+                    userId: target.renterId,
+                    type: 'booking',
+                    title: `Lịch hẹn xem phòng: ${status} 📋`,
+                    body: `Lịch hẹn xem phòng "${target.roomTitle}" vào ${target.date} (${target.timeSlot}) đã chuyển sang: ${status}.`,
+                    createdAt: new Date().toISOString(),
+                    read: false,
+                    actionLink: '/toi',
+                  },
+                  ...state.notifications,
+                ]
+              : state.notifications,
+          };
+        });
+        get().showToast('Đã cập nhật lịch hẹn!', `Trạng thái: ${status}`, 'success');
       },
 
       sendMessage: (threadId, text) => {
