@@ -29,9 +29,9 @@ export const Button: React.FC<ButtonProps> = ({
   const normalizedVariant = variant === 'danger' ? 'destructive' : variant;
 
   const variants = {
-    primary: 'bg-[#006d37] hover:bg-[#00552b] text-white shadow-sm hover:shadow-md focus:ring-[#006d37]/40',
+    primary: 'bg-[#00a854] hover:bg-[#008f47] text-white shadow-sm hover:shadow-md focus:ring-[#00a854]/40 font-bold',
     secondary: 'bg-[#ffa454]/15 hover:bg-[#ffa454]/25 text-[#904d00] focus:ring-[#ffa454]/40 font-semibold',
-    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 hover:border-gray-400 focus:ring-[#006d37]/30',
+    outline: 'border border-gray-300 bg-white hover:bg-gray-50 text-gray-700 hover:border-gray-400 focus:ring-[#00a854]/30',
     ghost: 'bg-transparent hover:bg-gray-100 text-gray-700 hover:text-gray-900 focus:ring-gray-300',
     destructive: 'bg-red-600 hover:bg-red-700 text-white shadow-sm focus:ring-red-500/40',
   };

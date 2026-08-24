@@ -4,8 +4,8 @@
 
 @layer base {
   :root {
-    --primary: #006d37;
-    --primary-container: #27ae60;
+    --primary: #00a854;
+    --primary-container: #10b981;
     --background: #f9f9f9;
   }
 
@@ -107,16 +107,16 @@
 
 .custom-price-pin .pin-body.available {
   background-color: #ffffff;
-  color: #006d37;
-  border: 1.5px solid #006d37;
+  color: #00a854;
+  border: 1.5px solid #00a854;
 }
 
 .custom-price-pin .pin-body.available:hover,
 .custom-price-pin .pin-body.active {
-  background-color: #006d37;
+  background-color: #00a854;
   color: #ffffff;
   transform: scale(1.15);
-  box-shadow: 0 10px 15px -3px rgba(0, 109, 55, 0.4);
+  box-shadow: 0 10px 15px -3px rgba(0, 168, 84, 0.4);
 }
 
 .custom-price-pin .pin-body.rented {
