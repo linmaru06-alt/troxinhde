@@ -15,7 +15,7 @@ export default defineConfig({
         name: 'Trọ Xinh - Nền Tảng Tìm Trọ An Tâm tại Hà Nội',
         short_name: 'Trọ Xinh',
         description: 'Tìm phòng trọ sinh viên đã kiểm duyệt 100% tại Hà Nội',
-        theme_color: '#006d37',
+        theme_color: '#00a854',
         background_color: '#ffffff',
         display: 'standalone',
         orientation: 'portrait',
@@ -71,7 +71,7 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          'react-vendor': ['react', 'react-dom', 'react-router-dom', 'zustand', 'react-helmet-async'],
+          'react-vendor': ['react', 'react-dom', 'react-router-dom', 'zustand', 'react-helmet-async', '@tanstack/react-query'],
           'leaflet-vendor': ['leaflet', 'react-leaflet'],
           'ui-vendor': ['framer-motion', 'lucide-react', 'clsx', 'tailwind-merge'],
           'supabase-vendor': ['@supabase/supabase-js'],

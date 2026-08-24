@@ -197,3 +197,16 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public.notifications;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.rooms;
 ALTER PUBLICATION supabase_realtime ADD TABLE public.transactions;
 
+-- 12. HIGH-PERFORMANCE DATABASE INDEXES
+CREATE INDEX IF NOT EXISTS idx_rooms_district ON public.rooms(district);
+CREATE INDEX IF NOT EXISTS idx_rooms_price ON public.rooms(price);
+CREATE INDEX IF NOT EXISTS idx_rooms_status ON public.rooms(status);
+CREATE INDEX IF NOT EXISTS idx_rooms_verified ON public.rooms(verified);
+CREATE INDEX IF NOT EXISTS idx_rooms_nearest_school ON public.rooms(nearest_school);
+CREATE INDEX IF NOT EXISTS idx_rooms_created_at ON public.rooms(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_buildings_owner_id ON public.buildings(owner_id);
+CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON public.messages(thread_id, created_at ASC);
+CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON public.transactions(user_id, created_at DESC);
+
+
