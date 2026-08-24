@@ -1,17 +1,32 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-const rawUrl = import.meta.env.VITE_SUPABASE_URL?.trim();
-const rawKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim();
+const DEFAULT_SUPABASE_URL = 'https://nanhmbnpihlaojbwfebb.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_aIbyNWURIM1qwQG6g_bTUg_lukLkC4f';
 
-export const isSupabaseConfigured = Boolean(
-  rawUrl &&
-  rawKey &&
-  rawUrl.startsWith('http') &&
-  !rawUrl.includes('placeholder')
-);
+function getValidUrl(url?: string): string {
+  if (!url || typeof url !== 'string') return DEFAULT_SUPABASE_URL;
+  const trimmed = url.trim().replace(/^['"]|['"]$/g, '');
+  if (trimmed.startsWith('https://') || trimmed.startsWith('http://')) {
+    try {
+      new URL(trimmed);
+      return trimmed;
+    } catch {
+      return DEFAULT_SUPABASE_URL;
+    }
+  }
+  return DEFAULT_SUPABASE_URL;
+}
 
-const supabaseUrl = isSupabaseConfigured ? rawUrl! : 'https://placeholder-troxinh.supabase.co';
-const supabaseAnonKey = isSupabaseConfigured ? rawKey! : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder';
+function getValidKey(key?: string): string {
+  if (!key || typeof key !== 'string') return DEFAULT_SUPABASE_ANON_KEY;
+  const trimmed = key.trim().replace(/^['"]|['"]$/g, '');
+  return trimmed || DEFAULT_SUPABASE_ANON_KEY;
+}
+
+const supabaseUrl = getValidUrl(import.meta.env.VITE_SUPABASE_URL);
+const supabaseAnonKey = getValidKey(import.meta.env.VITE_SUPABASE_ANON_KEY);
+
+export const isSupabaseConfigured = true;
 
 let client: SupabaseClient;
 
@@ -28,8 +43,8 @@ try {
     },
   });
 } catch (error) {
-  console.warn('[Supabase] Initializing fallback client due to config error:', error);
-  client = createClient('https://placeholder-troxinh.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.placeholder');
+  console.warn('[Supabase] Initializing default client due to config error:', error);
+  client = createClient(DEFAULT_SUPABASE_URL, DEFAULT_SUPABASE_ANON_KEY);
 }
 
 export const supabase = client;
