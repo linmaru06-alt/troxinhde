@@ -65,7 +65,7 @@ export const LandingPage: React.FC = () => {
   const featuredMarketplace = marketplaceItems.slice(0, 4);
 
   return (
-    <div className="space-y-12 sm:space-y-16 pb-16 bg-[#f8f9fa]">
+    <div className="space-y-10 sm:space-y-14 pb-16 bg-[#f8f9fa]">
       <SEOHead
         title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
         description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, tìm bạn ở ghép và chợ đồ cũ sinh viên."
@@ -74,7 +74,7 @@ export const LandingPage: React.FC = () => {
 
       {/* 1. BRIGHT GREEN WITH YELLOWISH CENTER GLOW HERO BANNER */}
       <section
-        className="relative pt-10 pb-12 sm:pb-14 md:pt-14 md:pb-16 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/40 shadow-xs"
+        className="relative pt-10 pb-16 sm:pb-20 md:pt-14 md:pb-24 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/40 shadow-xs"
         style={{
           background: 'radial-gradient(ellipse 85% 85% at 50% 45%, #fff9a6 0%, #a7f3d0 38%, #34d399 70%, #10b981 100%)',
         }}
@@ -105,18 +105,18 @@ export const LandingPage: React.FC = () => {
         </div>
       </section>
 
-      {/* 2. FLOATING DOCKED SEARCH BAR (UNCLIPPED, 100% VISIBLE) */}
-      <div className="max-w-4xl mx-auto -mt-7 sm:-mt-8 md:-mt-9 px-3 sm:px-4 relative z-30">
+      {/* 2. FLOATING DOCKED SEARCH BAR (EXACTLY 50% ON GREEN BANNER, 50% ON WHITE BODY) */}
+      <div className="max-w-4xl mx-auto -mt-8 sm:-mt-9 md:-mt-10 px-3 sm:px-4 relative z-30">
         <form
           onSubmit={handleSearchSubmit}
-          className="bg-white rounded-2xl sm:rounded-full p-2 sm:p-2.5 shadow-2xl border border-gray-200 ring-1 ring-black/5 flex flex-col md:flex-row items-center gap-2"
+          className="bg-white rounded-2xl sm:rounded-full p-2 sm:p-2.5 shadow-2xl border border-gray-200/90 ring-1 ring-black/5 flex flex-col md:flex-row items-center gap-2"
         >
           {/* Search Input */}
-          <div className="flex-1 w-full flex items-center px-3 py-1.5 text-gray-900">
-            <Search className="w-5 h-5 text-gray-400 shrink-0 mr-2.5" />
+          <div className="flex-1 w-full flex items-center px-3.5 py-1.5 text-gray-900">
+            <Search className="w-5 h-5 text-gray-400 shrink-0 mr-3" />
             <input
               type="text"
-              placeholder="Tìm phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)..."
+              placeholder="Tìm sản phẩm, phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy...)..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none placeholder:text-gray-400"
@@ -125,7 +125,7 @@ export const LandingPage: React.FC = () => {
 
           {/* Location Selector Pill (Chợ Tốt Style) */}
           <div className="w-full md:w-auto shrink-0 flex items-center">
-            <div className="w-full md:w-56 flex items-center bg-gray-50 hover:bg-gray-100 rounded-xl sm:rounded-full border border-gray-200 px-3.5 py-2 transition cursor-pointer">
+            <div className="w-full md:w-56 flex items-center bg-white hover:bg-gray-50 rounded-xl sm:rounded-full border border-gray-200 px-3.5 py-2 transition cursor-pointer shadow-2xs">
               <MapPin className="w-4 h-4 text-[#ffba00] shrink-0 mr-2" />
               <select
                 value={selectedDistrict}
@@ -140,7 +140,7 @@ export const LandingPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Search Action CTA Button */}
+          {/* Search Action CTA Button (Chợ Tốt Yellow Button) */}
           <button
             type="submit"
             className="w-full md:w-auto px-7 py-2.5 bg-[#ffba00] hover:bg-[#f0af00] text-gray-950 font-black text-xs sm:text-sm rounded-xl sm:rounded-full transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
@@ -150,11 +150,8 @@ export const LandingPage: React.FC = () => {
         </form>
       </div>
 
-      {/* Spacing for floating search bar */}
-      <div className="h-10 sm:h-12" />
-
       {/* 3. QUICK FILTER PILLS */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2">
         <div className="bg-white rounded-3xl p-4 sm:p-5 border border-gray-200/80 shadow-xs">
           <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-gray-100">
             <span className="text-xs font-black uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
