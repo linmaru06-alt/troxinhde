@@ -31,12 +31,12 @@ export const MapViewPage: React.FC = () => {
       {/* Top Map Filter Sub-bar */}
       <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between z-20 shrink-0 shadow-xs">
         <div className="flex items-center gap-2">
-          <Link to={`/tim-kiem?${searchParams.toString()}`} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-600 transition">
+          <Link to={`/tim-phong?${searchParams.toString()}`} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition">
             <ArrowLeft className="w-5 h-5" />
           </Link>
           <div>
-            <h2 className="text-sm font-bold text-gray-900 leading-tight">Bản Đồ Nhà Trọ Đã Kiểm Duyệt</h2>
-            <p className="text-[11px] text-gray-500">Khu vực Hà Nội ({rooms.length} phòng trọ có tọa độ thật)</p>
+            <h2 className="text-sm font-black text-gray-950 leading-tight">Bản Đồ Nhà Trọ Đã Xác Minh</h2>
+            <p className="text-[11px] text-gray-500 font-medium">Khu vực Hà Nội ({rooms.length} phòng trọ có vị trí thực tế)</p>
           </div>
         </div>
 
@@ -44,24 +44,24 @@ export const MapViewPage: React.FC = () => {
         <div className="md:hidden flex items-center bg-gray-100 rounded-xl p-0.5">
           <button
             onClick={() => setMobileTab('map')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
-              mobileTab === 'map' ? 'bg-white text-[#006d37] shadow-xs' : 'text-gray-500'
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+              mobileTab === 'map' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
             }`}
           >
             Bản đồ
           </button>
           <button
             onClick={() => setMobileTab('list')}
-            className={`px-3 py-1 text-xs font-semibold rounded-lg transition ${
-              mobileTab === 'list' ? 'bg-white text-[#006d37] shadow-xs' : 'text-gray-500'
+            className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+              mobileTab === 'list' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
             }`}
           >
             Danh sách
           </button>
         </div>
 
-        <Link to={`/tim-kiem?${searchParams.toString()}`} className="hidden md:block">
-          <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4" />}>
+        <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
+          <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
             Xem dạng danh sách
           </Button>
         </Link>

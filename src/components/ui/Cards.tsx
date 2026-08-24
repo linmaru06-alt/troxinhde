@@ -25,8 +25,14 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   const { savedRoomIds, toggleSaveRoom } = useAppStore();
   const isSaved = savedRoomIds.includes(room.id);
 
+  // Calculate estimated total monthly cost (Rent + typical electricity ~150k + water ~100k + wifi/service ~150k)
+  const estimatedServices = (room.electricityPrice ? room.electricityPrice * 40 : 150000)
+    + (room.waterPrice ? room.waterPrice * 3 : 100000)
+    + 100000;
+  const totalEstimatedMonthly = room.price + estimatedServices;
+
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
+    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
@@ -43,14 +49,14 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
         {/* Top Badges */}
         <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 pointer-events-none">
           {room.isBoosted && (
-            <span className="bg-amber-400 text-amber-950 font-black text-[10px] px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1 border border-amber-300 animate-pulse">
+            <span className="bg-amber-400 text-amber-950 font-black text-[10px] px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1 border border-amber-300">
               ★ {room.boostBadge || 'Tin Nổi Bật'}
             </span>
           )}
           {room.verified && (
-            <Badge variant="verified" size="sm">
-              Đã kiểm duyệt
-            </Badge>
+            <span className="bg-emerald-600 text-white font-black text-[10px] px-2.5 py-0.5 rounded-full shadow-md flex items-center gap-1">
+              ✓ Đã xác minh
+            </span>
           )}
           <Badge variant={room.status === 'Còn trống' ? 'available' : room.status === 'Chờ duyệt' ? 'pending' : 'rented'} size="sm">
             {room.status}
@@ -75,37 +81,42 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
         </button>
 
         {/* Price Tag Overlay */}
-        <div className="absolute bottom-3 left-3 bg-[#006d37]/90 backdrop-blur-md text-white font-bold text-sm px-3 py-1 rounded-xl shadow-md">
+        <div className="absolute bottom-3 left-3 bg-[#00a854]/95 backdrop-blur-md text-white font-black text-xs sm:text-sm px-3 py-1 rounded-xl shadow-md">
           {formatPrice(room.price)}
         </div>
       </div>
 
       {/* Info Content */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
+      <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
         <div>
-          <div className="flex items-center gap-2 text-xs text-gray-500 mb-1.5">
-            <span className="font-semibold text-gray-700">{room.area} m²</span>
+          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-1.5 font-medium">
+            <span className="font-bold text-gray-800">{room.area} m²</span>
             <span>•</span>
             <span>{room.type}</span>
-            <span>•</span>
-            <span className="text-[#006d37] font-medium flex items-center gap-1">
-              <Navigation className="w-3 h-3" /> {room.nearestSchool}
-            </span>
+            {room.nearestSchool && (
+              <>
+                <span>•</span>
+                <span className="text-[#00a854] font-bold flex items-center gap-1">
+                  <Navigation className="w-3 h-3" /> {room.nearestSchool}
+                </span>
+              </>
+            )}
           </div>
 
           <Link to={`/phong/${room.id}`}>
-            <h3 className="text-base font-bold text-gray-900 line-clamp-2 group-hover:text-[#006d37] transition-colors leading-snug">
+            <h3 className="text-sm sm:text-base font-bold text-gray-950 line-clamp-2 group-hover:text-[#00a854] transition-colors leading-snug">
               {room.title}
             </h3>
           </Link>
         </div>
 
-        <div className="pt-3 mt-3 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <div className="flex items-center gap-1 truncate pr-2">
-            <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-            <span className="truncate">{room.address}</span>
+        {/* Estimated Monthly Cost pill */}
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
+          <div className="flex flex-col">
+            <span className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Tổng dự kiến/tháng</span>
+            <span className="text-xs font-black text-emerald-700">~{formatCurrency(totalEstimatedMonthly)}/tháng</span>
           </div>
-          <span className="shrink-0 text-gray-400 font-medium">{room.district}</span>
+          <span className="text-[10px] font-bold text-gray-400">{room.district}</span>
         </div>
       </div>
     </div>
