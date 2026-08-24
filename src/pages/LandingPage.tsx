@@ -72,7 +72,7 @@ export const LandingPage: React.FC = () => {
         url="/"
       />
 
-      {/* 1. BRIGHT GREEN WITH YELLOWISH CENTER GLOW HERO BANNER */}
+      {/* 1. BRIGHT GREEN WITH YELLOWISH CENTER GLOW HERO BANNER (CHỢ TỐT STRUCTURE) */}
       <section
         className="relative overflow-hidden pt-10 pb-16 md:pt-14 md:pb-22 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/40 shadow-xs"
         style={{
@@ -104,49 +104,49 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
 
-        {/* 2. FLOATING DOCKED SEARCH BAR (Gối lên mép dưới của Banner) */}
-        <div className="max-w-4xl mx-auto -mb-24 sm:-mb-26 px-2 relative z-20">
-          <div className="bg-white rounded-3xl p-3 sm:p-4 shadow-2xl border border-gray-100 ring-1 ring-black/5 space-y-3">
-            <form onSubmit={handleSearchSubmit} className="flex flex-col md:flex-row items-center gap-2">
-              {/* Search input */}
-              <div className="relative flex-1 w-full flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-4 py-2.5 transition focus-within:ring-2 focus-within:ring-[#00a854] focus-within:bg-white">
-                <Search className="w-5 h-5 text-gray-400 shrink-0 mr-2.5" />
-                <input
-                  type="text"
-                  placeholder="Tìm phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full bg-transparent text-xs sm:text-sm font-bold text-gray-900 focus:outline-none placeholder:text-gray-400 placeholder:font-normal"
-                />
-              </div>
+        {/* 2. FLOATING DOCKED SEARCH BAR (EXACT CHỢ TỐT STRUCTURE) */}
+        <div className="max-w-4xl mx-auto -mb-22 sm:-mb-24 px-2 relative z-20">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="bg-white rounded-2xl sm:rounded-3xl p-2 sm:p-2.5 shadow-2xl border border-gray-100 ring-1 ring-black/5 flex flex-col md:flex-row items-center gap-2"
+          >
+            {/* Search Input */}
+            <div className="flex-1 w-full flex items-center px-3 py-1.5 text-gray-900">
+              <Search className="w-5 h-5 text-gray-500 shrink-0 mr-2.5" />
+              <input
+                type="text"
+                placeholder="Tìm phòng trọ, trường ĐH (Bách Khoa, ĐHQG, Cầu Giấy, Chùa Láng...)..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-transparent text-xs sm:text-sm font-semibold text-gray-900 focus:outline-none placeholder:text-gray-400"
+              />
+            </div>
 
-              {/* Location / District Dropdown */}
-              <div className="relative w-full md:w-56 shrink-0">
-                <div className="flex items-center bg-gray-50/90 hover:bg-gray-100/90 rounded-2xl border border-gray-200 px-3.5 py-2.5 transition focus-within:ring-2 focus-within:ring-[#00a854] focus-within:bg-white">
-                  <MapPin className="w-4 h-4 text-[#00a854] shrink-0 mr-1.5" />
-                  <select
-                    value={selectedDistrict}
-                    onChange={(e) => setSelectedDistrict(e.target.value)}
-                    className="w-full bg-transparent text-xs sm:text-sm font-bold text-gray-900 focus:outline-none cursor-pointer"
-                  >
-                    <option value="">Chọn khu vực (Toàn Hà Nội)</option>
-                    {districts.map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                </div>
+            {/* Location Selector Pill (Chợ Tốt Style) */}
+            <div className="w-full md:w-auto shrink-0 flex items-center">
+              <div className="w-full md:w-56 flex items-center bg-gray-50 hover:bg-gray-100 rounded-xl border border-gray-200 px-3 py-2 transition cursor-pointer">
+                <MapPin className="w-4 h-4 text-[#00a854] shrink-0 mr-1.5" />
+                <select
+                  value={selectedDistrict}
+                  onChange={(e) => setSelectedDistrict(e.target.value)}
+                  className="w-full bg-transparent text-xs font-bold text-gray-900 focus:outline-none cursor-pointer"
+                >
+                  <option value="">Chọn khu vực (Toàn HN)</option>
+                  {districts.map((d) => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
               </div>
+            </div>
 
-              {/* Search Button */}
-              <button
-                type="submit"
-                className="w-full md:w-auto px-7 py-3 bg-gray-950 hover:bg-black text-white font-black text-sm rounded-2xl transition shadow-md flex items-center justify-center gap-1.5 shrink-0"
-              >
-                <Search className="w-4 h-4 stroke-[3]" />
-                <span>Tìm kiếm</span>
-              </button>
-            </form>
-          </div>
+            {/* Search Action CTA Button */}
+            <button
+              type="submit"
+              className="w-full md:w-auto px-6 py-2.5 bg-[#ffba00] hover:bg-[#f0af00] text-gray-950 font-black text-xs sm:text-sm rounded-xl transition shadow-sm flex items-center justify-center gap-1.5 shrink-0"
+            >
+              <span>Tìm kiếm</span>
+            </button>
+          </form>
         </div>
       </section>
 
