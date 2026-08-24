@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { useAppStore } from '../store/useAppStore';
-import { Mail, Phone, ArrowRight, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck, Loader2 } from 'lucide-react';
+import { Mail, Phone, ArrowRight, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
 import { syncUserToSupabase } from '../lib/supabaseAuthSync';
 
@@ -17,9 +17,9 @@ export const OtpVerificationPage: React.FC = () => {
   const name = searchParams.get('name') || '';
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
 
-  // Mảng lưu trữ độc lập giá trị cho từng ô (6 ô riêng biệt)
-  const [otp, setOtp] = useState<string[]>(['', '', '', '', '', '']);
-  const [activeIndex, setActiveIndex] = useState<number>(0);
+  // Chuỗi lưu trữ mã OTP 6 số
+  const [otp, setOtp] = useState<string>('');
+  const [isFocused, setIsFocused] = useState<boolean>(true);
   const [countdown, setCountdown] = useState<number>(60);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSending, setIsSending] = useState<boolean>(false);
@@ -28,20 +28,12 @@ export const OtpVerificationPage: React.FC = () => {
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
   const [authMode, setAuthMode] = useState<'email' | 'phone'>('email');
 
-  // 6 refs riêng biệt cho 6 ô input
-  const inputRef0 = useRef<HTMLInputElement>(null);
-  const inputRef1 = useRef<HTMLInputElement>(null);
-  const inputRef2 = useRef<HTMLInputElement>(null);
-  const inputRef3 = useRef<HTMLInputElement>(null);
-  const inputRef4 = useRef<HTMLInputElement>(null);
-  const inputRef5 = useRef<HTMLInputElement>(null);
-
-  const inputRefs = [inputRef0, inputRef1, inputRef2, inputRef3, inputRef4, inputRef5];
+  const masterInputRef = useRef<HTMLInputElement>(null);
   const hasSentRef = useRef<boolean>(false);
 
-  // 1. Tự động focus ô đầu tiên khi mở trang
+  // 1. Tự động focus ô nhập khi mở trang
   useEffect(() => {
-    inputRefs[0].current?.focus();
+    masterInputRef.current?.focus();
   }, []);
 
   // 2. Tự động gửi mã OTP khi mở trang lần đầu
@@ -90,11 +82,11 @@ export const OtpVerificationPage: React.FC = () => {
     }
   }, [countdown]);
 
-  // 4. Xử lý Xác thực mã OTP
+  // 4. Hàm xử lý Xác thực mã OTP
   const handleVerifyOtp = useCallback(
     async (codeToVerify: string) => {
       if (isLoading) return;
-      const cleanCode = codeToVerify.trim();
+      const cleanCode = codeToVerify.replace(/\D/g, '').trim();
 
       if (cleanCode.length < 6) {
         setErrorMsg('Vui lòng nhập đủ 6 chữ số của mã OTP.');
@@ -134,6 +126,7 @@ export const OtpVerificationPage: React.FC = () => {
         const userId = verifiedUser?.id || verifiedUser?.uid || `usr_${Date.now()}`;
 
         if (name) {
+          // Lưu thông tin người dùng vào Supabase
           await syncUserToSupabase({
             id: userId,
             name: name.trim(),
@@ -165,6 +158,7 @@ export const OtpVerificationPage: React.FC = () => {
 
         setIsLoading(false);
 
+        // Chuyển trang
         if (returnUrl) {
           navigate(decodeURIComponent(returnUrl), { replace: true });
         } else if (role === 'owner') {
@@ -175,116 +169,38 @@ export const OtpVerificationPage: React.FC = () => {
       } else {
         setIsLoading(false);
         setIsErrorShake(true);
-        // Reset 6 ô về trống khi sai và focus lại ô 1
-        setOtp(['', '', '', '', '', '']);
-        inputRefs[0].current?.focus();
+        // Xóa mã đã nhập để nhập lại và focus lại
+        setOtp('');
+        masterInputRef.current?.focus();
         setTimeout(() => setIsErrorShake(false), 600);
       }
     },
     [isLoading, authMode, email, phone, verificationId, name, role, returnUrl, registerUser, loginWithPhone, showToast, navigate]
   );
 
-  // 5. Xử lý khi gõ phím vào từng ô
-  const handleChange = (val: string, index: number) => {
+  // 5. Xử lý gõ phím / paste vào input chính
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (isLoading) return;
+    const rawVal = e.target.value;
+    const numbersOnly = rawVal.replace(/\D/g, '').slice(0, 6);
 
-    // Chỉ nhận ký tự số
-    const numbersOnly = val.replace(/\D/g, '');
-    if (!numbersOnly) {
-      const newOtp = [...otp];
-      newOtp[index] = '';
-      setOtp(newOtp);
-      return;
-    }
-
-    // Lấy số cuối cùng vừa gõ vào ô này
-    const singleDigit = numbersOnly.slice(-1);
-    const newOtp = [...otp];
-    newOtp[index] = singleDigit;
-    setOtp(newOtp);
+    setOtp(numbersOnly);
     setErrorMsg('');
 
-    // Tự động nhảy con trỏ sang ô tiếp theo
-    if (index < 5) {
-      inputRefs[index + 1].current?.focus();
-      inputRefs[index + 1].current?.select();
-      setActiveIndex(index + 1);
-    }
-
-    // Tự động kích hoạt xác thực ngay khi đủ 6 số!
-    const fullCode = newOtp.join('');
-    if (fullCode.length === 6 && !newOtp.includes('')) {
-      handleVerifyOtp(fullCode);
-    }
-  };
-
-  // 6. Xử lý phím đặc biệt (Backspace, Arrow keys)
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>, index: number) => {
-    if (isLoading) return;
-
-    if (e.key === 'Backspace') {
-      e.preventDefault();
-      const newOtp = [...otp];
-
-      if (newOtp[index]) {
-        // Ô hiện tại có số -> Xóa số ô hiện tại
-        newOtp[index] = '';
-        setOtp(newOtp);
-      } else if (index > 0) {
-        // Ô hiện tại trống -> Lùi về ô trước và xóa số ô trước
-        newOtp[index - 1] = '';
-        setOtp(newOtp);
-        inputRefs[index - 1].current?.focus();
-        inputRefs[index - 1].current?.select();
-        setActiveIndex(index - 1);
-      }
-    } else if (e.key === 'ArrowLeft' && index > 0) {
-      e.preventDefault();
-      inputRefs[index - 1].current?.focus();
-      inputRefs[index - 1].current?.select();
-      setActiveIndex(index - 1);
-    } else if (e.key === 'ArrowRight' && index < 5) {
-      e.preventDefault();
-      inputRefs[index + 1].current?.focus();
-      inputRefs[index + 1].current?.select();
-      setActiveIndex(index + 1);
-    }
-  };
-
-  // 7. Xử lý Auto-Paste mã OTP (VD: Copy "123456")
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    if (isLoading) return;
-
-    const pastedData = e.clipboardData.getData('text');
-    const numbersOnly = pastedData.replace(/\D/g, '').slice(0, 6);
-
-    if (!numbersOnly) return;
-
-    const newOtp = ['', '', '', '', '', ''];
-    for (let i = 0; i < numbersOnly.length; i++) {
-      newOtp[i] = numbersOnly[i];
-    }
-    setOtp(newOtp);
-
-    const focusIdx = Math.min(numbersOnly.length, 5);
-    inputRefs[focusIdx].current?.focus();
-    inputRefs[focusIdx].current?.select();
-    setActiveIndex(focusIdx);
-
+    // Khi gõ đủ 6 số -> Tự động kích hoạt xác thực ngay lập tức!
     if (numbersOnly.length === 6) {
       handleVerifyOtp(numbersOnly);
     }
   };
 
-  // 8. Xử lý gửi lại mã
+  // 6. Gửi lại mã OTP
   const handleResend = async () => {
     if (countdown > 0 || isSending) return;
 
     setIsSending(true);
     setErrorMsg('');
-    setOtp(['', '', '', '', '', '']); // Reset 6 ô về rỗng
-    inputRefs[0].current?.focus();
+    setOtp('');
+    masterInputRef.current?.focus();
 
     if (email) {
       const res = await sendEmailOtp(email);
@@ -305,8 +221,6 @@ export const OtpVerificationPage: React.FC = () => {
       }
     }
   };
-
-  const isFullOtp = otp.every((d) => d !== '');
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
@@ -337,50 +251,65 @@ export const OtpVerificationPage: React.FC = () => {
         )}
 
         <div className="space-y-6">
-          {/* 6 Ô NHẬP RIÊNG BIỆT 100% VỚI VALUE TỪNG Ô ĐỘC LẬP */}
+          {/* CỤM 6 Ô NHẬP OTP THEO TIÊU CHUẨN CAO CẤP QUỐC TẾ (STRIPE/AIRBNB PATTERN) */}
           <div
-            className={`flex items-center justify-center gap-2 sm:gap-3 select-none ${
-              isErrorShake ? 'animate-shake' : ''
-            }`}
+            className="relative cursor-text"
+            onClick={() => masterInputRef.current?.focus()}
           >
-            {otp.map((digit, idx) => {
-              const isFilled = digit !== '';
-              const isFocused = activeIndex === idx;
+            {/* Input ngầm bắt trọn mọi phím gõ, numpad, paste, và SMS Autofill */}
+            <input
+              ref={masterInputRef}
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              autoComplete="one-time-code"
+              maxLength={6}
+              value={otp}
+              disabled={isLoading}
+              onChange={handleInputChange}
+              onFocus={() => setIsFocused(true)}
+              onBlur={() => setIsFocused(false)}
+              className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-text tracking-[1em]"
+              aria-label="Nhập 6 chữ số mã OTP"
+            />
 
-              return (
-                <input
-                  key={idx}
-                  ref={inputRefs[idx]}
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={1}
-                  value={otp[idx]}
-                  disabled={isLoading}
-                  autoComplete={idx === 0 ? 'one-time-code' : 'off'}
-                  onChange={(e) => handleChange(e.target.value, idx)}
-                  onKeyDown={(e) => handleKeyDown(e, idx)}
-                  onPaste={handlePaste}
-                  onFocus={(e) => {
-                    setActiveIndex(idx);
-                    e.target.select();
-                  }}
-                  onBlur={() => setActiveIndex(-1)}
-                  aria-label={`Mã OTP số ${idx + 1}`}
-                  className={`w-11 h-13 sm:w-12 sm:h-14 text-center text-xl sm:text-2xl font-black rounded-2xl border-2 outline-hidden transition-all duration-200 shadow-2xs ${
-                    isLoading ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed' : ''
-                  } ${
-                    isErrorShake
-                      ? 'border-red-500 bg-red-50/50 text-red-700 ring-4 ring-red-500/10'
-                      : isFocused
-                      ? 'border-[#00a854] bg-white text-gray-900 ring-4 ring-emerald-500/20 scale-105 shadow-md'
-                      : isFilled
-                      ? 'border-emerald-600/40 bg-emerald-50/30 text-gray-900 font-black'
-                      : 'border-gray-200 bg-gray-50/60 text-gray-900 hover:border-gray-300'
-                  }`}
-                />
-              );
-            })}
+            {/* 6 Ô hiển thị đồ họa siêu đẹp */}
+            <div
+              className={`flex items-center justify-center gap-2 sm:gap-3 select-none ${
+                isErrorShake ? 'animate-shake' : ''
+              }`}
+            >
+              {[0, 1, 2, 3, 4, 5].map((index) => {
+                const char = otp[index] || '';
+                const isCurrentActive =
+                  isFocused &&
+                  (otp.length === index || (otp.length === 6 && index === 5));
+                const isFilled = Boolean(char);
+
+                return (
+                  <div
+                    key={index}
+                    className={`w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center text-xl sm:text-2xl font-black rounded-2xl border-2 transition-all duration-150 shadow-2xs relative ${
+                      isLoading
+                        ? 'bg-gray-100 text-gray-400 border-gray-200'
+                        : isErrorShake
+                        ? 'border-red-500 bg-red-50 text-red-700 ring-4 ring-red-500/10'
+                        : isCurrentActive
+                        ? 'border-[#00a854] bg-white text-gray-900 ring-4 ring-emerald-500/20 scale-105 shadow-md'
+                        : isFilled
+                        ? 'border-emerald-600/40 bg-emerald-50/30 text-gray-900'
+                        : 'border-gray-200 bg-gray-50/60 text-gray-900'
+                    }`}
+                  >
+                    {char ? (
+                      <span>{char}</span>
+                    ) : isCurrentActive ? (
+                      <span className="w-0.5 h-6 bg-[#00a854] animate-pulse rounded-full" />
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
 
           <div className="text-center space-y-1">
@@ -404,8 +333,8 @@ export const OtpVerificationPage: React.FC = () => {
             size="lg"
             className="w-full"
             isLoading={isLoading}
-            disabled={!isFullOtp || isLoading}
-            onClick={() => handleVerifyOtp(otp.join(''))}
+            disabled={otp.length < 6 || isLoading}
+            onClick={() => handleVerifyOtp(otp)}
             rightIcon={!isLoading ? <ArrowRight className="w-4 h-4" /> : undefined}
           >
             {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Tiếp Tục'}
