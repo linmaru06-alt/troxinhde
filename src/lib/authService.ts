@@ -64,7 +64,7 @@ export function formatVietnamesePhone(phone: string): string {
 }
 
 /**
- * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase SMS Phone Auth)
+ * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase SMS Phone Auth với RecaptchaVerifier Singleton an toàn)
  */
 export async function sendPhoneOtp(
   phone: string,
@@ -79,24 +79,34 @@ export async function sendPhoneOtp(
 
   if (hasRealFirebase && typeof window !== 'undefined') {
     try {
+      // Đảm bảo dọn dẹp recaptchaVerifier cũ trước khi tạo lại trên DOM mới
       if (window.recaptchaVerifier) {
         try {
           window.recaptchaVerifier.clear();
-        } catch (e) {}
+        } catch (e) {
+          // ignore
+        }
         window.recaptchaVerifier = undefined;
       }
 
+      // Kiểm tra container DOM đã mount chưa
+      const containerEl = document.getElementById(containerId);
+      if (containerEl) {
+        containerEl.innerHTML = '';
+      }
+
+      // Khởi tạo RecaptchaVerifier
       window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
         size: 'invisible',
         callback: () => {
-          console.log('[Firebase Auth] reCAPTCHA verified');
+          console.log('[Firebase Auth] Invisible reCAPTCHA verified successfully');
         },
         'expired-callback': () => {
           console.warn('[Firebase Auth] reCAPTCHA expired, please retry');
         },
       });
 
-      console.log(`[Firebase Auth] Đang gửi SMS tới ${formattedPhone}...`);
+      console.log(`[Firebase Auth] Đang gửi OTP tới ${formattedPhone}...`);
       const confirmationResult = await signInWithPhoneNumber(
         auth,
         formattedPhone,
@@ -104,7 +114,7 @@ export async function sendPhoneOtp(
       );
 
       window.confirmationResult = confirmationResult;
-      console.log('[Firebase Auth] Đã gửi SMS thành công qua Firebase!');
+      console.log('[Firebase Auth] Đã kích hoạt gửi SMS qua Firebase!');
 
       return {
         success: true,
@@ -112,22 +122,22 @@ export async function sendPhoneOtp(
         isSimulated: false,
       };
     } catch (error: any) {
-      console.error('[Firebase Auth] Lỗi gửi SMS:', error);
+      console.error('[Firebase Auth] Chi tiết phản hồi từ Google:', error);
       
       let friendlyError = 'Không thể gửi tin nhắn SMS.';
       if (error.code === 'auth/invalid-phone-number') {
-        friendlyError = 'Số điện thoại không đúng định dạng.';
-      } else if (error.code === 'auth/quota-exceeded') {
-        friendlyError = 'Đã vượt quá số lượng SMS miễn phí trong ngày.';
+        friendlyError = 'Số điện thoại không đúng định dạng quốc tế (+84).';
+      } else if (error.code === 'auth/quota-exceeded' || error.code === 'auth/billing-not-enabled') {
+        friendlyError = 'Google yêu cầu bật tính năng SMS hoặc thêm số điện thoại thử nghiệm trong Firebase Console.';
       } else if (error.code === 'auth/captcha-check-failed') {
-        friendlyError = 'Xác minh bảo mật captcha không thành công.';
+        friendlyError = 'Xác minh reCAPTCHA không thành công.';
       } else if (error.code === 'auth/too-many-requests') {
-        friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng đợi vài phút.';
+        friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng đợi 1–2 phút.';
       } else if (error.message) {
         friendlyError = `${error.message}`;
       }
 
-      // Fallback mã ngẫu nhiên khi có trục trặc mạng
+      // Khi Google chặn SMS trên gói Spark, tự động sinh mã OTP dự phòng hiển thị để không làm gián đoạn
       const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
       const mockVerificationId = `verif_${Date.now()}`;
       if (typeof window !== 'undefined') {
@@ -144,7 +154,7 @@ export async function sendPhoneOtp(
     }
   }
 
-  // Chế độ Demo
+  // Chế độ mô phỏng trực quan
   const generatedOtp = Math.floor(100000 + Math.random() * 900000).toString();
   const mockVerificationId = `verif_${Date.now()}`;
   if (typeof window !== 'undefined') {
@@ -187,7 +197,7 @@ export async function verifyPhoneOtp(
         user: result.user,
       };
     } catch (error: any) {
-      console.error('[Firebase Auth] Lỗi kiểm tra OTP SMS:', error);
+      console.error('[Firebase Auth] Lỗi kiểm tra OTP SMS trên Google:', error);
       return {
         success: false,
         phone,
@@ -262,8 +272,8 @@ export async function loginWithEmailPassword(
   } catch (error: any) {
     console.warn('[Firebase Auth] Đăng nhập Email thất bại:', error);
     let msg = 'Email hoặc mật khẩu không chính xác!';
-    if (error.code === 'auth/user-not-found') {
-      msg = 'Không tìm thấy tài khoản với email này.';
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      msg = 'Không tìm thấy tài khoản hoặc mật khẩu không đúng.';
     } else if (error.code === 'auth/wrong-password') {
       msg = 'Mật khẩu không chính xác.';
     } else if (error.code === 'auth/invalid-email') {
@@ -316,7 +326,7 @@ export async function registerWithEmailPassword(
     if (error.code === 'auth/email-already-in-use') {
       msg = 'Email này đã được sử dụng cho một tài khoản khác.';
     } else if (error.code === 'auth/weak-password') {
-      msg = 'Mật khẩu phải có ít nhất 6 ký tự.';
+      msg = 'Mật khẩu phải có ít nhất 8 ký tự.';
     }
     return { success: false, error: msg };
   }
@@ -332,7 +342,7 @@ export async function loginWithGoogle(): Promise<AuthActionResult> {
 
     const userProfile = {
       id: fbUser.uid,
-      name: fbUser.displayName || 'Google User',
+      name: fbUser.displayName || 'Người Dùng Google',
       email: fbUser.email || undefined,
       phone: fbUser.phoneNumber || undefined,
       role: 'user' as const,
