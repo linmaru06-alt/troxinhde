@@ -1,5 +1,9 @@
+// @ts-nocheck
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
 import { corsHeaders } from '../_shared/cors.ts';
+
+declare const Deno: any;
+declare const crypto: any;
 
 async function createHmacSha256(key: string, message: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -44,8 +48,8 @@ serve(async (req: Request) => {
       signature,
     } = payload;
 
-    const accessKey = Deno.env.get('MOMO_ACCESS_KEY') || 'klm05XEdG9SEKitY';
-    const secretKey = Deno.env.get('MOMO_SECRET_KEY') || 'at67qH6mk8w5Y1nAyMoYKMWACiEi2Aca';
+    const accessKey = Deno.env.get('MOMO_ACCESS_KEY') || 'F8BBA842ECF85';
+    const secretKey = Deno.env.get('MOMO_SECRET_KEY') || 'K951B6PE1waDMi640xX08PD3vg6EkVlz';
 
     const rawSignature = `accessKey=${accessKey}&amount=${amount}&extraData=${extraData}&message=${message}&orderId=${orderId}&orderInfo=${orderInfo}&orderType=${orderType}&partnerCode=${partnerCode}&payType=${payType}&requestId=${requestId}&responseTime=${responseTime}&resultCode=${resultCode}&transId=${transId}`;
     const generatedSignature = await createHmacSha256(secretKey, rawSignature);
