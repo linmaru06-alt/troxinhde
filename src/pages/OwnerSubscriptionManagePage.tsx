@@ -56,7 +56,7 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
       };
 
       const formatMethodName = (m: string) => {
-        if (m === 'vietqr' || m === 'banking') return 'Chuyển khoản VietQR MB Bank';
+        if (m === 'vietqr' || m === 'banking') return 'Chuyển khoản VietQR (Techcombank)';
         if (m === 'momo') return 'Ví Điện Tử MoMo';
         if (m === 'vnpay') return 'Cổng VNPay';
         return 'Chuyển khoản Ngân hàng';

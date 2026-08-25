@@ -150,7 +150,7 @@ export const TermsPage: React.FC = () => {
               CHÍNH SÁCH THANH TOÁN & HOÀN TIỀN
             </h2>
             <div className="pl-9 space-y-1.5 text-gray-600">
-              <p>• Thanh toán qua <strong>VietQR (MB Bank)</strong> hoặc <strong>Ví MoMo</strong>.</p>
+              <p>• Thanh toán qua <strong>VietQR (Techcombank)</strong> hoặc <strong>Ví MoMo</strong>.</p>
               <p>• Hoàn tiền 100% nếu lỗi phát sinh từ phía hệ thống Trọ Xinh.</p>
               <p>• Không hoàn tiền nếu đã kích hoạt và sử dụng dịch vụ quá 24 giờ.</p>
               <p>• Mọi yêu cầu khiếu nại hoàn tiền vui lòng gửi về email: <strong>nguyenvuchinhb1hhb@gmail.com</strong>.</p>
