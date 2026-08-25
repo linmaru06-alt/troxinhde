@@ -97,8 +97,8 @@ serve(async (req) => {
       }
     }
 
-    // Fallback: Generate real VietQR Standard Payload (MB Bank TroXinh)
-    const bankId = 'MB'; // MB Bank
+    // Fallback: Generate real VietQR Standard Payload (Techcombank TroXinh)
+    const bankId = 'TCB'; // Techcombank
     const accountNo = '0888110789';
     const accountName = 'NGUYEN VU CHINH';
     const transferContent = `TROXINH ${orderCode}`;
@@ -113,11 +113,11 @@ serve(async (req) => {
         checkoutUrl: `${returnUrl}?orderCode=${orderCode}&amount=${amount}&status=success`,
         qrCode: vietQrUrl,
         bankInfo: {
-          bankName: 'Ngân hàng Quân Đội (MB Bank)',
-          bankCode: 'MB',
+          bankName: 'Ngân hàng TMCP Kỹ Thương Việt Nam (Techcombank)',
+          bankCode: 'TCB',
           accountNumber: accountNo,
           accountName: accountName,
-          branch: 'Chi nhánh Đống Đa, Hà Nội',
+          branch: 'Chi nhánh Hà Nội',
           amount,
           transferContent,
         },

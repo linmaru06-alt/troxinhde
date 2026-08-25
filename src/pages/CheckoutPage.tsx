@@ -128,7 +128,7 @@ export const CheckoutPage: React.FC = () => {
           receiverName: res.bankInfo.accountName,
           accountNumber: res.bankInfo.accountNumber,
           accountNumberLabel: 'Số tài khoản',
-          badgeLabel: 'MB Bank',
+          badgeLabel: 'Techcombank',
           transferContent: res.bankInfo.transferContent,
           payUrl: res.checkoutUrl,
         });
@@ -342,7 +342,7 @@ export const CheckoutPage: React.FC = () => {
                     <span>
                       {paymentData.method === 'momo'
                         ? 'Ví Điện Tử MoMo (Napas QR)'
-                        : 'Ngân hàng Quân Đội (MB Bank)'}
+                        : 'Ngân hàng TMCP Kỹ Thương Việt Nam (Techcombank)'}
                     </span>
                     <Badge
                       variant="verified"
