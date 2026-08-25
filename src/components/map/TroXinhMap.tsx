@@ -85,6 +85,8 @@ export interface TroXinhMapProps {
   center?: [number, number];
   zoom?: number;
   showUniversities?: boolean;
+  userLocation?: [number, number] | null;
+  universityRadiusCenter?: [number, number] | null;
 }
 
 export const TroXinhMap: React.FC<TroXinhMapProps> = ({
@@ -94,6 +96,8 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   center = [21.0333, 105.7937], // Default Hanoi Cầu Giấy center
   zoom = 13,
   showUniversities = true,
+  userLocation = null,
+  universityRadiusCenter = null,
 }) => {
   // Map rooms to geo locations
   const roomMarkers = useMemo(() => {
@@ -113,7 +117,11 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   }, [rooms]);
 
   const selectedRoom = roomMarkers.find((r) => r.id === activeRoomId);
-  const mapCenter: [number, number] = selectedRoom
+  const mapCenter: [number, number] = userLocation
+    ? userLocation
+    : universityRadiusCenter
+    ? universityRadiusCenter
+    : selectedRoom
     ? [selectedRoom.geo.lat, selectedRoom.geo.lng]
     : center;
 
@@ -130,16 +138,63 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <MapRecenter center={mapCenter} />
+        <MapRecenter center={mapCenter} zoom={zoom} />
+
+        {/* User GPS Location Marker */}
+        {userLocation && (
+          <>
+            <Marker
+              position={userLocation}
+              icon={L.divIcon({
+                className: 'custom-user-gps',
+                html: `
+                  <div style="width: 20px; height: 20px; background: #2563eb; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 10px rgba(37,99,235,0.8); position: relative;">
+                    <div style="position: absolute; inset: -6px; border: 2px solid #3b82f6; border-radius: 50%; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+                  </div>
+                `,
+                iconSize: [20, 20],
+                iconAnchor: [10, 10],
+              })}
+            >
+              <Popup>
+                <div className="text-xs font-bold text-gray-900 p-1">📍 Vị trí hiện tại của bạn</div>
+              </Popup>
+            </Marker>
+            <Circle
+              center={userLocation}
+              radius={1500}
+              pathOptions={{
+                color: '#2563eb',
+                fillColor: '#3b82f6',
+                fillOpacity: 0.1,
+                weight: 1.5,
+                dashArray: '4, 6',
+              }}
+            />
+          </>
+        )}
+
+        {/* Selected University Radius Circle */}
+        {universityRadiusCenter && (
+          <Circle
+            center={universityRadiusCenter}
+            radius={2000}
+            pathOptions={{
+              color: '#006d37',
+              fillColor: '#10b981',
+              fillOpacity: 0.12,
+              weight: 2,
+            }}
+          />
+        )}
 
         {/* Universities Landmarks */}
         {showUniversities &&
-          HANOI_UNIVERSITIES.slice(0, 6).map((uni, i) => (
+          HANOI_UNIVERSITIES.map((uni, i) => (
             <Marker
               key={`uni_${i}`}
               position={uni.coords}
               icon={createUniIcon(uni.name)}
-              interactive={false}
             />
           ))}
 

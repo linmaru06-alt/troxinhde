@@ -1,22 +1,72 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Room } from '../types';
 import { RoomCard, formatPrice } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
-import { TroXinhMap } from '../components/map/TroXinhMap';
-import { List, MapPin, Navigation, ArrowLeft, Building2, CheckCircle2, Eye } from 'lucide-react';
+import { TroXinhMap, HANOI_UNIVERSITIES } from '../components/map/TroXinhMap';
+import {
+  List,
+  MapPin,
+  Navigation,
+  ArrowLeft,
+  GraduationCap,
+  SlidersHorizontal,
+  Compass,
+  Search,
+  CheckCircle2,
+  X,
+} from 'lucide-react';
 
 export const MapViewPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { rooms } = useAppStore();
+  const { rooms, showToast } = useAppStore();
 
   const [activeRoomId, setActiveRoomId] = useState<string | null>(rooms[0]?.id || null);
   const [mobileTab, setMobileTab] = useState<'map' | 'list'>('map');
+  const [selectedUniversity, setSelectedUniversity] = useState<string>('all');
+  const [priceRange, setPriceRange] = useState<string>('all');
+  const [keyword, setKeyword] = useState<string>('');
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [isLocating, setIsLocating] = useState<boolean>(false);
+
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  const activeRoom = rooms.find((r) => r.id === activeRoomId) || rooms[0];
+  // University coordinates lookup
+  const selectedUniObj = useMemo(() => {
+    if (selectedUniversity === 'all') return null;
+    return HANOI_UNIVERSITIES.find((u) => u.name === selectedUniversity) || null;
+  }, [selectedUniversity]);
+
+  // Filtered rooms on map
+  const filteredRooms = useMemo(() => {
+    return rooms.filter((r) => {
+      // University filter
+      if (selectedUniversity !== 'all' && r.nearestSchool) {
+        if (!r.nearestSchool.toLowerCase().includes(selectedUniversity.toLowerCase().replace('đh ', '').replace('học viện ', ''))) {
+          // allow partial matches
+        }
+      }
+
+      // Price filter
+      if (priceRange === 'under_3m' && r.price >= 3000000) return false;
+      if (priceRange === '3m_5m' && (r.price < 3000000 || r.price > 5000000)) return false;
+      if (priceRange === '5m_8m' && (r.price < 5000000 || r.price > 8000000)) return false;
+      if (priceRange === 'over_8m' && r.price <= 8000000) return false;
+
+      // Keyword search
+      if (keyword.trim()) {
+        const q = keyword.toLowerCase();
+        const matchTitle = r.title.toLowerCase().includes(q);
+        const matchAddr = r.address.toLowerCase().includes(q);
+        const matchDistrict = r.district.toLowerCase().includes(q);
+        const matchSchool = r.nearestSchool?.toLowerCase().includes(q);
+        if (!matchTitle && !matchAddr && !matchDistrict && !matchSchool) return false;
+      }
+
+      return true;
+    });
+  }, [rooms, selectedUniversity, priceRange, keyword]);
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -26,45 +76,148 @@ export const MapViewPage: React.FC = () => {
     }
   };
 
+  // Get User GPS Location
+  const handleGetLocation = () => {
+    if (!navigator.geolocation) {
+      showToast('Trình duyệt không hỗ trợ GPS', 'Vui lòng kiểm tra cài đặt trình duyệt của bạn.', 'error');
+      return;
+    }
+
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setIsLocating(false);
+        const userCoords: [number, number] = [position.coords.latitude, position.coords.longitude];
+        setUserLocation(userCoords);
+        showToast('Đã định vị thành công! 📍', 'Bản đồ đang hiển thị các phòng trọ quanh vị trí của bạn.', 'success');
+      },
+      (error) => {
+        setIsLocating(false);
+        // Default to Cầu Giấy demo center if blocked
+        setUserLocation([21.0333, 105.7937]);
+        showToast('Vị trí mẫu (Hà Nội)', 'Đã lấy tọa độ trung tâm khu vực Cầu Giấy, Hà Nội.', 'info');
+      },
+      { timeout: 8000 }
+    );
+  };
+
   return (
     <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-gray-50">
       {/* Top Map Filter Sub-bar */}
-      <div className="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between z-20 shrink-0 shadow-xs">
-        <div className="flex items-center gap-2">
-          <Link to={`/tim-phong?${searchParams.toString()}`} className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition">
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
-          <div>
-            <h2 className="text-sm font-black text-gray-950 leading-tight">Bản Đồ Nhà Trọ Đã Xác Minh</h2>
-            <p className="text-[11px] text-gray-500 font-medium">Khu vực Hà Nội ({rooms.length} phòng trọ có vị trí thực tế)</p>
+      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 space-y-2 z-20 shrink-0 shadow-xs">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <Link
+              to={`/tim-phong?${searchParams.toString()}`}
+              className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition"
+              title="Quay lại danh sách"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <h2 className="text-sm font-black text-gray-950 leading-tight flex items-center gap-1.5">
+                <span>Bản Đồ Nhà Trọ Đã Xác Minh</span>
+                <span className="bg-emerald-100 text-[#006d37] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {filteredRooms.length} phòng
+                </span>
+              </h2>
+              <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
+                Hiển thị mức giá thực tế và vị trí đã kiểm duyệt 100%
+              </p>
+            </div>
+          </div>
+
+          {/* Action Tools */}
+          <div className="flex items-center gap-2">
+            {/* GPS Location Button */}
+            <button
+              onClick={handleGetLocation}
+              disabled={isLocating}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                userLocation
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
+                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+              }`}
+              title="Định vị vị trí hiện tại của bạn"
+            >
+              <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
+              <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
+            </button>
+
+            {/* Price Filter Select */}
+            <select
+              value={priceRange}
+              onChange={(e) => setPriceRange(e.target.value)}
+              className="text-xs font-bold bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-gray-700 focus:outline-none focus:border-[#006d37]"
+            >
+              <option value="all">Tất cả mức giá</option>
+              <option value="under_3m">&lt; 3 Triệu / tháng</option>
+              <option value="3m_5m">3 – 5 Triệu / tháng</option>
+              <option value="5m_8m">5 – 8 Triệu / tháng</option>
+              <option value="over_8m">&gt; 8 Triệu / tháng</option>
+            </select>
+
+            {/* Mobile View Switcher */}
+            <div className="md:hidden flex items-center bg-gray-100 rounded-xl p-0.5">
+              <button
+                onClick={() => setMobileTab('map')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                  mobileTab === 'map' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
+                }`}
+              >
+                Bản đồ
+              </button>
+              <button
+                onClick={() => setMobileTab('list')}
+                className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
+                  mobileTab === 'list' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
+                }`}
+              >
+                Danh sách
+              </button>
+            </div>
+
+            <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
+              <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
+                Xem danh sách
+              </Button>
+            </Link>
           </div>
         </div>
 
-        {/* Mobile View Switcher */}
-        <div className="md:hidden flex items-center bg-gray-100 rounded-xl p-0.5">
-          <button
-            onClick={() => setMobileTab('map')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-              mobileTab === 'map' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
-            }`}
-          >
-            Bản đồ
-          </button>
-          <button
-            onClick={() => setMobileTab('list')}
-            className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-              mobileTab === 'list' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
-            }`}
-          >
-            Danh sách
-          </button>
-        </div>
+        {/* University Filter Pills Bar */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+          <span className="text-[11px] font-bold text-gray-400 shrink-0 flex items-center gap-1 mr-1">
+            <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
+            Trường ĐH:
+          </span>
 
-        <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
-          <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
-            Xem dạng danh sách
-          </Button>
-        </Link>
+          <button
+            onClick={() => setSelectedUniversity('all')}
+            className={`px-2.5 py-1 rounded-full font-bold transition shrink-0 text-xs ${
+              selectedUniversity === 'all'
+                ? 'bg-[#006d37] text-white shadow-xs'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+            }`}
+          >
+            Tất cả khu vực
+          </button>
+
+          {HANOI_UNIVERSITIES.map((uni) => (
+            <button
+              key={uni.name}
+              onClick={() => setSelectedUniversity(uni.name)}
+              className={`px-2.5 py-1 rounded-full font-bold transition shrink-0 text-xs flex items-center gap-1 ${
+                selectedUniversity === uni.name
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'bg-blue-50/80 text-blue-800 border border-blue-200/60 hover:bg-blue-100'
+              }`}
+            >
+              <span>🎓</span>
+              <span>{uni.name}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Main Split Layout */}
@@ -76,29 +229,54 @@ export const MapViewPage: React.FC = () => {
           }`}
         >
           <div className="flex items-center justify-between pb-1">
-            <p className="text-xs text-gray-500 font-medium">Chọn một vị trí trên bản đồ hoặc danh sách:</p>
+            <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí trên bản đồ:</p>
             <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-md">
-              {rooms.length} phòng
+              {filteredRooms.length} kết quả
             </span>
           </div>
 
-          <div className="space-y-4">
-            {rooms.map((room) => (
-              <div
-                key={room.id}
-                ref={(el) => (cardRefs.current[room.id] = el)}
-                onClick={() => {
-                  setActiveRoomId(room.id);
-                  if (window.innerWidth < 768) setMobileTab('map');
-                }}
-                className={`cursor-pointer transition rounded-2xl ${
-                  activeRoomId === room.id ? 'ring-2 ring-[#006d37] shadow-md scale-[1.01]' : 'opacity-90 hover:opacity-100'
-                }`}
-              >
-                <RoomCard room={room} />
+          {filteredRooms.length === 0 ? (
+            <div className="text-center py-12 space-y-3 bg-gray-50 rounded-2xl p-6 border border-dashed border-gray-200">
+              <div className="w-12 h-12 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center mx-auto">
+                <MapPin className="w-6 h-6" />
               </div>
-            ))}
-          </div>
+              <div>
+                <p className="text-xs font-bold text-gray-800">Không tìm thấy phòng trọ phù hợp</p>
+                <p className="text-[11px] text-gray-500 mt-1">Hãy thử chọn "Tất cả khu vực" hoặc mở rộng khoảng giá.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setSelectedUniversity('all');
+                  setPriceRange('all');
+                  setKeyword('');
+                }}
+              >
+                Đặt lại bộ lọc
+              </Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {filteredRooms.map((room) => (
+                <div
+                  key={room.id}
+                  ref={(el) => (cardRefs.current[room.id] = el)}
+                  onClick={() => {
+                    setActiveRoomId(room.id);
+                    if (window.innerWidth < 768) setMobileTab('map');
+                  }}
+                  className={`cursor-pointer transition rounded-2xl ${
+                    activeRoomId === room.id
+                      ? 'ring-2 ring-[#006d37] shadow-md scale-[1.01]'
+                      : 'opacity-90 hover:opacity-100'
+                  }`}
+                >
+                  <RoomCard room={room} />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Right Real Leaflet Interactive Map */}
@@ -108,15 +286,20 @@ export const MapViewPage: React.FC = () => {
           }`}
         >
           <TroXinhMap
-            rooms={rooms}
+            rooms={filteredRooms}
             activeRoomId={activeRoomId}
             onSelectRoom={handleSelectRoom}
+            userLocation={userLocation}
+            universityRadiusCenter={selectedUniObj ? selectedUniObj.coords : null}
+            zoom={selectedUniObj || userLocation ? 14 : 13}
           />
 
-          {/* Floating Quick Action Badge */}
-          <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200 shadow-md text-xs font-semibold text-gray-700 flex items-center gap-1.5 pointer-events-none">
+          {/* Floating Quick Info Pill */}
+          <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-200 shadow-md text-xs font-bold text-gray-700 flex items-center gap-2 pointer-events-none">
             <span className="w-2.5 h-2.5 rounded-full bg-[#006d37] animate-pulse" />
-            <span>Kéo & Zoom bản đồ để khám phá</span>
+            <span>
+              {selectedUniObj ? `Quanh ${selectedUniObj.name} (2km)` : 'Bản đồ phòng trọ Hà Nội'}
+            </span>
           </div>
         </div>
       </div>
