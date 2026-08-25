@@ -10,6 +10,7 @@ import {
   AlertCircle,
   Sparkles,
   ArrowLeftRight,
+  Info,
 } from 'lucide-react';
 import { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
 import { syncUserToSupabase, getSupabaseUserByPhone, getSupabaseUserByEmail } from '../lib/supabaseAuthSync';
@@ -462,7 +463,7 @@ export const OtpVerificationPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="text-center space-y-1">
+          <div className="text-center space-y-2">
             <p className="text-xs text-gray-500">
               {authMode === 'email' ? (
                 <>
@@ -474,6 +475,18 @@ export const OtpVerificationPage: React.FC = () => {
                 </>
               )}
             </p>
+
+            {authMode === 'email' && (
+              <div className="p-3 bg-emerald-50/80 border border-emerald-200 text-emerald-900 text-xs rounded-2xl flex items-start gap-2 text-left">
+                <Info className="w-4 h-4 shrink-0 text-[#00a854] mt-0.5" />
+                <div className="space-y-0.5 leading-relaxed">
+                  <p className="font-bold">Mẹo xác thực nhanh:</p>
+                  <p className="text-gray-600">
+                    Nếu thư Gmail của bạn nhận được là một đường link xác nhận, bạn chỉ cần <strong>bấm trực tiếp vào liên kết trong thư</strong> để đăng nhập ngay mà không cần gõ mã.
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Nút Xác nhận */}

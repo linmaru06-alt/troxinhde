@@ -83,6 +83,51 @@ const PageSkeleton = () => (
 );
 
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
+import { supabase } from './lib/supabase';
+import { getSupabaseUserByEmail } from './lib/supabaseAuthSync';
+
+// Global Supabase Auth listener to handle Magic Link / Email link logins
+const SupabaseAuthListener: React.FC = () => {
+  const { loginWithSocialUser, showToast, currentUser } = useAppStore();
+
+  React.useEffect(() => {
+    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user && !currentUser) {
+        const email = session.user.email;
+        if (!email) return;
+
+        let dbUser = await getSupabaseUserByEmail(email);
+        if (dbUser) {
+          loginWithSocialUser({
+            id: dbUser.id,
+            name: dbUser.name,
+            email: dbUser.email,
+            phone: dbUser.phone,
+            role: dbUser.role as any,
+            avatarUrl: dbUser.avatar_url,
+          });
+        } else {
+          loginWithSocialUser({
+            id: session.user.id,
+            name: session.user.user_metadata?.name || email.split('@')[0],
+            email: email,
+            phone: session.user.phone || undefined,
+            role: 'user',
+            avatarUrl: '/images/user-avatar.jpg',
+          });
+        }
+
+        showToast('Xác thực qua Gmail thành công! 🎉', `Chào mừng ${email} đã đăng nhập.`, 'success');
+      }
+    });
+
+    return () => {
+      authListener?.subscription?.unsubscribe();
+    };
+  }, [currentUser, loginWithSocialUser, showToast]);
+
+  return null;
+};
 
 // Route change handler: auto-closes panels/dropdowns/sheets & resets scroll
 const RouteNavigationHandler = () => {
@@ -146,6 +191,7 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <RouteNavigationHandler />
+      <SupabaseAuthListener />
       <div className="flex flex-col min-h-screen">
         <Navbar />
 
