@@ -6,6 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { initialUsers } from '../data/mockData';
 import { User } from '../types';
+import { getUsers } from '../lib/api/admin';
 import {
   Users,
   Search,
@@ -26,15 +27,40 @@ export const AdminUsersPage: React.FC = () => {
   const navigate = useNavigate();
   const { ownerApplications } = useAppStore();
 
+  const [dbUsers, setDbUsers] = useState<User[]>([]);
   const [search, setSearch] = useState<string>('');
   const [filterTab, setFilterTab] = useState<'all' | 'user' | 'owner' | 'pending_owner' | 'blocked'>('all');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showRevokeConfirm, setShowRevokeConfirm] = useState<boolean>(false);
   const [revokeInput, setRevokeInput] = useState<string>('');
 
+  React.useEffect(() => {
+    getUsers()
+      .then((data) => {
+        if (data && data.length > 0) {
+          const mapped: User[] = data.map((p: any) => ({
+            id: p.id,
+            firebaseUid: p.firebase_uid,
+            name: p.full_name || p.name || 'Người dùng',
+            email: p.email || '',
+            phone: p.phone || '',
+            role: p.app_role || p.role || 'user',
+            avatarUrl: p.avatar_url || '/images/user-avatar.jpg',
+            school: p.school,
+            year: p.year,
+            ownerApplicationStatus: p.owner_application_status || 'none',
+            createdAt: p.created_at || new Date().toISOString(),
+          }));
+          setDbUsers(mapped);
+        }
+      })
+      .catch((err) => console.warn('[Admin] Lỗi tải profiles:', err));
+  }, []);
+
   const pendingOwnerCount = ownerApplications.filter((a) => a.status === 'pending').length;
 
-  const usersList = initialUsers.map((u) => {
+  const baseList = dbUsers.length > 0 ? dbUsers : initialUsers;
+  const usersList = baseList.map((u) => {
     const hasPendingApp = ownerApplications.some((a) => a.userId === u.id && a.status === 'pending');
     return {
       ...u,

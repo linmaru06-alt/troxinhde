@@ -26,6 +26,8 @@ import {
   XCircle,
 } from 'lucide-react';
 
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+
 export const OwnerDashboardPage: React.FC = () => {
   const {
     rooms,
@@ -41,6 +43,35 @@ export const OwnerDashboardPage: React.FC = () => {
 
   // Supabase Real-time Room Status Subscription
   useRealtimeRoomStatus();
+
+  const handleUpdateRoomStatus = (roomId: string, status: any) => {
+    updateRoomStatus(roomId, status);
+    if (isSupabaseConfigured && roomId.length === 36) {
+      supabase
+        .from('rooms')
+        .update({
+          availability_status: status === 'Đã cho thuê' ? 'rented' : 'available',
+          status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', roomId)
+        .then();
+    }
+  };
+
+  const handleUpdateBookingStatus = (bookingId: string, status: any) => {
+    updateBookingStatus(bookingId, status);
+    if (isSupabaseConfigured && bookingId.length === 36) {
+      supabase
+        .from('viewing_requests')
+        .update({
+          status: status === 'Đã xác nhận' ? 'confirmed' : 'cancelled',
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', bookingId)
+        .then();
+    }
+  };
 
   const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
   const currentPlan =
@@ -218,13 +249,13 @@ export const OwnerDashboardPage: React.FC = () => {
                     {b.status === 'Chờ chủ trọ xác nhận' && (
                       <>
                         <button
-                          onClick={() => updateBookingStatus(b.id, 'Đã xác nhận')}
+                          onClick={() => handleUpdateBookingStatus(b.id, 'Đã xác nhận')}
                           className="px-3 py-1.5 bg-[#00a854] hover:bg-[#008f47] text-white rounded-xl text-xs font-black transition shadow-xs flex items-center gap-1"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" /> Xác nhận đón
                         </button>
                         <button
-                          onClick={() => updateBookingStatus(b.id, 'Đã hủy')}
+                          onClick={() => handleUpdateBookingStatus(b.id, 'Đã hủy')}
                           className="px-3 py-1.5 bg-gray-100 hover:bg-rose-50 hover:text-rose-600 text-gray-600 rounded-xl text-xs font-bold transition"
                         >
                           Từ chối
@@ -298,7 +329,7 @@ export const OwnerDashboardPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
                   <select
                     value={room.status}
-                    onChange={(e) => updateRoomStatus(room.id, e.target.value as any)}
+                    onChange={(e) => handleUpdateRoomStatus(room.id, e.target.value as any)}
                     className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#00a854]"
                   >
                     <option value="Còn trống">Còn trống</option>
