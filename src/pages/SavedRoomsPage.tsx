@@ -5,10 +5,15 @@ import { RoomCard } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Heart, Compass } from 'lucide-react';
 
+import { Room } from '../types';
+import { useRooms } from '../hooks/queries/useRooms';
+
 export const SavedRoomsPage: React.FC = () => {
   const { rooms, savedRoomIds } = useAppStore();
+  const { data: cloudRooms } = useRooms();
 
-  const savedRooms = rooms.filter((r) => savedRoomIds.includes(r.id));
+  const activeRooms: Room[] = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) as unknown as Room[];
+  const savedRooms = (activeRooms || []).filter((r) => savedRoomIds.includes(r.id));
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
@@ -34,7 +39,7 @@ export const SavedRoomsPage: React.FC = () => {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {savedRooms.map((room) => (
+          {savedRooms.map((room: Room) => (
             <RoomCard key={room.id} room={room} />
           ))}
         </div>

@@ -21,6 +21,12 @@ import {
   AlertCircle,
   Trash2,
 } from 'lucide-react';
+import {
+  approveRoom as approveRoomApi,
+  rejectRoom as rejectRoomApi,
+  approveOwnerApplication as approveOwnerAppApi,
+  rejectOwnerApplication as rejectOwnerAppApi,
+} from '../lib/api/admin';
 
 export const AdminModerationPage: React.FC = () => {
   const {
@@ -52,20 +58,34 @@ export const AdminModerationPage: React.FC = () => {
     return true;
   });
 
+  const handleApproveRoom = (roomId: string) => {
+    approveRoom(roomId);
+    approveRoomApi(roomId).catch((err) => console.warn('[Admin] Lỗi phê duyệt phòng lên Cloud:', err));
+  };
+
   const handleConfirmRejectRoom = (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingRoomId) return;
     const finalReason = customRoomReason ? `${rejectRoomReason}: ${customRoomReason}` : rejectRoomReason;
     rejectRoom(rejectingRoomId, finalReason);
+    rejectRoomApi(rejectingRoomId, finalReason).catch((err) => console.warn('[Admin] Lỗi từ chối phòng lên Cloud:', err));
     setRejectingRoomId(null);
     setCustomRoomReason('');
+  };
+
+  const handleApproveOwnerApp = (appId: string, userId: string) => {
+    approveOwnerApplication(appId);
+    approveOwnerAppApi(appId, userId).catch((err) => console.warn('[Admin] Lỗi duyệt chủ trọ lên Cloud:', err));
   };
 
   const handleConfirmRejectApp = (e: React.FormEvent) => {
     e.preventDefault();
     if (!rejectingAppId) return;
     const finalReason = customAppReason ? `${rejectAppReason}: ${customAppReason}` : rejectAppReason;
+    const app = ownerApplications.find((a) => a.id === rejectingAppId);
+    const userId = app?.userId || '00000000-0000-0000-0000-000000000002';
     rejectOwnerApplication(rejectingAppId, finalReason);
+    rejectOwnerAppApi(rejectingAppId, userId, finalReason).catch((err) => console.warn('[Admin] Lỗi từ chối chủ trọ lên Cloud:', err));
     setRejectingAppId(null);
     setCustomAppReason('');
   };
@@ -206,7 +226,7 @@ export const AdminModerationPage: React.FC = () => {
                             variant="primary"
                             size="sm"
                             leftIcon={<Check className="w-4 h-4" />}
-                            onClick={() => approveRoom(room.id)}
+                            onClick={() => handleApproveRoom(room.id)}
                           >
                             Phê Duyệt & Gắn Tích
                           </Button>
@@ -235,7 +255,7 @@ export const AdminModerationPage: React.FC = () => {
                           variant="outline"
                           size="sm"
                           leftIcon={<Check className="w-4 h-4 text-[#00a854]" />}
-                          onClick={() => approveRoom(room.id)}
+                          onClick={() => handleApproveRoom(room.id)}
                         >
                           Duyệt Lại
                         </Button>
@@ -285,7 +305,7 @@ export const AdminModerationPage: React.FC = () => {
                             variant="primary"
                             size="sm"
                             leftIcon={<Check className="w-4 h-4" />}
-                            onClick={() => approveOwnerApplication(app.id)}
+                            onClick={() => handleApproveOwnerApp(app.id, app.userId)}
                           >
                             Cấp Quyền Chủ Trọ
                           </Button>

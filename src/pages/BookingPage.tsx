@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { formatPrice } from '../components/ui/Cards';
+import { supabase } from '../lib/supabase';
 import {
   Calendar,
   Clock,
@@ -43,7 +44,7 @@ export const BookingPage: React.FC = () => {
     { label: '19:00 - 20:00', period: 'Tối' },
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || !phone.trim()) {
       showToast('Vui lòng điền đủ họ tên và số điện thoại', '', 'error');
@@ -51,21 +52,51 @@ export const BookingPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      createBooking({
-        roomId: room.id,
-        roomTitle: room.title,
-        roomPrice: room.price,
-        renterId: currentUser?.id || 'guest',
-        renterName: name,
-        renterPhone: phone,
-        date,
-        timeSlot: selectedSlot,
-        note,
+
+    try {
+      // 1. Lưu vào Supabase Cloud viewing_requests
+      const renterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
+      const ownerId = room.ownerId || '00000000-0000-0000-0000-000000000002';
+
+      await supabase.from('viewing_requests').insert({
+        room_id: room.id.length === 36 ? room.id : undefined,
+        renter_id: renterId.length === 36 ? renterId : undefined,
+        owner_id: ownerId.length === 36 ? ownerId : undefined,
+        requested_date: date,
+        time_slot: selectedSlot,
+        renter_name: name.trim(),
+        renter_phone: phone.trim(),
+        note: note.trim() || null,
+        status: 'pending',
       });
-      setIsSuccess(true);
-    }, 400);
+
+      // 2. Gửi thông báo cho Chủ trọ
+      await supabase.from('notifications').insert({
+        user_id: ownerId.length === 36 ? ownerId : undefined,
+        title: `Lịch hẹn xem phòng mới: ${room.title} 📅`,
+        body: `Khách ${name} (${phone}) đã hẹn xem phòng vào ${date}, khung giờ ${selectedSlot}.`,
+        type: 'booking',
+        cta_url: '/chu-tro/tong-quan',
+        cta_label: 'Xem lịch hẹn',
+      });
+    } catch (cloudErr) {
+      console.warn('[Booking] Lỗi lưu viewing_request lên Cloud:', cloudErr);
+    }
+
+    createBooking({
+      roomId: room.id,
+      roomTitle: room.title,
+      roomPrice: room.price,
+      renterId: currentUser?.id || 'guest',
+      renterName: name,
+      renterPhone: phone,
+      date,
+      timeSlot: selectedSlot,
+      note,
+    });
+
+    setIsLoading(false);
+    setIsSuccess(true);
   };
 
   if (!room) {

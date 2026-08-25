@@ -10,6 +10,7 @@ import { RoomCard, formatPrice } from '../components/ui/Cards';
 import { Room } from '../types';
 import { PlusCircle, Eye, Upload, ShieldCheck, Home, AlertCircle, Crown, ArrowRight } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
+import { createRoom } from '../lib/api/rooms';
 
 export const OwnerCreateRoomPage: React.FC = () => {
   const navigate = useNavigate();
@@ -81,7 +82,29 @@ export const OwnerCreateRoomPage: React.FC = () => {
       return;
     }
 
-    const id = addRoom({
+    const ownerId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
+    const bldId = (buildingId && buildingId.length === 36) ? buildingId : '00000000-0000-0000-0000-000000000001';
+
+    // 1. Đồng bộ lên Supabase Cloud
+    createRoom({
+      building_id: bldId,
+      owner_id: ownerId,
+      title: title.trim(),
+      room_number: roomNumber.trim(),
+      price: Number(price),
+      deposit: Number(deposit),
+      electricity_price: 3800,
+      water_price: 100000,
+      area: Number(area),
+      room_type: type,
+      amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
+      description: description.trim(),
+      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+    }).catch((err) => {
+      console.warn('[Owner Room] Lỗi khi tạo phòng lên Supabase Cloud:', err);
+    });
+
+    addRoom({
       buildingId,
       buildingName: selectedBuilding.name,
       ownerId: currentUser?.id || 'user_owner_1',
@@ -107,6 +130,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
       description,
     });
 
+    showToast('Tạo phòng trọ thành công!', 'Phòng của bạn đang được chuyển đến ban quản trị phê duyệt.', 'success');
     navigate('/chu-tro');
   };
 

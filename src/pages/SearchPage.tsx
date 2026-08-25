@@ -30,16 +30,22 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 
+import { Room } from '../types';
+import { useRooms } from '../hooks/queries/useRooms';
+
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { rooms } = useAppStore();
   const { isMobileFilterOpen, toggleMobileFilter, closeAllSheets } = useUIStore();
+  const { data: cloudRooms, isLoading: isQueryLoading } = useRooms();
+
+  const activeRooms: Room[] = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) as unknown as Room[];
 
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
   useOutsideClick(mobileDrawerRef, closeAllSheets, isMobileFilterOpen);
 
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Filters State from URL
   const searchQuery = searchParams.get('q') || '';
@@ -50,13 +56,6 @@ export const SearchPage: React.FC = () => {
   const selectedSort = searchParams.get('sort') || 'verified_first';
   const selectedAmenity = searchParams.get('tienIch') || '';
   const verifiedOnly = searchParams.get('xacMinh') === 'true';
-
-  // Simulate network fetch
-  useEffect(() => {
-    setIsLoading(true);
-    const timer = setTimeout(() => setIsLoading(false), 250);
-    return () => clearTimeout(timer);
-  }, [searchParams]);
 
   const updateParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
@@ -114,7 +113,7 @@ export const SearchPage: React.FC = () => {
 
   // Filtered & Sorted Rooms
   const filteredRooms = useMemo(() => {
-    return rooms.filter((r) => {
+    return (activeRooms || []).filter((r: any) => {
       // Verification filter
       if (verifiedOnly && !r.verified) return false;
 
@@ -145,7 +144,7 @@ export const SearchPage: React.FC = () => {
       if (selectedType && r.type !== selectedType) return false;
 
       // Amenity filter
-      if (selectedAmenity && !r.amenities.some((a) => a.toLowerCase().includes(selectedAmenity.toLowerCase()))) {
+      if (selectedAmenity && !r.amenities.some((a: string) => a.toLowerCase().includes(selectedAmenity.toLowerCase()))) {
         return false;
       }
 
@@ -156,7 +155,7 @@ export const SearchPage: React.FC = () => {
       }
 
       return true;
-    }).sort((a, b) => {
+    }).sort((a: any, b: any) => {
       // Prioritize boosted rooms at top
       if (a.isBoosted && !b.isBoosted) return -1;
       if (!a.isBoosted && b.isBoosted) return 1;
@@ -167,10 +166,10 @@ export const SearchPage: React.FC = () => {
       }
       if (selectedSort === 'price_asc') return a.price - b.price;
       if (selectedSort === 'price_desc') return b.price - a.price;
-      if (selectedSort === 'distance') return a.distanceToSchoolKm - b.distanceToSchoolKm;
+      if (selectedSort === 'distance') return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0);
       return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
     });
-  }, [rooms, searchQuery, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedSort, selectedAmenity, verifiedOnly]);
+  }, [activeRooms, searchQuery, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedSort, selectedAmenity, verifiedOnly]);
 
   const activeFilterCount = [searchQuery, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedAmenity, verifiedOnly ? 'xacMinh' : ''].filter(Boolean).length;
 
@@ -593,7 +592,7 @@ export const SearchPage: React.FC = () => {
             />
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredRooms.map((room) => (
+              {filteredRooms.map((room: Room) => (
                 <RoomCard key={room.id} room={room} />
               ))}
             </div>

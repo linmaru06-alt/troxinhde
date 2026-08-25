@@ -17,9 +17,15 @@ import {
   ShoppingBag,
 } from 'lucide-react';
 
+import { Room } from '../types';
+import { useRooms } from '../hooks/queries/useRooms';
+
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
   const { rooms = [], roommates = [], marketplaceItems = [] } = useAppStore();
+  const { data: cloudRooms } = useRooms();
+
+  const displayRooms: Room[] = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) as unknown as Room[];
 
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [searchQuery, setSearchQuery] = useState<string>('');
@@ -60,7 +66,7 @@ export const LandingPage: React.FC = () => {
     navigate(`/tim-phong?${params.toString()}`);
   };
 
-  const verifiedRooms = (rooms || []).filter((r) => r.verified && r.status === 'Còn trống').slice(0, 6);
+  const verifiedRooms = (displayRooms || []).filter((r: any) => r.verified && (r.status === 'Còn trống' || r.availability_status === 'available')).slice(0, 6);
   const featuredRoommates = (roommates || []).slice(0, 3);
   const featuredMarketplace = (marketplaceItems || []).slice(0, 4);
 
@@ -244,7 +250,7 @@ export const LandingPage: React.FC = () => {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {verifiedRooms.map((room) => (
+          {verifiedRooms.map((room: Room) => (
             <RoomCard key={room.id} room={room} />
           ))}
         </div>
@@ -324,7 +330,7 @@ export const LandingPage: React.FC = () => {
               Bạn có phòng trống cần tìm khách thuê tử tế?
             </h2>
             <p className="text-xs sm:text-sm text-gray-900 font-bold max-w-xl leading-relaxed">
-              Tiếp cận hơn 50.000 sinh viên tại các trường ĐHQG, Bách Khoa, Kinh Tế, Ngoại Thương. Đăng tin nhanh chóng, quản lý lịch hẹn thông minh.
+              Nền tảng kết nối phòng trọ sinh viên uy tín tại Hà Nội. Đăng tin nhanh chóng, quản lý lịch hẹn và khách thuê thông minh.
             </p>
           </div>
 

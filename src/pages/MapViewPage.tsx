@@ -18,11 +18,16 @@ import {
   X,
 } from 'lucide-react';
 
+import { useRooms } from '../hooks/queries/useRooms';
+
 export const MapViewPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { rooms, showToast } = useAppStore();
+  const { data: cloudRooms } = useRooms();
 
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(rooms[0]?.id || null);
+  const activeRooms: Room[] = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) as unknown as Room[];
+
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(activeRooms[0]?.id || null);
   const [mobileTab, setMobileTab] = useState<'map' | 'list'>('map');
   const [selectedUniversity, setSelectedUniversity] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
@@ -40,7 +45,7 @@ export const MapViewPage: React.FC = () => {
 
   // Filtered rooms on map
   const filteredRooms = useMemo(() => {
-    return rooms.filter((r) => {
+    return (activeRooms || []).filter((r: any) => {
       // University filter
       if (selectedUniversity !== 'all' && r.nearestSchool) {
         if (!r.nearestSchool.toLowerCase().includes(selectedUniversity.toLowerCase().replace('đh ', '').replace('học viện ', ''))) {
@@ -66,7 +71,7 @@ export const MapViewPage: React.FC = () => {
 
       return true;
     });
-  }, [rooms, selectedUniversity, priceRange, keyword]);
+  }, [activeRooms, selectedUniversity, priceRange, keyword]);
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -258,7 +263,7 @@ export const MapViewPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {filteredRooms.map((room) => (
+              {filteredRooms.map((room: Room) => (
                 <div
                   key={room.id}
                   ref={(el) => (cardRefs.current[room.id] = el)}
