@@ -301,6 +301,48 @@ export const MapViewPage: React.FC = () => {
               {selectedUniObj ? `Quanh ${selectedUniObj.name} (2km)` : 'Bản đồ phòng trọ Hà Nội'}
             </span>
           </div>
+
+          {/* Mobile Bottom Room Preview Card (Slide-up on marker tap) */}
+          {(() => {
+            const activeRoom = rooms.find((r) => r.id === activeRoomId);
+            if (!activeRoom) return null;
+            return (
+              <div className="md:hidden absolute bottom-3 left-3 right-3 z-20 bg-white rounded-3xl p-3 shadow-2xl border border-gray-200 tap-bounce animate-fadeIn">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={activeRoom.images[0]}
+                    alt={activeRoom.title}
+                    className="w-18 h-18 rounded-2xl object-cover shrink-0"
+                  />
+                  <div className="flex-1 overflow-hidden space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-black text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-full">
+                        {formatPrice(activeRoom.price)}
+                      </span>
+                      <span className="text-[10px] text-gray-400 font-bold">{activeRoom.area}m²</span>
+                    </div>
+                    <h4 className="text-xs font-bold text-gray-900 truncate">{activeRoom.title}</h4>
+                    <p className="text-[10px] text-gray-500 truncate flex items-center gap-1">
+                      <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
+                      {activeRoom.address}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 pt-2 mt-2 border-t border-gray-100">
+                  <Link to={`/phong/${activeRoom.id}`} className="flex-1">
+                    <Button variant="primary" size="sm" className="w-full text-xs font-bold min-h-[38px]">
+                      Xem Chi Tiết Phòng
+                    </Button>
+                  </Link>
+                  <Link to={`/dat-lich/${activeRoom.id}`}>
+                    <Button variant="outline" size="sm" className="text-xs font-bold min-h-[38px]">
+                      Đặt Lịch
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     </div>

@@ -8,6 +8,8 @@ import { PushPermissionToast } from './components/ui/PushPermissionToast';
 import { useAppStore } from './store/useAppStore';
 import { Button } from './components/ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
+import { BackToTopButton } from './components/common/BackToTopButton';
+import { OfflineBanner } from './components/common/OfflineBanner';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 
@@ -487,6 +489,8 @@ export const App: React.FC = () => {
 
         <Footer />
         <MobileBottomNav />
+        <BackToTopButton />
+        <OfflineBanner />
         <PushPermissionToast />
         <ToastContainer />
       </div>

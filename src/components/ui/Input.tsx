@@ -32,7 +32,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
             ref={ref}
             className={twMerge(
               clsx(
-                'block w-full rounded-xl border bg-white px-3.5 py-2.5 text-sm text-gray-900 placeholder-gray-400 transition duration-150',
+                'block w-full rounded-xl border bg-white px-3.5 py-3 sm:py-2.5 min-h-[48px] sm:min-h-[42px] text-base sm:text-sm text-gray-900 placeholder-gray-400 transition duration-150 touch-manipulation',
                 'focus:outline-none focus:ring-2 focus:ring-[#006d37] focus:border-transparent',
                 leftIcon && 'pl-10',
                 rightIcon && 'pr-10',

@@ -46,17 +46,27 @@ export const Modal: React.FC<ModalProps> = ({
           />
 
           <motion.div
-            initial={{ opacity: 0, y: 40, scale: 0.98 }}
+            initial={{ opacity: 0, y: 60, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 40, scale: 0.98 }}
-            transition={{ duration: 0.2 }}
-            className={`relative w-full ${maxWClass} bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl p-6 sm:p-7 overflow-hidden z-10`}
+            exit={{ opacity: 0, y: 60, scale: 0.98 }}
+            transition={{ duration: 0.22, ease: 'easeOut' }}
+            drag="y"
+            dragConstraints={{ top: 0 }}
+            dragElastic={0.2}
+            onDragEnd={(_, info) => {
+              if (info.offset.y > 120) onClose();
+            }}
+            className={`relative w-full ${maxWClass} bg-white rounded-t-[2rem] sm:rounded-2xl shadow-2xl p-5 sm:p-7 overflow-hidden z-10 max-h-[90dvh] sm:max-h-none overflow-y-auto`}
+            style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1rem))' }}
           >
+            {/* Mobile Drag Down Bar Handle */}
+            <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto mb-3 sm:hidden cursor-grab active:cursor-grabbing" />
+
             <div className="flex items-center justify-between pb-3 border-b border-gray-100 mb-4">
-              <h3 className="text-lg font-bold text-gray-900">{title}</h3>
+              <h3 className="text-base sm:text-lg font-bold text-gray-900">{title}</h3>
               <button
                 onClick={onClose}
-                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-xl hover:bg-gray-100 transition"
+                className="text-gray-400 hover:text-gray-600 p-2 rounded-xl hover:bg-gray-100 transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center"
                 aria-label="Đóng cửa sổ"
               >
                 <X className="w-5 h-5" />

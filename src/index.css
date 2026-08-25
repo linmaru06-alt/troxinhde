@@ -12,6 +12,14 @@
   body {
     @apply bg-[#f9f9f9] text-[#1a1c1c] font-sans antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    overflow-x: hidden;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
   }
 
   /* Custom scrollbar */
@@ -42,6 +50,33 @@
     text-wrap: balance;
   }
 
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .pb-safe {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+  }
+
+  .pt-safe {
+    padding-top: max(0.5rem, env(safe-area-inset-top));
+  }
+
+  .h-dvh {
+    height: 100dvh;
+  }
+
+  .tap-bounce {
+    transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .tap-bounce:active {
+    transform: scale(0.96);
+  }
+
   .shimmer {
     background: linear-gradient(
       90deg,
@@ -52,6 +87,16 @@
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite;
   }
+}
+
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+.animate-heart-pop {
+  animation: heartPop 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 @keyframes shimmer {

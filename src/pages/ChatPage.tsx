@@ -65,8 +65,8 @@ export const ChatPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-      <div className="h-[calc(100vh-8.5rem)] bg-white rounded-3xl border border-gray-200 shadow-md flex overflow-hidden">
+    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 sm:py-4">
+      <div className="h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8.5rem)] bg-white rounded-3xl border border-gray-200 shadow-md flex overflow-hidden">
         {/* Left: Threads List (Hide on mobile if viewing thread) */}
         <aside
           className={`w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0 ${
@@ -88,7 +88,7 @@ export const ChatPage: React.FC = () => {
                 <div
                   key={t.id}
                   onClick={() => setActiveThreadId(t.id)}
-                  className={`p-4 flex items-start gap-3 cursor-pointer transition ${
+                  className={`p-4 flex items-start gap-3 cursor-pointer transition tap-bounce ${
                     isActive ? 'bg-emerald-50/70 border-l-4 border-[#006d37]' : 'hover:bg-gray-50'
                   }`}
                 >
@@ -122,9 +122,9 @@ export const ChatPage: React.FC = () => {
           {activeThread ? (
             <>
               {/* Header */}
-              <div className="p-3.5 bg-white border-b border-gray-200 flex items-center justify-between z-10 shadow-2xs">
+              <div className="p-3 bg-white border-b border-gray-200 flex items-center justify-between z-10 shadow-2xs">
                 <div className="flex items-center gap-3">
-                  <Link to="/tin-nhan" className="md:hidden p-1.5 rounded-xl hover:bg-gray-100 text-gray-600">
+                  <Link to="/tin-nhan" className="md:hidden p-2 rounded-xl hover:bg-gray-100 text-gray-600 tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center">
                     <ArrowLeft className="w-5 h-5" />
                   </Link>
                   <div className="relative">
@@ -140,43 +140,41 @@ export const ChatPage: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-gray-900">{otherParticipant?.name}</h3>
-                    <p className={`text-[11px] font-medium flex items-center gap-1 ${isOtherOnline ? 'text-emerald-600' : 'text-gray-400'}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${isOtherOnline ? 'bg-emerald-500 animate-pulse' : 'bg-gray-400'}`} />
-                      {lastSeenText}
-                    </p>
+                    <h3 className="text-sm font-bold text-gray-900 leading-none">{otherParticipant?.name}</h3>
+                    <span className="text-[10px] text-gray-500 mt-0.5 block">{lastSeenText}</span>
                   </div>
                 </div>
 
-                {activeThread.relatedRoomTitle && (
-                  <Link
-                    to={`/phong/${activeThread.relatedRoomId}`}
-                    className="hidden sm:flex items-center gap-2 p-2 bg-emerald-50 hover:bg-emerald-100 rounded-xl text-xs text-[#006d37] font-semibold transition max-w-xs truncate"
+                <div className="flex items-center gap-2">
+                  <a
+                    href="tel:0888110789"
+                    className="p-2 text-[#006d37] hover:bg-emerald-50 rounded-xl transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center"
+                    title="Gọi điện"
                   >
-                    <Home className="w-4 h-4 shrink-0" />
-                    <span className="truncate">{activeThread.relatedRoomTitle}</span>
-                  </Link>
-                )}
+                    <Phone className="w-4 h-4" />
+                  </a>
+                  {activeThread.relatedRoomTitle && (
+                    <Link
+                      to={`/phong/${activeThread.relatedRoomId}`}
+                      className="hidden sm:flex items-center gap-1 text-xs text-[#006d37] font-bold bg-emerald-50 px-3 py-1.5 rounded-xl hover:bg-emerald-100 transition"
+                    >
+                      <Home className="w-3.5 h-3.5" /> Xem phòng
+                    </Link>
+                  )}
+                </div>
               </div>
 
-              {/* Messages Body */}
-              <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+              {/* Messages Scroll Area */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
                 {threadMessages.map((msg) => {
                   const isMe = msg.senderId === currentUser?.id;
                   return (
-                    <div key={msg.id} className={`flex items-end gap-2 ${isMe ? 'justify-end' : 'justify-start'}`}>
-                      {!isMe && (
-                        <img
-                          src={msg.senderAvatar}
-                          alt=""
-                          className="w-7 h-7 rounded-full object-cover shrink-0 mb-1"
-                        />
-                      )}
+                    <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
                       <div
-                        className={`max-w-xs sm:max-w-md p-3.5 rounded-2xl text-xs leading-relaxed shadow-xs ${
+                        className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs shadow-2xs leading-relaxed ${
                           isMe
-                            ? 'bg-[#006d37] text-white rounded-br-xs'
-                            : 'bg-white text-gray-900 border border-gray-200 rounded-bl-xs'
+                            ? 'bg-[#00a854] text-white rounded-br-none'
+                            : 'bg-white text-gray-900 border border-gray-100 rounded-bl-none'
                         }`}
                       >
                         <p>{msg.text}</p>
@@ -194,13 +192,13 @@ export const ChatPage: React.FC = () => {
               </div>
 
               {/* Quick Reply Chips */}
-              <div className="px-4 py-2 bg-white border-t border-gray-100 flex items-center gap-2 overflow-x-auto">
-                <span className="text-[11px] font-bold text-gray-400 uppercase shrink-0">Gợi ý:</span>
+              <div className="px-3 py-2 bg-white border-t border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                <span className="text-[10px] font-bold text-gray-400 uppercase shrink-0">Gợi ý:</span>
                 {quickReplies.map((r, i) => (
                   <button
                     key={i}
                     onClick={() => handleQuickReply(r)}
-                    className="text-[11px] px-2.5 py-1 bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-lg transition shrink-0 font-medium"
+                    className="text-xs px-3 py-1.5 min-h-[32px] bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-xl transition shrink-0 font-medium tap-bounce"
                   >
                     {r}
                   </button>
@@ -208,15 +206,15 @@ export const ChatPage: React.FC = () => {
               </div>
 
               {/* Message Input Box */}
-              <form onSubmit={handleSend} className="p-3 bg-white border-t border-gray-200 flex items-center gap-2">
+              <form onSubmit={handleSend} className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-2">
                 <input
                   type="text"
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   placeholder="Nhập tin nhắn của bạn..."
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-xl px-4 py-2.5 text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
+                  className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
                 />
-                <Button type="submit" variant="primary" size="md" className="shrink-0">
+                <Button type="submit" variant="primary" size="md" className="shrink-0 min-h-[44px] min-w-[44px] rounded-2xl">
                   <Send className="w-4 h-4" />
                 </Button>
               </form>

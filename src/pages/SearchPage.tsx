@@ -300,12 +300,86 @@ export const SearchPage: React.FC = () => {
           )}
           <button
             onClick={clearAllFilters}
-            className="text-xs text-rose-600 font-black hover:underline flex items-center gap-1 ml-2"
+            className="text-xs text-rose-600 font-black hover:underline flex items-center gap-1 ml-2 tap-bounce"
           >
             <RotateCcw className="w-3 h-3" /> Đặt lại tất cả
           </button>
         </div>
       )}
+
+      {/* Mobile Quick Filter Chips Carousel (1-touch filters) */}
+      <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-4 px-4 sm:mx-0 sm:px-0">
+        <button
+          onClick={() => updateParam('xacMinh', verifiedOnly ? '' : 'true')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            verifiedOnly
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          🛡️ Đã kiểm duyệt
+        </button>
+        <button
+          onClick={() => updateParam('gia', selectedPrice === '0-2500000' ? '' : '0-2500000')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            selectedPrice === '0-2500000'
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          💵 Dưới 2.5 triệu
+        </button>
+        <button
+          onClick={() => updateParam('gia', selectedPrice === '2500000-4000000' ? '' : '2500000-4000000')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            selectedPrice === '2500000-4000000'
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          ⚡ 2.5 - 4 triệu
+        </button>
+        <button
+          onClick={() => updateParam('truong', selectedSchool === 'ĐH Bách Khoa Hà Nội' ? '' : 'ĐH Bách Khoa Hà Nội')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            selectedSchool === 'ĐH Bách Khoa Hà Nội'
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          🎓 Bách Khoa
+        </button>
+        <button
+          onClick={() => updateParam('khuVuc', selectedDistrict === 'Quận Cầu Giấy' ? '' : 'Quận Cầu Giấy')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            selectedDistrict === 'Quận Cầu Giấy'
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          📍 Cầu Giấy
+        </button>
+        <button
+          onClick={() => updateParam('khuVuc', selectedDistrict === 'Quận Đống Đa' ? '' : 'Quận Đống Đa')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            selectedDistrict === 'Quận Đống Đa'
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          📍 Đống Đa
+        </button>
+        <button
+          onClick={() => updateParam('loai', selectedType === 'Studio' ? '' : 'Studio')}
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
+            selectedType === 'Studio'
+              ? 'bg-[#00a854] text-white shadow-xs'
+              : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
+          }`}
+        >
+          🏠 Studio
+        </button>
+      </div>
 
       {/* Main Content Layout: Sidebar + Grid */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6 items-start">

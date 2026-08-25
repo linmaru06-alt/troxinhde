@@ -75,7 +75,19 @@ export const RoomDetailPage: React.FC = () => {
   const estimatedServices = 150000; // cleaning, elevator, parking
   const totalEstimatedMonthly = room.price + estimatedElectricity + estimatedWater + estimatedInternet + estimatedServices;
 
-  const handleShare = () => {
+  const handleShare = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: room.title,
+          text: `Phòng trọ đẹp giá ${formatPrice(room.price)} tại ${room.address}`,
+          url: window.location.href,
+        });
+        return;
+      } catch (err) {
+        // Fallback to clipboard
+      }
+    }
     navigator.clipboard.writeText(window.location.href);
     showToast('Đã sao chép liên kết phòng trọ!', 'Bạn có thể gửi cho bạn bè để cùng xem.', 'success');
   };
@@ -817,6 +829,52 @@ export const RoomDetailPage: React.FC = () => {
         onClose={() => setShowLoginModal(false)}
         message="Vui lòng đăng nhập để bắt đầu nhắn tin với chủ trọ."
       />
+
+      {/* MOBILE STICKY BOTTOM ACTION BAR */}
+      <div
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 pt-2.5"
+        style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
+      >
+        <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+          {/* Price Preview */}
+          <div className="flex flex-col shrink-0">
+            <span className="text-[10px] font-bold text-gray-400 uppercase">Giá thuê</span>
+            <span className="text-base font-black text-[#006d37] leading-tight">
+              {formatPrice(room.price)}
+            </span>
+          </div>
+
+          {/* Quick Action Buttons */}
+          <div className="flex items-center gap-2 flex-1 justify-end">
+            <a
+              href={`tel:${room.ownerPhone || '0888110789'}`}
+              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
+              title="Gọi điện ngay"
+            >
+              <Phone className="w-5 h-5" />
+            </a>
+
+            <button
+              onClick={handleContactChat}
+              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
+              title="Nhắn tin"
+            >
+              <MessageSquare className="w-5 h-5" />
+            </button>
+
+            <Link to={`/dat-lich/${room.id}`} className="flex-1 max-w-[160px]">
+              <Button
+                variant="primary"
+                size="md"
+                className="w-full font-bold shadow-md h-11 text-xs px-2.5"
+                leftIcon={<Calendar className="w-4 h-4" />}
+              >
+                Đặt Lịch Xem
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
     </div>
   );
 };
