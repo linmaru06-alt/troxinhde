@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { createRoommatePost } from '../../lib/api/roommates';
 import {
   Users,
   Sparkles,
@@ -84,6 +85,19 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     }
 
     const selectedRoom = rooms.find((r) => r.id === linkedRoomId);
+    const posterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
+
+    createRoommatePost({
+      poster_id: posterId.length === 36 ? posterId : '00000000-0000-0000-0000-000000000003',
+      room_id: (selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
+      nickname: userName.trim(),
+      age: Number(userAge) || 20,
+      gender: userGender === 'Nam' ? 'male' : userGender === 'Nữ' ? 'female' : 'any',
+      preferred_gender: genderPreference === 'Chỉ tìm Nam' ? 'male' : genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
+      budget_per_person: Number(budgetShare) || 2000000,
+      lifestyle_tags: selectedHabits,
+      self_intro: intro.trim(),
+    }).catch((err) => console.warn('[Roommate] Lỗi lưu bài lên Cloud:', err));
 
     addRoommatePost({
       userId: currentUser?.id || `user_${Date.now()}`,
@@ -106,6 +120,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       status: 'Đang tìm',
     });
 
+    showToast('Đăng tin tìm bạn thành công!', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng.', 'success');
     onClose();
   };
 

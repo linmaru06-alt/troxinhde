@@ -20,6 +20,7 @@ import {
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
+import { createMarketplaceItem } from '../lib/api/marketplace';
 
 const DISTRICTS = [
   'Quận Cầu Giấy',
@@ -102,6 +103,25 @@ export const MarketplaceListPage: React.FC = () => {
       showToast('Vui lòng nhập tên món đồ', '', 'warning');
       return;
     }
+
+    const sellerId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
+    const catMap: Record<string, any> = {
+      'Nội thất': 'furniture',
+      'Đồ điện tử': 'electronics',
+      'Sách vở': 'books',
+      'Đồ gia dụng': 'household',
+    };
+
+    createMarketplaceItem({
+      seller_id: sellerId.length === 36 ? sellerId : '00000000-0000-0000-0000-000000000003',
+      title: title.trim(),
+      price: pricingType === 'Miễn phí' ? 0 : Number(price),
+      is_free: pricingType === 'Miễn phí',
+      category: catMap[category] || 'other',
+      district,
+      description: description || 'Đồ thanh lý sinh viên chính chủ.',
+      image_urls: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
+    }).catch((err) => console.warn('[Marketplace] Lỗi lưu đồ cũ lên Cloud:', err));
 
     addMarketplaceItem({
       userId: currentUser?.id || 'user_1',
