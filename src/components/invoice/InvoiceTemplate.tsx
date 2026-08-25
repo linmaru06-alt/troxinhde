@@ -54,7 +54,7 @@ export const InvoiceTemplate: React.FC<InvoiceProps> = ({
   sellerAddress = 'Số 18 Ngõ 167 Tây Sơn, P. Quang Trung, Q. Đống Đa, TP. Hà Nội',
   sellerPhone = '0888 110 789',
   sellerEmail = 'nguyenvuchinhb1hhb@gmail.com',
-  sellerBank = 'MB Bank (Ngân hàng Quân Đội) — STK: 0888110789 (NGUYEN VU CHINH)',
+  sellerBank = 'Techcombank (Ngân hàng TMCP Kỹ Thương Việt Nam) — STK: 0888110789 (NGUYEN VU CHINH)',
 }) => {
   const formatVND = (num: number) => {
     return new Intl.NumberFormat('vi-VN').format(Math.round(num)) + ' đ';

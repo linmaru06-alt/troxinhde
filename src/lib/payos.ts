@@ -38,11 +38,11 @@ export function generateVietQRUrl(bankId: string, accountNo: string, amount: num
 
 export async function createPaymentOrder(params: CreatePaymentRequest): Promise<PaymentLinkResponse> {
   const defaultBank = {
-    bankName: 'Ngân hàng Quân Đội (MB Bank)',
-    bankCode: 'MB',
+    bankName: 'Ngân hàng TMCP Kỹ Thương Việt Nam (Techcombank)',
+    bankCode: 'TCB',
     accountNumber: '0888110789',
     accountName: 'NGUYEN VU CHINH',
-    branch: 'Chi nhánh Đống Đa, Hà Nội',
+    branch: 'Chi nhánh Hà Nội',
   };
 
   // Generate unique 8-digit orderCode

@@ -84,7 +84,7 @@ export const PaymentResultPage: React.FC = () => {
         sellerAddress: '18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội',
         sellerPhone: '0888 110 789',
         sellerEmail: 'nguyenvuchinhb1hhb@gmail.com',
-        sellerBank: 'MB Bank (Ngân hàng Quân Đội) — STK: 0888110789',
+        sellerBank: 'Techcombank (Ngân hàng TMCP Kỹ Thương Việt Nam) — STK: 0888110789',
       });
 
       showToast('Tải biên lai thành công!', `Biên lai giao dịch #${orderId} đã được xuất thành công!`, 'success');

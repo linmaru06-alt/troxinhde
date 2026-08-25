@@ -172,7 +172,7 @@ export const CheckoutPage: React.FC = () => {
           receiverName: res.bankInfo.accountName,
           accountNumber: res.bankInfo.accountNumber,
           accountNumberLabel: 'Số tài khoản',
-          badgeLabel: 'MB Bank',
+          badgeLabel: 'Techcombank',
           transferContent: res.bankInfo.transferContent,
           payUrl: res.checkoutUrl,
         });
