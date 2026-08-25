@@ -8,10 +8,15 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   signOut as firebaseSignOut,
+  onAuthStateChanged,
+  onIdTokenChanged,
+  updateProfile,
   User as FirebaseUser,
+  IdTokenResult,
 } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -47,9 +52,14 @@ export {
   signInWithPhoneNumber,
   signInWithPopup,
   signInWithEmailAndPassword,
+  signInWithCustomToken,
   createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   firebaseSignOut,
+  onAuthStateChanged,
+  onIdTokenChanged,
+  updateProfile,
   firebaseConfig,
 };
-export type { ConfirmationResult, FirebaseUser };
+export type { ConfirmationResult, FirebaseUser, IdTokenResult };
+

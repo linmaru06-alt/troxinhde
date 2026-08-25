@@ -3,8 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
-import { Phone, Lock, LogIn, Mail, AlertCircle, ShieldCheck, Building2, User, Sparkles } from 'lucide-react';
-import { loginWithEmailPassword, loginWithGoogle } from '../lib/authService';
+import { Phone, Lock, LogIn, Mail, AlertCircle, ShieldCheck, Building2, User, Sparkles, Loader2 } from 'lucide-react';
+import { loginWithEmailPassword, loginWithGoogle, loginWithDemoAccount } from '../lib/authService';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -28,26 +28,24 @@ export const LoginPage: React.FC = () => {
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
+  const [demoLoadingType, setDemoLoadingType] = useState<string | null>(null);
 
   // 1. Xử lý đăng nhập bằng Email & Mật khẩu
-  const handleEmailLogin = async (e?: React.FormEvent, customEmail?: string, customPass?: string) => {
+  const handleEmailLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     setError('');
 
-    const targetEmail = customEmail || email;
-    const targetPass = customPass || password;
-
-    if (!targetEmail.trim()) {
+    if (!email.trim()) {
       setError('Vui lòng nhập địa chỉ Email.');
       return;
     }
-    if (!targetPass) {
+    if (!password) {
       setError('Vui lòng nhập mật khẩu.');
       return;
     }
 
     setIsLoading(true);
-    const res = await loginWithEmailPassword(targetEmail, targetPass);
+    const res = await loginWithEmailPassword(email, password);
     setIsLoading(false);
 
     if (res.success && res.user) {
@@ -149,12 +147,38 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // Chọn tài khoản demo 1 chạm
-  const selectDemoAccount = (demoEmail: string, demoPass: string) => {
-    setLoginMode('email');
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    handleEmailLogin(undefined, demoEmail, demoPass);
+  // 4. Xử lý đăng nhập Demo 1-chạm (Admin, Chủ trọ, Sinh viên) an toàn qua Token
+  const handleDemoLogin = async (demoType: 'admin' | 'owner' | 'renter') => {
+    setError('');
+    setDemoLoadingType(demoType);
+
+    const res = await loginWithDemoAccount(demoType);
+    setDemoLoadingType(null);
+
+    if (res.success && res.user) {
+      loginWithSocialUser({
+        id: res.user.id,
+        name: res.user.name,
+        email: res.user.email,
+        phone: res.user.phone,
+        role: res.user.role,
+        avatarUrl: res.user.avatarUrl,
+      });
+
+      showToast(`Đăng nhập tài khoản ${demoType.toUpperCase()} Demo thành công! 🎉`, `Chào mừng ${res.user.name}`, 'success');
+
+      if (returnUrl) {
+        navigate(decodeURIComponent(returnUrl));
+      } else if (res.user.role === 'owner') {
+        navigate('/chu-tro');
+      } else if (res.user.role === 'admin') {
+        navigate('/admin');
+      } else {
+        navigate('/tim-phong');
+      }
+    } else {
+      setError(res.error || 'Không thể kết nối tài khoản demo.');
+    }
   };
 
   return (
@@ -355,26 +379,43 @@ export const LoginPage: React.FC = () => {
           <div className="grid grid-cols-3 gap-2">
             <button
               type="button"
-              onClick={() => selectDemoAccount('admin@troxinh.vn', '12345678')}
-              className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-[11px] font-bold flex flex-col items-center gap-1 transition cursor-pointer"
+              onClick={() => handleDemoLogin('admin')}
+              disabled={Boolean(demoLoadingType)}
+              className="p-2.5 rounded-2xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-[11px] font-bold flex flex-col items-center gap-1 transition tap-bounce disabled:opacity-60 cursor-pointer shadow-2xs"
             >
-              <ShieldCheck className="w-4 h-4 text-purple-600" />
+              {demoLoadingType === 'admin' ? (
+                <Loader2 className="w-4 h-4 text-purple-600 animate-spin" />
+              ) : (
+                <ShieldCheck className="w-4 h-4 text-purple-600" />
+              )}
               <span>Admin</span>
             </button>
+
             <button
               type="button"
-              onClick={() => selectDemoAccount('chutro@troxinh.vn', '12345678')}
-              className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex flex-col items-center gap-1 transition cursor-pointer"
+              onClick={() => handleDemoLogin('owner')}
+              disabled={Boolean(demoLoadingType)}
+              className="p-2.5 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex flex-col items-center gap-1 transition tap-bounce disabled:opacity-60 cursor-pointer shadow-2xs"
             >
-              <Building2 className="w-4 h-4 text-amber-600" />
+              {demoLoadingType === 'owner' ? (
+                <Loader2 className="w-4 h-4 text-amber-600 animate-spin" />
+              ) : (
+                <Building2 className="w-4 h-4 text-amber-600" />
+              )}
               <span>Chủ Trọ</span>
             </button>
+
             <button
               type="button"
-              onClick={() => selectDemoAccount('nguoithue@troxinh.vn', '12345678')}
-              className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex flex-col items-center gap-1 transition cursor-pointer"
+              onClick={() => handleDemoLogin('renter')}
+              disabled={Boolean(demoLoadingType)}
+              className="p-2.5 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex flex-col items-center gap-1 transition tap-bounce disabled:opacity-60 cursor-pointer shadow-2xs"
             >
-              <User className="w-4 h-4 text-[#00a854]" />
+              {demoLoadingType === 'renter' ? (
+                <Loader2 className="w-4 h-4 text-[#00a854] animate-spin" />
+              ) : (
+                <User className="w-4 h-4 text-[#00a854]" />
+              )}
               <span>Sinh Viên</span>
             </button>
           </div>

@@ -2,6 +2,8 @@ export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
 
 export interface User {
   id: string;
+  firebaseUid?: string;
+  isDemoAccount?: boolean;
   phone?: string;
   name: string;
   role: 'user' | 'owner' | 'admin';

@@ -1,4 +1,5 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { auth } from './firebase';
 
 const DEFAULT_SUPABASE_URL = 'https://nanhmbnpihlaojbwfebb.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_aIbyNWURIM1qwQG6g_bTUg_lukLkC4f';
@@ -28,13 +29,32 @@ const supabaseAnonKey = getValidKey(import.meta.env.VITE_SUPABASE_ANON_KEY);
 
 export const isSupabaseConfigured = true;
 
+/**
+ * Lấy Firebase ID Token hiện tại của phiên đăng nhập
+ */
+export async function getFirebaseIdToken(forceRefresh = false): Promise<string | null> {
+  if (!auth || !auth.currentUser) return null;
+  try {
+    return await auth.currentUser.getIdToken(forceRefresh);
+  } catch (error) {
+    console.warn('[Supabase/Auth] Không thể lấy Firebase ID Token:', error);
+    return null;
+  }
+}
+
 let client: SupabaseClient;
 
 try {
   client = createClient(supabaseUrl, supabaseAnonKey, {
+    // 1. Tự động chuyển giao Firebase ID Token cho Supabase PostgREST & RPC & Realtime
+    accessToken: async () => {
+      return (await getFirebaseIdToken()) || undefined as any;
+    },
+    // 2. Tắt Supabase Auth nội bộ - Toàn quyền phiên đăng nhập do Firebase quản lý
     auth: {
-      persistSession: typeof window !== 'undefined',
-      autoRefreshToken: typeof window !== 'undefined',
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
     },
     realtime: {
       params: {
@@ -48,3 +68,4 @@ try {
 }
 
 export const supabase = client;
+

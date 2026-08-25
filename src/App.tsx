@@ -85,52 +85,57 @@ const PageSkeleton = () => (
 );
 
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
-import { supabase } from './lib/supabase';
-import { getSupabaseUserByEmail } from './lib/supabaseAuthSync';
+import { auth, onAuthStateChanged, onIdTokenChanged } from './lib/firebase';
+import { getProfileByFirebaseUid, syncFirebaseUserToSupabase } from './lib/authService';
 
-// Global Supabase Auth & Cloud Data Loader
+// Global Firebase Auth & Cloud Data Loader
 const AppCloudDataLoader: React.FC = () => {
-  const { loginWithSocialUser, showToast, currentUser, fetchInitialCloudData } = useAppStore();
+  const { loginWithSocialUser, logout, currentUser, fetchInitialCloudData } = useAppStore();
 
   React.useEffect(() => {
-    // 1. Tải dữ liệu thật từ Supabase Cloud khi mở web
+    // 1. Tải dữ liệu từ Supabase Cloud khi mở web
     fetchInitialCloudData();
 
-    // 2. Lắng nghe trạng thái đăng nhập Magic Link / Gmail OTP
-    const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
-      if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user && !currentUser) {
-        const email = session.user.email;
-        if (!email) return;
-
-        let dbUser = await getSupabaseUserByEmail(email);
-        if (dbUser) {
-          loginWithSocialUser({
-            id: dbUser.id,
-            name: dbUser.name,
-            email: dbUser.email,
-            phone: dbUser.phone,
-            role: dbUser.role as any,
-            avatarUrl: dbUser.avatar_url,
-          });
-        } else {
-          loginWithSocialUser({
-            id: session.user.id,
-            name: session.user.user_metadata?.name || email.split('@')[0],
-            email: email,
-            phone: session.user.phone || undefined,
-            role: 'user',
-            avatarUrl: '/images/user-avatar.jpg',
-          });
+    // 2. Lắng nghe trạng thái đăng nhập Firebase Auth duy nhất
+    const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        try {
+          const profile = await getProfileByFirebaseUid(fbUser.uid);
+          if (profile) {
+            loginWithSocialUser({
+              id: profile.id,
+              name: profile.name,
+              email: profile.email,
+              phone: profile.phone,
+              role: profile.role,
+              avatarUrl: profile.avatarUrl,
+            });
+          } else {
+            const synced = await syncFirebaseUserToSupabase(fbUser);
+            loginWithSocialUser({
+              id: synced.id,
+              name: synced.name,
+              email: synced.email,
+              phone: synced.phone,
+              role: synced.role,
+              avatarUrl: synced.avatarUrl,
+            });
+          }
+        } catch (err) {
+          console.warn('[Auth] Lỗi đồng bộ profile Firebase:', err);
         }
-
-        showToast('Xác thực qua Gmail thành công! 🎉', `Chào mừng ${email} đã đăng nhập.`, 'success');
+      } else {
+        // Nếu không có Firebase user và không phải tài khoản demo đang đăng nhập
+        if (currentUser && !currentUser.isDemoAccount && !currentUser.id.startsWith('demo_')) {
+          // logout();
+        }
       }
     });
 
     return () => {
-      authListener?.subscription?.unsubscribe();
+      unsubscribeAuth();
     };
-  }, [currentUser, loginWithSocialUser, showToast, fetchInitialCloudData]);
+  }, [fetchInitialCloudData, loginWithSocialUser]);
 
   return null;
 };

@@ -134,7 +134,16 @@ interface AppState {
   setCurrentUser: (user: User | null) => void;
   loginAsRole: (role: UserRole) => void;
   loginWithPhone: (phone: string, roleHint?: UserRole, nameHint?: string, emailHint?: string) => boolean;
-  loginWithSocialUser: (userData: { id: string; name: string; email?: string; phone?: string; role?: UserRole; avatarUrl?: string }) => void;
+  loginWithSocialUser: (userData: {
+    id: string;
+    firebaseUid?: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    role?: UserRole;
+    avatarUrl?: string;
+    isDemoAccount?: boolean;
+  }) => void;
   registerUser: (data: { name: string; phone: string; email?: string; id?: string; role?: UserRole }) => User;
   logout: () => void;
 
@@ -428,8 +437,10 @@ export const useAppStore = create<AppState>()(
       loginWithSocialUser: (userData) => {
         const userRole: 'user' | 'owner' | 'admin' = userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user';
         const userObj: User = {
-          id: userData.id || `usr_${Date.now()}`,
-          name: userData.name || 'Người Dùng Google',
+          id: userData.id,
+          firebaseUid: userData.firebaseUid,
+          isDemoAccount: userData.isDemoAccount,
+          name: userData.name || 'Người Dùng Trọ Xinh',
           email: userData.email,
           phone: userData.phone,
           role: userRole,
@@ -439,14 +450,6 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: userObj });
-        syncUserToSupabase({
-          id: userObj.id,
-          name: userObj.name,
-          email: userObj.email,
-          phone: userObj.phone,
-          role: userObj.role as any,
-          avatar_url: userObj.avatarUrl,
-        });
         get().showToast('Đăng nhập thành công! ✨', `Chào mừng ${userObj.name} quay lại.`, 'success');
       },
 

@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
-import { checkUserExists } from '../lib/supabaseAuthSync';
+import { registerWithEmailPassword } from '../lib/authService';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -59,40 +59,27 @@ export const RegisterPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 6. Kiểm tra xem Email hoặc SĐT đã tồn tại trên Supabase Database chưa
-      const existsCheck = await checkUserExists({
-        email: email.trim(),
-        phone: cleanPhone,
-      });
+      // 6. Đăng ký trực tiếp qua Firebase Auth & Đồng bộ Profile lên Supabase
+      const res = await registerWithEmailPassword(
+        email.trim(),
+        password,
+        name.trim(),
+        cleanPhone,
+        roleParam as any
+      );
 
-      if (existsCheck.exists) {
-        setIsLoading(false);
-        setError(existsCheck.message || 'Email hoặc Số điện thoại này đã được đăng ký!');
-        return;
-      }
-
-      // 7. Chuyển sang màn hình xác thực OTP SMS
       setIsLoading(false);
-      const queryParams = new URLSearchParams({
-        phone: cleanPhone,
-        name: name.trim(),
-        email: email.trim().toLowerCase(),
-        role: roleParam,
-        mode: 'phone',
-      });
-      if (returnUrl) {
-        queryParams.set('returnUrl', returnUrl);
-      }
 
-      // Lưu mật khẩu tạm vào sessionStorage để tạo user đầy đủ sau khi OTP thành công
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('reg_pass_temp', password);
+      if (res.success && res.user) {
+        navigate(
+          `/dang-nhap?registered=true${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`
+        );
+      } else {
+        setError(res.error || 'Đăng ký không thành công. Vui lòng thử lại!');
       }
-
-      navigate(`/xac-thuc-otp?${queryParams.toString()}`);
     } catch (err: any) {
       setIsLoading(false);
-      setError('Đã có lỗi xảy ra trong quá trình kiểm tra. Vui lòng thử lại!');
+      setError('Đã có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại!');
     }
   };
 
