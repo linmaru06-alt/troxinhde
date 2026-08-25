@@ -78,6 +78,7 @@ export const RegisterPage: React.FC = () => {
         name: name.trim(),
         email: email.trim().toLowerCase(),
         role: roleParam,
+        mode: 'phone',
       });
       if (returnUrl) {
         queryParams.set('returnUrl', returnUrl);

@@ -2,9 +2,18 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { useAppStore } from '../store/useAppStore';
-import { Mail, Phone, ArrowRight, RefreshCw, AlertCircle, CheckCircle2, ShieldCheck } from 'lucide-react';
+import {
+  Mail,
+  Phone,
+  ArrowRight,
+  RefreshCw,
+  AlertCircle,
+  Sparkles,
+  ArrowLeftRight,
+} from 'lucide-react';
 import { sendEmailOtp, verifyEmailOtp, sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
-import { syncUserToSupabase } from '../lib/supabaseAuthSync';
+import { syncUserToSupabase, getSupabaseUserByPhone, getSupabaseUserByEmail } from '../lib/supabaseAuthSync';
+import { auth, createUserWithEmailAndPassword } from '../lib/firebase';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +25,13 @@ export const OtpVerificationPage: React.FC = () => {
   const role = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
   const name = searchParams.get('name') || '';
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
+  const modeParam = searchParams.get('mode') as 'phone' | 'email' | null;
+
+  // Xác định chế độ xác thực ban đầu (Ưu tiên Phone nếu đăng ký SĐT hoặc có param mode=phone)
+  const initialMode: 'phone' | 'email' =
+    modeParam === 'email' || (!phone && Boolean(email))
+      ? 'email'
+      : 'phone';
 
   // Chuỗi lưu trữ mã OTP 6 số
   const [otp, setOtp] = useState<string>('');
@@ -26,7 +42,8 @@ export const OtpVerificationPage: React.FC = () => {
   const [verificationId, setVerificationId] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
-  const [authMode, setAuthMode] = useState<'email' | 'phone'>('email');
+  const [authMode, setAuthMode] = useState<'email' | 'phone'>(initialMode);
+  const [simulatedCode, setSimulatedCode] = useState<string>('');
 
   const masterInputRef = useRef<HTMLInputElement>(null);
   const hasSentRef = useRef<boolean>(false);
@@ -36,14 +53,14 @@ export const OtpVerificationPage: React.FC = () => {
     masterInputRef.current?.focus();
   }, []);
 
-  // 2. Tự động gửi mã OTP khi mở trang lần đầu
-  useEffect(() => {
-    if (hasSentRef.current) return;
-    hasSentRef.current = true;
-
-    async function triggerInitialSend() {
+  // Hàm gửi mã OTP
+  const triggerSendOtp = useCallback(
+    async (mode: 'email' | 'phone') => {
       setIsSending(true);
-      if (email) {
+      setErrorMsg('');
+      setSimulatedCode('');
+
+      if (mode === 'email' && email) {
         setAuthMode('email');
         const res = await sendEmailOtp(email);
         setIsSending(false);
@@ -60,19 +77,53 @@ export const OtpVerificationPage: React.FC = () => {
         setAuthMode('phone');
         const res = await sendPhoneOtp(phone, 'recaptcha-container');
         setIsSending(false);
-        if (res.success && res.verificationId) {
-          setVerificationId(res.verificationId);
-          showToast(
-            'Đã kích hoạt gửi OTP SMS!',
-            'Vui lòng kiểm tra tin nhắn trên điện thoại.',
-            'info'
-          );
+        if (res.success) {
+          if (res.verificationId) {
+            setVerificationId(res.verificationId);
+          }
+          if (res.isSimulated && res.demoOtp) {
+            setSimulatedCode(res.demoOtp);
+            showToast(
+              `Mã OTP thử nghiệm: ${res.demoOtp}`,
+              'Môi trường chạy thử nghiệm SMS.',
+              'info'
+            );
+          } else {
+            showToast(
+              'Đã kích hoạt gửi OTP SMS!',
+              'Vui lòng kiểm tra tin nhắn trên điện thoại.',
+              'info'
+            );
+          }
+        } else {
+          setErrorMsg(res.error || 'Không thể gửi tin nhắn SMS.');
         }
+      } else {
+        setIsSending(false);
+        setErrorMsg('Không tìm thấy thông tin Số điện thoại hoặc Email để gửi mã.');
       }
-    }
+    },
+    [email, phone, showToast]
+  );
 
-    triggerInitialSend();
-  }, [email, phone, showToast]);
+  // 2. Tự động gửi mã OTP khi mở trang lần đầu
+  useEffect(() => {
+    if (hasSentRef.current) return;
+    hasSentRef.current = true;
+    triggerSendOtp(initialMode);
+  }, [initialMode, triggerSendOtp]);
+
+  // Cleanup reCAPTCHA khi unmount
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && window.recaptchaVerifier) {
+        try {
+          window.recaptchaVerifier.clear();
+        } catch (e) {}
+        window.recaptchaVerifier = undefined;
+      }
+    };
+  }, []);
 
   // 3. Đồng hồ đếm ngược 60s
   useEffect(() => {
@@ -123,10 +174,32 @@ export const OtpVerificationPage: React.FC = () => {
       }
 
       if (isSuccess) {
-        const userId = verifiedUser?.id || verifiedUser?.uid || `usr_${Date.now()}`;
+        let userId = verifiedUser?.id || verifiedUser?.uid || `usr_${Date.now()}`;
 
         if (name) {
-          // Lưu thông tin người dùng vào Supabase
+          // LUỒNG ĐĂNG KÝ MỚI:
+          // 1. Kiểm tra nếu có mật khẩu tạm -> Khởi tạo user trên Firebase Auth (để sau này đăng nhập bằng password)
+          const tempPassword =
+            typeof window !== 'undefined' ? sessionStorage.getItem('reg_pass_temp') : null;
+
+          if (tempPassword && email) {
+            try {
+              const fbCred = await createUserWithEmailAndPassword(
+                auth,
+                email.trim().toLowerCase(),
+                tempPassword
+              );
+              if (fbCred.user) {
+                userId = fbCred.user.uid;
+              }
+            } catch (fbErr: any) {
+              console.warn('[Firebase Auth] Đăng ký email pass nền:', fbErr);
+            } finally {
+              sessionStorage.removeItem('reg_pass_temp');
+            }
+          }
+
+          // 2. Lưu thông tin người dùng vào Supabase Database
           await syncUserToSupabase({
             id: userId,
             name: name.trim(),
@@ -139,11 +212,13 @@ export const OtpVerificationPage: React.FC = () => {
             owner_application_status: role === 'owner' ? 'pending' : 'none',
           });
 
+          // 3. Đồng bộ vào Zustand App Store
           registerUser({
             id: userId,
             name: name.trim(),
             phone: phone || '',
             email: email || '',
+            role: role === 'owner' ? 'owner' : 'user',
           });
 
           showToast(
@@ -152,7 +227,27 @@ export const OtpVerificationPage: React.FC = () => {
             'success'
           );
         } else {
-          loginWithPhone(phone || email, role === 'owner' ? 'owner' : 'user');
+          // LUỒNG ĐĂNG NHẬP:
+          // Thử tải thông tin người dùng đã có trên Supabase để không bị gán tên mặc định
+          let existingProfile = null;
+          if (phone) {
+            existingProfile = await getSupabaseUserByPhone(phone);
+          }
+          if (!existingProfile && email) {
+            existingProfile = await getSupabaseUserByEmail(email);
+          }
+
+          if (existingProfile) {
+            loginWithPhone(
+              phone || email,
+              existingProfile.role as any,
+              existingProfile.name,
+              existingProfile.email
+            );
+          } else {
+            loginWithPhone(phone || email, role === 'owner' ? 'owner' : 'user');
+          }
+
           showToast('Đăng nhập thành công! 👋', 'Chào mừng bạn quay trở lại Trọ Xinh.', 'success');
         }
 
@@ -175,7 +270,20 @@ export const OtpVerificationPage: React.FC = () => {
         setTimeout(() => setIsErrorShake(false), 600);
       }
     },
-    [isLoading, authMode, email, phone, verificationId, name, role, returnUrl, registerUser, loginWithPhone, showToast, navigate]
+    [
+      isLoading,
+      authMode,
+      email,
+      phone,
+      verificationId,
+      name,
+      role,
+      returnUrl,
+      registerUser,
+      loginWithPhone,
+      showToast,
+      navigate,
+    ]
   );
 
   // 5. Xử lý gõ phím / paste vào input chính
@@ -197,28 +305,27 @@ export const OtpVerificationPage: React.FC = () => {
   const handleResend = async () => {
     if (countdown > 0 || isSending) return;
 
-    setIsSending(true);
-    setErrorMsg('');
     setOtp('');
+    setCountdown(60);
     masterInputRef.current?.focus();
+    await triggerSendOtp(authMode);
+  };
 
-    if (email) {
-      const res = await sendEmailOtp(email);
-      setIsSending(false);
-      if (res.success) {
-        setCountdown(60);
-        showToast('Đã gửi lại mã OTP mới! 📧', 'Vui lòng kiểm tra hòm thư Gmail (hoặc Spam).', 'success');
-      } else {
-        setErrorMsg(res.error || 'Gửi lại mã thất bại.');
-      }
-    } else if (phone) {
-      const res = await sendPhoneOtp(phone, 'recaptcha-container');
-      setIsSending(false);
-      if (res.success && res.verificationId) {
-        setVerificationId(res.verificationId);
-        setCountdown(60);
-        showToast('Đã gửi lại mã OTP SMS mới!', 'Vui lòng kiểm tra tin nhắn điện thoại.', 'info');
-      }
+  // 7. Chuyển đổi phương thức nhận mã (SMS <-> Email)
+  const handleSwitchAuthMode = (newMode: 'email' | 'phone') => {
+    if (isSending || isLoading || newMode === authMode) return;
+    setAuthMode(newMode);
+    setOtp('');
+    setErrorMsg('');
+    setCountdown(60);
+    triggerSendOtp(newMode);
+  };
+
+  // Tự động điền mã thử nghiệm nếu có
+  const handleAutofillDemo = () => {
+    if (simulatedCode) {
+      setOtp(simulatedCode);
+      handleVerifyOtp(simulatedCode);
     }
   };
 
@@ -235,12 +342,55 @@ export const OtpVerificationPage: React.FC = () => {
           </div>
           <h1 className="text-xl font-bold text-gray-900">Xác Thực Mã OTP</h1>
           <p className="text-xs text-gray-500">
-            Mã OTP 6 số đã được gửi tự động tới:{' '}
+            Mã OTP 6 số được gửi qua{' '}
+            <strong className="text-gray-900">
+              {authMode === 'email' ? 'Gmail' : 'SMS Số điện thoại'}
+            </strong>{' '}
+            tới:
             <strong className="text-gray-900 block mt-1 font-semibold break-all">
-              {email || phone}
+              {authMode === 'email' ? email : phone}
             </strong>
           </p>
         </div>
+
+        {/* Toggle chuyển đổi phương thức nhận OTP nếu có cả Email và SĐT */}
+        {email && phone && (
+          <div className="flex items-center justify-center">
+            <button
+              type="button"
+              onClick={() => handleSwitchAuthMode(authMode === 'phone' ? 'email' : 'phone')}
+              disabled={isSending || isLoading}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-emerald-50 text-[#00a854] hover:bg-emerald-100 transition-colors cursor-pointer border border-emerald-200"
+            >
+              <ArrowLeftRight className="w-3.5 h-3.5" />
+              <span>
+                {authMode === 'phone'
+                  ? 'Nhận mã qua Gmail thay thế'
+                  : 'Nhận mã qua SMS Số điện thoại'}
+              </span>
+            </button>
+          </div>
+        )}
+
+        {/* Banner hỗ trợ mã giả lập khi Firebase SMS chạy chế độ test */}
+        {simulatedCode && (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-800 text-xs rounded-2xl flex items-center justify-between gap-2 animate-fadeIn">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 shrink-0 text-amber-600" />
+              <div>
+                <span className="font-bold">Mã OTP thử nghiệm: </span>
+                <span className="font-mono font-bold text-sm text-amber-900">{simulatedCode}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleAutofillDemo}
+              className="px-2.5 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-[11px] transition-colors cursor-pointer"
+            >
+              Tự điền mã
+            </button>
+          </div>
+        )}
 
         {/* Error message */}
         {errorMsg && (
@@ -251,7 +401,7 @@ export const OtpVerificationPage: React.FC = () => {
         )}
 
         <div className="space-y-6">
-          {/* CỤM 6 Ô NHẬP OTP THEO TIÊU CHUẨN CAO CẤP QUỐC TẾ (STRIPE/AIRBNB PATTERN) */}
+          {/* CỤM 6 Ô NHẬP OTP THEO TIÊU CHUẨN CAO CẤP QUỐC TẾ */}
           <div
             className="relative cursor-text"
             onClick={() => masterInputRef.current?.focus()}

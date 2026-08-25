@@ -126,7 +126,7 @@ interface AppState {
   loginAsRole: (role: UserRole) => void;
   loginWithPhone: (phone: string, roleHint?: UserRole, nameHint?: string, emailHint?: string) => boolean;
   loginWithSocialUser: (userData: { id: string; name: string; email?: string; phone?: string; role?: UserRole; avatarUrl?: string }) => void;
-  registerUser: (data: { name: string; phone: string; email?: string; id?: string }) => User;
+  registerUser: (data: { name: string; phone: string; email?: string; id?: string; role?: UserRole }) => User;
   logout: () => void;
 
   // Owner Upgrade Applications
@@ -438,16 +438,17 @@ export const useAppStore = create<AppState>()(
         get().showToast('Đăng nhập thành công! ✨', `Chào mừng ${userObj.name} quay lại.`, 'success');
       },
 
-      registerUser: ({ name, phone, email, id }) => {
+      registerUser: ({ name, phone, email, id, role }) => {
+        const targetRole: 'user' | 'owner' | 'admin' = role === 'owner' ? 'owner' : role === 'admin' ? 'admin' : 'user';
         const newUser: User = {
           id: id || `user_${Date.now()}`,
           name,
           phone,
           email,
-          role: 'user',
+          role: targetRole,
           avatarUrl: '/images/user-avatar.jpg',
           verified: true,
-          ownerApplicationStatus: 'none',
+          ownerApplicationStatus: targetRole === 'owner' ? 'pending' : 'none',
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: newUser });
@@ -456,7 +457,7 @@ export const useAppStore = create<AppState>()(
           name: newUser.name,
           phone: newUser.phone,
           email: newUser.email,
-          role: 'user',
+          role: targetRole,
           avatar_url: newUser.avatarUrl,
         });
         get().showToast(

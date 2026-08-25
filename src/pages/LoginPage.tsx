@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
-import { Phone, Lock, LogIn, Mail, AlertCircle, ShieldCheck, Building2, User } from 'lucide-react';
+import { Phone, Lock, LogIn, Mail, AlertCircle, ShieldCheck, Building2, User, Sparkles } from 'lucide-react';
 import { loginWithEmailPassword, loginWithGoogle } from '../lib/authService';
 
 export const LoginPage: React.FC = () => {
@@ -14,16 +14,16 @@ export const LoginPage: React.FC = () => {
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
   const roleParam = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
 
-  // Mode: 'email' hoặc 'phone'
-  const [loginMode, setLoginMode] = useState<'email' | 'phone'>('email');
+  // Mode: 'email' (Email + Mật khẩu) | 'otp' (Mã OTP)
+  const [loginMode, setLoginMode] = useState<'email' | 'otp'>('email');
+  // OTP sub-mode: 'email' (Nhận qua Gmail) | 'phone' (Nhận qua SMS)
+  const [otpSubMode, setOtpSubMode] = useState<'email' | 'phone'>('email');
 
-  // Email form states
+  // Form states
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [rememberMe, setRememberMe] = useState<boolean>(true);
-
-  // Phone form states
   const [phone, setPhone] = useState<string>('');
+  const [rememberMe, setRememberMe] = useState<boolean>(true);
 
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -60,6 +60,8 @@ export const LoginPage: React.FC = () => {
         avatarUrl: res.user.avatarUrl,
       });
 
+      showToast('Đăng nhập thành công! 👋', `Chào mừng ${res.user.name}`, 'success');
+
       if (returnUrl) {
         navigate(decodeURIComponent(returnUrl));
       } else if (res.user.role === 'owner') {
@@ -74,25 +76,43 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // 2. Xử lý đăng nhập bằng SMS OTP Số điện thoại
-  const handlePhoneSubmit = (e: React.FormEvent) => {
+  // 2. Xử lý đăng nhập bằng Mã OTP (Gmail hoặc SĐT)
+  const handleOtpSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
-    const cleanPhone = phone.trim().replace(/\D/g, '');
-    if (!cleanPhone || cleanPhone.length < 10) {
-      setError('Số điện thoại không hợp lệ (tối thiểu 10 chữ số).');
-      return;
-    }
+    if (otpSubMode === 'email') {
+      const cleanEmail = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!cleanEmail || !emailRegex.test(cleanEmail)) {
+        setError('Vui lòng nhập địa chỉ Email Gmail hợp lệ.');
+        return;
+      }
 
-    setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
-      const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&role=${roleParam}${
-        returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
-      }`;
-      navigate(otpUrl);
-    }, 250);
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        const otpUrl = `/xac-thuc-otp?email=${encodeURIComponent(cleanEmail)}&role=${roleParam}&mode=email${
+          returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
+        }`;
+        navigate(otpUrl);
+      }, 200);
+    } else {
+      const cleanPhone = phone.trim().replace(/\D/g, '');
+      if (!cleanPhone || cleanPhone.length < 10) {
+        setError('Số điện thoại không hợp lệ (tối thiểu 10 chữ số).');
+        return;
+      }
+
+      setIsLoading(true);
+      setTimeout(() => {
+        setIsLoading(false);
+        const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&role=${roleParam}&mode=phone${
+          returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
+        }`;
+        navigate(otpUrl);
+      }, 200);
+    }
   };
 
   // 3. Xử lý đăng nhập 1-chạm bằng Google OAuth
@@ -170,16 +190,16 @@ export const LoginPage: React.FC = () => {
           <button
             type="button"
             onClick={() => {
-              setLoginMode('phone');
+              setLoginMode('otp');
               setError('');
             }}
             className={`flex-1 py-2 text-xs font-bold rounded-xl transition-all ${
-              loginMode === 'phone'
+              loginMode === 'otp'
                 ? 'bg-white text-gray-900 shadow-xs'
                 : 'text-gray-500 hover:text-gray-900'
             }`}
           >
-            Mã SMS OTP
+            Mã OTP (Gmail / SMS)
           </button>
         </div>
 
@@ -244,21 +264,75 @@ export const LoginPage: React.FC = () => {
             >
               Đăng Nhập
             </Button>
+
+            <div className="text-center pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setLoginMode('otp');
+                  setOtpSubMode('email');
+                }}
+                className="text-xs text-[#00a854] hover:underline font-semibold inline-flex items-center gap-1 cursor-pointer"
+              >
+                <Sparkles className="w-3.5 h-3.5" />
+                <span>Hoặc đăng nhập không cần mật khẩu bằng mã OTP Gmail →</span>
+              </button>
+            </div>
           </form>
         )}
 
-        {/* FORM 2: SMS OTP */}
-        {loginMode === 'phone' && (
-          <form onSubmit={handlePhoneSubmit} className="space-y-4">
-            <Input
-              label="Số điện thoại của bạn"
-              type="tel"
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              placeholder="0988 110 789"
-              leftIcon={<Phone className="w-4 h-4" />}
-            />
+        {/* FORM 2: OTP (GMAIL / SMS) */}
+        {loginMode === 'otp' && (
+          <form onSubmit={handleOtpSubmit} className="space-y-4">
+            {/* Sub-selector for OTP destination */}
+            <div className="grid grid-cols-2 gap-2 p-1 bg-gray-50 border border-gray-200 rounded-xl">
+              <button
+                type="button"
+                onClick={() => setOtpSubMode('email')}
+                className={`py-1.5 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  otpSubMode === 'email'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-gray-600 hover:bg-gray-200/60'
+                }`}
+              >
+                <Mail className="w-3.5 h-3.5" />
+                <span>Nhận qua Gmail</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setOtpSubMode('phone')}
+                className={`py-1.5 px-2 text-xs font-bold rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  otpSubMode === 'phone'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'text-gray-600 hover:bg-gray-200/60'
+                }`}
+              >
+                <Phone className="w-3.5 h-3.5" />
+                <span>Nhận qua SMS</span>
+              </button>
+            </div>
+
+            {otpSubMode === 'email' ? (
+              <Input
+                label="Địa chỉ Gmail của bạn"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="nguyenvana@gmail.com"
+                leftIcon={<Mail className="w-4 h-4" />}
+              />
+            ) : (
+              <Input
+                label="Số điện thoại của bạn"
+                type="tel"
+                required
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="0988 110 789"
+                leftIcon={<Phone className="w-4 h-4" />}
+              />
+            )}
 
             <Button
               type="submit"
@@ -266,9 +340,9 @@ export const LoginPage: React.FC = () => {
               size="lg"
               className="w-full"
               isLoading={isLoading}
-              leftIcon={<Phone className="w-4 h-4" />}
+              leftIcon={otpSubMode === 'email' ? <Mail className="w-4 h-4" /> : <Phone className="w-4 h-4" />}
             >
-              Nhận Mã Xác Thực SMS
+              {otpSubMode === 'email' ? 'Gửi Mã OTP Về Gmail' : 'Gửi Mã OTP Qua SMS'}
             </Button>
           </form>
         )}
@@ -282,7 +356,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => selectDemoAccount('admin@troxinh.vn', '12345678')}
-              className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-[11px] font-bold flex flex-col items-center gap-1 transition"
+              className="p-2 rounded-xl bg-purple-50 hover:bg-purple-100 border border-purple-200 text-purple-800 text-[11px] font-bold flex flex-col items-center gap-1 transition cursor-pointer"
             >
               <ShieldCheck className="w-4 h-4 text-purple-600" />
               <span>Admin</span>
@@ -290,7 +364,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => selectDemoAccount('chutro@troxinh.vn', '12345678')}
-              className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex flex-col items-center gap-1 transition"
+              className="p-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-800 text-[11px] font-bold flex flex-col items-center gap-1 transition cursor-pointer"
             >
               <Building2 className="w-4 h-4 text-amber-600" />
               <span>Chủ Trọ</span>
@@ -298,7 +372,7 @@ export const LoginPage: React.FC = () => {
             <button
               type="button"
               onClick={() => selectDemoAccount('nguoithue@troxinh.vn', '12345678')}
-              className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex flex-col items-center gap-1 transition"
+              className="p-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-emerald-800 text-[11px] font-bold flex flex-col items-center gap-1 transition cursor-pointer"
             >
               <User className="w-4 h-4 text-[#00a854]" />
               <span>Sinh Viên</span>
@@ -320,7 +394,7 @@ export const LoginPage: React.FC = () => {
           type="button"
           onClick={handleGoogleLogin}
           disabled={isGoogleLoading}
-          className="w-full py-3 px-4 rounded-2xl border border-gray-300 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center gap-3 transition-all font-semibold text-xs text-gray-700 shadow-2xs hover:shadow-xs disabled:opacity-50"
+          className="w-full py-3 px-4 rounded-2xl border border-gray-300 hover:border-gray-400 hover:bg-gray-50 flex items-center justify-center gap-3 transition-all font-semibold text-xs text-gray-700 shadow-2xs hover:shadow-xs disabled:opacity-50 cursor-pointer"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
