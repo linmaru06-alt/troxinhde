@@ -33,6 +33,15 @@ import {
 import { signOut } from '../lib/api/auth';
 import { logoutAuth } from '../lib/authService';
 import { syncUserToSupabase } from '../lib/supabaseAuthSync';
+import {
+  fetchRoomsFromSupabase,
+  fetchBuildingsFromSupabase,
+  fetchRoommatesFromSupabase,
+  fetchMarketplaceItemsFromSupabase,
+  syncRoomToSupabase,
+  syncRoommatePostToSupabase,
+  syncMarketplaceItemToSupabase,
+} from '../lib/supabaseDataService';
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -176,6 +185,9 @@ interface AppState {
   // Toast
   showToast: (title: string, description?: string, type?: Toast['type']) => void;
   removeToast: (id: string) => void;
+
+  // Supabase Cloud Sync
+  fetchInitialCloudData: () => Promise<void>;
 
   // Debug & Reset
   resetAllData: () => void;
@@ -668,6 +680,8 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ rooms: [newRoom, ...state.rooms] }));
+        // Sync lên Supabase Cloud trong background
+        syncRoomToSupabase(newRoom).catch(console.warn);
         get().showToast('Đăng phòng thành công!', 'Tin đăng đang được kiểm duyệt (trong vòng 24h)', 'success');
         return newId;
       },
@@ -731,6 +745,8 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ roommates: [newPost, ...state.roommates] }));
+        // Sync lên Supabase Cloud
+        syncRoommatePostToSupabase(newPost).catch(console.warn);
         get().showToast('Đăng tin tìm bạn thành công!', 'Bài viết của bạn đã được hiển thị', 'success');
         return newId;
       },
@@ -743,6 +759,8 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set((state) => ({ marketplaceItems: [newItem, ...state.marketplaceItems] }));
+        // Sync lên Supabase Cloud
+        syncMarketplaceItemToSupabase(newItem).catch(console.warn);
         get().showToast('Đăng món đồ thành công!', 'Sản phẩm đã xuất hiện trên chợ đồ cũ', 'success');
         return newId;
       },
@@ -930,6 +948,26 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           toasts: state.toasts.filter((t) => t.id !== id),
         }));
+      },
+
+      fetchInitialCloudData: async () => {
+        try {
+          const [cloudRooms, cloudBuildings, cloudRoommates, cloudItems] = await Promise.all([
+            fetchRoomsFromSupabase(),
+            fetchBuildingsFromSupabase(),
+            fetchRoommatesFromSupabase(),
+            fetchMarketplaceItemsFromSupabase(),
+          ]);
+
+          set((state) => ({
+            rooms: cloudRooms.length > 0 ? cloudRooms : state.rooms,
+            buildings: cloudBuildings.length > 0 ? cloudBuildings : state.buildings,
+            roommates: cloudRoommates.length > 0 ? cloudRoommates : state.roommates,
+            marketplaceItems: cloudItems.length > 0 ? cloudItems : state.marketplaceItems,
+          }));
+        } catch (err) {
+          console.warn('[useAppStore] Không thể tải dữ liệu cloud:', err);
+        }
       },
 
       resetAllData: () => {

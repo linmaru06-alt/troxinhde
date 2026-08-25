@@ -86,11 +86,15 @@ import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
 import { supabase } from './lib/supabase';
 import { getSupabaseUserByEmail } from './lib/supabaseAuthSync';
 
-// Global Supabase Auth listener to handle Magic Link / Email link logins
-const SupabaseAuthListener: React.FC = () => {
-  const { loginWithSocialUser, showToast, currentUser } = useAppStore();
+// Global Supabase Auth & Cloud Data Loader
+const AppCloudDataLoader: React.FC = () => {
+  const { loginWithSocialUser, showToast, currentUser, fetchInitialCloudData } = useAppStore();
 
   React.useEffect(() => {
+    // 1. Tải dữ liệu thật từ Supabase Cloud khi mở web
+    fetchInitialCloudData();
+
+    // 2. Lắng nghe trạng thái đăng nhập Magic Link / Gmail OTP
     const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
       if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session?.user && !currentUser) {
         const email = session.user.email;
@@ -124,7 +128,7 @@ const SupabaseAuthListener: React.FC = () => {
     return () => {
       authListener?.subscription?.unsubscribe();
     };
-  }, [currentUser, loginWithSocialUser, showToast]);
+  }, [currentUser, loginWithSocialUser, showToast, fetchInitialCloudData]);
 
   return null;
 };
@@ -191,7 +195,7 @@ export const App: React.FC = () => {
   return (
     <BrowserRouter>
       <RouteNavigationHandler />
-      <SupabaseAuthListener />
+      <AppCloudDataLoader />
       <div className="flex flex-col min-h-screen">
         <Navbar />
 
