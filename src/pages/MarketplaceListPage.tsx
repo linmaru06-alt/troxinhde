@@ -4,18 +4,44 @@ import { useAppStore } from '../store/useAppStore';
 import { MarketplaceCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
-import { ShoppingBag, PlusCircle, Sparkles, Tag, Gift } from 'lucide-react';
+import {
+  ShoppingBag,
+  PlusCircle,
+  Sparkles,
+  Tag,
+  Gift,
+  Search,
+  SlidersHorizontal,
+  MapPin,
+  X,
+  ArrowUpDown,
+} from 'lucide-react';
 
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
 
+const DISTRICTS = [
+  'Quận Cầu Giấy',
+  'Quận Đống Đa',
+  'Quận Hai Bà Trưng',
+  'Quận Thanh Xuân',
+  'Quận Nam Từ Liêm',
+  'Quận Hà Đông',
+  'Quận Ba Đình',
+  'Quận Bắc Từ Liêm',
+  'Quận Hoàng Mai',
+];
+
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
   const { marketplaceItems, currentUser, addMarketplaceItem, showToast } = useAppStore();
 
+  const [searchKeyword, setSearchKeyword] = useState<string>('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
   const [selectedPricing, setSelectedPricing] = useState<string>('Tất cả');
+  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
+  const [selectedSort, setSelectedSort] = useState<string>('newest');
 
   // Create Item Modal State
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
@@ -32,13 +58,34 @@ export const MarketplaceListPage: React.FC = () => {
   const categories = ['Tất cả', 'Nội thất', 'Đồ điện tử', 'Sách vở', 'Đồ gia dụng'];
 
   const filteredItems = useMemo(() => {
-    return marketplaceItems.filter((item) => {
-      if (selectedCategory !== 'Tất cả' && item.category !== selectedCategory) return false;
-      if (selectedPricing === 'Miễn phí' && item.pricingType !== 'Miễn phí') return false;
-      if (selectedPricing === 'Giá rẻ' && item.pricingType !== 'Giá rẻ') return false;
-      return true;
-    });
-  }, [marketplaceItems, selectedCategory, selectedPricing]);
+    return marketplaceItems
+      .filter((item) => {
+        if (selectedCategory !== 'Tất cả' && item.category !== selectedCategory) return false;
+        if (selectedPricing === 'Miễn phí' && item.pricingType !== 'Miễn phí') return false;
+        if (selectedPricing === 'Giá rẻ' && item.pricingType !== 'Giá rẻ') return false;
+        if (selectedDistrict && item.district !== selectedDistrict) return false;
+
+        if (searchKeyword.trim()) {
+          const q = searchKeyword.toLowerCase();
+          const matchName = item.name.toLowerCase().includes(q);
+          const matchDesc = item.description.toLowerCase().includes(q);
+          const matchLoc = item.location.toLowerCase().includes(q);
+          const matchDist = item.district.toLowerCase().includes(q);
+          if (!matchName && !matchDesc && !matchLoc && !matchDist) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => {
+        if (selectedSort === 'price_asc') return a.price - b.price;
+        if (selectedSort === 'price_desc') return b.price - a.price;
+        if (selectedSort === 'free_first') {
+          if (a.pricingType === 'Miễn phí' && b.pricingType !== 'Miễn phí') return -1;
+          if (a.pricingType !== 'Miễn phí' && b.pricingType === 'Miễn phí') return 1;
+        }
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      });
+  }, [marketplaceItems, selectedCategory, selectedPricing, selectedDistrict, searchKeyword, selectedSort]);
 
   const handlePostItem = () => {
     if (!currentUser) {
@@ -81,14 +128,14 @@ export const MarketplaceListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
-      {/* Header Banner with Custom Marketplace Illustration Backdrop */}
+      {/* Header Banner */}
       <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
           style={{ backgroundImage: `url('/images/marketplace-banner.webp')` }}
         />
-        {/* Sophisticated Dark Gradient & Frosted Overlay for Maximum Contrast & Readability */}
+        {/* Dark Gradient & Frosted Overlay */}
         <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
         <div className="absolute inset-0 bg-linear-to-t from-slate-950/70 via-transparent to-transparent" />
 
@@ -97,7 +144,7 @@ export const MarketplaceListPage: React.FC = () => {
           <div className="space-y-3 max-w-xl">
             <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/15 hover:bg-white/20 rounded-full text-xs font-bold text-amber-300 border border-amber-400/30 backdrop-blur-md shadow-xs">
               <ShoppingBag className="w-4 h-4 text-amber-400" />
-              <span>Chợ Sinh Viên Sang Nhượng & Tặng Đồ 0đ</span>
+              <span>Giai Đoạn 4: Chợ Sinh Viên Sang Nhượng & Tặng Đồ 0đ</span>
             </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Chợ Đồ Cũ Sinh Viên <br />
@@ -114,46 +161,112 @@ export const MarketplaceListPage: React.FC = () => {
               size="lg"
               onClick={handlePostItem}
               leftIcon={<PlusCircle className="w-5 h-5" />}
-              className="font-bold shadow-lg"
+              className="font-bold shadow-lg cursor-pointer"
             >
-              Đăng Món Đồ Mới
+              Đăng Món Đồ Thanh Lý
             </Button>
           </div>
         </div>
       </div>
 
-      {/* Category Pills & Pricing Filter */}
-      <div className="flex flex-wrap items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-gray-200 shadow-xs">
-        {/* Category Tabs */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition shrink-0 ${
-                selectedCategory === cat
-                  ? 'bg-[#006d37] text-white shadow-xs'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-              }`}
+      {/* Filter Bar & Search */}
+      <div className="space-y-3 bg-white p-4 sm:p-5 rounded-3xl border border-gray-200 shadow-xs">
+        {/* Search & Sort Row */}
+        <div className="flex flex-col sm:flex-row items-center gap-3">
+          <div className="relative flex-1 w-full">
+            <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
+            <input
+              type="text"
+              value={searchKeyword}
+              onChange={(e) => setSearchKeyword(e.target.value)}
+              placeholder="Tìm theo tên món đồ (vd: tủ lạnh, bàn học, quạt máy, giáo trình...)"
+              className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+            />
+            {searchKeyword && (
+              <button onClick={() => setSearchKeyword('')} className="absolute right-3 top-2.5 text-gray-400">
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            {/* District Filter */}
+            <select
+              value={selectedDistrict}
+              onChange={(e) => setSelectedDistrict(e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] w-full sm:w-auto"
             >
-              {cat}
-            </button>
-          ))}
+              <option value="">Tất cả khu vực</option>
+              {DISTRICTS.map((d) => (
+                <option key={d} value={d}>
+                  {d}
+                </option>
+              ))}
+            </select>
+
+            {/* Sorting */}
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800 shrink-0">
+              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
+              <select
+                value={selectedSort}
+                onChange={(e) => setSelectedSort(e.target.value)}
+                className="bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="newest">Mới nhất</option>
+                <option value="price_asc">Giá: Thấp → Cao</option>
+                <option value="price_desc">Giá: Cao → Thấp</option>
+                <option value="free_first">Đồ tặng 0đ trước</option>
+              </select>
+            </div>
+          </div>
         </div>
 
-        {/* Pricing Toggle */}
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setSelectedPricing(selectedPricing === 'Miễn phí' ? 'Tất cả' : 'Miễn phí')}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border ${
-              selectedPricing === 'Miễn phí'
-                ? 'bg-emerald-500 text-white border-emerald-500'
-                : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
-            }`}
-          >
-            <Gift className="w-3.5 h-3.5" />
-            <span>Chỉ đồ tặng 0đ</span>
-          </button>
+        {/* Category Pills & Pricing Filter */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer ${
+                  selectedCategory === cat
+                    ? 'bg-[#006d37] text-white shadow-xs'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setSelectedPricing(selectedPricing === 'Miễn phí' ? 'Tất cả' : 'Miễn phí')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+                selectedPricing === 'Miễn phí'
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
+                  : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+              }`}
+            >
+              <Gift className="w-3.5 h-3.5" />
+              <span>Chỉ đồ tặng 0đ</span>
+            </button>
+
+            {(selectedCategory !== 'Tất cả' || selectedPricing !== 'Tất cả' || selectedDistrict || searchKeyword) && (
+              <button
+                onClick={() => {
+                  setSelectedCategory('Tất cả');
+                  setSelectedPricing('Tất cả');
+                  setSelectedDistrict('');
+                  setSearchKeyword('');
+                }}
+                className="text-xs text-rose-600 hover:underline font-bold flex items-center gap-0.5 ml-1"
+              >
+                <X className="w-3.5 h-3.5" />
+                Xóa lọc
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
