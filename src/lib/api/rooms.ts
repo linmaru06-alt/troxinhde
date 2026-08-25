@@ -19,12 +19,11 @@ export async function getRooms(filters?: RoomFilters) {
     .from('rooms')
     .select(`
       *,
-      room_images(*),
-      buildings(name, district, address, lat, lng),
-      profiles!owner_id(full_name, phone, avatar_url)
+      buildings(id, name, district, address, lat, lng, electricity_price, water_price),
+      profiles!owner_id(id, full_name, phone, avatar_url, app_role)
     `)
     .eq('moderation_status', 'approved')
-    .neq('status', 'hidden');
+    .neq('availability_status', 'rented');
 
   if (filters?.district && filters.district !== 'Tất cả quận') {
     query = query.eq('buildings.district', filters.district);
@@ -51,12 +50,11 @@ export async function getRoomById(id: string) {
     .from('rooms')
     .select(`
       *,
-      room_images(*),
       buildings(*),
       profiles!owner_id(*)
     `)
     .eq('id', id)
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;
@@ -65,8 +63,13 @@ export async function getRoomById(id: string) {
 export async function createRoom(roomData: {
   building_id: string;
   owner_id: string;
-  name: string;
+  title: string;
+  name?: string;
+  room_number?: string;
   price: number;
+  deposit?: number;
+  electricity_price?: number;
+  water_price?: number;
   area: number;
   room_type: string;
   amenities?: string[];
@@ -77,36 +80,32 @@ export async function createRoom(roomData: {
     return { id: `room_${Date.now()}`, ...roomData };
   }
 
+  const roomTitle = roomData.title || roomData.name || 'Phòng trọ mới';
+
   const { data: room, error } = await supabase
     .from('rooms')
     .insert({
       building_id: roomData.building_id,
       owner_id: roomData.owner_id,
-      name: roomData.name,
+      title: roomTitle,
+      name: roomTitle,
+      room_number: roomData.room_number || '101',
       price: roomData.price,
+      deposit: roomData.deposit || 0,
+      electricity_price: roomData.electricity_price || 3500,
+      water_price: roomData.water_price || 100000,
       area: roomData.area,
       room_type: roomData.room_type,
       amenities: roomData.amenities || [],
       description: roomData.description || '',
-      status: 'available',
+      images: roomData.images || [],
       moderation_status: 'pending',
+      availability_status: 'available',
     })
     .select()
     .single();
 
   if (error) throw error;
-
-  if (roomData.images && roomData.images.length > 0) {
-    const imageInserts = roomData.images.map((url, idx) => ({
-      room_id: room.id,
-      url,
-      order_index: idx,
-      is_cover: idx === 0,
-    }));
-
-    await supabase.from('room_images').insert(imageInserts);
-  }
-
   return room;
 }
 

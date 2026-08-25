@@ -7,9 +7,9 @@ export async function getConversations(userId: string) {
     .from('conversations')
     .select(`
       *,
-      rooms(name, price, room_images(url)),
-      p1:profiles!participant_1(id, full_name, avatar_url, role),
-      p2:profiles!participant_2(id, full_name, avatar_url, role)
+      rooms(id, title, price, images),
+      p1:profiles!participant_1(id, full_name, avatar_url, app_role, phone),
+      p2:profiles!participant_2(id, full_name, avatar_url, app_role, phone)
     `)
     .or(`participant_1.eq.${userId},participant_2.eq.${userId}`)
     .order('last_message_at', { ascending: false, nullsFirst: false });
