@@ -27,9 +27,21 @@ export async function getPendingRooms() {
   const { data, error } = await supabase
     .from('rooms')
     .select(`
-      *,
-      buildings(name, district, address),
-      profiles!owner_id(full_name, phone, avatar_url)
+      id,
+      title,
+      room_number,
+      room_type,
+      price,
+      deposit,
+      area,
+      floor,
+      status,
+      moderation_status,
+      rejection_reason,
+      images,
+      created_at,
+      buildings(id, name, district, address),
+      profiles!owner_id(id, full_name, phone, avatar_url)
     `)
     .eq('moderation_status', 'pending')
     .order('created_at', { ascending: false });
@@ -72,7 +84,7 @@ export async function getUsers() {
   // 1. Đọc từ bảng users (nơi lưu các tài khoản người dùng đăng ký)
   const { data: usersData, error: usersErr } = await supabase
     .from('users')
-    .select('*')
+    .select('id, name, full_name, phone, email, role, app_role, verified, is_demo_account, created_at')
     .order('created_at', { ascending: false });
 
   if (!usersErr && usersData && usersData.length > 0) {
@@ -82,7 +94,7 @@ export async function getUsers() {
   // 2. Fallback đọc bảng profiles
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('id, full_name, phone, email, role, app_role, avatar_url, created_at')
     .order('created_at', { ascending: false });
 
   if (error) throw error;
@@ -95,8 +107,16 @@ export async function getPendingOwnerApplications() {
   const { data, error } = await supabase
     .from('owner_applications')
     .select(`
-      *,
-      profiles!user_id(full_name, phone, avatar_url)
+      id,
+      user_id,
+      building_name,
+      address,
+      district,
+      id_card_number,
+      business_license_url,
+      status,
+      created_at,
+      profiles!user_id(id, full_name, phone, avatar_url)
     `)
     .eq('status', 'pending')
     .order('created_at', { ascending: false });

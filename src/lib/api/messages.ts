@@ -6,7 +6,10 @@ export async function getConversations(userId: string) {
   const { data, error } = await supabase
     .from('conversations')
     .select(`
-      *,
+      id,
+      last_message,
+      last_message_at,
+      created_at,
       rooms(id, title, price, images),
       p1:profiles!participant_1(id, full_name, avatar_url, app_role, phone),
       p2:profiles!participant_2(id, full_name, avatar_url, app_role, phone)
@@ -24,7 +27,12 @@ export async function getMessages(conversationId: string) {
   const { data, error } = await supabase
     .from('messages')
     .select(`
-      *,
+      id,
+      conversation_id,
+      sender_id,
+      content,
+      is_read,
+      created_at,
       sender:profiles!sender_id(id, full_name, avatar_url)
     `)
     .eq('conversation_id', conversationId)
