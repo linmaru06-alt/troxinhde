@@ -402,17 +402,18 @@ export const AuthModal: React.FC = () => {
               </div>
             </div>
 
-            {/* Form Số điện thoại hoặc Email */}
+            {/* Form Số điện thoại */}
             <form onSubmit={handleContinue} className="space-y-3">
               <div>
                 <input
-                  type="text"
+                  type="tel"
+                  inputMode="numeric"
                   value={identifier}
                   onChange={(e) => {
                     setIdentifier(e.target.value);
                     setErrorMsg('');
                   }}
-                  placeholder="Số điện thoại hoặc email"
+                  placeholder="Số điện thoại"
                   className="w-full px-4 py-3 bg-white border border-gray-300 focus:border-[#00a854] focus:ring-2 focus:ring-[#00a854]/20 rounded-2xl text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-hidden transition"
                 />
               </div>
