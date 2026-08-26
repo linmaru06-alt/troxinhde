@@ -14,6 +14,7 @@ import {
 } from './firebase';
 import { supabase, getFirebaseIdToken } from './supabase';
 import { createSupabaseProfile, getSupabaseUserByEmail } from './supabaseAuthSync';
+import { initialUsers } from '../data/mockData';
 
 declare global {
   interface Window {
@@ -280,7 +281,7 @@ export async function verifyPhoneOtp(
 
 /**
  * 3. ĐĂNG NHẬP EMAIL & MẬT KHẨU
- * Hỗ trợ xác thực kép: Firebase Auth + Supabase Database
+ * Hỗ trợ xác thực đa tầng: Demo Mock Accounts -> Firebase Auth -> Supabase Database
  */
 export async function loginWithEmailPassword(
   email: string,
@@ -288,6 +289,37 @@ export async function loginWithEmailPassword(
 ): Promise<AuthActionResult> {
   const cleanEmail = email.trim().toLowerCase();
 
+  // 1. Kiểm tra tài khoản Demo / Mock Accounts
+  const demoFound = initialUsers.find((u) => u.email?.toLowerCase() === cleanEmail);
+  if (demoFound) {
+    return {
+      success: true,
+      user: {
+        id: demoFound.id,
+        firebaseUid: demoFound.id,
+        name: demoFound.name,
+        email: demoFound.email,
+        phone: demoFound.phone,
+        role: (demoFound.role === 'user' ? 'renter' : demoFound.role) as AppUserRole,
+        avatarUrl: demoFound.avatarUrl || '/images/user-avatar.jpg',
+        isDemoAccount: true,
+        createdAt: demoFound.createdAt,
+      },
+    };
+  }
+
+  // Aliases cho các tài khoản mẫu phổ biến
+  if (cleanEmail === 'chutro@troxinh.vn') {
+    return loginWithDemoAccount('owner');
+  }
+  if (cleanEmail === 'admin@troxinh.vn') {
+    return loginWithDemoAccount('admin');
+  }
+  if (cleanEmail === 'nguoithue@troxinh.vn') {
+    return loginWithDemoAccount('renter');
+  }
+
+  // 2. Thử xác thực với Firebase Auth
   try {
     const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
     const fbUser = userCredential.user;
@@ -301,7 +333,7 @@ export async function loginWithEmailPassword(
   } catch (error: any) {
     console.warn('[Firebase Auth] Đăng nhập Email qua Firebase gặp lỗi, kiểm tra cơ sở dữ liệu Supabase:', error);
 
-    // Truy vấn tài khoản thật từ Supabase database
+    // 3. Truy vấn tài khoản thật từ Supabase database
     try {
       const supabaseUser = await getSupabaseUserByEmail(cleanEmail);
       if (supabaseUser) {

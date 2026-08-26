@@ -229,9 +229,19 @@ export const LoginPage: React.FC = () => {
 
         {/* Error message */}
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2 animate-shake">
+          <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2.5 animate-shake">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+            <div className="space-y-1 flex-1">
+              <span className="block font-medium">{error}</span>
+              {(error.includes('Không tìm thấy') || error.includes('Đăng ký') || error.includes('chưa có')) && (
+                <Link
+                  to={returnUrl ? `/dang-ky?returnUrl=${encodeURIComponent(returnUrl)}` : '/dang-ky'}
+                  className="inline-flex items-center gap-1 font-bold text-[#00a854] hover:underline pt-0.5"
+                >
+                  <span>👉 Bấm vào đây để Đăng ký tài khoản mới</span>
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
