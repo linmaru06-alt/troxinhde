@@ -1,90 +1,101 @@
 import React, { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { useAppStore } from '../store/useAppStore';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { useUIStore } from '../../store/useUIStore';
+import { useAppStore } from '../../store/useAppStore';
 import {
   loginWithGoogle,
   loginWithEmailPassword,
   loginWithDemoAccount,
-} from '../lib/authService';
+} from '../../lib/authService';
 import {
-  AlertCircle,
-  Sparkles,
+  X,
+  Phone,
+  Mail,
+  Lock,
   ArrowRight,
+  Sparkles,
+  ShieldCheck,
+  AlertCircle,
+  CheckCircle2,
   ChevronLeft,
 } from 'lucide-react';
 
-export const LoginPage: React.FC = () => {
+export const AuthModal: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
+  const { isAuthModalOpen, authModalMode, closeAuthModal } = useUIStore();
   const { loginWithSocialUser, showToast } = useAppStore();
 
-  const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
-  const roleParam = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
-
-  // Steps: 'main' | 'password' | 'otp'
+  // Screen steps: 'main' | 'password' | 'otp'
   const [step, setStep] = useState<'main' | 'password' | 'otp'>('main');
-  const [identifier, setIdentifier] = useState<string>('');
+  const [identifier, setIdentifier] = useState<string>(''); // Phone or Email
   const [password, setPassword] = useState<string>('');
   const [otpInput, setOtpInput] = useState<string>('');
   const [generatedOtp, setGeneratedOtp] = useState<string>('123456');
-
-  const [error, setError] = useState<string>('');
+  const [fullName, setFullName] = useState<string>('');
+  const [errorMsg, setErrorMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSocialLoading, setIsSocialLoading] = useState<string | null>(null);
 
+  if (!isAuthModalOpen) return null;
+
+  const currentPath = location.pathname + location.search;
   const isEmail = identifier.includes('@');
+  const isPhone = !isEmail && identifier.replace(/\D/g, '').length >= 9;
+  const isValidIdentifier = isEmail || isPhone;
 
-  const handleFinishLogin = (user: any) => {
-    loginWithSocialUser({
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      role: user.role,
-      avatarUrl: user.avatarUrl,
-    });
-
-    showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
-
-    if (returnUrl) {
-      navigate(decodeURIComponent(returnUrl));
-    } else if (user.role === 'owner') {
-      navigate('/chu-tro');
-    } else if (user.role === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/tim-phong');
-    }
+  const handleClose = () => {
+    setErrorMsg('');
+    setStep('main');
+    setIdentifier('');
+    setPassword('');
+    setOtpInput('');
+    closeAuthModal();
   };
 
-  // 1. Social: Google
+  // 1. Social Login: Google
   const handleGoogleLogin = async () => {
-    setError('');
+    setErrorMsg('');
     setIsSocialLoading('google');
     try {
-      const res = await loginWithGoogle(roleParam);
+      const res = await loginWithGoogle('renter');
       if (res.success && res.user) {
-        handleFinishLogin(res.user);
+        loginWithSocialUser({
+          id: res.user.id,
+          name: res.user.name,
+          email: res.user.email,
+          phone: res.user.phone,
+          role: res.user.role,
+          avatarUrl: res.user.avatarUrl,
+        });
+        showToast('Đăng nhập thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
+        handleClose();
       } else {
-        setError(res.error || 'Đăng nhập Google không thành công.');
+        setErrorMsg(res.error || 'Đăng nhập Google không thành công.');
       }
-    } catch {
-      setError('Lỗi khi kết nối Google.');
+    } catch (err: any) {
+      setErrorMsg('Lỗi khi xác thực tài khoản Google.');
     } finally {
       setIsSocialLoading(null);
     }
   };
 
-  // 2. Social: Facebook / Apple Simulation
+  // 2. Social Login: Facebook / Apple Simulation
   const handleFacebookLogin = async () => {
     setIsSocialLoading('facebook');
     try {
       const res = await loginWithDemoAccount('renter');
       if (res.success && res.user) {
-        handleFinishLogin({
-          ...res.user,
+        loginWithSocialUser({
+          id: res.user.id,
           name: 'Người dùng Facebook (Demo)',
+          email: 'facebook.user@troxinh.vn',
+          phone: '0988110789',
+          role: 'renter',
+          avatarUrl: '/images/user-avatar.jpg',
         });
+        showToast('Đăng nhập Facebook thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh', 'success');
+        handleClose();
       }
     } finally {
       setIsSocialLoading(null);
@@ -96,90 +107,139 @@ export const LoginPage: React.FC = () => {
     try {
       const res = await loginWithDemoAccount('renter');
       if (res.success && res.user) {
-        handleFinishLogin({
-          ...res.user,
+        loginWithSocialUser({
+          id: res.user.id,
           name: 'Người dùng Apple (Demo)',
+          email: 'apple.user@troxinh.vn',
+          phone: '0988110789',
+          role: 'renter',
+          avatarUrl: '/images/user-avatar.jpg',
         });
+        showToast('Đăng nhập Apple thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh', 'success');
+        handleClose();
       }
     } finally {
       setIsSocialLoading(null);
     }
   };
 
-  // 3. Form Submit (Tiếp tục)
-  const handleContinue = (e: React.FormEvent) => {
+  // 3. Xử lý khi bấm nút "Tiếp tục"
+  const handleContinue = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim()) return;
-    setError('');
+    setErrorMsg('');
+
+    const cleanInput = identifier.trim();
 
     if (isEmail) {
+      // Email -> Chuyển sang nhập mật khẩu hoặc OTP
       setStep('password');
     } else {
-      const cleanPhone = identifier.replace(/\D/g, '');
+      // Số điện thoại -> Tạo OTP và chuyển sang bước OTP
+      const cleanPhone = cleanInput.replace(/\D/g, '');
       if (cleanPhone.length < 10) {
-        setError('Số điện thoại không hợp lệ (tối thiểu 10 chữ số).');
+        setErrorMsg('Số điện thoại không hợp lệ (tối thiểu 10 số).');
         return;
       }
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(otpCode);
-      setStep('otp');
+
+      setIsLoading(true);
+      try {
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+        setGeneratedOtp(otpCode);
+        setStep('otp');
+      } finally {
+        setIsLoading(false);
+      }
     }
   };
 
-  // 4. Submit Password
+  // 4. Xử lý Đăng nhập Email & Mật khẩu
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password) {
-      setError('Vui lòng nhập mật khẩu.');
+      setErrorMsg('Vui lòng nhập mật khẩu.');
       return;
     }
 
     setIsLoading(true);
-    setError('');
+    setErrorMsg('');
 
     try {
       const res = await loginWithEmailPassword(identifier.trim().toLowerCase(), password);
       if (res.success && res.user) {
-        handleFinishLogin(res.user);
+        loginWithSocialUser({
+          id: res.user.id,
+          name: res.user.name,
+          email: res.user.email,
+          phone: res.user.phone,
+          role: res.user.role,
+          avatarUrl: res.user.avatarUrl,
+        });
+        showToast('Đăng nhập thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
+        handleClose();
       } else {
-        setError(res.error || 'Email hoặc mật khẩu không chính xác.');
+        setErrorMsg(res.error || 'Email hoặc mật khẩu không chính xác.');
       }
-    } catch {
-      setError('Đã có lỗi xảy ra khi xác thực.');
+    } catch (err: any) {
+      setErrorMsg('Đã có lỗi xảy ra khi đăng nhập.');
     } finally {
       setIsLoading(false);
     }
   };
 
-  // 5. Submit OTP
-  const handleOtpSubmit = (codeToVerify?: string) => {
+  // 5. Xử lý Xác thực OTP
+  const handleOtpSubmit = async (codeToVerify?: string) => {
     const finalCode = (codeToVerify || otpInput).trim();
     if (!finalCode || finalCode.length < 6) {
-      setError('Vui lòng nhập đủ 6 chữ số mã OTP.');
+      setErrorMsg('Vui lòng nhập đủ 6 chữ số mã OTP.');
       return;
     }
 
-    if (finalCode === generatedOtp || finalCode === '123456') {
-      const cleanPhone = identifier.replace(/\D/g, '');
-      handleFinishLogin({
-        id: `usr_${Date.now()}`,
-        name: `Khách hàng ${cleanPhone.slice(-4)}`,
-        phone: cleanPhone,
-        role: roleParam,
-        avatarUrl: '/images/user-avatar.jpg',
-      });
-    } else {
-      setError('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+    setIsLoading(true);
+    setErrorMsg('');
+
+    try {
+      if (finalCode === generatedOtp || finalCode === '123456') {
+        const cleanPhone = identifier.replace(/\D/g, '');
+        const mockUser = {
+          id: `usr_${Date.now()}`,
+          name: fullName.trim() || `Khách hàng ${cleanPhone.slice(-4)}`,
+          phone: cleanPhone,
+          role: 'renter' as const,
+          avatarUrl: '/images/user-avatar.jpg',
+        };
+
+        loginWithSocialUser(mockUser);
+        showToast('Xác thực thành công! 🎉', `Chào mừng bạn gia nhập Trọ Xinh`, 'success');
+        handleClose();
+      } else {
+        setErrorMsg('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  // 6. Quick Demo
+  // 6. Đăng nhập nhanh Demo
   const handleQuickDemo = async (role: 'renter' | 'owner' | 'admin') => {
     setIsLoading(true);
     try {
       const res = await loginWithDemoAccount(role);
       if (res.success && res.user) {
-        handleFinishLogin(res.user);
+        loginWithSocialUser({
+          id: res.user.id,
+          name: res.user.name,
+          email: res.user.email,
+          phone: res.user.phone,
+          role: res.user.role,
+          avatarUrl: res.user.avatarUrl,
+        });
+        showToast(
+          'Đăng nhập tài khoản mẫu thành công! 🎉',
+          `Bạn đang đăng nhập với quyền ${role === 'admin' ? 'Ban Quản Trị' : role === 'owner' ? 'Chủ Trọ' : 'Người Thuê'}`,
+          'success'
+        );
+        handleClose();
       }
     } finally {
       setIsLoading(false);
@@ -187,32 +247,42 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10 bg-gray-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+      {/* Container phong cách Chợ Tốt */}
       <div className="relative w-full max-w-[430px] bg-white rounded-3xl p-6 sm:p-7 shadow-2xl border border-gray-100 space-y-4 animate-scaleUp overflow-hidden">
+        {/* Nút đóng X */}
+        <button
+          onClick={handleClose}
+          className="absolute top-4 right-4 p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition z-10"
+          aria-label="Đóng"
+        >
+          <X className="w-5 h-5" />
+        </button>
+
         {/* Nút quay lại khi ở step con */}
         {step !== 'main' && (
           <button
             onClick={() => {
               setStep('main');
-              setError('');
+              setErrorMsg('');
             }}
-            className="absolute top-4 left-4 p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition z-10 flex items-center gap-1 text-xs font-semibold cursor-pointer"
+            className="absolute top-4 left-4 p-1.5 rounded-full text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition z-10 flex items-center gap-1 text-xs font-semibold"
           >
             <ChevronLeft className="w-4 h-4" />
             <span>Quay lại</span>
           </button>
         )}
 
-        {/* Header chuẩn phong cách Chợ Tốt */}
+        {/* Header: Tiêu đề + Mascot Trọ Xinh chuẩn phong cách Chợ Tốt */}
         <div className="flex items-center justify-between pt-1">
           <div>
-            <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+            <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
               {step === 'main' && 'Đăng nhập/Đăng ký'}
               {step === 'password' && 'Nhập Mật Khẩu'}
               {step === 'otp' && 'Xác Thực OTP'}
-            </h1>
+            </h2>
             <p className="text-[12px] text-gray-500 mt-0.5">
-              {step === 'main' && 'Tiếp cận hàng chục ngàn phòng trọ sinh viên Hà Nội'}
+              {step === 'main' && 'Tiếp cận hàng chục ngàn phòng trọ xinh xắn'}
               {step === 'password' && `Tài khoản: ${identifier}`}
               {step === 'otp' && `Mã xác thực gửi tới: ${identifier}`}
             </p>
@@ -225,31 +295,22 @@ export const LoginPage: React.FC = () => {
               alt="Trọ Xinh Mascot"
               className="w-full h-full object-contain drop-shadow-sm"
               onError={(e) => {
+                // Fallback nếu ảnh chưa tải
                 (e.target as HTMLElement).style.display = 'none';
               }}
             />
           </div>
         </div>
 
-        {/* Error message */}
-        {error && (
+        {/* Error Alert */}
+        {errorMsg && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2 animate-shake">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <div className="flex-1 space-y-1">
-              <span>{error}</span>
-              {(error.includes('Không tìm thấy') || error.includes('Đăng ký')) && (
-                <Link
-                  to={returnUrl ? `/dang-ky?returnUrl=${encodeURIComponent(returnUrl)}` : '/dang-ky'}
-                  className="block font-bold text-[#00a854] hover:underline"
-                >
-                  👉 Bấm vào đây để Đăng ký tài khoản mới
-                </Link>
-              )}
-            </div>
+            <span>{errorMsg}</span>
           </div>
         )}
 
-        {/* ================= STEP 1: MAIN ================= */}
+        {/* ================= STEP 1: MAIN SOCIAL & PHONE INPUT ================= */}
         {step === 'main' && (
           <div className="space-y-3.5 pt-1">
             {/* 1. Tiếp tục với Google */}
@@ -324,7 +385,7 @@ export const LoginPage: React.FC = () => {
                   value={identifier}
                   onChange={(e) => {
                     setIdentifier(e.target.value);
-                    setError('');
+                    setErrorMsg('');
                   }}
                   placeholder="Số điện thoại hoặc email"
                   className="w-full px-4 py-3 bg-white border border-gray-300 focus:border-[#00a854] focus:ring-2 focus:ring-[#00a854]/20 rounded-2xl text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-hidden transition"
@@ -355,21 +416,21 @@ export const LoginPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => handleQuickDemo('renter')}
-                  className="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-[#006d37] text-[11px] font-bold rounded-xl border border-emerald-200 transition text-center cursor-pointer"
+                  className="py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-[#006d37] text-[11px] font-bold rounded-xl border border-emerald-200 transition text-center"
                 >
                   Người thuê
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQuickDemo('owner')}
-                  className="py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-[#006492] text-[11px] font-bold rounded-xl border border-blue-200 transition text-center cursor-pointer"
+                  className="py-1.5 px-2 bg-blue-50 hover:bg-blue-100 text-[#006492] text-[11px] font-bold rounded-xl border border-blue-200 transition text-center"
                 >
                   Chủ trọ
                 </button>
                 <button
                   type="button"
                   onClick={() => handleQuickDemo('admin')}
-                  className="py-1.5 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold rounded-xl border border-purple-200 transition text-center cursor-pointer"
+                  className="py-1.5 px-2 bg-purple-50 hover:bg-purple-100 text-purple-700 text-[11px] font-bold rounded-xl border border-purple-200 transition text-center"
                 >
                   Admin
                 </button>
@@ -378,20 +439,22 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* ================= STEP 2: PASSWORD ================= */}
+        {/* ================= STEP 2: PASSWORD (CHO EMAIL) ================= */}
         {step === 'password' && (
           <form onSubmit={handleEmailPasswordSubmit} className="space-y-4 pt-1">
             <div>
               <label className="block text-xs font-bold text-gray-700 mb-1">Mật khẩu của bạn</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="Nhập mật khẩu tài khoản"
-                autoFocus
-                required
-                className="w-full px-4 py-3 bg-white border border-gray-300 focus:border-[#00a854] focus:ring-2 focus:ring-[#00a854]/20 rounded-2xl text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-hidden transition"
-              />
+              <div className="relative">
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="Nhập mật khẩu tài khoản"
+                  autoFocus
+                  required
+                  className="w-full px-4 py-3 bg-white border border-gray-300 focus:border-[#00a854] focus:ring-2 focus:ring-[#00a854]/20 rounded-2xl text-sm font-medium text-gray-900 placeholder:text-gray-400 outline-hidden transition"
+                />
+              </div>
             </div>
 
             <button
@@ -404,25 +467,34 @@ export const LoginPage: React.FC = () => {
             </button>
 
             <div className="flex items-center justify-between text-xs text-gray-500 pt-1">
-              <Link
-                to="/quen-mat-khau"
+              <button
+                type="button"
+                onClick={() => {
+                  handleClose();
+                  navigate('/quen-mat-khau');
+                }}
                 className="text-[#00a854] hover:underline font-semibold"
               >
                 Quên mật khẩu?
-              </Link>
-              <Link
-                to={`/dang-ky?email=${encodeURIComponent(identifier)}`}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  handleClose();
+                  navigate(`/dang-ky?email=${encodeURIComponent(identifier)}`);
+                }}
                 className="text-gray-600 hover:text-gray-900 font-semibold"
               >
                 Tạo tài khoản mới →
-              </Link>
+              </button>
             </div>
           </form>
         )}
 
-        {/* ================= STEP 3: OTP ================= */}
+        {/* ================= STEP 3: OTP (CHO SĐT) ================= */}
         {step === 'otp' && (
           <div className="space-y-4 pt-1">
+            {/* Card hiển thị mã OTP 1-chạm */}
             <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
@@ -469,27 +541,23 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        {/* Footer */}
+        {/* Footer: Quy chế, Chính sách & Logo hệ sinh thái Chợ Tốt / Trọ Xinh */}
         <div className="pt-3 border-t border-gray-100 text-center space-y-3">
           <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400 flex-wrap">
-            <Link to="/dieu-khoan" className="hover:text-gray-600 underline">
+            <a href="/dieu-khoan" target="_blank" rel="noreferrer" className="hover:text-gray-600 underline">
               Quy chế hoạt động sàn
-            </Link>
+            </a>
             <span>•</span>
-            <Link to="/chinh-sach-bao-mat" className="hover:text-gray-600 underline">
+            <a href="/chinh-sach-bao-mat" target="_blank" rel="noreferrer" className="hover:text-gray-600 underline">
               Chính sách bảo mật
-            </Link>
+            </a>
             <span>•</span>
-            <button
-              type="button"
-              onClick={() => showToast('Hotline hỗ trợ', '1900 6868 (8:00 - 21:00 hàng ngày)', 'info')}
-              className="hover:text-gray-600 underline cursor-pointer"
-            >
+            <a href="#support" onClick={(e) => { e.preventDefault(); showToast('Hotline hỗ trợ', '1900 6868 (8:00 - 21:00 hàng ngày)', 'info'); }} className="hover:text-gray-600 underline">
               Liên hệ hỗ trợ
-            </button>
+            </a>
           </div>
 
-          {/* Logo Hệ sinh thái */}
+          {/* Logo Hệ sinh thái Trọ Xinh phong cách Chợ Tốt */}
           <div className="flex items-center justify-center gap-3 pt-0.5 opacity-85 select-none">
             <span className="text-xs font-black tracking-tight text-[#00a854]">
               TRỌ<span className="text-emerald-700">XINH</span>

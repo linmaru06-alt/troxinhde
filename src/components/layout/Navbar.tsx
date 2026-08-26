@@ -30,7 +30,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, savedRoomIds = [], threads = [], logout } = useAppStore();
-  const { isAvatarDropdownOpen, toggleAvatarDropdown, closeAllDropdowns } = useUIStore();
+  const { isAvatarDropdownOpen, toggleAvatarDropdown, closeAllDropdowns, openAuthModal } = useUIStore();
   const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -218,12 +218,13 @@ export const Navbar: React.FC = () => {
 
             {/* Login Pill (if not logged in) */}
             {!currentUser && (
-              <Link
-                to="/dang-nhap"
-                className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs"
+              <button
+                type="button"
+                onClick={() => openAuthModal('login')}
+                className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs cursor-pointer"
               >
                 Đăng nhập
-              </Link>
+              </button>
             )}
 
             {/* ĐĂNG TIN - Black Pill Button (Chợ Tốt Signature) */}

@@ -10,6 +10,7 @@ import { Button } from './components/ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
+import { AuthModal } from './components/modals/AuthModal';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 
@@ -498,6 +499,7 @@ export const App: React.FC = () => {
         <OfflineBanner />
         <PushPermissionToast />
         <ToastContainer />
+        <AuthModal />
       </div>
     </BrowserRouter>
   );

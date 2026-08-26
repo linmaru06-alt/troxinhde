@@ -24,6 +24,8 @@ export interface UIStore {
   activeDropdownId: string | null;
 
   // === MODALS ===
+  isAuthModalOpen: boolean;
+  authModalMode: 'login' | 'register';
   isLoginGateOpen: boolean;
   loginGateTrigger: string | null;
   isReportModalOpen: boolean;
@@ -52,6 +54,8 @@ export interface UIStore {
   toggleMobileFilter: () => void;
   toggleMobileMenu: () => void;
 
+  openAuthModal: (mode?: 'login' | 'register') => void;
+  closeAuthModal: () => void;
   openLoginGate: (trigger?: string) => void;
   openReportModal: (targetId: string) => void;
   openConfirmDialog: (config: ConfirmDialogConfig) => void;
@@ -79,6 +83,8 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isFilterDropdownOpen: false,
   activeDropdownId: null,
 
+  isAuthModalOpen: false,
+  authModalMode: 'login',
   isLoginGateOpen: false,
   loginGateTrigger: null,
   isReportModalOpen: false,
@@ -104,6 +110,7 @@ export const useUIStore = create<UIStore>((set, get) => ({
       isSortDropdownOpen: false,
       isFilterDropdownOpen: false,
       activeDropdownId: null,
+      isAuthModalOpen: false,
       isLoginGateOpen: false,
       loginGateTrigger: null,
       isReportModalOpen: false,
@@ -187,6 +194,14 @@ export const useUIStore = create<UIStore>((set, get) => ({
       activeMobileSheet: null,
     });
   },
+
+  openAuthModal: (mode = 'login') => {
+    get().closeAllPanels();
+    get().closeAllDropdowns();
+    set({ isAuthModalOpen: true, authModalMode: mode });
+  },
+
+  closeAuthModal: () => set({ isAuthModalOpen: false }),
 
   openLoginGate: (trigger) => {
     get().closeAllPanels();
