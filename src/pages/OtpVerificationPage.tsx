@@ -240,12 +240,12 @@ export const OtpVerificationPage: React.FC = () => {
             return;
           }
 
-          // Kiểm tra mã OTP: đúng mã đã gửi hoặc mã test dự phòng nếu chưa có mã
-          const isValidCode = cleanCode === expectedCode || cleanCode === '123456';
+          // Kiểm tra mã OTP: chỉ chấp nhận mã OTP khớp chính xác mã đã gửi
+          const isValidCode = Boolean(expectedCode && cleanCode === expectedCode);
           if (!isValidCode) {
             setIsLoading(false);
             setIsErrorShake(true);
-            setErrorMsg('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+            setErrorMsg('Mã OTP không chính xác hoặc chưa được khởi tạo. Vui lòng kiểm tra lại!');
             setOtp('');
             masterInputRef.current?.focus();
             setTimeout(() => setIsErrorShake(false), 600);

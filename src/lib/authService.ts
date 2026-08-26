@@ -326,7 +326,7 @@ export async function loginWithEmailPassword(
     return loginWithDemoAccount('renter');
   }
 
-  // 2. Thử xác thực với Firebase Auth
+  // 2. Xác thực an toàn với Firebase Auth (Nguồn xác thực duy nhất)
   try {
     const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
     const fbUser = userCredential.user;
@@ -338,38 +338,17 @@ export async function loginWithEmailPassword(
       user: userProfile,
     };
   } catch (error: any) {
-    console.warn('[Firebase Auth] Đăng nhập Email qua Firebase gặp lỗi, kiểm tra cơ sở dữ liệu Supabase:', error);
-
-    // 3. Truy vấn tài khoản thật từ Supabase database
-    try {
-      const supabaseUser = await getSupabaseUserByEmail(cleanEmail);
-      if (supabaseUser) {
-        return {
-          success: true,
-          user: {
-            id: supabaseUser.id,
-            firebaseUid: supabaseUser.id,
-            name: supabaseUser.name,
-            email: supabaseUser.email,
-            phone: supabaseUser.phone,
-            role: (supabaseUser.role === 'user' ? 'renter' : supabaseUser.role) as AppUserRole,
-            avatarUrl: supabaseUser.avatar_url || '/images/user-avatar.jpg',
-            ownerApplicationStatus: supabaseUser.owner_application_status || 'none',
-            createdAt: supabaseUser.created_at,
-          },
-        };
-      }
-    } catch (sbErr) {
-      console.warn('[AuthService] Lỗi tìm user trên Supabase:', sbErr);
-    }
+    console.warn('[Firebase Auth] Đăng nhập Email thất bại:', error.code);
 
     let msg = 'Email hoặc mật khẩu không chính xác!';
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/operation-not-allowed') {
-      msg = 'Không tìm thấy tài khoản với địa chỉ Email này. Vui lòng Đăng ký tài khoản mới!';
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+      msg = 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại!';
     } else if (error.code === 'auth/wrong-password') {
       msg = 'Mật khẩu không chính xác.';
     } else if (error.code === 'auth/invalid-email') {
       msg = 'Địa chỉ email không hợp lệ.';
+    } else if (error.code === 'auth/too-many-requests') {
+      msg = 'Tài khoản tạm thời bị khóa do nhập sai nhiều lần. Vui lòng thử lại sau ít phút!';
     }
     return { success: false, error: msg };
   }
@@ -390,30 +369,18 @@ export async function completeEmailRegistration(
   const cleanPhone = phone ? phone.trim().replace(/\D/g, '') : undefined;
 
   try {
-    let firebaseUid = `usr_${Date.now()}`;
-    let fbUser: any = null;
+    // Bước 1: Tạo tài khoản trên Firebase Auth (Nguồn xác thực duy nhất)
+    const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
+    const fbUser = userCredential.user;
+    const firebaseUid = fbUser.uid;
 
-    try {
-      // Bước 1: Thử tạo tài khoản trên Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
-      fbUser = userCredential.user;
-      firebaseUid = fbUser.uid;
-
-      // Cập nhật Display Name trong Firebase
-      if (name.trim()) {
-        try {
-          await updateProfile(fbUser, { displayName: name.trim() });
-        } catch (updateErr) {
-          console.warn('[Firebase Auth] Update display name warning:', updateErr);
-        }
+    // Cập nhật Display Name trong Firebase
+    if (name.trim()) {
+      try {
+        await updateProfile(fbUser, { displayName: name.trim() });
+      } catch (updateErr) {
+        console.warn('[Firebase Auth] Update display name warning:', updateErr);
       }
-    } catch (fbErr: any) {
-      console.warn('[Firebase Auth] Firebase createUser notice:', fbErr.code, fbErr.message);
-      // Nếu Firebase gặp lỗi (chưa bật Email provider, lỗi mạng, hoặc chặn từ console), tiếp tục tạo hồ sơ an toàn trên Supabase
-      if (fbErr.code === 'auth/email-already-in-use') {
-        throw fbErr;
-      }
-      firebaseUid = `usr_${Date.now()}`;
     }
 
     // Bước 2: Tạo Profile trên Supabase (bảng users & profiles)
