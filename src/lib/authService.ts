@@ -401,17 +401,12 @@ export async function completeEmailRegistration(
         }
       }
     } catch (fbErr: any) {
-      console.warn('[Firebase Auth] Firebase createUser notice:', fbErr.code);
-      // Nếu Firebase chưa kích hoạt Email provider trên Console, tiếp tục tạo hồ sơ trên Supabase
-      if (
-        fbErr.code === 'auth/operation-not-allowed' ||
-        fbErr.code === 'auth/network-request-failed' ||
-        fbErr.code === 'auth/internal-error'
-      ) {
-        firebaseUid = `usr_${Date.now()}`;
-      } else {
+      console.warn('[Firebase Auth] Firebase createUser notice:', fbErr.code, fbErr.message);
+      // Nếu Firebase gặp lỗi (chưa bật Email provider, lỗi mạng, hoặc chặn từ console), tiếp tục tạo hồ sơ an toàn trên Supabase
+      if (fbErr.code === 'auth/email-already-in-use') {
         throw fbErr;
       }
+      firebaseUid = `usr_${Date.now()}`;
     }
 
     // Bước 2: Tạo Profile trên Supabase (bảng users & profiles)
