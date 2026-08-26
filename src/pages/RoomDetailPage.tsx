@@ -55,15 +55,28 @@ export const RoomDetailPage: React.FC = () => {
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [revealedPhone, setRevealedPhone] = useState<boolean>(false);
 
-  const room = (rooms || []).find((r) => r.id === id) || (rooms || [])[0];
-  const building = (buildings || []).find((b) => room && b.id === room.buildingId) || (buildings || [])[0];
+  const room = (rooms || []).find((r) => r.id === id);
+  const building = (buildings || []).find((b) => room && b.id === room.buildingId);
   const isSaved = room ? (savedRoomIds || []).includes(room.id) : false;
 
   if (!room) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl font-bold">Không tìm thấy phòng trọ</h2>
-        <Link to="/tim-phong" className="text-[#006d37] font-semibold mt-2 inline-block">← Về trang tìm phòng</Link>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 py-20">
+        <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mb-4">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-extrabold text-gray-900">Phòng Trọ Không Tồn Tại Hoặc Đã Bị Gỡ</h1>
+        <p className="text-gray-500 text-sm mt-2 max-w-md">
+          Tin đăng phòng này có thể đã hết hạn, đã được cho thuê hoặc đường dẫn không chính xác.
+        </p>
+        <div className="mt-6 flex items-center gap-3">
+          <Link
+            to="/tim-kiem"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00a854] hover:bg-[#009249] text-white font-bold text-sm shadow-md transition"
+          >
+            ← Khám Phá Phòng Trọ Khác
+          </Link>
+        </div>
       </div>
     );
   }
@@ -506,7 +519,7 @@ export const RoomDetailPage: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 mb-2">Khoảng cách tới các trường đại học:</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {building.nearbyUniversities.map((u, i) => (
+                    {building?.nearbyUniversities?.map((u, i) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs">
                         <span className="font-bold text-gray-800">🎓 {u.name}</span>
                         <span className="text-[#006d37] font-semibold">Cách {u.distanceKm} km</span>

@@ -38,10 +38,10 @@ export const MobileBottomNav: React.FC = () => {
   // Standard 5 User Tabs according to mobile-first spec
   const userTabs: NavLinkItem[] = [
     { to: '/', label: 'Trang chủ', icon: Home },
-    { to: '/tim-phong', label: 'Tìm phòng', icon: Compass },
-    { to: '/ban-do', label: 'Bản đồ', icon: MapPin },
+    { to: '/tim-kiem', label: 'Tìm phòng', icon: Compass },
+    { to: '/da-luu', label: 'Đã lưu', icon: Heart, badge: (savedRoomIds || []).length },
     { to: '/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
-    { to: currentUser ? '/toi' : '/dang-nhap', label: 'Cá nhân', icon: UserIcon },
+    { to: currentUser ? '/toi' : '/dang-nhap', label: 'Tài khoản', icon: UserIcon },
   ];
 
   // Owner tabs (5 items)

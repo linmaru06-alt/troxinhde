@@ -14,6 +14,8 @@ import {
   Clock,
   Sparkles,
   Phone,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react';
 
 export const ChatPage: React.FC = () => {
@@ -181,7 +183,20 @@ export const ChatPage: React.FC = () => {
                         <div className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${isMe ? 'text-emerald-100' : 'text-gray-400'}`}>
                           <span>{new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                           {isMe && (
-                            msg.status === 'sending' ? <Clock className="w-2.5 h-2.5 animate-spin" /> : <CheckCheck className="w-3 h-3 text-emerald-200" />
+                            msg.status === 'sending' ? (
+                              <Clock className="w-2.5 h-2.5 animate-spin" />
+                            ) : msg.status === 'failed' ? (
+                              <button
+                                onClick={() => realtimeSendMessage(msg.text)}
+                                className="inline-flex items-center gap-0.5 text-rose-200 hover:text-white font-bold"
+                                title="Thử gửi lại"
+                              >
+                                <AlertCircle className="w-3 h-3 text-rose-300" />
+                                <span className="underline">Thử lại</span>
+                              </button>
+                            ) : (
+                              <CheckCheck className="w-3 h-3 text-emerald-200" />
+                            )
                           )}
                         </div>
                       </div>

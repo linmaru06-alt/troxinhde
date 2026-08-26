@@ -155,7 +155,7 @@ export interface Message {
   senderAvatar: string;
   text: string;
   createdAt: string;
-  status: 'sending' | 'sent' | 'read';
+  status: 'sending' | 'sent' | 'read' | 'failed';
 }
 
 export interface Thread {
