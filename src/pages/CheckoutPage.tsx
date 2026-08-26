@@ -267,7 +267,7 @@ export const CheckoutPage: React.FC = () => {
               <p className="text-xs text-gray-500 font-medium">
                 {paymentData.method === 'momo' ? (
                   <>
-                    Mở ứng dụng <strong>MoMo</strong> hoặc Ngân hàng và chọn <strong>Quét mã QR</strong>
+                    Mở ứng dụng <strong>MoMo</strong> hoặc bất kỳ App Ngân hàng và chọn <strong>Quét mã QR</strong>
                   </>
                 ) : (
                   <>
@@ -276,35 +276,44 @@ export const CheckoutPage: React.FC = () => {
                 )}
               </p>
 
-              {/* Deeplink for MoMo App on Mobile */}
-              {paymentData.method === 'momo' && paymentData.deeplink && (
-                <div className="pt-1">
+              {/* Deeplink for MoMo App on Mobile & Web Gateway */}
+              {paymentData.method === 'momo' && (
+                <div className="space-y-2 pt-1">
                   <a
-                    href={paymentData.deeplink}
+                    href={paymentData.deeplink || `https://me.momo.vn/${paymentData.accountNumber}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-[#a50064] hover:bg-[#8c0054] text-white font-bold text-xs transition shadow-xs"
+                    className="inline-flex items-center justify-center gap-2.5 w-full py-3.5 px-5 rounded-2xl bg-gradient-to-r from-[#A50064] to-[#D82D8B] hover:opacity-95 text-white font-extrabold text-sm transition shadow-md active:scale-98"
                   >
-                    <Smartphone className="w-4 h-4" /> Mở App MoMo Trên Thiết Bị Này
+                    <Smartphone className="w-5 h-5" />
+                    <span>Mở App MoMo Thanh Toán 1-Chạm</span>
+                    <ExternalLink className="w-4 h-4 ml-1 opacity-80" />
                   </a>
+                  <p className="text-[11px] text-gray-400">
+                    💡 Trên điện thoại, bấm nút trên để tự động mở ứng dụng MoMo và xác thực FaceID / Vân tay
+                  </p>
                 </div>
               )}
 
               <p className="text-xs text-emerald-800 font-medium">
-                Cần hỗ trợ? Zalo: <a href="https://zalo.me/0888110789" target="_blank" rel="noopener noreferrer" className="underline font-bold">0888 110 789</a>
+                Cần hỗ trợ? Zalo / Hotline: <a href="https://zalo.me/0888110789" target="_blank" rel="noopener noreferrer" className="underline font-bold">0888 110 789</a>
               </p>
 
               {/* Action Buttons */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-2.5 pt-2">
                 <Button
                   variant="primary"
                   size="lg"
                   fullWidth
                   onClick={triggerManualSuccess}
                   leftIcon={<CheckCircle2 className="w-5 h-5" />}
-                  className="font-bold shadow-md"
+                  className={`font-bold shadow-md ${
+                    paymentData.method === 'momo'
+                      ? 'bg-[#A50064] hover:bg-[#8C0054] text-white border-none'
+                      : ''
+                  }`}
                 >
-                  Tôi Đã Chuyển Khoản Xong
+                  {paymentData.method === 'momo' ? 'Xác Nhận Đã Chuyển MoMo' : 'Tôi Đã Chuyển Khoản Xong'}
                 </Button>
 
                 <Button
@@ -485,26 +494,31 @@ export const CheckoutPage: React.FC = () => {
                     onClick={() => setPaymentMethod('momo')}
                     className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition ${
                       paymentMethod === 'momo'
-                        ? 'border-[#a50064] bg-pink-50/40 shadow-xs ring-2 ring-pink-500/10'
+                        ? 'border-[#A50064] bg-pink-50/50 shadow-xs ring-2 ring-pink-500/20'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
                     }`}
                   >
                     <div className="flex items-center gap-3.5">
-                      <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-gray-300 peer-checked:border-[#a50064]">
+                      <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-gray-300 peer-checked:border-[#A50064]">
                         {paymentMethod === 'momo' && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-[#a50064]" />
+                          <div className="w-2.5 h-2.5 rounded-full bg-[#A50064]" />
                         )}
                       </div>
-                      <div className="w-10 h-10 rounded-xl bg-[#a50064] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#A50064] to-[#D82D8B] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-xs">
                         MoMo
                       </div>
                       <div>
-                        <p className="text-sm font-bold text-gray-900">Ví Điện Tử MoMo (Tạo Mã QR Thật)</p>
-                        <p className="text-[11px] text-gray-500">Quét mã QR trực tiếp trên App MoMo hoặc Deeplink 24/7</p>
+                        <p className="text-sm font-bold text-gray-900 flex items-center gap-1.5">
+                          <span>Ví Điện Tử MoMo (Dynamic QR & Deeplink)</span>
+                          <span className="text-[10px] font-extrabold bg-[#A50064] text-white px-1.5 py-0.2 rounded-full">
+                            OFFICIAL
+                          </span>
+                        </p>
+                        <p className="text-[11px] text-gray-500">Mở App MoMo thanh toán 1-chạm hoặc quét mã QR tự động điền tiền</p>
                       </div>
                     </div>
-                    <span className="text-[11px] font-bold text-[#a50064] bg-pink-100 px-2 py-0.5 rounded-md">
-                      Tiện lợi 🔥
+                    <span className="text-[11px] font-bold text-[#A50064] bg-pink-100 px-2 py-0.5 rounded-md">
+                      Tức thì ⚡
                     </span>
                   </label>
                 </div>
