@@ -90,7 +90,7 @@ export const LoginPage: React.FC = () => {
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
-        const otpUrl = `/xac-thuc-otp?email=${encodeURIComponent(cleanEmail)}&role=${roleParam}&mode=email${
+        const otpUrl = `/xac-thuc-otp?email=${encodeURIComponent(cleanEmail)}&role=${roleParam}&mode=email&action=login${
           returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
         }`;
         navigate(otpUrl);
@@ -105,7 +105,7 @@ export const LoginPage: React.FC = () => {
       setIsLoading(true);
       setTimeout(() => {
         setIsLoading(false);
-        const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&role=${roleParam}&mode=phone${
+        const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&role=${roleParam}&mode=phone&action=login${
           returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
         }`;
         navigate(otpUrl);

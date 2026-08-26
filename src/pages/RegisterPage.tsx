@@ -4,7 +4,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
 import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle, Sparkles, Building2, CheckCircle2 } from 'lucide-react';
-import { registerWithEmailPassword, loginWithGoogle, loginWithDemoAccount } from '../lib/authService';
+import { loginWithGoogle, loginWithDemoAccount } from '../lib/authService';
+import { checkUserExists } from '../lib/supabaseAuthSync';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ export const RegisterPage: React.FC = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const [demoLoadingType, setDemoLoadingType] = useState<string | null>(null);
 
-  // 1. Xử lý Đăng ký bằng Email & Mật khẩu
+  // 1. Xử lý Đăng ký bằng Email & Mật khẩu -> Kiểm tra trùng lặp -> Chuyển sang /xac-thuc-otp
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -40,7 +41,8 @@ export const RegisterPage: React.FC = () => {
 
     // Validate định dạng Email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email.trim())) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
       setError('Địa chỉ Email không hợp lệ.');
       return;
     }
@@ -58,51 +60,71 @@ export const RegisterPage: React.FC = () => {
     }
 
     const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (phone.trim() && cleanPhone.length < 10) {
+      setError('Số điện thoại không hợp lệ (tối thiểu 10 chữ số).');
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      const res = await registerWithEmailPassword(
-        email.trim(),
-        password,
-        name.trim(),
-        cleanPhone || undefined,
-        roleParam
-      );
+      // 1. Kiểm tra xem Email hoặc SĐT đã tồn tại chưa
+      const checkRes = await checkUserExists({
+        email: cleanEmail,
+        phone: cleanPhone || undefined,
+      });
+
+      if (checkRes.exists) {
+        setIsLoading(false);
+        setError(checkRes.message || 'Email hoặc số điện thoại này đã được đăng ký tài khoản.');
+        return;
+      }
+
+      // 2. Tạo mã OTP 6 số ngẫu nhiên cho email
+      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
+      // 3. Lưu thông tin đăng ký tạm thời vào sessionStorage (Tuyệt đối không đưa mật khẩu lên URL)
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem(
+          'troxinh_pending_reg',
+          JSON.stringify({
+            name: name.trim(),
+            email: cleanEmail,
+            phone: cleanPhone || undefined,
+            password,
+            role: roleParam,
+            mode: 'email',
+            createdAt: Date.now(),
+          })
+        );
+
+        window.sessionStorage.setItem(
+          'troxinh_email_otp',
+          JSON.stringify({
+            code: otpCode,
+            email: cleanEmail,
+            expiresAt: Date.now() + 5 * 60 * 1000,
+          })
+        );
+      }
 
       setIsLoading(false);
 
-      if (res.success && res.user) {
-        // Tự động đăng nhập ngay lập tức
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-
-        showToast('Đăng ký tài khoản thành công! 🎉', `Chào mừng ${res.user.name} đến với Trọ Xinh`, 'success');
-
-        if (returnUrl) {
-          navigate(decodeURIComponent(returnUrl));
-        } else if (res.user.role === 'owner') {
-          navigate('/chu-tro');
-        } else {
-          navigate('/tim-phong');
-        }
-      } else {
-        setError(res.error || 'Đăng ký không thành công. Vui lòng thử lại!');
-      }
+      // 4. Chuyển sang màn hình xác thực OTP bắt buộc
+      const otpUrl = `/xac-thuc-otp?mode=email&email=${encodeURIComponent(cleanEmail)}&name=${encodeURIComponent(
+        name.trim()
+      )}${cleanPhone ? `&phone=${encodeURIComponent(cleanPhone)}` : ''}&role=${roleParam}&action=register${
+        returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
+      }`;
+      navigate(otpUrl);
     } catch (err: any) {
       setIsLoading(false);
-      setError('Đã có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại!');
+      setError('Đã có lỗi xảy ra khi kiểm tra thông tin. Vui lòng thử lại!');
     }
   };
 
-  // 2. Xử lý Đăng ký bằng Số điện thoại (Nhận OTP SMS)
-  const handlePhoneRegister = (e: React.FormEvent) => {
+  // 2. Xử lý Đăng ký bằng Số điện thoại (Nhận OTP SMS) -> Kiểm tra trùng lặp -> Chuyển sang /xac-thuc-otp
+  const handlePhoneRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -118,13 +140,38 @@ export const RegisterPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      const checkRes = await checkUserExists({ phone: cleanPhone });
+      if (checkRes.exists) {
+        setIsLoading(false);
+        setError(checkRes.message || 'Số điện thoại này đã được sử dụng cho một tài khoản khác.');
+        return;
+      }
+
+      // Lưu thông tin đăng ký vào sessionStorage
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        window.sessionStorage.setItem(
+          'troxinh_pending_reg',
+          JSON.stringify({
+            name: name.trim(),
+            phone: cleanPhone,
+            role: roleParam,
+            mode: 'phone',
+            createdAt: Date.now(),
+          })
+        );
+      }
+
       setIsLoading(false);
-      const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&name=${encodeURIComponent(
+      const otpUrl = `/xac-thuc-otp?mode=phone&phone=${encodeURIComponent(cleanPhone)}&name=${encodeURIComponent(
         name.trim()
-      )}&role=${roleParam}&mode=phone${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
+      )}&role=${roleParam}&action=register${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
       navigate(otpUrl);
-    }, 200);
+    } catch (err: any) {
+      setIsLoading(false);
+      setError('Đã có lỗi xảy ra khi kiểm tra số điện thoại. Vui lòng thử lại!');
+    }
   };
 
   // 3. Xử lý Đăng ký nhanh 1-chạm bằng Google

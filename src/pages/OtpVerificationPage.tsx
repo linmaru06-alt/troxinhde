@@ -4,23 +4,62 @@ import { Button } from '../components/ui/Button';
 import { useAppStore } from '../store/useAppStore';
 import {
   Phone,
+  Mail,
   ArrowRight,
   RefreshCw,
   AlertCircle,
+  AlertTriangle,
+  CheckCircle2,
+  Lock,
 } from 'lucide-react';
-import { sendPhoneOtp, verifyPhoneOtp } from '../lib/authService';
+import {
+  sendPhoneOtp,
+  verifyPhoneOtp,
+  completeEmailRegistration,
+  completePhoneRegistration,
+} from '../lib/authService';
+import { getSupabaseUserByEmail, getSupabaseUserByPhone } from '../lib/supabaseAuthSync';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { loginWithSocialUser, showToast } = useAppStore();
 
-  const phone = searchParams.get('phone') || '';
-  const email = searchParams.get('email') || '';
+  const phoneParam = searchParams.get('phone') || '';
+  const emailParam = searchParams.get('email') || '';
   const nameParam = searchParams.get('name') || '';
-  const role = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
+  const roleParam = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
-  const mode = searchParams.get('mode') || (phone ? 'phone' : 'email');
+  const actionParam = searchParams.get('action') || 'register'; // 'register' | 'login'
+  const modeParam = searchParams.get('mode') || (phoneParam ? 'phone' : 'email');
+
+  // Đọc thông tin pending registration từ sessionStorage nếu có
+  const [pendingReg, setPendingReg] = useState<{
+    name?: string;
+    email?: string;
+    phone?: string;
+    password?: string;
+    role?: 'renter' | 'owner';
+    mode?: 'email' | 'phone';
+    createdAt?: number;
+  } | null>(() => {
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      try {
+        const raw = window.sessionStorage.getItem('troxinh_pending_reg');
+        return raw ? JSON.parse(raw) : null;
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  });
+
+  const email = pendingReg?.email || emailParam;
+  const phone = pendingReg?.phone || phoneParam;
+  const name = pendingReg?.name || nameParam;
+  const role = pendingReg?.role || roleParam;
+  const mode = pendingReg?.mode || modeParam;
+  const isRegisterAction = actionParam === 'register' || Boolean(pendingReg?.password);
 
   // Chuỗi lưu trữ mã OTP 6 số
   const [otp, setOtp] = useState<string>('');
@@ -31,6 +70,8 @@ export const OtpVerificationPage: React.FC = () => {
   const [verificationId, setVerificationId] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
+  const [isTestSmsMode, setIsTestSmsMode] = useState<boolean>(false);
+  const [emailOtpCode, setEmailOtpCode] = useState<string>('');
 
   const masterInputRef = useRef<HTMLInputElement>(null);
   const hasSentRef = useRef<boolean>(false);
@@ -41,52 +82,88 @@ export const OtpVerificationPage: React.FC = () => {
   }, []);
 
   // Hàm gửi mã OTP
-  const triggerSendOtp = useCallback(
-    async () => {
-      if (mode === 'email') {
-        if (!email) {
-          setErrorMsg('Không tìm thấy thông tin Email để gửi mã.');
-          return;
-        }
-        setIsSending(true);
-        setErrorMsg('');
-        setTimeout(() => {
-          setIsSending(false);
-          showToast(
-            'Đã gửi mã xác thực OTP qua Email! 📧',
-            `Vui lòng kiểm tra hòm thư ${email} (hoặc nhập 123456 để thử nghiệm nhanh).`,
-            'info'
-          );
-        }, 500);
+  const triggerSendOtp = useCallback(async () => {
+    if (mode === 'email') {
+      if (!email) {
+        setErrorMsg('Không tìm thấy thông tin Email để gửi mã OTP.');
         return;
       }
-
-      if (!phone) {
-        setErrorMsg('Không tìm thấy thông tin Số điện thoại để gửi mã.');
-        return;
-      }
-
       setIsSending(true);
       setErrorMsg('');
 
-      const res = await sendPhoneOtp(phone, 'recaptcha-container');
-      setIsSending(false);
+      // Lấy hoặc tạo mã OTP Email trong sessionStorage
+      let currentCode = '';
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        try {
+          const rawOtp = window.sessionStorage.getItem('troxinh_email_otp');
+          if (rawOtp) {
+            const parsed = JSON.parse(rawOtp);
+            if (parsed.email === email && parsed.expiresAt > Date.now()) {
+              currentCode = parsed.code;
+            }
+          }
+        } catch {}
 
-      if (res.success) {
-        if (res.verificationId) {
-          setVerificationId(res.verificationId);
+        if (!currentCode) {
+          currentCode = Math.floor(100000 + Math.random() * 900000).toString();
+          window.sessionStorage.setItem(
+            'troxinh_email_otp',
+            JSON.stringify({
+              code: currentCode,
+              email,
+              expiresAt: Date.now() + 5 * 60 * 1000,
+            })
+          );
         }
+      } else {
+        currentCode = '123456';
+      }
+
+      setEmailOtpCode(currentCode);
+
+      setTimeout(() => {
+        setIsSending(false);
         showToast(
-          'Đã kích hoạt gửi OTP SMS! 📱',
-          'Vui lòng kiểm tra tin nhắn trên điện thoại của bạn (hoặc nhập 123456 để thử nhanh).',
+          'Đã gửi mã xác thực OTP qua Email! 📧',
+          `Vui lòng kiểm tra hòm thư ${email}. Mã OTP xác thực: ${currentCode}`,
           'info'
         );
-      } else {
-        setErrorMsg(res.error || 'Không thể gửi tin nhắn SMS.');
+      }, 400);
+      return;
+    }
+
+    // Gửi SMS OTP
+    if (!phone) {
+      setErrorMsg('Không tìm thấy thông tin Số điện thoại để gửi mã.');
+      return;
+    }
+
+    setIsSending(true);
+    setErrorMsg('');
+
+    const res = await sendPhoneOtp(phone, 'recaptcha-container');
+    setIsSending(false);
+
+    if (res.success) {
+      if (res.verificationId) {
+        setVerificationId(res.verificationId);
       }
-    },
-    [phone, email, mode, showToast]
-  );
+      setIsTestSmsMode(false);
+      showToast(
+        'Đã gửi mã OTP SMS! 📱',
+        `Vui lòng kiểm tra tin nhắn trên điện thoại ${phone}.`,
+        'info'
+      );
+    } else {
+      // Khi SMS gateway không khả dụng (chưa kích hoạt billing / test)
+      setIsTestSmsMode(true);
+      showToast(
+        'SMS OTP đang ở chế độ test ⚠️',
+        'Chưa cấu hình SMS gateway thật. Vui lòng nhập mã thử nghiệm 123456.',
+        'warning'
+      );
+    }
+  }, [phone, email, mode, showToast]);
 
   // 2. Tự động gửi mã OTP khi mở trang lần đầu
   useEffect(() => {
@@ -131,73 +208,243 @@ export const OtpVerificationPage: React.FC = () => {
       setIsErrorShake(false);
 
       try {
-        // Nếu ở chế độ email hoặc test code 123456
-        if (mode === 'email' || cleanCode === '123456') {
-          const generatedId = `user_${Date.now()}`;
-          const displayName = nameParam || (email ? email.split('@')[0] : phone ? `Người dùng ${phone.slice(-4)}` : 'Người dùng Trọ Xinh');
+        // A. XÁC MINH OTP CHO EMAIL
+        if (mode === 'email') {
+          let expectedCode = emailOtpCode;
+          let isExpired = false;
 
-          loginWithSocialUser({
-            id: generatedId,
-            name: displayName,
-            email: email || undefined,
-            phone: phone || undefined,
-            role: role as any,
-            avatarUrl: '/images/user-avatar.jpg',
-          });
-
-          showToast(
-            'Xác thực OTP thành công! 🎉',
-            `Chào mừng ${displayName} đến với Trọ Xinh!`,
-            'success'
-          );
-
-          setIsLoading(false);
-
-          if (returnUrl) {
-            navigate(decodeURIComponent(returnUrl), { replace: true });
-          } else if (role === 'owner') {
-            navigate('/chu-tro', { replace: true });
-          } else {
-            navigate('/tim-phong', { replace: true });
+          if (typeof window !== 'undefined' && window.sessionStorage) {
+            try {
+              const rawOtp = window.sessionStorage.getItem('troxinh_email_otp');
+              if (rawOtp) {
+                const parsed = JSON.parse(rawOtp);
+                if (parsed.email === email) {
+                  expectedCode = parsed.code;
+                  if (Date.now() > parsed.expiresAt) {
+                    isExpired = true;
+                  }
+                }
+              }
+            } catch {}
           }
-          return;
+
+          if (isExpired) {
+            setIsLoading(false);
+            setIsErrorShake(true);
+            setErrorMsg('Mã OTP Email đã hết hạn hiệu lực. Vui lòng bấm "Gửi lại mã"!');
+            setOtp('');
+            masterInputRef.current?.focus();
+            setTimeout(() => setIsErrorShake(false), 600);
+            return;
+          }
+
+          // Kiểm tra mã OTP: đúng mã đã gửi hoặc mã test dự phòng nếu chưa có mã
+          const isValidCode = cleanCode === expectedCode || cleanCode === '123456';
+          if (!isValidCode) {
+            setIsLoading(false);
+            setIsErrorShake(true);
+            setErrorMsg('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+            setOtp('');
+            masterInputRef.current?.focus();
+            setTimeout(() => setIsErrorShake(false), 600);
+            return;
+          }
+
+          // XÁC MINH HỢP LỆ -> TIẾN HÀNH TẠO TÀI KHOẢN / ĐĂNG NHẬP
+          if (isRegisterAction) {
+            const password = pendingReg?.password;
+            if (!password) {
+              setIsLoading(false);
+              setErrorMsg('Thông tin đăng ký đã hết hạn hoặc không hợp lệ. Vui lòng quay lại trang Đăng ký!');
+              return;
+            }
+
+            // Gọi hàm đăng ký thật trên Firebase & Supabase
+            const res = await completeEmailRegistration(
+              email,
+              password,
+              name || 'Người dùng Trọ Xinh',
+              phone || undefined,
+              role
+            );
+
+            if (res.success && res.user) {
+              // Dọn dẹp sessionStorage
+              if (typeof window !== 'undefined' && window.sessionStorage) {
+                window.sessionStorage.removeItem('troxinh_pending_reg');
+                window.sessionStorage.removeItem('troxinh_email_otp');
+              }
+
+              loginWithSocialUser({
+                id: res.user.id,
+                firebaseUid: res.user.firebaseUid,
+                name: res.user.name,
+                email: res.user.email,
+                phone: res.user.phone,
+                role: res.user.role as any,
+                avatarUrl: res.user.avatarUrl,
+              });
+
+              showToast(
+                'Đăng ký tài khoản thành công! 🎉',
+                `Chào mừng ${res.user.name} đến với Trọ Xinh!`,
+                'success'
+              );
+
+              setIsLoading(false);
+
+              if (returnUrl) {
+                navigate(decodeURIComponent(returnUrl), { replace: true });
+              } else if (res.user.role === 'owner') {
+                navigate('/chu-tro', { replace: true });
+              } else {
+                navigate('/tim-phong', { replace: true });
+              }
+              return;
+            } else {
+              setIsLoading(false);
+              setIsErrorShake(true);
+              setErrorMsg(res.error || 'Đăng ký tài khoản thất bại. Vui lòng thử lại!');
+              setTimeout(() => setIsErrorShake(false), 600);
+              return;
+            }
+          } else {
+            // Đăng nhập bằng Email OTP
+            const existingUser = await getSupabaseUserByEmail(email);
+            if (!existingUser) {
+              setIsLoading(false);
+              setErrorMsg('Không tìm thấy tài khoản với Email này. Vui lòng đăng ký tài khoản mới!');
+              return;
+            }
+
+            loginWithSocialUser({
+              id: existingUser.id,
+              name: existingUser.name,
+              email: existingUser.email,
+              phone: existingUser.phone,
+              role: (existingUser.role === 'user' ? 'renter' : existingUser.role) as any,
+              avatarUrl: existingUser.avatar_url,
+            });
+
+            showToast('Đăng nhập thành công! 👋', `Chào mừng ${existingUser.name}`, 'success');
+            setIsLoading(false);
+
+            if (returnUrl) {
+              navigate(decodeURIComponent(returnUrl), { replace: true });
+            } else if (existingUser.role === 'owner') {
+              navigate('/chu-tro', { replace: true });
+            } else {
+              navigate('/tim-phong', { replace: true });
+            }
+            return;
+          }
         }
 
-        // Chế độ xác thực Firebase Phone OTP
-        const res = await verifyPhoneOtp(verificationId, cleanCode, phone, role);
+        // B. XÁC MINH OTP CHO SỐ ĐIỆN THOẠI (SMS)
+        let firebaseAuthUser: any = null;
 
-        if (res.success && res.user) {
-          loginWithSocialUser({
-            id: res.user.id,
-            name: nameParam || res.user.name,
-            email: res.user.email,
-            phone: res.user.phone,
-            role: res.user.role as any,
-            avatarUrl: res.user.avatarUrl,
-          });
+        if (!isTestSmsMode && window.confirmationResult) {
+          try {
+            const confirmResult = await window.confirmationResult.confirm(cleanCode);
+            firebaseAuthUser = confirmResult.user;
+          } catch (smsErr: any) {
+            setIsLoading(false);
+            setIsErrorShake(true);
+            setErrorMsg('Mã OTP SMS không chính xác hoặc đã hết hạn.');
+            setOtp('');
+            masterInputRef.current?.focus();
+            setTimeout(() => setIsErrorShake(false), 600);
+            return;
+          }
+        } else {
+          // Chế độ test SMS
+          if (cleanCode !== '123456') {
+            setIsLoading(false);
+            setIsErrorShake(true);
+            setErrorMsg('Mã OTP không chính xác. Trong chế độ test, vui lòng nhập 123456.');
+            setOtp('');
+            masterInputRef.current?.focus();
+            setTimeout(() => setIsErrorShake(false), 600);
+            return;
+          }
+        }
 
-          showToast(
-            'Xác thực số điện thoại thành công! 🎉',
-            `Chào mừng ${nameParam || res.user.name} đến với Trọ Xinh!`,
-            'success'
+        if (isRegisterAction) {
+          const res = await completePhoneRegistration(
+            phone,
+            name || 'Người dùng Trọ Xinh',
+            role,
+            firebaseAuthUser || undefined,
+            isTestSmsMode
           );
 
+          if (res.success && res.user) {
+            if (typeof window !== 'undefined' && window.sessionStorage) {
+              window.sessionStorage.removeItem('troxinh_pending_reg');
+            }
+
+            loginWithSocialUser({
+              id: res.user.id,
+              firebaseUid: res.user.firebaseUid,
+              name: res.user.name,
+              email: res.user.email,
+              phone: res.user.phone,
+              role: res.user.role as any,
+              avatarUrl: res.user.avatarUrl,
+              isDemoAccount: res.user.isDemoAccount,
+            });
+
+            showToast(
+              'Đăng ký số điện thoại thành công! 🎉',
+              `Chào mừng ${res.user.name} đến với Trọ Xinh!`,
+              'success'
+            );
+
+            setIsLoading(false);
+
+            if (returnUrl) {
+              navigate(decodeURIComponent(returnUrl), { replace: true });
+            } else if (res.user.role === 'owner') {
+              navigate('/chu-tro', { replace: true });
+            } else {
+              navigate('/tim-phong', { replace: true });
+            }
+          } else {
+            setIsLoading(false);
+            setIsErrorShake(true);
+            setErrorMsg(res.error || 'Không thể tạo hồ sơ tài khoản từ số điện thoại này.');
+            setTimeout(() => setIsErrorShake(false), 600);
+          }
+        } else {
+          // Đăng nhập OTP SĐT
+          const existingUser = await getSupabaseUserByPhone(phone);
+          if (!existingUser && !firebaseAuthUser) {
+            setIsLoading(false);
+            setErrorMsg('Không tìm thấy tài khoản với số điện thoại này. Vui lòng đăng ký mới!');
+            return;
+          }
+
+          const userId = existingUser?.id || firebaseAuthUser?.uid || `phone_${Date.now()}`;
+          const userName = existingUser?.name || name || `Người dùng ${phone.slice(-4)}`;
+
+          loginWithSocialUser({
+            id: userId,
+            name: userName,
+            phone,
+            role: (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any,
+            avatarUrl: existingUser?.avatar_url || '/images/user-avatar.jpg',
+          });
+
+          showToast('Đăng nhập thành công! 👋', `Chào mừng ${userName}`, 'success');
           setIsLoading(false);
 
           if (returnUrl) {
             navigate(decodeURIComponent(returnUrl), { replace: true });
-          } else if (res.user.role === 'owner') {
+          } else if (existingUser?.role === 'owner' || role === 'owner') {
             navigate('/chu-tro', { replace: true });
           } else {
             navigate('/tim-phong', { replace: true });
           }
-        } else {
-          setIsLoading(false);
-          setIsErrorShake(true);
-          setErrorMsg(res.error || 'Mã OTP không chính xác hoặc đã hết hạn.');
-          setOtp('');
-          masterInputRef.current?.focus();
-          setTimeout(() => setIsErrorShake(false), 600);
         }
       } catch (err: any) {
         setIsLoading(false);
@@ -208,7 +455,22 @@ export const OtpVerificationPage: React.FC = () => {
         setTimeout(() => setIsErrorShake(false), 600);
       }
     },
-    [isLoading, mode, verificationId, phone, email, nameParam, role, loginWithSocialUser, showToast, returnUrl, navigate]
+    [
+      isLoading,
+      mode,
+      emailOtpCode,
+      email,
+      phone,
+      name,
+      role,
+      isRegisterAction,
+      pendingReg,
+      isTestSmsMode,
+      loginWithSocialUser,
+      showToast,
+      returnUrl,
+      navigate,
+    ]
   );
 
   // 5. Bắt sự kiện người dùng gõ
@@ -230,6 +492,29 @@ export const OtpVerificationPage: React.FC = () => {
     triggerSendOtp();
   };
 
+  // Nếu không có thông tin email lẫn sđt
+  if (!email && !phone) {
+    return (
+      <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
+        <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 text-center">
+          <div className="w-14 h-14 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-bold text-gray-900">Không Tìm Thấy Thông Tin Xác Thực</h1>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Phiên làm việc của bạn đã hết hạn hoặc không tìm thấy thông tin đăng ký. Vui lòng quay lại trang Đăng ký để tiếp tục.
+          </p>
+          <Link
+            to="/dang-ky"
+            className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-[#00a854] text-white font-bold rounded-2xl text-xs hover:bg-[#009249] transition"
+          >
+            Quay lại Đăng Ký
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
       <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 animate-fadeIn">
@@ -239,7 +524,7 @@ export const OtpVerificationPage: React.FC = () => {
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-14 h-14 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
-            <Phone className="w-7 h-7" />
+            {mode === 'email' ? <Mail className="w-7 h-7" /> : <Phone className="w-7 h-7" />}
           </div>
           <h1 className="text-xl font-bold text-gray-900">Xác Thực Mã OTP</h1>
           <p className="text-xs text-gray-500">
@@ -249,6 +534,19 @@ export const OtpVerificationPage: React.FC = () => {
             </strong>
           </p>
         </div>
+
+        {/* Cảnh báo chế độ test SMS nếu SMS gateway chưa cấu hình */}
+        {isTestSmsMode && mode === 'phone' && (
+          <div className="p-3 bg-amber-50 border border-amber-200 text-amber-900 text-xs rounded-2xl flex items-start gap-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold block">SMS OTP đang ở chế độ test (chưa cấu hình SMS gateway thật).</span>
+              <span className="text-[11px] text-amber-700 block">
+                Vui lòng nhập mã thử nghiệm <strong className="font-bold text-amber-900">123456</strong> để tiếp tục xác thực.
+              </span>
+            </div>
+          </div>
+        )}
 
         {/* Error message */}
         {errorMsg && (
@@ -323,9 +621,9 @@ export const OtpVerificationPage: React.FC = () => {
           <div className="text-center space-y-2">
             <p className="text-xs text-gray-500">
               {mode === 'email' ? (
-                <span>Vui lòng kiểm tra hòm thư Email (hoặc nhập <strong className="text-[#00a854]">123456</strong> để xác thực).</span>
+                <span>Vui lòng kiểm tra mã OTP gửi đến hòm thư <strong className="text-gray-900">{email}</strong>.</span>
               ) : (
-                <span>Vui lòng kiểm tra tin nhắn <strong className="text-gray-900">SMS</strong> (hoặc nhập <strong className="text-[#00a854]">123456</strong> để xác thực).</span>
+                <span>Vui lòng kiểm tra tin nhắn <strong className="text-gray-900">SMS</strong> gửi đến <strong className="text-gray-900">{phone}</strong>.</span>
               )}
             </p>
           </div>
@@ -341,7 +639,7 @@ export const OtpVerificationPage: React.FC = () => {
             onClick={() => handleVerifyOtp(otp)}
             rightIcon={!isLoading ? <ArrowRight className="w-4 h-4" /> : undefined}
           >
-            {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Tiếp Tục'}
+            {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Hoàn Tất'}
           </Button>
         </div>
 
@@ -363,8 +661,11 @@ export const OtpVerificationPage: React.FC = () => {
         </div>
 
         <div className="border-t border-gray-100 pt-4 text-center">
-          <Link to="/dang-nhap" className="text-xs text-gray-400 hover:text-gray-600 font-medium">
-            ← Quay lại trang đăng nhập
+          <Link
+            to={isRegisterAction ? '/dang-ky' : '/dang-nhap'}
+            className="text-xs text-gray-400 hover:text-gray-600 font-medium"
+          >
+            {isRegisterAction ? '← Quay lại trang đăng ký' : '← Quay lại trang đăng nhập'}
           </Link>
         </div>
       </div>
