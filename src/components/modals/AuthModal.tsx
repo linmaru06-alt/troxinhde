@@ -4,6 +4,8 @@ import { useUIStore } from '../../store/useUIStore';
 import { useAppStore } from '../../store/useAppStore';
 import {
   loginWithGoogle,
+  loginWithFacebook,
+  loginWithApple,
   loginWithEmailPassword,
   loginWithDemoAccount,
 } from '../../lib/authService';
@@ -80,44 +82,55 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  // 2. Social Login: Facebook / Apple Simulation
+  // 2. Social Login: Facebook
   const handleFacebookLogin = async () => {
+    setErrorMsg('');
     setIsSocialLoading('facebook');
     try {
-      const res = await loginWithDemoAccount('renter');
+      const res = await loginWithFacebook('renter');
       if (res.success && res.user) {
         loginWithSocialUser({
           id: res.user.id,
-          name: 'Người dùng Facebook (Demo)',
-          email: 'facebook.user@troxinh.vn',
-          phone: '0988110789',
-          role: 'renter',
-          avatarUrl: '/images/user-avatar.jpg',
+          name: res.user.name,
+          email: res.user.email,
+          phone: res.user.phone,
+          role: res.user.role,
+          avatarUrl: res.user.avatarUrl,
         });
-        showToast('Đăng nhập Facebook thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh', 'success');
+        showToast('Đăng nhập Facebook thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
         handleClose();
+      } else {
+        setErrorMsg(res.error || 'Đăng nhập Facebook không thành công.');
       }
+    } catch (err: any) {
+      setErrorMsg('Lỗi khi xác thực tài khoản Facebook.');
     } finally {
       setIsSocialLoading(null);
     }
   };
 
+  // 3. Social Login: Apple
   const handleAppleLogin = async () => {
+    setErrorMsg('');
     setIsSocialLoading('apple');
     try {
-      const res = await loginWithDemoAccount('renter');
+      const res = await loginWithApple('renter');
       if (res.success && res.user) {
         loginWithSocialUser({
           id: res.user.id,
-          name: 'Người dùng Apple (Demo)',
-          email: 'apple.user@troxinh.vn',
-          phone: '0988110789',
-          role: 'renter',
-          avatarUrl: '/images/user-avatar.jpg',
+          name: res.user.name,
+          email: res.user.email,
+          phone: res.user.phone,
+          role: res.user.role,
+          avatarUrl: res.user.avatarUrl,
         });
-        showToast('Đăng nhập Apple thành công! 🎉', 'Chào mừng bạn đến với Trọ Xinh', 'success');
+        showToast('Đăng nhập Apple thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
         handleClose();
+      } else {
+        setErrorMsg(res.error || 'Đăng nhập Apple không thành công.');
       }
+    } catch (err: any) {
+      setErrorMsg('Lỗi khi xác thực tài khoản Apple.');
     } finally {
       setIsSocialLoading(null);
     }

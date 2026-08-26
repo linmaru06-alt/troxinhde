@@ -3,6 +3,8 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import {
   loginWithGoogle,
+  loginWithFacebook,
+  loginWithApple,
   loginWithEmailPassword,
   loginWithDemoAccount,
 } from '../lib/authService';
@@ -75,32 +77,37 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // 2. Social: Facebook / Apple Simulation
+  // 2. Social: Facebook
   const handleFacebookLogin = async () => {
+    setError('');
     setIsSocialLoading('facebook');
     try {
-      const res = await loginWithDemoAccount('renter');
+      const res = await loginWithFacebook(roleParam);
       if (res.success && res.user) {
-        handleFinishLogin({
-          ...res.user,
-          name: 'Người dùng Facebook (Demo)',
-        });
+        handleFinishLogin(res.user);
+      } else {
+        setError(res.error || 'Đăng nhập Facebook không thành công.');
       }
+    } catch {
+      setError('Lỗi khi kết nối Facebook.');
     } finally {
       setIsSocialLoading(null);
     }
   };
 
+  // 3. Social: Apple
   const handleAppleLogin = async () => {
+    setError('');
     setIsSocialLoading('apple');
     try {
-      const res = await loginWithDemoAccount('renter');
+      const res = await loginWithApple(roleParam);
       if (res.success && res.user) {
-        handleFinishLogin({
-          ...res.user,
-          name: 'Người dùng Apple (Demo)',
-        });
+        handleFinishLogin(res.user);
+      } else {
+        setError(res.error || 'Đăng nhập Apple không thành công.');
       }
+    } catch {
+      setError('Lỗi khi kết nối Apple.');
     } finally {
       setIsSocialLoading(null);
     }
