@@ -1,6 +1,3 @@
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
-
 export interface ContractData {
   ownerName?: string;
   renterName?: string;
@@ -24,6 +21,13 @@ export async function generateContractPDF(
   if (document.fonts) {
     await document.fonts.ready;
   }
+
+  // Dynamic import heavy modules
+  const [html2canvasModule, { jsPDF }] = await Promise.all([
+    import('html2canvas'),
+    import('jspdf'),
+  ]);
+  const html2canvas = html2canvasModule.default;
 
   // Create high-res canvas from DOM element
   const canvas = await html2canvas(element, {

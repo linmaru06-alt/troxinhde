@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test:all": "node scripts/test-unified-auth.mjs && node scripts/test-momo-integration.mjs",
+    "test:auth": "node scripts/test-unified-auth.mjs",
+    "test:momo": "node scripts/test-momo-integration.mjs",
     "sync": "git add -A && git commit -m \"sync: automatic update\" && git push origin main",
     "stitch:doctor": "node -e \"import('./scripts/fetch-info.mjs')\""
   },

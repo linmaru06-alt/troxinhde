@@ -994,7 +994,15 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'troxinh_storage_v3',
+      name: 'troxinh_storage_v4',
+      partialize: (state) => ({
+        currentUser: state.currentUser,
+        savedRoomIds: state.savedRoomIds,
+        savedRoommateIds: state.savedRoommateIds,
+        savedItemIds: state.savedItemIds,
+        bookings: state.bookings,
+        ownerSubscription: state.ownerSubscription,
+      }),
     }
   )
 );

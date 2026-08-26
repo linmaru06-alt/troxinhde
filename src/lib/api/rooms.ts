@@ -18,7 +18,22 @@ export async function getRooms(filters?: RoomFilters) {
   let query = supabase
     .from('rooms')
     .select(`
-      *,
+      id,
+      title,
+      room_number,
+      room_type,
+      price,
+      deposit,
+      area,
+      floor,
+      status,
+      availability_status,
+      moderation_status,
+      images,
+      amenities,
+      is_boosted,
+      boost_badge,
+      created_at,
       buildings(id, name, district, address, lat, lng, electricity_price, water_price),
       profiles!owner_id(id, full_name, phone, avatar_url, app_role)
     `)

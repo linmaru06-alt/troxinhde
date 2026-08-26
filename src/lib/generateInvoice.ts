@@ -1,7 +1,5 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
-import { jsPDF } from 'jspdf';
-import html2canvas from 'html2canvas';
 import { InvoiceTemplate, InvoiceProps } from '../components/invoice/InvoiceTemplate';
 
 /**
@@ -103,6 +101,13 @@ export async function generateInvoicePDF(invoiceData: InvoiceProps): Promise<voi
   await new Promise((resolve) => setTimeout(resolve, 450));
 
   try {
+    // Dynamic import for heavy libraries
+    const [html2canvasModule, { jsPDF }] = await Promise.all([
+      import('html2canvas'),
+      import('jspdf'),
+    ]);
+    const html2canvas = html2canvasModule.default;
+
     // 4. Capture HTML canvas with high scale (2x for crisp text)
     const canvas = await html2canvas(container, {
       scale: 2,
