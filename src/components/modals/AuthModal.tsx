@@ -8,6 +8,7 @@ import {
   loginWithApple,
   loginWithEmailPassword,
   loginWithDemoAccount,
+  completePhoneOtpAuth,
 } from '../../lib/authService';
 import {
   X,
@@ -200,7 +201,7 @@ export const AuthModal: React.FC = () => {
     }
   };
 
-  // 5. Xử lý Xác thực OTP
+  // 5. Xử lý Xác thực OTP Hợp Nhất
   const handleOtpSubmit = async (codeToVerify?: string) => {
     const finalCode = (codeToVerify || otpInput).trim();
     if (!finalCode || finalCode.length < 6) {
@@ -213,21 +214,32 @@ export const AuthModal: React.FC = () => {
 
     try {
       if (finalCode === generatedOtp || finalCode === '123456') {
-        const cleanPhone = identifier.replace(/\D/g, '');
-        const mockUser = {
-          id: `usr_${Date.now()}`,
-          name: fullName.trim() || `Khách hàng ${cleanPhone.slice(-4)}`,
-          phone: cleanPhone,
-          role: 'renter' as const,
-          avatarUrl: '/images/user-avatar.jpg',
-        };
+        const res = await completePhoneOtpAuth(
+          identifier,
+          finalCode,
+          fullName.trim() || undefined,
+          authModalMode === 'register' ? 'renter' : 'renter'
+        );
 
-        loginWithSocialUser(mockUser);
-        showToast('Xác thực thành công! 🎉', `Chào mừng bạn gia nhập Trọ Xinh`, 'success');
-        handleClose();
+        if (res.success && res.user) {
+          loginWithSocialUser({
+            id: res.user.id,
+            name: res.user.name,
+            email: res.user.email,
+            phone: res.user.phone,
+            role: res.user.role,
+            avatarUrl: res.user.avatarUrl,
+          });
+          showToast('Xác thực thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
+          handleClose();
+        } else {
+          setErrorMsg(res.error || 'Lỗi khi xác thực tài khoản.');
+        }
       } else {
         setErrorMsg('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
       }
+    } catch (err: any) {
+      setErrorMsg('Đã có lỗi xảy ra khi xác thực OTP.');
     } finally {
       setIsLoading(false);
     }

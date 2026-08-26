@@ -7,6 +7,7 @@ import {
   loginWithApple,
   loginWithEmailPassword,
   loginWithDemoAccount,
+  completePhoneOtpAuth,
 } from '../lib/authService';
 import {
   AlertCircle,
@@ -158,25 +159,32 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // 5. Submit OTP
-  const handleOtpSubmit = (codeToVerify?: string) => {
+  // 5. Submit OTP Hợp Nhất
+  const handleOtpSubmit = async (codeToVerify?: string) => {
     const finalCode = (codeToVerify || otpInput).trim();
     if (!finalCode || finalCode.length < 6) {
       setError('Vui lòng nhập đủ 6 chữ số mã OTP.');
       return;
     }
 
-    if (finalCode === generatedOtp || finalCode === '123456') {
-      const cleanPhone = identifier.replace(/\D/g, '');
-      handleFinishLogin({
-        id: `usr_${Date.now()}`,
-        name: `Khách hàng ${cleanPhone.slice(-4)}`,
-        phone: cleanPhone,
-        role: roleParam,
-        avatarUrl: '/images/user-avatar.jpg',
-      });
-    } else {
-      setError('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+    setIsLoading(true);
+    setError('');
+
+    try {
+      if (finalCode === generatedOtp || finalCode === '123456') {
+        const res = await completePhoneOtpAuth(identifier, finalCode, undefined, roleParam);
+        if (res.success && res.user) {
+          handleFinishLogin(res.user);
+        } else {
+          setError(res.error || 'Lỗi khi xác thực tài khoản.');
+        }
+      } else {
+        setError('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
+      }
+    } catch {
+      setError('Lỗi kết nối khi xác thực OTP.');
+    } finally {
+      setIsLoading(false);
     }
   };
 

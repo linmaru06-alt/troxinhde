@@ -294,3 +294,187 @@ export async function getSupabaseUserByPhone(
     return null;
   }
 }
+
+export interface UnifiedAuthResult {
+  success: boolean;
+  isNewUser: boolean;
+  user?: {
+    id: string;
+    firebaseUid: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    role: 'user' | 'renter' | 'owner' | 'admin';
+    avatarUrl?: string;
+    ownerApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+    createdAt?: string;
+  };
+  error?: string;
+}
+
+/**
+ * ĐỘNG CƠ HỢP NHẤT ĐĂNG KÝ / ĐĂNG NHẬP (UNIFIED AUTH ENGINE)
+ * - Nếu SĐT / Email ĐÃ TỒN TẠI trên Supabase -> Tự động đăng nhập (lấy dữ liệu cũ)
+ * - Nếu SĐT / Email CHƯA CÓ trên Supabase -> Tự động tạo mới tài khoản (Đăng ký)
+ */
+export async function handleUnifiedAuth(params: {
+  identifier: string; // Số điện thoại (0988110789) hoặc Email (user@gmail.com)
+  authType: 'phone' | 'google' | 'facebook' | 'apple' | 'email';
+  name?: string;
+  avatarUrl?: string;
+  firebaseUid?: string;
+  intendedRole?: 'renter' | 'owner' | 'admin' | 'user';
+}): Promise<UnifiedAuthResult> {
+  const isPhone = params.authType === 'phone' || !params.identifier.includes('@');
+  const cleanPhone = isPhone ? params.identifier.trim().replace(/\D/g, '') : undefined;
+  const cleanEmail = !isPhone ? params.identifier.trim().toLowerCase() : undefined;
+
+  try {
+    // 1. Kiểm tra tài khoản mẫu / Demo trong initialUsers
+    if (cleanPhone) {
+      const demoPhoneFound = initialUsers.find((u) => u.phone?.replace(/\D/g, '') === cleanPhone);
+      if (demoPhoneFound) {
+        return {
+          success: true,
+          isNewUser: false,
+          user: {
+            id: demoPhoneFound.id,
+            firebaseUid: demoPhoneFound.id,
+            name: demoPhoneFound.name,
+            email: demoPhoneFound.email,
+            phone: demoPhoneFound.phone,
+            role: demoPhoneFound.role as any,
+            avatarUrl: demoPhoneFound.avatarUrl || '/images/user-avatar.jpg',
+            ownerApplicationStatus: demoPhoneFound.ownerApplicationStatus,
+            createdAt: demoPhoneFound.createdAt,
+          },
+        };
+      }
+    }
+
+    if (cleanEmail) {
+      const demoEmailFound = initialUsers.find((u) => u.email?.toLowerCase() === cleanEmail);
+      if (demoEmailFound) {
+        return {
+          success: true,
+          isNewUser: false,
+          user: {
+            id: demoEmailFound.id,
+            firebaseUid: demoEmailFound.id,
+            name: demoEmailFound.name,
+            email: demoEmailFound.email,
+            phone: demoEmailFound.phone,
+            role: demoEmailFound.role as any,
+            avatarUrl: demoEmailFound.avatarUrl || '/images/user-avatar.jpg',
+            ownerApplicationStatus: demoEmailFound.ownerApplicationStatus,
+            createdAt: demoEmailFound.createdAt,
+          },
+        };
+      }
+    }
+
+    // 2. Truy vấn Supabase bảng users xem đã có tài khoản chưa
+    let existingUser: any = null;
+
+    if (cleanPhone) {
+      const { data: userByPhone } = await supabase
+        .from('users')
+        .select('*')
+        .eq('phone', cleanPhone)
+        .maybeSingle();
+      existingUser = userByPhone;
+    } else if (cleanEmail) {
+      const { data: userByEmail } = await supabase
+        .from('users')
+        .select('*')
+        .eq('email', cleanEmail)
+        .maybeSingle();
+      existingUser = userByEmail;
+    }
+
+    // 3. NẾU ĐÃ CÓ TÀI KHOẢN -> ĐĂNG NHẬP NGAY
+    if (existingUser) {
+      // Cập nhật updated_at
+      try {
+        await supabase
+          .from('users')
+          .update({ updated_at: new Date().toISOString() })
+          .eq('id', existingUser.id);
+      } catch {}
+
+      return {
+        success: true,
+        isNewUser: false,
+        user: {
+          id: existingUser.id,
+          firebaseUid: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email || undefined,
+          phone: existingUser.phone || undefined,
+          role: (existingUser.role === 'user' ? 'renter' : existingUser.role) as any,
+          avatarUrl: existingUser.avatar_url || '/images/user-avatar.jpg',
+          ownerApplicationStatus: existingUser.owner_application_status || 'none',
+          createdAt: existingUser.created_at,
+        },
+      };
+    }
+
+    // 4. NẾU CHƯA CÓ TÀI KHOẢN -> TỰ ĐỘNG ĐĂNG KÝ & LƯU SUPABASE
+    const userId = params.firebaseUid || `usr_${Date.now()}`;
+    const defaultName =
+      params.name?.trim() ||
+      (cleanPhone ? `Người dùng ${cleanPhone.slice(-4)}` : cleanEmail ? cleanEmail.split('@')[0] : 'Người dùng Trọ Xinh');
+    const role = params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'user';
+    const avatar = params.avatarUrl || '/images/user-avatar.jpg';
+
+    const newRecord = {
+      id: userId,
+      name: defaultName,
+      email: cleanEmail || null,
+      phone: cleanPhone || null,
+      role,
+      avatar_url: avatar,
+      verified: true,
+      auth_provider: params.authType,
+      owner_application_status: role === 'owner' ? 'approved' : 'none',
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data: createdData, error: insertErr } = await supabase
+      .from('users')
+      .upsert(newRecord, { onConflict: 'id' })
+      .select()
+      .maybeSingle();
+
+    if (insertErr) {
+      console.warn('[Unified Auth] Insert warning:', insertErr.message);
+    }
+
+    const savedUser = createdData || newRecord;
+
+    return {
+      success: true,
+      isNewUser: true,
+      user: {
+        id: savedUser.id,
+        firebaseUid: savedUser.id,
+        name: savedUser.name,
+        email: savedUser.email || undefined,
+        phone: savedUser.phone || undefined,
+        role: (savedUser.role === 'user' ? 'renter' : savedUser.role) as any,
+        avatarUrl: savedUser.avatar_url || avatar,
+        ownerApplicationStatus: savedUser.owner_application_status || 'none',
+        createdAt: savedUser.created_at,
+      },
+    };
+  } catch (err: any) {
+    console.error('[Unified Auth] Exception:', err);
+    return {
+      success: false,
+      isNewUser: false,
+      error: err.message || 'Lỗi khi xử lý xác thực tài khoản.',
+    };
+  }
+}
+

@@ -15,7 +15,12 @@ import {
   FirebaseUser,
 } from './firebase';
 import { supabase, getFirebaseIdToken } from './supabase';
-import { createSupabaseProfile, getSupabaseUserByEmail } from './supabaseAuthSync';
+import {
+  createSupabaseProfile,
+  getSupabaseUserByEmail,
+  handleUnifiedAuth,
+  UnifiedAuthResult,
+} from './supabaseAuthSync';
 import { initialUsers } from '../data/mockData';
 
 declare global {
@@ -543,18 +548,40 @@ export async function completePhoneRegistration(
 export const registerWithEmailPassword = completeEmailRegistration;
 
 /**
- * 5. ĐĂNG NHẬP GOOGLE OAUTH
+ * 5. ĐĂNG NHẬP / ĐĂNG KÝ HỢP NHẤT GOOGLE OAUTH
  */
 export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Promise<AuthActionResult> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
 
-    const userProfile = await syncFirebaseUserToSupabase(fbUser, intendedRole);
+    const email = fbUser.email ? fbUser.email.toLowerCase() : `google_${fbUser.uid}@troxinh.vn`;
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: email,
+      authType: 'google',
+      name: fbUser.displayName || undefined,
+      avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
+      firebaseUid: fbUser.uid,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi lưu thông tin tài khoản Google.' };
+    }
 
     return {
       success: true,
-      user: userProfile,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
     };
   } catch (error: any) {
     console.warn('[Firebase Auth] Đăng nhập Google lỗi:', error);
@@ -571,18 +598,40 @@ export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Pro
 }
 
 /**
- * 5.1 ĐĂNG NHẬP FACEBOOK OAUTH
+ * 5.1 ĐĂNG NHẬP / ĐĂNG KÝ HỢP NHẤT FACEBOOK OAUTH
  */
 export async function loginWithFacebook(intendedRole: AppUserRole = 'renter'): Promise<AuthActionResult> {
   try {
     const result = await signInWithPopup(auth, facebookProvider);
     const fbUser = result.user;
 
-    const userProfile = await syncFirebaseUserToSupabase(fbUser, intendedRole);
+    const email = fbUser.email ? fbUser.email.toLowerCase() : `fb_${fbUser.uid}@troxinh.vn`;
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: email,
+      authType: 'facebook',
+      name: fbUser.displayName || 'Người dùng Facebook',
+      avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
+      firebaseUid: fbUser.uid,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi lưu thông tin tài khoản Facebook.' };
+    }
 
     return {
       success: true,
-      user: userProfile,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
     };
   } catch (error: any) {
     console.warn('[Firebase Auth] Đăng nhập Facebook lỗi:', error);
@@ -590,14 +639,24 @@ export async function loginWithFacebook(intendedRole: AppUserRole = 'renter'): P
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Facebook.';
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
-      // Khi Firebase chưa cấu hình App ID Facebook, hỗ trợ tài khoản test Facebook
+      // Khi Firebase Console chưa tạo App ID Facebook, chạy chế độ Unified Demo Facebook
+      const mockEmail = 'facebook.user@troxinh.vn';
+      const unifiedRes = await handleUnifiedAuth({
+        identifier: mockEmail,
+        authType: 'facebook',
+        name: 'Người dùng Facebook (Trọ Xinh)',
+        avatarUrl: '/images/user-avatar.jpg',
+        firebaseUid: `fb_${Date.now()}`,
+        intendedRole,
+      });
+
       return {
         success: true,
         user: {
-          id: `usr_fb_${Date.now()}`,
-          firebaseUid: `fb_${Date.now()}`,
-          name: 'Người dùng Facebook (Trọ Xinh)',
-          email: 'facebook.user@troxinh.vn',
+          id: unifiedRes.user?.id || `usr_fb_${Date.now()}`,
+          firebaseUid: unifiedRes.user?.firebaseUid || `fb_${Date.now()}`,
+          name: unifiedRes.user?.name || 'Người dùng Facebook (Trọ Xinh)',
+          email: mockEmail,
           phone: '0988110789',
           role: intendedRole,
           avatarUrl: '/images/user-avatar.jpg',
@@ -612,18 +671,40 @@ export async function loginWithFacebook(intendedRole: AppUserRole = 'renter'): P
 }
 
 /**
- * 5.2 ĐĂNG NHẬP APPLE OAUTH
+ * 5.2 ĐĂNG NHẬP / ĐĂNG KÝ HỢP NHẤT APPLE OAUTH
  */
 export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Promise<AuthActionResult> {
   try {
     const result = await signInWithPopup(auth, appleProvider);
     const fbUser = result.user;
 
-    const userProfile = await syncFirebaseUserToSupabase(fbUser, intendedRole);
+    const email = fbUser.email ? fbUser.email.toLowerCase() : `apple_${fbUser.uid}@troxinh.vn`;
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: email,
+      authType: 'apple',
+      name: fbUser.displayName || 'Người dùng Apple',
+      avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
+      firebaseUid: fbUser.uid,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi lưu thông tin tài khoản Apple.' };
+    }
 
     return {
       success: true,
-      user: userProfile,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
     };
   } catch (error: any) {
     console.warn('[Firebase Auth] Đăng nhập Apple lỗi:', error);
@@ -631,13 +712,23 @@ export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Prom
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Apple.';
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
+      const mockEmail = 'apple.user@troxinh.vn';
+      const unifiedRes = await handleUnifiedAuth({
+        identifier: mockEmail,
+        authType: 'apple',
+        name: 'Người dùng Apple (Trọ Xinh)',
+        avatarUrl: '/images/user-avatar.jpg',
+        firebaseUid: `apple_${Date.now()}`,
+        intendedRole,
+      });
+
       return {
         success: true,
         user: {
-          id: `usr_apple_${Date.now()}`,
-          firebaseUid: `apple_${Date.now()}`,
-          name: 'Người dùng Apple (Trọ Xinh)',
-          email: 'apple.user@troxinh.vn',
+          id: unifiedRes.user?.id || `usr_apple_${Date.now()}`,
+          firebaseUid: unifiedRes.user?.firebaseUid || `apple_${Date.now()}`,
+          name: unifiedRes.user?.name || 'Người dùng Apple (Trọ Xinh)',
+          email: mockEmail,
           phone: '0988110789',
           role: intendedRole,
           avatarUrl: '/images/user-avatar.jpg',
@@ -646,6 +737,57 @@ export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Prom
       };
     }
     return { success: false, error: msg };
+  }
+}
+
+/**
+ * 5.3 XÁC THỰC SỐ ĐIỆN THOẠI HỢP NHẤT (UNIFIED PHONE OTP AUTH)
+ * Nhập SĐT -> Gửi OTP -> Xác thực OTP -> Tự động đăng ký nếu chưa có, hoặc đăng nhập nếu đã có
+ */
+export async function completePhoneOtpAuth(
+  phone: string,
+  otpCode: string,
+  fullName?: string,
+  intendedRole: AppUserRole = 'renter'
+): Promise<AuthActionResult> {
+  const cleanPhone = phone.trim().replace(/\D/g, '');
+  if (!cleanPhone || cleanPhone.length < 10) {
+    return { success: false, error: 'Số điện thoại không hợp lệ (tối thiểu 10 chữ số).' };
+  }
+
+  const cleanOtp = otpCode.trim();
+  if (!cleanOtp || cleanOtp.length < 6) {
+    return { success: false, error: 'Vui lòng nhập đủ 6 chữ số mã OTP.' };
+  }
+
+  try {
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: cleanPhone,
+      authType: 'phone',
+      name: fullName?.trim() || undefined,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi khi xử lý tài khoản số điện thoại.' };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
+    };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Lỗi xác thực số điện thoại.' };
   }
 }
 
