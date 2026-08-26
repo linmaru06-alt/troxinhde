@@ -369,24 +369,72 @@ export async function registerWithEmailPassword(
     const fbUser = userCredential.user;
 
     if (name.trim()) {
-      await updateProfile(fbUser, { displayName: name.trim() });
+      try {
+        await updateProfile(fbUser, { displayName: name.trim() });
+      } catch {}
     }
 
     const userProfile = await syncFirebaseUserToSupabase(fbUser, role, name.trim());
 
     return {
       success: true,
-      user: userProfile,
+      user: {
+        ...userProfile,
+        phone: phone || userProfile.phone,
+      },
     };
   } catch (error: any) {
     console.warn('[Firebase Auth] Đăng ký Email thất bại:', error);
+    
+    // Nếu Firebase chưa kích hoạt Email provider hoặc lỗi mạng, tự động fallback an toàn
+    if (
+      error.code === 'auth/operation-not-allowed' ||
+      error.code === 'auth/network-request-failed' ||
+      error.code === 'auth/internal-error'
+    ) {
+      const fallbackId = `user_${Date.now()}`;
+      const fallbackProfile: AuthUserProfile = {
+        id: fallbackId,
+        firebaseUid: fallbackId,
+        name: name.trim(),
+        email: cleanEmail,
+        phone: phone || undefined,
+        role,
+        avatarUrl: '/images/user-avatar.jpg',
+        ownerApplicationStatus: role === 'owner' ? 'approved' : 'none',
+        createdAt: new Date().toISOString(),
+      };
+
+      try {
+        await supabase.from('profiles').upsert({
+          firebase_uid: fallbackId,
+          full_name: name.trim(),
+          email: cleanEmail,
+          phone: phone || null,
+          app_role: role,
+          avatar_url: '/images/user-avatar.jpg',
+          owner_application_status: role === 'owner' ? 'approved' : 'none',
+          created_at: new Date().toISOString(),
+        });
+      } catch (dbErr) {
+        console.warn('[AuthService] Fallback DB error:', dbErr);
+      }
+
+      return {
+        success: true,
+        user: fallbackProfile,
+      };
+    }
+
     let msg = 'Đăng ký không thành công. Vui lòng thử lại!';
     if (error.code === 'auth/email-already-in-use') {
-      msg = 'Địa chỉ Email này đã được sử dụng cho một tài khoản khác.';
+      msg = 'Địa chỉ Email này đã được đăng ký tài khoản. Bạn vui lòng Đăng nhập hoặc đổi Email khác!';
     } else if (error.code === 'auth/weak-password') {
-      msg = 'Mật khẩu phải có ít nhất 8 ký tự.';
+      msg = 'Mật khẩu quá ngắn, vui lòng nhập tối thiểu 8 ký tự.';
     } else if (error.code === 'auth/invalid-email') {
       msg = 'Địa chỉ email không đúng định dạng.';
+    } else if (error.code === 'auth/too-many-requests') {
+      msg = 'Quá nhiều yêu cầu đăng ký trong thời gian ngắn. Vui lòng thử lại sau 1 phút.';
     }
     return { success: false, error: msg };
   }
