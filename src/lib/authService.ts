@@ -584,14 +584,18 @@ export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Pro
       },
     };
   } catch (error: any) {
-    console.warn('[Firebase Auth] Đăng nhập Google lỗi:', error);
+    console.error('[Firebase Auth] Đăng nhập Google lỗi:', error);
     let msg = 'Đăng nhập Google không thành công.';
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Google.';
     } else if (error.code === 'auth/unauthorized-domain') {
-      msg = 'Tên miền chưa được ủy quyền trên Firebase Console. Vui lòng thêm localhost/domain vào Authorized Domains.';
+      msg = 'Tên miền chưa được ủy quyền trên Firebase Console. Vui lòng thêm localhost vào Authorized Domains.';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      msg = 'Google Sign-In chưa được bật trên Firebase Console (Vào Authentication > Sign-in method > Google > Enable).';
     } else if (error.code === 'auth/popup-blocked') {
-      msg = 'Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng cho phép popup để tiếp tục đăng nhập.';
+      msg = 'Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng bấm vào biểu tượng chặn popup trên thanh địa chỉ và chọn "Luôn cho phép".';
+    } else if (error.message) {
+      msg = `Lỗi Google OAuth (${error.code || 'unknown'}): ${error.message}`;
     }
     return { success: false, error: msg };
   }
