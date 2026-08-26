@@ -53,7 +53,17 @@ export default {
         '2xl': '1rem',
         '3xl': '1.5rem',
       },
+      aspectRatio: {
+        '4/3': '4 / 3',
+        '16/10': '16 / 10',
+        '21/9': '21 / 9',
+      },
+      backdropBlur: {
+        xs: '2px',
+      },
       boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        xs: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
         card: '0 2px 8px -2px rgba(0, 0, 0, 0.05), 0 4px 16px -4px rgba(0, 0, 0, 0.08)',
         'card-hover': '0 8px 24px -4px rgba(0, 109, 55, 0.12), 0 4px 12px -2px rgba(0, 0, 0, 0.06)',
         subtle: '0 1px 3px rgba(0,0,0,0.05)',

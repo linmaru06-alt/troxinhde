@@ -312,7 +312,7 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
         >
           <div className="space-y-5 text-xs text-gray-600">
             {/* Retention Offer Card */}
-            <div className="p-4 bg-linear-to-br from-amber-50 to-emerald-50 rounded-2xl border border-amber-200 space-y-2">
+            <div className="p-4 bg-gradient-to-br from-amber-50 to-emerald-50 rounded-2xl border border-amber-200 space-y-2">
               <div className="flex items-center gap-2 font-black text-amber-900 text-sm">
                 <Gift className="w-4 h-4 text-amber-600" />
                 <span>Ưu đãi giữ chân dành riêng cho bạn!</span>

@@ -107,7 +107,7 @@ export const Navbar: React.FC = () => {
             <div className="relative hidden md:block" ref={roleDropdownRef}>
               <button
                 onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className="flex items-center gap-1 text-xs font-black text-gray-950 hover:text-black px-2 py-1 rounded-lg hover:bg-black/10 transition"
+                className="flex items-center gap-1 text-xs font-bold text-white/95 hover:text-white px-2.5 py-1.5 rounded-xl hover:bg-black/10 transition"
               >
                 <span>{currentUser?.role === 'owner' ? 'Dành cho chủ trọ' : 'Dành cho người thuê'}</span>
                 <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isRoleDropdownOpen ? 'rotate-180' : ''}`} />
@@ -152,7 +152,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* 2. Center: Desktop Main Navigation Tabs */}
-          <nav className="hidden lg:flex items-center gap-5 text-xs font-black text-gray-950">
+          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold">
             {navLinks.map((link) => {
               const active = isActive(link.to);
               return (
@@ -161,8 +161,8 @@ export const Navbar: React.FC = () => {
                   to={link.to}
                   className={`py-1 transition-all ${
                     active
-                      ? 'text-black border-b-2 border-black font-black'
-                      : 'text-gray-950 hover:text-black opacity-90 hover:opacity-100'
+                      ? 'text-white border-b-2 border-white font-black'
+                      : 'text-emerald-100/90 hover:text-white font-bold'
                   }`}
                 >
                   {link.label}

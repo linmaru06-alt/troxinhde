@@ -58,7 +58,7 @@ export const PricingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-b from-emerald-50/40 via-gray-50 to-white pb-20">
+    <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-gray-50 to-white pb-20">
       <SEOHead
         title="Bảng Giá Dịch Vụ Chủ Trọ | TroXinh Hà Nội"
         description="Nâng cấp tài khoản chủ trọ TroXinh để đăng nhiều phòng hơn, đẩy tin nổi bật tiếp cận 100,000+ sinh viên Hà Nội."

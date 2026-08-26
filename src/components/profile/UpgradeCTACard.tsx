@@ -5,7 +5,7 @@ import { Building2, ArrowRight } from 'lucide-react';
 
 export const UpgradeCTACard: React.FC = () => {
   return (
-    <div className="bg-linear-to-r from-blue-50 to-emerald-50 rounded-2xl p-4 border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+    <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-2xl p-4 border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
       <div className="flex items-center gap-3">
         <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs shrink-0">
           <Building2 className="w-5 h-5" />

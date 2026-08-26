@@ -156,8 +156,8 @@ export const MarketplaceListPage: React.FC = () => {
           style={{ backgroundImage: `url('/images/marketplace-banner.webp')` }}
         />
         {/* Dark Gradient & Frosted Overlay */}
-        <div className="absolute inset-0 bg-linear-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
-        <div className="absolute inset-0 bg-linear-to-t from-slate-950/70 via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">

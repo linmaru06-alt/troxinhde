@@ -34,7 +34,7 @@ export const AIRecommendationsSection: React.FC = () => {
   if (recommendedRooms.length === 0) return null;
 
   return (
-    <section className="py-12 bg-linear-to-b from-emerald-50/50 via-white to-white rounded-3xl border border-emerald-100/70 p-6 sm:p-8 my-8 shadow-xs">
+    <section className="py-12 bg-gradient-to-b from-emerald-50/50 via-white to-white rounded-3xl border border-emerald-100/70 p-6 sm:p-8 my-8 shadow-xs">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div className="space-y-1.5">

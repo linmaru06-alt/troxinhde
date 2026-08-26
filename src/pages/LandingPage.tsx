@@ -326,10 +326,10 @@ export const LandingPage: React.FC = () => {
             <span className="text-xs font-black uppercase tracking-wider text-emerald-200">
               Dành riêng cho chủ trọ tại Hà Nội
             </span>
-            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-gray-950">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Bạn có phòng trống cần tìm khách thuê tử tế?
             </h2>
-            <p className="text-xs sm:text-sm text-gray-900 font-bold max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-emerald-50 font-medium max-w-xl leading-relaxed">
               Nền tảng kết nối phòng trọ sinh viên uy tín tại Hà Nội. Đăng tin nhanh chóng, quản lý lịch hẹn và khách thuê thông minh.
             </p>
           </div>
@@ -341,7 +341,7 @@ export const LandingPage: React.FC = () => {
               </button>
             </Link>
             <Link to="/bang-gia">
-              <button className="px-6 py-3 bg-white/20 hover:bg-white/30 text-gray-950 font-black rounded-2xl text-xs sm:text-sm border border-black/10 transition">
+              <button className="px-6 py-3 bg-white/20 hover:bg-white/30 text-white font-black rounded-2xl text-xs sm:text-sm border border-white/20 transition">
                 Xem bảng giá gói VIP
               </button>
             </Link>

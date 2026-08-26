@@ -59,7 +59,7 @@ export const BuildingDetailPage: React.FC = () => {
           fallback="building"
           className="w-full h-full object-cover opacity-80"
         />
-        <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/30 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
         <div className="absolute bottom-6 left-6 right-6 text-white space-y-2">
           <div className="flex flex-wrap gap-2 mb-1">
