@@ -69,6 +69,17 @@ export async function rejectRoom(roomId: string, reason: string, adminEmail?: st
 export async function getUsers() {
   if (!isSupabaseConfigured) return [];
 
+  // 1. Đọc từ bảng users (nơi lưu các tài khoản người dùng đăng ký)
+  const { data: usersData, error: usersErr } = await supabase
+    .from('users')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (!usersErr && usersData && usersData.length > 0) {
+    return usersData;
+  }
+
+  // 2. Fallback đọc bảng profiles
   const { data, error } = await supabase
     .from('profiles')
     .select('*')
