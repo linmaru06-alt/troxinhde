@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
-import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle, Sparkles, Building2, CheckCircle2 } from 'lucide-react';
+import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle, Sparkles, Building2, CheckCircle2, ArrowRight } from 'lucide-react';
 import { loginWithGoogle, loginWithDemoAccount } from '../lib/authService';
 import { checkUserExists } from '../lib/supabaseAuthSync';
 
@@ -355,15 +355,21 @@ export const RegisterPage: React.FC = () => {
               leftIcon={<Lock className="w-4 h-4" />}
             />
 
+            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 text-[11px] text-emerald-900 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#00a854] shrink-0" />
+              <span>Sau khi bấm nút, hệ thống sẽ gửi mã xác thực OTP 6 số để kích hoạt tài khoản.</span>
+            </div>
+
             <Button
               type="submit"
               variant="primary"
               size="lg"
               className="w-full mt-2"
               isLoading={isLoading}
-              leftIcon={<UserPlus className="w-4 h-4" />}
+              leftIcon={<Mail className="w-4 h-4" />}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Đăng Ký Tài Khoản
+              {isLoading ? 'Đang gửi mã OTP...' : 'Gửi Mã OTP & Xác Nhận Đăng Ký'}
             </Button>
           </form>
         )}
@@ -403,8 +409,9 @@ export const RegisterPage: React.FC = () => {
               className="w-full mt-2"
               isLoading={isLoading}
               leftIcon={<Phone className="w-4 h-4" />}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Gửi Mã Xác Thực OTP SMS
+              {isLoading ? 'Đang gửi mã OTP...' : 'Gửi Mã Xác Thực OTP SMS'}
             </Button>
           </form>
         )}

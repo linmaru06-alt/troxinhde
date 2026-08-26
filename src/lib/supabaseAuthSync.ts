@@ -102,10 +102,13 @@ export async function checkUserExists(params: {
     console.warn('[Supabase Check] Lỗi khi truy vấn trùng lặp Supabase:', dbErr);
   }
 
-  // 3. Kiểm tra trên Firebase Auth nếu có Email
+  // 3. Kiểm tra trên Firebase Auth nếu có Email (non-blocking)
   if (cleanEmail && auth) {
     try {
-      const signInMethods = await fetchSignInMethodsForEmail(auth, cleanEmail);
+      const signInMethods = await Promise.race([
+        fetchSignInMethodsForEmail(auth, cleanEmail),
+        new Promise<string[]>((_, reject) => setTimeout(() => reject(new Error('timeout')), 1500)),
+      ]);
       if (signInMethods && signInMethods.length > 0) {
         return {
           exists: true,
