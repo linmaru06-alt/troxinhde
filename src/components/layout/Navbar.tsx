@@ -316,11 +316,11 @@ export const Navbar: React.FC = () => {
                       )}
 
                       <Link
-                        to="/hop-dong-mau"
+                        to="/ve-chung-toi/kiem-duyet"
                         className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
                       >
-                        <FileText className="w-4 h-4" />
-                        <span>Mẫu hợp đồng thuê</span>
+                        <ShieldCheck className="w-4 h-4 text-[#00a854]" />
+                        <span>Quy trình kiểm duyệt 24h</span>
                       </Link>
 
                       <div className="border-t border-gray-100 my-1" />
