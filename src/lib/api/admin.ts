@@ -81,24 +81,31 @@ export async function rejectRoom(roomId: string, reason: string, adminEmail?: st
 export async function getUsers() {
   if (!isSupabaseConfigured) return [];
 
-  // 1. Đọc từ bảng users (nơi lưu các tài khoản người dùng đăng ký)
-  const { data: usersData, error: usersErr } = await supabase
-    .from('users')
-    .select('id, name, full_name, phone, email, role, app_role, verified, is_demo_account, created_at')
-    .order('created_at', { ascending: false });
-
-  if (!usersErr && usersData && usersData.length > 0) {
-    return usersData;
-  }
-
-  // 2. Fallback đọc bảng profiles
   const { data, error } = await supabase
     .from('profiles')
-    .select('id, full_name, phone, email, role, app_role, avatar_url, created_at')
+    .select('id, firebase_uid, full_name, name, phone, email, role, app_role, avatar_url, verified, is_demo_account, owner_application_status, created_at')
     .order('created_at', { ascending: false });
 
-  if (error) throw error;
-  return data || [];
+  if (error) {
+    console.warn('[Admin API] Lỗi khi lấy danh sách profiles:', error);
+    return [];
+  }
+
+  return (data || []).map((p: any) => ({
+    id: p.id,
+    firebaseUid: p.firebase_uid || p.id,
+    name: p.full_name || p.name || 'Người dùng Trọ Xinh',
+    full_name: p.full_name || p.name || 'Người dùng Trọ Xinh',
+    phone: p.phone,
+    email: p.email,
+    role: p.app_role || p.role || 'renter',
+    app_role: p.app_role || p.role || 'renter',
+    verified: p.verified ?? true,
+    is_demo_account: Boolean(p.is_demo_account),
+    avatar_url: p.avatar_url || '/images/user-avatar.jpg',
+    owner_application_status: p.owner_application_status || 'none',
+    created_at: p.created_at,
+  }));
 }
 
 export async function getPendingOwnerApplications() {

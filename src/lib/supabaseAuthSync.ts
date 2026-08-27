@@ -16,7 +16,7 @@ export interface SupabaseUserProfile {
 }
 
 /**
- * Kiểm tra xem Email hoặc Số điện thoại đã được đăng ký trên Supabase, Firebase hoặc Demo Accounts chưa
+ * Kiểm tra xem Email hoặc Số điện thoại đã được đăng ký trên Supabase (bảng profiles), Firebase hoặc Demo Accounts chưa
  */
 export async function checkUserExists(params: {
   email?: string;
@@ -48,17 +48,16 @@ export async function checkUserExists(params: {
     }
   }
 
-  // 2. Kiểm tra trên Supabase bảng `users` và `profiles`
+  // 2. Kiểm tra trên Supabase bảng `profiles`
   try {
     if (cleanEmail) {
-      // Kiểm tra bảng users
-      const { data: userByEmail, error: userEmailErr } = await supabase
-        .from('users')
-        .select('id, email')
+      const { data: profileByEmail, error: emailErr } = await supabase
+        .from('profiles')
+        .select('id, firebase_uid, email')
         .eq('email', cleanEmail)
         .maybeSingle();
 
-      if (!userEmailErr && userByEmail) {
+      if (!emailErr && profileByEmail) {
         return {
           exists: true,
           field: 'email',
@@ -68,29 +67,13 @@ export async function checkUserExists(params: {
     }
 
     if (cleanPhone) {
-      // Kiểm tra bảng users
-      const { data: userByPhone, error: userPhoneErr } = await supabase
-        .from('users')
-        .select('id, phone')
-        .eq('phone', cleanPhone)
-        .maybeSingle();
-
-      if (!userPhoneErr && userByPhone) {
-        return {
-          exists: true,
-          field: 'phone',
-          message: 'Số điện thoại này đã được sử dụng cho một tài khoản khác!',
-        };
-      }
-
-      // Kiểm tra bảng profiles
-      const { data: profileByPhone, error: profPhoneErr } = await supabase
+      const { data: profileByPhone, error: phoneErr } = await supabase
         .from('profiles')
-        .select('id, phone')
+        .select('id, firebase_uid, phone')
         .eq('phone', cleanPhone)
         .maybeSingle();
 
-      if (!profPhoneErr && profileByPhone) {
+      if (!phoneErr && profileByPhone) {
         return {
           exists: true,
           field: 'phone',
@@ -99,7 +82,7 @@ export async function checkUserExists(params: {
       }
     }
   } catch (dbErr) {
-    console.warn('[Supabase Check] Lỗi khi truy vấn trùng lặp Supabase:', dbErr);
+    console.warn('[Supabase Check] Lỗi khi truy vấn trùng lặp profiles:', dbErr);
   }
 
   // 3. Kiểm tra trên Firebase Auth nếu có Email (non-blocking)
@@ -131,8 +114,8 @@ export async function checkUserExists(params: {
 }
 
 /**
- * Tạo hồ sơ người dùng mới trong Supabase (bảng users & profiles)
- * Bắt lỗi chặt chẽ, không giả lập thành công nếu Supabase lỗi.
+ * Tạo hồ sơ người dùng mới trong bảng `profiles` trên Supabase
+ * Bắt lỗi chặt chẽ, tuân thủ kiến trúc duy nhất bảng `profiles`.
  */
 export async function createSupabaseProfile(
   firebaseUid: string,
@@ -147,64 +130,52 @@ export async function createSupabaseProfile(
 ): Promise<{ success: boolean; data?: SupabaseUserProfile; error?: string }> {
   const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
   const cleanPhone = data.phone ? data.phone.replace(/\D/g, '') : null;
-  const role = data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'user';
+  const role = data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'renter';
   const avatarUrl = data.avatarUrl || '/images/user-avatar.jpg';
 
   try {
-    // 1. Lưu vào bảng users (bảng chính có trường id=firebaseUid, email, phone, name, role)
-    const userPayload = {
-      id: firebaseUid,
+    const profilePayload = {
+      firebase_uid: firebaseUid,
+      full_name: data.name.trim(),
       name: data.name.trim(),
       email: cleanEmail,
       phone: cleanPhone,
-      role,
+      app_role: role,
+      role: role,
       avatar_url: avatarUrl,
       verified: true,
-      auth_provider: data.email ? 'email_password' : 'phone_otp',
+      is_demo_account: Boolean(data.isDemo),
       owner_application_status: role === 'owner' ? 'approved' : 'none',
       updated_at: new Date().toISOString(),
     };
 
-    const { data: createdUser, error: userErr } = await supabase
-      .from('users')
-      .upsert(userPayload, { onConflict: 'id' })
+    const { data: createdProfile, error: profErr } = await supabase
+      .from('profiles')
+      .upsert(profilePayload, { onConflict: 'firebase_uid' })
       .select()
       .maybeSingle();
 
-    if (userErr) {
-      console.error('[Supabase Auth Sync] Lỗi khi tạo user trong bảng users:', userErr);
+    if (profErr) {
+      console.error('[Supabase Auth Sync] Lỗi khi tạo profile trong bảng profiles:', profErr);
       return {
         success: false,
-        error: `Lỗi khởi tạo dữ liệu trên Supabase: ${userErr.message}`,
+        error: `Lỗi khởi tạo dữ liệu trên Supabase: ${profErr.message}`,
       };
     }
 
-    // 2. Đồng bộ bảng profiles nếu khả dụng
-    try {
-      const profilePayload = {
-        full_name: data.name.trim(),
-        phone: cleanPhone,
-        role,
-        avatar_url: avatarUrl,
-        owner_application_status: role === 'owner' ? 'approved' : 'none',
-        updated_at: new Date().toISOString(),
-      };
-      await supabase.from('profiles').upsert(profilePayload);
-    } catch (profErr) {
-      console.warn('[Supabase Auth Sync] Đồng bộ profiles notice:', profErr);
-    }
+    const resProfile = createdProfile || profilePayload;
 
     return {
       success: true,
       data: {
-        id: createdUser?.id || firebaseUid,
-        name: createdUser?.name || data.name.trim(),
-        email: createdUser?.email || (cleanEmail ?? undefined),
-        phone: createdUser?.phone || (cleanPhone ?? undefined),
-        role: (createdUser?.role === 'user' ? 'renter' : createdUser?.role || role) as any,
-        avatar_url: createdUser?.avatar_url || avatarUrl,
-        owner_application_status: createdUser?.owner_application_status || (role === 'owner' ? 'approved' : 'none'),
-        created_at: createdUser?.created_at || new Date().toISOString(),
+        id: resProfile.id || firebaseUid,
+        name: resProfile.full_name || resProfile.name || data.name.trim(),
+        email: resProfile.email || (cleanEmail ?? undefined),
+        phone: resProfile.phone || (cleanPhone ?? undefined),
+        role: (resProfile.app_role || resProfile.role || role) as any,
+        avatar_url: resProfile.avatar_url || avatarUrl,
+        owner_application_status: resProfile.owner_application_status || (role === 'owner' ? 'approved' : 'none'),
+        created_at: resProfile.created_at || new Date().toISOString(),
       },
     };
   } catch (err: any) {
@@ -217,65 +188,89 @@ export async function createSupabaseProfile(
 }
 
 /**
- * Đồng bộ hoặc tạo mới hồ sơ người dùng trong bảng users trên Supabase
+ * Đồng bộ hoặc cập nhật hồ sơ người dùng trong bảng `profiles` trên Supabase
  */
 export async function syncUserToSupabase(
   profile: SupabaseUserProfile
 ): Promise<{ success: boolean; data?: SupabaseUserProfile; error?: string }> {
   try {
     const payload = {
-      id: profile.id,
+      firebase_uid: profile.id,
+      full_name: profile.name,
       name: profile.name,
       email: profile.email ? profile.email.trim().toLowerCase() : null,
       phone: profile.phone ? profile.phone.replace(/\D/g, '') : null,
-      role: profile.role || 'user',
+      app_role: profile.role === 'user' ? 'renter' : profile.role || 'renter',
+      role: profile.role || 'renter',
       avatar_url: profile.avatar_url || '/images/user-avatar.jpg',
       verified: profile.verified ?? true,
-      auth_provider: profile.auth_provider || 'phone_otp',
       owner_application_status: profile.owner_application_status || 'none',
       updated_at: new Date().toISOString(),
     };
 
     const { data, error } = await supabase
-      .from('users')
-      .upsert(payload, { onConflict: 'id' })
+      .from('profiles')
+      .upsert(payload, { onConflict: 'firebase_uid' })
       .select()
       .maybeSingle();
 
     if (error) {
-      console.warn('[Supabase Sync] Lỗi upsert users:', error.message);
+      console.warn('[Supabase Sync] Lỗi upsert profiles:', error.message);
       return { success: true, data: profile }; // Fallback an toàn
     }
 
-    return { success: true, data: data as SupabaseUserProfile };
+    return {
+      success: true,
+      data: {
+        id: data?.id || profile.id,
+        name: data?.full_name || data?.name || profile.name,
+        email: data?.email || profile.email,
+        phone: data?.phone || profile.phone,
+        role: data?.app_role || data?.role || profile.role,
+        avatar_url: data?.avatar_url || profile.avatar_url,
+        verified: data?.verified ?? true,
+        owner_application_status: data?.owner_application_status || 'none',
+        created_at: data?.created_at,
+      },
+    };
   } catch (err: any) {
-    console.warn('[Supabase Sync] Exception khi đồng bộ user:', err);
+    console.warn('[Supabase Sync] Exception khi đồng bộ profile:', err);
     return { success: true, data: profile };
   }
 }
 
 /**
- * Tìm kiếm người dùng theo Email trên Supabase
+ * Tìm kiếm người dùng theo Email trên Supabase (bảng profiles)
  */
 export async function getSupabaseUserByEmail(
   email: string
 ): Promise<SupabaseUserProfile | null> {
   try {
     const { data, error } = await supabase
-      .from('users')
+      .from('profiles')
       .select('*')
       .eq('email', email.trim().toLowerCase())
       .maybeSingle();
 
     if (error || !data) return null;
-    return data as SupabaseUserProfile;
+    return {
+      id: data.id,
+      name: data.full_name || data.name || 'Người dùng Trọ Xinh',
+      email: data.email,
+      phone: data.phone,
+      role: data.app_role || data.role || 'renter',
+      avatar_url: data.avatar_url,
+      verified: data.verified,
+      owner_application_status: data.owner_application_status,
+      created_at: data.created_at,
+    };
   } catch (err) {
     return null;
   }
 }
 
 /**
- * Tìm kiếm người dùng theo SĐT trên Supabase
+ * Tìm kiếm người dùng theo SĐT trên Supabase (bảng profiles)
  */
 export async function getSupabaseUserByPhone(
   phone: string
@@ -283,13 +278,23 @@ export async function getSupabaseUserByPhone(
   try {
     const clean = phone.replace(/\D/g, '');
     const { data, error } = await supabase
-      .from('users')
+      .from('profiles')
       .select('*')
       .eq('phone', clean)
       .maybeSingle();
 
     if (error || !data) return null;
-    return data as SupabaseUserProfile;
+    return {
+      id: data.id,
+      name: data.full_name || data.name || 'Người dùng Trọ Xinh',
+      email: data.email,
+      phone: data.phone,
+      role: data.app_role || data.role || 'renter',
+      avatar_url: data.avatar_url,
+      verified: data.verified,
+      owner_application_status: data.owner_application_status,
+      created_at: data.created_at,
+    };
   } catch (err) {
     return null;
   }
@@ -313,9 +318,9 @@ export interface UnifiedAuthResult {
 }
 
 /**
- * ĐỘNG CƠ HỢP NHẤT ĐĂNG KÝ / ĐĂNG NHẬP (UNIFIED AUTH ENGINE)
- * - Nếu SĐT / Email ĐÃ TỒN TẠI trên Supabase -> Tự động đăng nhập (lấy dữ liệu cũ)
- * - Nếu SĐT / Email CHƯA CÓ trên Supabase -> Tự động tạo mới tài khoản (Đăng ký)
+ * ĐỘNG CƠ HỢP NHẤT ĐĂNG KÝ / ĐĂNG NHẬP (UNIFIED AUTH ENGINE) TRÊN BẢNG PROFILES
+ * - Nếu SĐT / Email ĐÃ TỒN TẠI trên `profiles` -> Tự động đăng nhập (lấy dữ liệu cũ)
+ * - Nếu SĐT / Email CHƯA CÓ trên `profiles` -> Tự động tạo mới profile (Đăng ký)
  */
 export async function handleUnifiedAuth(params: {
   identifier: string; // Số điện thoại (0988110789) hoặc Email (user@gmail.com)
@@ -373,99 +378,111 @@ export async function handleUnifiedAuth(params: {
       }
     }
 
-    // 2. Truy vấn Supabase bảng users xem đã có tài khoản chưa
-    let existingUser: any = null;
+    // 2. Truy vấn Supabase bảng profiles xem đã có tài khoản chưa
+    let existingProfile: any = null;
 
-    if (cleanPhone) {
-      const { data: userByPhone } = await supabase
-        .from('users')
+    if (params.firebaseUid) {
+      const { data: profByUid } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('firebase_uid', params.firebaseUid)
+        .maybeSingle();
+      existingProfile = profByUid;
+    }
+
+    if (!existingProfile && cleanPhone) {
+      const { data: profByPhone } = await supabase
+        .from('profiles')
         .select('*')
         .eq('phone', cleanPhone)
         .maybeSingle();
-      existingUser = userByPhone;
-    } else if (cleanEmail) {
-      const { data: userByEmail } = await supabase
-        .from('users')
+      existingProfile = profByPhone;
+    } else if (!existingProfile && cleanEmail) {
+      const { data: profByEmail } = await supabase
+        .from('profiles')
         .select('*')
         .eq('email', cleanEmail)
         .maybeSingle();
-      existingUser = userByEmail;
+      existingProfile = profByEmail;
     }
 
-    // 3. NẾU ĐÃ CÓ TÀI KHOẢN -> ĐĂNG NHẬP NGAY
-    if (existingUser) {
-      // Cập nhật updated_at
+    // 3. NẾU ĐÃ CÓ PROFILE -> ĐĂNG NHẬP NGAY
+    if (existingProfile) {
+      // Cập nhật updated_at và firebase_uid nếu chưa có
       try {
         await supabase
-          .from('users')
-          .update({ updated_at: new Date().toISOString() })
-          .eq('id', existingUser.id);
+          .from('profiles')
+          .update({
+            firebase_uid: params.firebaseUid || existingProfile.firebase_uid,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingProfile.id);
       } catch {}
 
       return {
         success: true,
         isNewUser: false,
         user: {
-          id: existingUser.id,
-          firebaseUid: existingUser.id,
-          name: existingUser.name,
-          email: existingUser.email || undefined,
-          phone: existingUser.phone || undefined,
-          role: (existingUser.role === 'user' ? 'renter' : existingUser.role) as any,
-          avatarUrl: existingUser.avatar_url || '/images/user-avatar.jpg',
-          ownerApplicationStatus: existingUser.owner_application_status || 'none',
-          createdAt: existingUser.created_at,
+          id: existingProfile.id,
+          firebaseUid: existingProfile.firebase_uid || existingProfile.id,
+          name: existingProfile.full_name || existingProfile.name || 'Người dùng Trọ Xinh',
+          email: existingProfile.email || undefined,
+          phone: existingProfile.phone || undefined,
+          role: (existingProfile.app_role || (existingProfile.role === 'user' ? 'renter' : existingProfile.role) || 'renter') as any,
+          avatarUrl: existingProfile.avatar_url || '/images/user-avatar.jpg',
+          ownerApplicationStatus: existingProfile.owner_application_status || 'none',
+          createdAt: existingProfile.created_at,
         },
       };
     }
 
-    // 4. NẾU CHƯA CÓ TÀI KHOẢN -> TỰ ĐỘNG ĐĂNG KÝ & LƯU SUPABASE
-    const userId = params.firebaseUid || `usr_${Date.now()}`;
+    // 4. NẾU CHƯA CÓ PROFILE -> TỰ ĐỘNG ĐĂNG KÝ & LƯU SUPABASE PROFILES
     const defaultName =
       params.name?.trim() ||
       (cleanPhone ? `Người dùng ${cleanPhone.slice(-4)}` : cleanEmail ? cleanEmail.split('@')[0] : 'Người dùng Trọ Xinh');
-    const role = params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'user';
+    const role = params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'renter';
     const avatar = params.avatarUrl || '/images/user-avatar.jpg';
 
-    const newRecord = {
-      id: userId,
+    const newProfileRecord = {
+      firebase_uid: params.firebaseUid || `usr_${Date.now()}`,
+      full_name: defaultName,
       name: defaultName,
       email: cleanEmail || null,
       phone: cleanPhone || null,
-      role,
+      app_role: role,
+      role: role,
       avatar_url: avatar,
       verified: true,
-      auth_provider: params.authType,
       owner_application_status: role === 'owner' ? 'approved' : 'none',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
 
-    const { data: createdData, error: insertErr } = await supabase
-      .from('users')
-      .upsert(newRecord, { onConflict: 'id' })
+    const { data: createdProfile, error: insertErr } = await supabase
+      .from('profiles')
+      .upsert(newProfileRecord, { onConflict: 'firebase_uid' })
       .select()
       .maybeSingle();
 
     if (insertErr) {
-      console.warn('[Unified Auth] Insert warning:', insertErr.message);
+      console.warn('[Unified Auth] Profiles insert warning:', insertErr.message);
     }
 
-    const savedUser = createdData || newRecord;
+    const savedProfile = createdProfile || newProfileRecord;
 
     return {
       success: true,
       isNewUser: true,
       user: {
-        id: savedUser.id,
-        firebaseUid: savedUser.id,
-        name: savedUser.name,
-        email: savedUser.email || undefined,
-        phone: savedUser.phone || undefined,
-        role: (savedUser.role === 'user' ? 'renter' : savedUser.role) as any,
-        avatarUrl: savedUser.avatar_url || avatar,
-        ownerApplicationStatus: savedUser.owner_application_status || 'none',
-        createdAt: savedUser.created_at,
+        id: savedProfile.id || params.firebaseUid || `usr_${Date.now()}`,
+        firebaseUid: savedProfile.firebase_uid || params.firebaseUid || `usr_${Date.now()}`,
+        name: savedProfile.full_name || savedProfile.name || defaultName,
+        email: savedProfile.email || undefined,
+        phone: savedProfile.phone || undefined,
+        role: (savedProfile.app_role || savedProfile.role || role) as any,
+        avatarUrl: savedProfile.avatar_url || avatar,
+        ownerApplicationStatus: savedProfile.owner_application_status || 'none',
+        createdAt: savedProfile.created_at,
       },
     };
   } catch (err: any) {
@@ -477,4 +494,3 @@ export async function handleUnifiedAuth(params: {
     };
   }
 }
-

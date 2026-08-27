@@ -80,29 +80,28 @@ export function formatVietnamesePhone(phone: string): string {
 }
 
 /**
- * Đọc hồ sơ người dùng từ Supabase
+ * Đọc hồ sơ người dùng từ Supabase (bảng profiles)
  */
 export async function getProfileByFirebaseUid(firebaseUid: string): Promise<AuthUserProfile | null> {
   try {
-    // 1. Kiểm tra bảng users (nơi lưu id = firebaseUid)
-    const { data: user, error: userErr } = await supabase
-      .from('users')
+    const { data: profile, error: profErr } = await supabase
+      .from('profiles')
       .select('*')
-      .eq('id', firebaseUid)
+      .or(`firebase_uid.eq.${firebaseUid},id.eq.${firebaseUid}`)
       .maybeSingle();
 
-    if (!userErr && user) {
+    if (!profErr && profile) {
       return {
-        id: user.id,
-        firebaseUid: user.id,
-        name: user.name || 'Người dùng Trọ Xinh',
-        email: user.email || undefined,
-        phone: user.phone || undefined,
-        role: (user.role === 'user' ? 'renter' : user.role || 'renter') as AppUserRole,
-        avatarUrl: user.avatar_url || '/images/user-avatar.jpg',
-        ownerApplicationStatus: user.owner_application_status || 'none',
-        isDemoAccount: Boolean(user.is_demo_account),
-        createdAt: user.created_at,
+        id: profile.id,
+        firebaseUid: profile.firebase_uid || profile.id,
+        name: profile.full_name || profile.name || 'Người dùng Trọ Xinh',
+        email: profile.email || undefined,
+        phone: profile.phone || undefined,
+        role: (profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole,
+        avatarUrl: profile.avatar_url || '/images/user-avatar.jpg',
+        ownerApplicationStatus: profile.owner_application_status || 'none',
+        isDemoAccount: Boolean(profile.is_demo_account),
+        createdAt: profile.created_at,
       };
     }
 
