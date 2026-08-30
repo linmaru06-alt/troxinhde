@@ -21,8 +21,6 @@ import {
   LogOut,
   ChevronDown,
   Menu,
-  FileText,
-  CreditCard,
   Plus,
 } from 'lucide-react';
 
@@ -34,9 +32,6 @@ export const Navbar: React.FC = () => {
   const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
-  const roleDropdownRef = useRef<HTMLDivElement>(null);
-  useOutsideClick(roleDropdownRef, () => setIsRoleDropdownOpen(false), isRoleDropdownOpen);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
   useOutsideClick(dropdownRef, closeAllDropdowns, isAvatarDropdownOpen);
@@ -66,9 +61,9 @@ export const Navbar: React.FC = () => {
 
   return (
     <header className="sticky top-0 z-40 bg-[#00a854] border-b border-emerald-600/30 shadow-xs">
-      <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+      <div className="w-full px-3 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* 1. Left: Hamburger + Pill Logo + Role Selector (Chợ Tốt structure) */}
+          {/* 1. Left: Hamburger + Pill Logo */}
           <div className="flex items-center gap-2 sm:gap-3">
             {/* Hamburger Button */}
             <button
@@ -93,62 +88,10 @@ export const Navbar: React.FC = () => {
                 height={28}
                 className="w-7 h-7 rounded-lg object-cover ring-1 ring-emerald-500/20"
               />
-              <div className="flex flex-col">
-                <span className="text-base sm:text-lg font-black tracking-tight text-gray-950 leading-none">
-                  Trọ Xinh
-                </span>
-                <span className="text-[9px] font-bold text-gray-500 tracking-wider uppercase mt-0.5">
-                  TroXinh.vn
-                </span>
-              </div>
+              <span className="text-base sm:text-lg font-black tracking-tight text-gray-950 leading-none">
+                Trọ Xinh
+              </span>
             </Link>
-
-            {/* Role Dropdown: Dành cho chủ trọ ▾ */}
-            <div className="relative hidden md:block" ref={roleDropdownRef}>
-              <button
-                onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                className="flex items-center gap-1 text-xs font-bold text-white/95 hover:text-white px-2.5 py-1.5 rounded-xl hover:bg-black/10 transition"
-              >
-                <span>{currentUser?.role === 'owner' ? 'Dành cho chủ trọ' : 'Dành cho người thuê'}</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isRoleDropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              <AnimatePresence>
-                {isRoleDropdownOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    className="absolute left-0 mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 z-50 text-xs font-bold text-gray-900"
-                  >
-                    <Link
-                      to="/tim-phong"
-                      onClick={() => setIsRoleDropdownOpen(false)}
-                      className="flex items-center gap-2 p-2 rounded-xl hover:bg-emerald-50 hover:text-[#00a854]"
-                    >
-                      <Compass className="w-4 h-4 text-[#00a854]" />
-                      <span>Dành cho người thuê</span>
-                    </Link>
-                    <Link
-                      to="/chu-tro"
-                      onClick={() => setIsRoleDropdownOpen(false)}
-                      className="flex items-center gap-2 p-2 rounded-xl hover:bg-emerald-50 hover:text-[#00a854]"
-                    >
-                      <Building2 className="w-4 h-4 text-[#00a854]" />
-                      <span>Dành cho chủ trọ</span>
-                    </Link>
-                    <Link
-                      to="/bang-gia"
-                      onClick={() => setIsRoleDropdownOpen(false)}
-                      className="flex items-center gap-2 p-2 rounded-xl hover:bg-emerald-50 hover:text-[#00a854]"
-                    >
-                      <CreditCard className="w-4 h-4 text-[#00a854]" />
-                      <span>Bảng giá dịch vụ</span>
-                    </Link>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
           </div>
 
           {/* 2. Center: Desktop Main Navigation Tabs */}
