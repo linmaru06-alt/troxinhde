@@ -44,6 +44,9 @@ interface PaymentViewData {
   payUrl?: string;
 }
 
+// Flag kiểm soát thanh toán: Tắt thanh toán tự động đến khi backend webhook được bảo mật hoàn toàn
+const IS_ONLINE_PAYMENT_ENABLED = false;
+
 export const CheckoutPage: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();
   const navigate = useNavigate();
@@ -217,6 +220,23 @@ export const CheckoutPage: React.FC = () => {
             <span>Mã hóa bảo mật 256-bit SSL</span>
           </div>
         </div>
+
+        {/* Thông báo bảo trì nâng cấp hạ tầng thanh toán an toàn */}
+        {!IS_ONLINE_PAYMENT_ENABLED && (
+          <div className="bg-amber-50 border border-amber-200 rounded-3xl p-5 mb-6 flex items-start gap-3.5 shadow-xs animate-fadeIn">
+            <div className="p-2 bg-amber-100 text-amber-700 rounded-2xl shrink-0">
+              <AlertCircle className="w-5 h-5" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-sm font-black text-amber-950">
+                Hệ thống thanh toán tự động đang nâng cấp hạ tầng bảo mật
+              </h3>
+              <p className="text-xs text-amber-800 leading-relaxed">
+                Để đảm bảo tính xác thực và an toàn tuyệt đối, cổng thanh toán tự động đang được kết nối với hệ thống Webhook bảo mật. Vui lòng liên hệ CSKH hoặc bộ phận duyệt gói của Trọ Xinh để hoàn tất thủ công trong thời gian này.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* LIVE QR PAYMENT ACTIVE VIEW (VIETQR / MOMO) */}
         {paymentData ? (
@@ -610,14 +630,26 @@ export const CheckoutPage: React.FC = () => {
 
                 {/* CTA Payment Submit */}
                 <Button
-                  variant="primary"
+                  variant={IS_ONLINE_PAYMENT_ENABLED ? 'primary' : 'outline'}
                   size="lg"
                   fullWidth
+                  disabled={!IS_ONLINE_PAYMENT_ENABLED}
                   isLoading={isProcessing}
-                  onClick={handleCheckout}
+                  onClick={
+                    IS_ONLINE_PAYMENT_ENABLED
+                      ? handleCheckout
+                      : () =>
+                          showToast(
+                            'Cổng thanh toán đang bảo trì',
+                            'Vui lòng liên hệ CSKH hoặc Hotline để kích hoạt gói dịch vụ thủ công.',
+                            'warning'
+                          )
+                  }
                   rightIcon={<ArrowRight className="w-4 h-4" />}
                 >
-                  Tạo Mã Thanh Toán {formatCurrency(totalAmount)}
+                  {IS_ONLINE_PAYMENT_ENABLED
+                    ? `Tạo Mã Thanh Toán ${formatCurrency(totalAmount)}`
+                    : 'Thanh toán trực tuyến tạm đóng'}
                 </Button>
 
                 <div className="space-y-2 pt-2 text-[11px] text-gray-400 text-center">

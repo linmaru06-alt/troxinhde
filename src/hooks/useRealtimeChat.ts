@@ -37,19 +37,21 @@ export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `thread_id=eq.${threadId}`,
         },
         (payload: any) => {
           const newRow = payload.new;
           if (!newRow) return;
 
+          const rowThreadId = newRow.conversation_id || newRow.thread_id;
+          if (rowThreadId !== threadId) return;
+
           const incomingMsg: Message = {
             id: newRow.id || `msg_${Date.now()}`,
-            threadId: newRow.thread_id || threadId,
+            threadId: rowThreadId,
             senderId: newRow.sender_id,
             senderName: newRow.sender_name || 'Người dùng',
             senderAvatar: newRow.sender_avatar || '/images/user-avatar.jpg',
-            text: newRow.text || newRow.content || '',
+            text: newRow.content || newRow.text || '',
             createdAt: newRow.created_at || new Date().toISOString(),
             status: 'sent',
           };
@@ -105,7 +107,7 @@ export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
     };
   }, [currentUser]);
 
-  // 3. Send Message with Optimistic UI & Supabase sync
+  // 3. Send Message with Schema (conversation_id & content), Optimistic UI & Error Retry
   const sendMessage = useCallback(
     async (text: string) => {
       if (!threadId || !text.trim() || !currentUser) return;
@@ -122,32 +124,66 @@ export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
         status: 'sending',
       };
 
-      // Optimistic local update & store update
+      // Optimistic local update
       setMessages((prev) => [...prev, tempMessage]);
-      storeSendMessage(threadId, text.trim());
 
       if (isSupabaseConfigured) {
         try {
-          const { error } = await supabase.from('messages').insert({
-            thread_id: threadId,
+          // Send with standard conversation_id & content schema
+          let insertPayload: Record<string, any> = {
+            conversation_id: threadId,
             sender_id: currentUser.id,
-            sender_name: currentUser.name,
-            sender_avatar: currentUser.avatarUrl,
-            text: text.trim(),
+            content: text.trim(),
             created_at: new Date().toISOString(),
-          });
+          };
+
+          let { error, data } = await supabase.from('messages').insert(insertPayload).select().maybeSingle();
+
+          // Fallback if legacy column schema
+          if (error && (error.message?.includes('conversation_id') || error.message?.includes('content'))) {
+            const fallbackRes = await supabase.from('messages').insert({
+              thread_id: threadId,
+              sender_id: currentUser.id,
+              text: text.trim(),
+              created_at: new Date().toISOString(),
+            }).select().maybeSingle();
+            error = fallbackRes.error;
+            data = fallbackRes.data;
+          }
 
           if (error) {
-            setMessages((prev) => prev.filter((m) => m.id !== tempId));
-            showToast('Gửi tin nhắn thất bại', 'Vui lòng thử lại sau', 'warning');
-          } else {
+            // Mark message as failed with retry UI instead of silent dropping
             setMessages((prev) =>
-              prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m))
+              prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m))
             );
+            showToast('Gửi tin nhắn thất bại', 'Vui lòng bấm Thử lại để gửi lại tin nhắn', 'warning');
+          } else {
+            // Confirm sent after Supabase verification
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === tempId
+                  ? {
+                      ...m,
+                      id: data?.id || m.id,
+                      status: 'sent',
+                    }
+                  : m
+              )
+            );
+            storeSendMessage(threadId, text.trim());
           }
         } catch {
-          // Graceful fallback in offline mode
+          setMessages((prev) =>
+            prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m))
+          );
+          showToast('Lỗi kết nối', 'Không thể gửi tin nhắn. Hãy kiểm tra mạng và thử lại.', 'error');
         }
+      } else {
+        // Offline / dev mode: mark sent locally
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m))
+        );
+        storeSendMessage(threadId, text.trim());
       }
     },
     [threadId, currentUser, storeSendMessage, showToast]

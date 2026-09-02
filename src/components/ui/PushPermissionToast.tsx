@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Button } from './Button';
 import { usePushNotification } from '../../hooks/usePushNotification';
@@ -15,7 +16,8 @@ export const PushPermissionToast: React.FC = () => {
         initial={{ opacity: 0, y: 50, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 50, scale: 0.95 }}
-        className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 z-50 max-w-sm w-full bg-white rounded-3xl p-4 sm:p-5 shadow-2xl border border-gray-200/90 flex items-start gap-3.5"
+        className="fixed right-4 sm:right-6 z-50 max-w-sm w-full bg-white rounded-3xl p-4 sm:p-5 shadow-2xl border border-gray-200/90 flex items-start gap-3.5 sm:!bottom-6"
+        style={{ bottom: 'calc(var(--mobile-bottom-offset, 3.5rem) + 0.75rem)' }}
       >
         <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center shrink-0">
           <Bell className="w-5 h-5 animate-bounce" />

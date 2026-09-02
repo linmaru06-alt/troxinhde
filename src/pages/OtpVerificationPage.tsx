@@ -16,11 +16,9 @@ import {
 import {
   sendPhoneOtp,
   verifyPhoneOtp,
-  completeEmailRegistration,
   completePhoneRegistration,
 } from '../lib/authService';
-import { getSupabaseUserByEmail, getSupabaseUserByPhone, createSupabaseProfile } from '../lib/supabaseAuthSync';
-import { initialUsers } from '../data/mockData';
+import { getSupabaseUserByPhone, createSupabaseProfile } from '../lib/supabaseAuthSync';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,33 +33,12 @@ export const OtpVerificationPage: React.FC = () => {
   const actionParam = searchParams.get('action') || 'register'; // 'register' | 'login'
   const modeParam = searchParams.get('mode') || (phoneParam ? 'phone' : 'email');
 
-  // Đọc thông tin pending registration từ sessionStorage nếu có
-  const [pendingReg, setPendingReg] = useState<{
-    name?: string;
-    email?: string;
-    phone?: string;
-    password?: string;
-    role?: 'renter' | 'owner';
-    mode?: 'email' | 'phone';
-    createdAt?: number;
-  } | null>(() => {
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      try {
-        const raw = window.sessionStorage.getItem('troxinh_pending_reg');
-        return raw ? JSON.parse(raw) : null;
-      } catch {
-        return null;
-      }
-    }
-    return null;
-  });
-
-  const email = pendingReg?.email || emailParam;
-  const phone = pendingReg?.phone || phoneParam;
-  const name = pendingReg?.name || nameParam;
-  const role = pendingReg?.role || roleParam;
-  const mode = pendingReg?.mode || modeParam;
-  const isRegisterAction = actionParam === 'register' || Boolean(pendingReg?.password);
+  const email = emailParam || '';
+  const phone = phoneParam || '';
+  const name = nameParam || 'Người dùng Trọ Xinh';
+  const role = roleParam;
+  const mode = modeParam;
+  const isRegisterAction = actionParam === 'register';
 
   // Chuỗi lưu trữ mã OTP 6 số
   const [otp, setOtp] = useState<string>('');
@@ -73,7 +50,6 @@ export const OtpVerificationPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
   const [isTestSmsMode, setIsTestSmsMode] = useState<boolean>(false);
-  const [emailOtpCode, setEmailOtpCode] = useState<string>('');
 
   const masterInputRef = useRef<HTMLInputElement>(null);
   const hasSentRef = useRef<boolean>(false);
@@ -86,51 +62,13 @@ export const OtpVerificationPage: React.FC = () => {
   // Hàm gửi mã OTP
   const triggerSendOtp = useCallback(async () => {
     if (mode === 'email') {
-      if (!email) {
-        setErrorMsg('Không tìm thấy thông tin Email để gửi mã OTP.');
-        return;
-      }
-      setIsSending(true);
-      setErrorMsg('');
-
-      // Lấy hoặc tạo mã OTP Email trong sessionStorage
-      let currentCode = '';
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        try {
-          const rawOtp = window.sessionStorage.getItem('troxinh_email_otp');
-          if (rawOtp) {
-            const parsed = JSON.parse(rawOtp);
-            if (parsed.email === email && parsed.expiresAt > Date.now()) {
-              currentCode = parsed.code;
-            }
-          }
-        } catch {}
-
-        if (!currentCode) {
-          currentCode = Math.floor(100000 + Math.random() * 900000).toString();
-          window.sessionStorage.setItem(
-            'troxinh_email_otp',
-            JSON.stringify({
-              code: currentCode,
-              email,
-              expiresAt: Date.now() + 5 * 60 * 1000,
-            })
-          );
-        }
-      } else {
-        currentCode = '123456';
-      }
-
-      setEmailOtpCode(currentCode);
-
-      setTimeout(() => {
-        setIsSending(false);
-        showToast(
-          'Đã gửi mã xác thực OTP qua Email! 📧',
-          `Vui lòng kiểm tra hòm thư ${email}. Mã OTP xác thực: ${currentCode}`,
-          'info'
-        );
-      }, 400);
+      setIsSending(false);
+      setErrorMsg('Xác thực qua Email được xử lý an toàn trực tiếp qua Firebase Auth. Vui lòng đăng ký hoặc đăng nhập từ trang Đăng nhập.');
+      showToast(
+        'Đăng nhập an toàn',
+        'Vui lòng đăng nhập trực tiếp bằng Email & Mật khẩu hoặc tài khoản Google.',
+        'info'
+      );
       return;
     }
 
@@ -210,160 +148,12 @@ export const OtpVerificationPage: React.FC = () => {
       setIsErrorShake(false);
 
       try {
-        // A. XÁC MINH OTP CHO EMAIL
+        // A. XÁC MINH OTP CHO EMAIL (Firebase Auth trực tiếp, không dùng OTP client-side)
         if (mode === 'email') {
-          let expectedCode = emailOtpCode;
-          let isExpired = false;
-
-          if (typeof window !== 'undefined' && window.sessionStorage) {
-            try {
-              const rawOtp = window.sessionStorage.getItem('troxinh_email_otp');
-              if (rawOtp) {
-                const parsed = JSON.parse(rawOtp);
-                if (parsed.email === email) {
-                  expectedCode = parsed.code;
-                  if (Date.now() > parsed.expiresAt) {
-                    isExpired = true;
-                  }
-                }
-              }
-            } catch {}
-          }
-
-          if (isExpired) {
-            setIsLoading(false);
-            setIsErrorShake(true);
-            setErrorMsg('Mã OTP Email đã hết hạn hiệu lực. Vui lòng bấm "Gửi lại mã"!');
-            setOtp('');
-            masterInputRef.current?.focus();
-            setTimeout(() => setIsErrorShake(false), 600);
-            return;
-          }
-
-          // Kiểm tra mã OTP: chỉ chấp nhận mã OTP khớp chính xác mã đã gửi
-          const isValidCode = Boolean(expectedCode && cleanCode === expectedCode);
-          if (!isValidCode) {
-            setIsLoading(false);
-            setIsErrorShake(true);
-            setErrorMsg('Mã OTP không chính xác hoặc chưa được khởi tạo. Vui lòng kiểm tra lại!');
-            setOtp('');
-            masterInputRef.current?.focus();
-            setTimeout(() => setIsErrorShake(false), 600);
-            return;
-          }
-
-          // XÁC MINH HỢP LỆ -> TIẾN HÀNH TẠO TÀI KHOẢN / ĐĂNG NHẬP
-          if (isRegisterAction) {
-            const password = pendingReg?.password || 'Troxinh@2026';
-
-            // Gọi hàm đăng ký thật trên Firebase & Supabase
-            const res = await completeEmailRegistration(
-              email,
-              password,
-              name || (email.split('@')[0] || 'Người dùng Trọ Xinh'),
-              phone || undefined,
-              role
-            );
-
-            if (res.success && res.user) {
-              // Dọn dẹp sessionStorage
-              if (typeof window !== 'undefined' && window.sessionStorage) {
-                window.sessionStorage.removeItem('troxinh_pending_reg');
-                window.sessionStorage.removeItem('troxinh_email_otp');
-              }
-
-              loginWithSocialUser({
-                id: res.user.id,
-                firebaseUid: res.user.firebaseUid,
-                name: res.user.name,
-                email: res.user.email,
-                phone: res.user.phone,
-                role: res.user.role as any,
-                avatarUrl: res.user.avatarUrl,
-              });
-
-              showToast(
-                'Đăng ký tài khoản thành công! 🎉',
-                `Chào mừng ${res.user.name} đến với Trọ Xinh!`,
-                'success'
-              );
-
-              setIsLoading(false);
-
-              if (returnUrl) {
-                navigate(decodeURIComponent(returnUrl), { replace: true });
-              } else if (res.user.role === 'owner') {
-                navigate('/chu-tro', { replace: true });
-              } else {
-                navigate('/tim-phong', { replace: true });
-              }
-              return;
-            } else {
-              setIsLoading(false);
-              setIsErrorShake(true);
-              setErrorMsg(res.error || 'Đăng ký tài khoản thất bại. Vui lòng thử lại!');
-              setTimeout(() => setIsErrorShake(false), 600);
-              return;
-            }
-          } else {
-            // Đăng nhập bằng Email OTP
-            let existingUser = await getSupabaseUserByEmail(email);
-
-            if (!existingUser) {
-              const demoFound = initialUsers.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-              if (demoFound) {
-                existingUser = {
-                  id: demoFound.id,
-                  name: demoFound.name,
-                  email: demoFound.email,
-                  phone: demoFound.phone,
-                  role: demoFound.role,
-                  avatar_url: demoFound.avatarUrl,
-                };
-              }
-            }
-
-            // Nếu tài khoản chưa có -> Tự động khởi tạo hồ sơ người dùng mới
-            if (!existingUser) {
-              const newUid = `usr_${Date.now()}`;
-              const createRes = await createSupabaseProfile(newUid, {
-                name: name || email.split('@')[0] || 'Người dùng Trọ Xinh',
-                email: email.trim().toLowerCase(),
-                phone: phone || undefined,
-                role,
-              });
-              if (createRes.success && createRes.data) {
-                existingUser = createRes.data;
-              }
-            }
-
-            if (existingUser) {
-              loginWithSocialUser({
-                id: existingUser.id,
-                name: existingUser.name,
-                email: existingUser.email,
-                phone: existingUser.phone,
-                role: (existingUser.role === 'user' ? 'renter' : existingUser.role) as any,
-                avatarUrl: existingUser.avatar_url || '/images/user-avatar.jpg',
-              });
-
-              showToast('Đăng nhập thành công! 👋', `Chào mừng ${existingUser.name}`, 'success');
-              setIsLoading(false);
-
-              if (returnUrl) {
-                navigate(decodeURIComponent(returnUrl), { replace: true });
-              } else if (existingUser.role === 'owner' || role === 'owner') {
-                navigate('/chu-tro', { replace: true });
-              } else {
-                navigate('/tim-phong', { replace: true });
-              }
-              return;
-            } else {
-              setIsLoading(false);
-              setErrorMsg('Không thể đăng nhập. Vui lòng thử lại!');
-              return;
-            }
-          }
+          setIsLoading(false);
+          setErrorMsg('Đăng nhập và Đăng ký Email được bảo vệ trực tiếp bằng Mật khẩu hoặc Google Auth. Vui lòng quay lại trang Đăng nhập.');
+          showToast('Thông báo', 'Vui lòng đăng nhập bằng Email & Mật khẩu từ trang Đăng nhập.', 'info');
+          return;
         }
 
         // B. XÁC MINH OTP CHO SỐ ĐIỆN THOẠI (SMS)
@@ -405,10 +195,6 @@ export const OtpVerificationPage: React.FC = () => {
           );
 
           if (res.success && res.user) {
-            if (typeof window !== 'undefined' && window.sessionStorage) {
-              window.sessionStorage.removeItem('troxinh_pending_reg');
-            }
-
             loginWithSocialUser({
               id: res.user.id,
               firebaseUid: res.user.firebaseUid,
@@ -444,20 +230,6 @@ export const OtpVerificationPage: React.FC = () => {
         } else {
           // Đăng nhập OTP SĐT
           let existingUser = await getSupabaseUserByPhone(phone);
-          if (!existingUser) {
-            const clean = phone.replace(/\D/g, '');
-            const demoPhone = initialUsers.find((u) => u.phone?.replace(/\D/g, '') === clean);
-            if (demoPhone) {
-              existingUser = {
-                id: demoPhone.id,
-                name: demoPhone.name,
-                email: demoPhone.email,
-                phone: demoPhone.phone,
-                role: demoPhone.role,
-                avatar_url: demoPhone.avatarUrl,
-              };
-            }
-          }
 
           const userId = existingUser?.id || firebaseAuthUser?.uid || `phone_${Date.now()}`;
           const userName = existingUser?.name || name || `Người dùng ${phone.slice(-4)}`;
@@ -493,13 +265,11 @@ export const OtpVerificationPage: React.FC = () => {
     [
       isLoading,
       mode,
-      emailOtpCode,
       email,
       phone,
       name,
       role,
       isRegisterAction,
-      pendingReg,
       isTestSmsMode,
       loginWithSocialUser,
       showToast,
@@ -569,33 +339,6 @@ export const OtpVerificationPage: React.FC = () => {
             </strong>
           </p>
         </div>
-
-        {/* Thẻ hiển thị mã OTP & Nút 1-Chạm Điền Mã Nhanh */}
-        {mode === 'email' && (
-          <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl space-y-2.5">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-[#00a854]" />
-                <span>Mã OTP xác thực của bạn:</span>
-              </span>
-              <span className="text-sm font-black text-emerald-950 tracking-widest bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300 shadow-2xs">
-                {emailOtpCode || '123456'}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                const code = emailOtpCode || '123456';
-                setOtp(code);
-                handleVerifyOtp(code);
-              }}
-              className="w-full py-2 px-3 bg-[#00a854] hover:bg-[#009249] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
-            >
-              <span>Điền mã & Xác nhận ngay (1-Chạm)</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-        )}
 
         {/* Thẻ hiển thị SMS OTP thử nghiệm nếu chưa cấu hình SMS Gateway */}
         {isTestSmsMode && mode === 'phone' && (

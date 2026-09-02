@@ -36,14 +36,6 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*supabase\.co\/rest/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxAgeSeconds: 300 },
-            },
-          },
-          {
             urlPattern: /^https:\/\/.*tile\.openstreetmap\.org/,
             handler: 'CacheFirst',
             options: {

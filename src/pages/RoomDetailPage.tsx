@@ -628,8 +628,8 @@ export const RoomDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-2.5">
+            {/* Action Buttons (Desktop Sidebar Only - Mobile uses fixed Bottom CTA) */}
+            <div className="hidden lg:block space-y-2.5">
               <Link to={`/dat-lich/${room.id}`} className="block">
                 <Button
                   variant="primary"
@@ -705,41 +705,48 @@ export const RoomDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* MOBILE STICKY BOTTOM ACTION CTA BAR */}
-      <div className="lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl p-3">
-        <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
-          <div>
-            <span className="text-[10px] text-gray-500 block">Giá thuê</span>
-            <span className="text-base font-black text-[#006d37] leading-none">
-              {formatPrice(room.price)}
-            </span>
-          </div>
+      {/* MOBILE STICKY BOTTOM ACTION CTA BAR - DUY NHẤT 1 THANH TRÊN MOBILE */}
+      {!showPhoneConfirm && !showReportModal && (
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl p-3"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
+        >
+          <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+            <div>
+              <span className="text-[10px] text-gray-500 block">Giá thuê</span>
+              <span className="text-base font-black text-[#006d37] leading-none">
+                {formatPrice(room.price)}
+              </span>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleContactChat}
-              className="p-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-xs"
-              title="Nhắn tin"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleContactChat}
+                className="p-2.5 min-w-[44px] min-h-[44px] rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-xs flex items-center justify-center"
+                aria-label="Nhắn tin cho chủ trọ"
+                title="Nhắn tin"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </button>
 
-            <button
-              onClick={() => setShowPhoneConfirm(true)}
-              className="p-2.5 rounded-xl border border-gray-200 text-[#006d37] hover:bg-emerald-50 shadow-xs"
-              title="Gọi điện"
-            >
-              <Phone className="w-5 h-5" />
-            </button>
+              <button
+                onClick={() => setShowPhoneConfirm(true)}
+                className="p-2.5 min-w-[44px] min-h-[44px] rounded-xl border border-gray-200 text-[#006d37] hover:bg-emerald-50 shadow-xs flex items-center justify-center"
+                aria-label="Gọi điện cho chủ trọ"
+                title="Gọi điện"
+              >
+                <Phone className="w-5 h-5" />
+              </button>
 
-            <Link to={`/dat-lich/${room.id}`}>
-              <Button variant="primary" size="md" className="font-bold shadow-md" leftIcon={<Calendar className="w-4 h-4" />}>
-                Đặt Lịch Ngay
-              </Button>
-            </Link>
+              <Link to={`/dat-lich/${room.id}`}>
+                <Button variant="primary" size="md" className="font-bold shadow-md min-h-[44px]" leftIcon={<Calendar className="w-4 h-4" />}>
+                  Đặt Lịch Ngay
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Phone Call Confirm Modal */}
       {showPhoneConfirm && (

@@ -68,6 +68,7 @@ export const Navbar: React.FC = () => {
             {/* Hamburger Button */}
             <button
               onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              aria-label="Mở menu danh mục"
               className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs"
               title="Menu danh mục"
             >
@@ -114,12 +115,13 @@ export const Navbar: React.FC = () => {
             })}
           </nav>
 
-          {/* 3. Right: Actions & User Menu (Chợ Tốt structure: ♡ 🔔 💬 [Đăng nhập] [ĐĂNG TIN ➕] 👤 ▾) */}
+          {/* 3. Right: Actions & User Menu */}
           <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Heart Saved Rooms */}
+            {/* Heart Saved Rooms (Hidden on mobile < 640px to prevent overflow, accessible via bottom nav) */}
             <Link
               to="/da-luu"
-              className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
+              aria-label="Phòng đã lưu"
+              className="hidden sm:flex w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 items-center justify-center transition shadow-2xs relative"
               title="Phòng đã lưu"
             >
               <Heart className="w-4 h-4 text-gray-950 stroke-[2.5]" />
@@ -133,6 +135,7 @@ export const Navbar: React.FC = () => {
             {/* Notification Bell */}
             <Link
               to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
+              aria-label="Thông báo"
               className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
               title="Thông báo"
             >
@@ -144,9 +147,10 @@ export const Navbar: React.FC = () => {
               )}
             </Link>
 
-            {/* Chat / Liên hệ Pill */}
+            {/* Chat / Liên hệ Pill (Unified /tin-nhan route) */}
             <Link
-              to={currentUser?.role === 'owner' ? '/chu-tro/tin-nhan' : '/tin-nhan'}
+              to="/tin-nhan"
+              aria-label="Tin nhắn liên hệ"
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative"
               title="Tin nhắn / Liên hệ"
             >
@@ -164,16 +168,16 @@ export const Navbar: React.FC = () => {
               <button
                 type="button"
                 onClick={() => openAuthModal('login')}
-                className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs cursor-pointer"
+                className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs cursor-pointer min-h-[36px]"
               >
                 Đăng nhập
               </button>
             )}
 
-            {/* ĐĂNG TIN - Black Pill Button (Chợ Tốt Signature) */}
+            {/* ĐĂNG TIN - Hidden on mobile under 390px, available in mobile drawer */}
             <button
               onClick={handlePostClick}
-              className="flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gray-950 hover:bg-black text-white text-xs font-black transition shadow-md"
+              className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gray-950 hover:bg-black text-white text-xs font-black transition shadow-md"
             >
               <Plus className="w-3.5 h-3.5 stroke-[3]" />
               <span>ĐĂNG TIN</span>
@@ -309,7 +313,11 @@ export const Navbar: React.FC = () => {
                     <OptimizedImage src="/images/logo.png" alt="Logo" width={28} height={28} className="w-7 h-7 rounded-lg" />
                     <span className="font-black text-gray-950">Trọ Xinh Hà Nội</span>
                   </div>
-                  <button onClick={() => setIsMobileMenuOpen(false)} className="text-gray-400 hover:text-gray-700 font-bold text-sm">
+                  <button
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    aria-label="Đóng menu"
+                    className="text-gray-400 hover:text-gray-700 font-bold text-sm min-w-[36px] min-h-[36px] flex items-center justify-center"
+                  >
                     ✕
                   </button>
                 </div>

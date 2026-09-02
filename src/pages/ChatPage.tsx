@@ -24,7 +24,28 @@ export const ChatPage: React.FC = () => {
 
   const [activeThreadId, setActiveThreadId] = useState<string>(threadId || threads[0]?.id || '');
   const [inputText, setInputText] = useState<string>('');
+  const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Visual Viewport tracking for mobile virtual keyboards
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.visualViewport) return;
+
+    const updateHeight = () => {
+      if (window.visualViewport) {
+        setViewportHeight(window.visualViewport.height);
+      }
+    };
+
+    window.visualViewport.addEventListener('resize', updateHeight);
+    window.visualViewport.addEventListener('scroll', updateHeight);
+    updateHeight();
+
+    return () => {
+      window.visualViewport?.removeEventListener('resize', updateHeight);
+      window.visualViewport?.removeEventListener('scroll', updateHeight);
+    };
+  }, []);
 
   // Supabase Real-time Chat & Presence Hook
   const {
@@ -68,7 +89,12 @@ export const ChatPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 sm:py-4">
-      <div className="h-[calc(100dvh-7rem)] sm:h-[calc(100vh-8.5rem)] bg-white rounded-3xl border border-gray-200 shadow-md flex overflow-hidden">
+      <div
+        className="bg-white rounded-3xl border border-gray-200 shadow-md flex overflow-hidden"
+        style={{
+          height: viewportHeight ? `${Math.max(320, viewportHeight - 110)}px` : 'calc(100dvh - 7.5rem)',
+        }}
+      >
         {/* Left: Threads List (Hide on mobile if viewing thread) */}
         <aside
           className={`w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0 ${
@@ -221,7 +247,11 @@ export const ChatPage: React.FC = () => {
               </div>
 
               {/* Message Input Box */}
-              <form onSubmit={handleSend} className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-2">
+              <form
+                onSubmit={handleSend}
+                className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-2"
+                style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
+              >
                 <input
                   type="text"
                   value={inputText}
@@ -229,7 +259,13 @@ export const ChatPage: React.FC = () => {
                   placeholder="Nhập tin nhắn của bạn..."
                   className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
                 />
-                <Button type="submit" variant="primary" size="md" className="shrink-0 min-h-[44px] min-w-[44px] rounded-2xl">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="md"
+                  aria-label="Gửi tin nhắn"
+                  className="shrink-0 min-h-[44px] min-w-[44px] rounded-2xl"
+                >
                   <Send className="w-4 h-4" />
                 </Button>
               </form>

@@ -32,7 +32,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   const totalEstimatedMonthly = room.price + estimatedServices;
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
+    <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
@@ -89,17 +89,19 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
       {/* Info Content */}
       <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
         <div>
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-1.5 font-medium">
-            <span className="font-bold text-gray-800">{room.area} m²</span>
-            <span>•</span>
-            <span>{room.type}</span>
+          {/* Info row: 2 rows on screens < 380px, single line with truncate on larger */}
+          <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center gap-1 min-[380px]:gap-1.5 text-[11px] text-gray-500 mb-1.5 font-medium overflow-hidden">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-bold text-gray-800">{room.area} m²</span>
+              <span>•</span>
+              <span className="truncate max-w-[110px]">{room.type}</span>
+            </div>
             {room.nearestSchool && (
-              <>
-                <span>•</span>
-                <span className="text-[#00a854] font-bold flex items-center gap-1">
-                  <Navigation className="w-3 h-3" /> {room.nearestSchool}
-                </span>
-              </>
+              <div className="flex items-center gap-1 min-w-0 overflow-hidden text-[#00a854] font-bold">
+                <span className="hidden min-[380px]:inline text-gray-400">•</span>
+                <Navigation className="w-3 h-3 shrink-0" />
+                <span className="truncate">{room.nearestSchool}</span>
+              </div>
             )}
           </div>
 

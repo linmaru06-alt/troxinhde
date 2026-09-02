@@ -202,18 +202,20 @@ interface AppState {
   resetAllData: () => void;
 }
 
+const isDev = Boolean(import.meta.env?.DEV);
+
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: null, // Default guest unauthenticated state
-      ownerApplications: initialOwnerApplications,
-      rooms: initialRooms,
-      buildings: initialBuildings,
-      roommates: initialRoommates,
-      marketplaceItems: initialMarketplaceItems,
-      notifications: initialNotifications,
-      threads: initialThreads,
-      messages: initialMessages,
+      ownerApplications: isDev ? initialOwnerApplications : [],
+      rooms: isDev ? initialRooms : [],
+      buildings: isDev ? initialBuildings : [],
+      roommates: isDev ? initialRoommates : [],
+      marketplaceItems: isDev ? initialMarketplaceItems : [],
+      notifications: isDev ? initialNotifications : [],
+      threads: isDev ? initialThreads : [],
+      messages: isDev ? initialMessages : [],
       savedRoomIds: [],
       savedRoommateIds: [],
       savedItemIds: [],
@@ -963,13 +965,22 @@ export const useAppStore = create<AppState>()(
           ]);
 
           set((state) => ({
-            rooms: cloudRooms.length > 0 ? cloudRooms : state.rooms,
-            buildings: cloudBuildings.length > 0 ? cloudBuildings : state.buildings,
-            roommates: cloudRoommates.length > 0 ? cloudRoommates : state.roommates,
-            marketplaceItems: cloudItems.length > 0 ? cloudItems : state.marketplaceItems,
+            rooms: cloudRooms.length > 0 ? cloudRooms : (isDev ? state.rooms : []),
+            buildings: cloudBuildings.length > 0 ? cloudBuildings : (isDev ? state.buildings : []),
+            roommates: cloudRoommates.length > 0 ? cloudRoommates : (isDev ? state.roommates : []),
+            marketplaceItems: cloudItems.length > 0 ? cloudItems : (isDev ? state.marketplaceItems : []),
           }));
         } catch (err) {
           console.warn('[useAppStore] Không thể tải dữ liệu cloud:', err);
+          if (!isDev) {
+            // Không che lỗi API bằng mock data ở production
+            set({
+              rooms: [],
+              buildings: [],
+              roommates: [],
+              marketplaceItems: [],
+            });
+          }
         }
       },
 

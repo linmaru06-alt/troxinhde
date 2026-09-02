@@ -20,11 +20,11 @@ import {
 } from 'lucide-react';
 
 export const BookingPage: React.FC = () => {
-  const { roomId } = useParams<{ roomId: string }>();
+  const { roomId } = useParams<{ roomId?: string }>();
   const navigate = useNavigate();
-  const { rooms, currentUser, createBooking, showToast } = useAppStore();
+  const { rooms, currentUser, bookings = [], createBooking, updateBookingStatus, showToast } = useAppStore();
 
-  const room = rooms.find((r) => r.id === roomId) || rooms[0];
+  const room = roomId ? rooms.find((r) => r.id === roomId) : null;
 
   const [date, setDate] = useState<string>(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
   const [selectedSlot, setSelectedSlot] = useState<string>('09:30 - 10:30 (Sáng)');
@@ -33,6 +33,141 @@ export const BookingPage: React.FC = () => {
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // 1. Trường hợp roomId không hợp lệ hoặc không tìm thấy phòng
+  if (roomId && !room) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4 py-12">
+        <div className="max-w-md w-full text-center space-y-4 bg-white p-8 rounded-3xl border border-gray-200 shadow-md">
+          <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
+            <AlertCircle className="w-8 h-8" />
+          </div>
+          <h2 className="text-xl font-black text-gray-900">Không tìm thấy phòng trọ</h2>
+          <p className="text-xs text-gray-500 leading-relaxed">
+            Phòng trọ bạn đang cố gắng đặt lịch không tồn tại hoặc đã bị gỡ bỏ khỏi hệ thống.
+          </p>
+          <div className="pt-2 flex flex-col gap-2">
+            <Link to="/tim-kiem">
+              <Button variant="primary" size="md" className="w-full font-bold">
+                Tìm phòng trọ khác
+              </Button>
+            </Link>
+            <Link to="/">
+              <Button variant="outline" size="md" className="w-full">
+                Về trang chủ
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // 2. Trường hợp truy cập /lich-hen (không có roomId): hiển thị danh sách tất cả lịch hẹn đã đặt
+  if (!roomId) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
+        <div className="flex items-center justify-between pb-4 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-2xl bg-emerald-100 text-[#006d37]">
+              <Calendar className="w-6 h-6" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                Lịch Hẹn Xem Phòng Trực Tiếp
+              </h1>
+              <p className="text-xs text-gray-500">
+                Theo dõi trạng thái lịch hẹn, thời gian và thông tin liên hệ chủ nhà
+              </p>
+            </div>
+          </div>
+          <Link to="/tim-kiem">
+            <Button variant="primary" size="sm">
+              Tìm Phòng Mới
+            </Button>
+          </Link>
+        </div>
+
+        {bookings.length === 0 ? (
+          <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 p-8 space-y-4 shadow-xs">
+            <div className="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
+              <Calendar className="w-8 h-8" />
+            </div>
+            <div className="space-y-1">
+              <h3 className="text-base font-bold text-gray-800">Bạn chưa có lịch hẹn xem phòng nào</h3>
+              <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                Khám phá các phòng trọ đã xác minh và bấm "Đặt lịch" để được hẹn xem trực tiếp miễn phí.
+              </p>
+            </div>
+            <Link to="/tim-kiem" className="inline-block pt-2">
+              <Button variant="primary" size="md" className="font-bold shadow-md">
+                Khám phá phòng trọ ngay
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {bookings.map((b) => (
+              <div
+                key={b.id}
+                className="bg-white rounded-3xl p-5 border border-gray-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:shadow-md"
+              >
+                <div className="space-y-1.5 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span
+                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
+                        b.status === 'Đã xác nhận'
+                          ? 'bg-emerald-100 text-[#006d37]'
+                          : b.status === 'Đã hủy'
+                          ? 'bg-gray-100 text-gray-500'
+                          : 'bg-amber-100 text-amber-800 animate-pulse'
+                      }`}
+                    >
+                      {b.status}
+                    </span>
+                    <span className="text-xs font-black text-[#006d37]">
+                      {formatPrice(b.roomPrice)}/tháng
+                    </span>
+                  </div>
+                  <h4 className="text-sm font-bold text-gray-900 leading-snug">{b.roomTitle}</h4>
+                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 pt-1">
+                    <span className="flex items-center gap-1 font-semibold text-gray-700">
+                      <Calendar className="w-3.5 h-3.5 text-[#006d37]" /> {b.date}
+                    </span>
+                    <span className="flex items-center gap-1 font-semibold text-gray-700">
+                      <Clock className="w-3.5 h-3.5 text-[#006d37]" /> {b.timeSlot}
+                    </span>
+                    <span className="flex items-center gap-1 text-gray-500">
+                      <User className="w-3.5 h-3.5" /> {b.renterName} ({b.renterPhone})
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
+                  <Link to={`/phong/${b.roomId}`}>
+                    <Button variant="outline" size="sm" className="text-xs">
+                      Chi tiết phòng
+                    </Button>
+                  </Link>
+                  {b.status === 'Chờ chủ trọ xác nhận' && (
+                    <button
+                      onClick={() => {
+                        updateBookingStatus(b.id, 'Đã hủy');
+                        showToast('Đã hủy lịch hẹn', 'Bạn có thể đặt lại lịch bất kỳ lúc nào', 'info');
+                      }}
+                      className="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 font-bold rounded-xl transition"
+                    >
+                      Hủy hẹn
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const timeSlots = [
     { label: '08:30 - 09:30', period: 'Sáng' },
@@ -46,6 +181,7 @@ export const BookingPage: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!room) return;
     if (!name.trim() || !phone.trim()) {
       showToast('Vui lòng điền đủ họ tên và số điện thoại', '', 'error');
       return;

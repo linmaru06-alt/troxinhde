@@ -4,13 +4,13 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
 import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle, Sparkles, Building2, CheckCircle2, ArrowRight } from 'lucide-react';
-import { loginWithGoogle, loginWithDemoAccount } from '../lib/authService';
+import { loginWithGoogle, loginWithDemoAccount, completeEmailRegistration } from '../lib/authService';
 import { checkUserExists } from '../lib/supabaseAuthSync';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginWithSocialUser, showToast } = useAppStore();
+  const { setCurrentUser, loginWithSocialUser, showToast } = useAppStore();
 
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
   const roleParam = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
@@ -80,46 +80,29 @@ export const RegisterPage: React.FC = () => {
         return;
       }
 
-      // 2. Tạo mã OTP 6 số ngẫu nhiên cho email
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+      // 2. Đăng ký trực tiếp qua Firebase Auth chuẩn bảo mật, không lưu thông tin thô vào client storage
+      const regRes = await completeEmailRegistration(
+        cleanEmail,
+        password,
+        name.trim(),
+        cleanPhone || undefined,
+        roleParam
+      );
 
-      // 3. Lưu thông tin đăng ký tạm thời vào sessionStorage (Tuyệt đối không đưa mật khẩu lên URL)
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        window.sessionStorage.setItem(
-          'troxinh_pending_reg',
-          JSON.stringify({
-            name: name.trim(),
-            email: cleanEmail,
-            phone: cleanPhone || undefined,
-            password,
-            role: roleParam,
-            mode: 'email',
-            createdAt: Date.now(),
-          })
-        );
-
-        window.sessionStorage.setItem(
-          'troxinh_email_otp',
-          JSON.stringify({
-            code: otpCode,
-            email: cleanEmail,
-            expiresAt: Date.now() + 5 * 60 * 1000,
-          })
-        );
+      if (!regRes.success || !regRes.user) {
+        setIsLoading(false);
+        setError(regRes.error || 'Đăng ký không thành công. Vui lòng thử lại!');
+        return;
       }
 
+      // Đăng ký thành công -> cập nhật trạng thái user và chuyển hướng an toàn
+      setCurrentUser(regRes.user as any);
+      showToast('Đăng ký tài khoản thành công! 🎉', `Chào mừng ${regRes.user.name} đến với Trọ Xinh.`, 'success');
       setIsLoading(false);
-
-      // 4. Chuyển sang màn hình xác thực OTP bắt buộc
-      const otpUrl = `/xac-thuc-otp?mode=email&email=${encodeURIComponent(cleanEmail)}&name=${encodeURIComponent(
-        name.trim()
-      )}${cleanPhone ? `&phone=${encodeURIComponent(cleanPhone)}` : ''}&role=${roleParam}&action=register${
-        returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
-      }`;
-      navigate(otpUrl);
+      navigate(returnUrl || (roleParam === 'owner' ? '/chu-tro' : '/'));
     } catch (err: any) {
       setIsLoading(false);
-      setError('Đã có lỗi xảy ra khi kiểm tra thông tin. Vui lòng thử lại!');
+      setError(err?.message || 'Đã có lỗi xảy ra khi tạo tài khoản. Vui lòng thử lại!');
     }
   };
 
@@ -147,20 +130,6 @@ export const RegisterPage: React.FC = () => {
         setIsLoading(false);
         setError(checkRes.message || 'Số điện thoại này đã được sử dụng cho một tài khoản khác.');
         return;
-      }
-
-      // Lưu thông tin đăng ký vào sessionStorage
-      if (typeof window !== 'undefined' && window.sessionStorage) {
-        window.sessionStorage.setItem(
-          'troxinh_pending_reg',
-          JSON.stringify({
-            name: name.trim(),
-            phone: cleanPhone,
-            role: roleParam,
-            mode: 'phone',
-            createdAt: Date.now(),
-          })
-        );
       }
 
       setIsLoading(false);

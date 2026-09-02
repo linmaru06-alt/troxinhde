@@ -39,7 +39,10 @@ export const GuestViewingBar: React.FC = () => {
   const returnUrl = encodeURIComponent(location.pathname + location.search);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-30 bg-white/98 backdrop-blur-md border-t border-gray-200 shadow-2xl p-3 sm:p-4 animate-slideUp">
+    <div
+      className="fixed left-0 right-0 z-30 bg-white/98 backdrop-blur-md border-t border-gray-200 shadow-2xl p-3 sm:p-4 animate-slideUp sm:!bottom-0"
+      style={{ bottom: 'var(--mobile-bottom-offset, 3.5rem)' }}
+    >
       <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
         <div className="flex items-center gap-2.5">
           <div className="p-2 bg-emerald-100 text-[#006d37] rounded-xl hidden sm:block">

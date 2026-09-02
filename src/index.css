@@ -7,6 +7,8 @@
     --primary: #00a854;
     --primary-container: #10b981;
     --background: #f9f9f9;
+    --mobile-nav-height: 3.5rem;
+    --mobile-bottom-offset: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
   body {
@@ -15,6 +17,7 @@
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     overflow-x: hidden;
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   html {
