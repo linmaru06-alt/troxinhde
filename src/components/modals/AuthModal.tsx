@@ -149,21 +149,15 @@ export const AuthModal: React.FC = () => {
       // Email -> Chuyển sang nhập mật khẩu hoặc OTP
       setStep('password');
     } else {
-      // Số điện thoại -> Tạo OTP và chuyển sang bước OTP
+      // Số điện thoại -> Chuyển sang màn hình xác thực OTP chuẩn có reCAPTCHA Firebase
       const cleanPhone = cleanInput.replace(/\D/g, '');
       if (cleanPhone.length < 10) {
         setErrorMsg('Số điện thoại không hợp lệ (tối thiểu 10 số).');
         return;
       }
 
-      setIsLoading(true);
-      try {
-        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-        setGeneratedOtp(otpCode);
-        setStep('otp');
-      } finally {
-        setIsLoading(false);
-      }
+      handleClose();
+      navigate(`/xac-thuc-otp?mode=phone&phone=${encodeURIComponent(cleanPhone)}&action=${authModalMode}&role=renter`);
     }
   };
 

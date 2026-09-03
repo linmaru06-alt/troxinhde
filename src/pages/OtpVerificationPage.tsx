@@ -12,8 +12,11 @@ import {
   CheckCircle2,
   Lock,
   Sparkles,
+  ShieldCheck,
+  Loader2,
 } from 'lucide-react';
 import {
+  setupRecaptchaVerifier,
   sendPhoneOtp,
   verifyPhoneOtp,
   completePhoneRegistration,
@@ -51,66 +54,87 @@ export const OtpVerificationPage: React.FC = () => {
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
   const [isTestSmsMode, setIsTestSmsMode] = useState<boolean>(false);
 
+  // Trạng thái reCAPTCHA
+  const [isRecaptchaReady, setIsRecaptchaReady] = useState<boolean>(false);
+  const [isRecaptchaVerified, setIsRecaptchaVerified] = useState<boolean>(false);
+  const [smsSent, setSmsSent] = useState<boolean>(false);
+
   const masterInputRef = useRef<HTMLInputElement>(null);
-  const hasSentRef = useRef<boolean>(false);
 
-  // 1. Tự động focus ô nhập khi mở trang
+  // 1. Khởi tạo reCAPTCHA Verifier
+  const initRecaptcha = useCallback(() => {
+    if (mode !== 'phone' || !phone) return;
+
+    setIsRecaptchaReady(false);
+    setIsRecaptchaVerified(false);
+
+    const verifier = setupRecaptchaVerifier(
+      'recaptcha-container',
+      async () => {
+        // Khi người dùng tích reCAPTCHA thành công
+        setIsRecaptchaVerified(true);
+        setIsSending(true);
+        setErrorMsg('');
+
+        try {
+          const res = await sendPhoneOtp(phone, window.recaptchaVerifier);
+          setIsSending(false);
+
+          if (res.success) {
+            if (res.verificationId) {
+              setVerificationId(res.verificationId);
+            }
+            setSmsSent(true);
+            setCountdown(60);
+            setIsTestSmsMode(false);
+            showToast(
+              'Đã gửi mã OTP SMS! 📱',
+              `Vui lòng kiểm tra tin nhắn trên điện thoại ${phone}.`,
+              'info'
+            );
+            setTimeout(() => {
+              masterInputRef.current?.focus();
+            }, 300);
+          } else {
+            setErrorMsg(res.error || 'Không thể gửi mã SMS qua Firebase.');
+            if (res.error?.includes('hạn mức') || res.error?.includes('chưa cấu hình')) {
+              setIsTestSmsMode(true);
+            }
+          }
+        } catch (err: any) {
+          setIsSending(false);
+          setErrorMsg('Lỗi gửi SMS: ' + (err.message || 'Vui lòng thử lại.'));
+        }
+      },
+      () => {
+        setIsRecaptchaVerified(false);
+        setErrorMsg('Phiên reCAPTCHA đã hết hạn. Vui lòng xác minh lại ô bên dưới.');
+      },
+      'normal'
+    );
+
+    if (verifier) {
+      verifier
+        .render()
+        .then(() => {
+          setIsRecaptchaReady(true);
+        })
+        .catch((err) => {
+          console.warn('[reCAPTCHA] Lỗi render widget:', err);
+          setIsRecaptchaReady(true);
+        });
+    }
+  }, [mode, phone, showToast]);
+
+  // Khởi tạo reCAPTCHA khi vào trang
   useEffect(() => {
-    masterInputRef.current?.focus();
-  }, []);
-
-  // Hàm gửi mã OTP
-  const triggerSendOtp = useCallback(async () => {
-    if (mode === 'email') {
-      setIsSending(false);
-      setErrorMsg('Xác thực qua Email được xử lý an toàn trực tiếp qua Firebase Auth. Vui lòng đăng ký hoặc đăng nhập từ trang Đăng nhập.');
-      showToast(
-        'Đăng nhập an toàn',
-        'Vui lòng đăng nhập trực tiếp bằng Email & Mật khẩu hoặc tài khoản Google.',
-        'info'
-      );
-      return;
+    if (mode === 'phone' && phone && !smsSent) {
+      const timer = setTimeout(() => {
+        initRecaptcha();
+      }, 200);
+      return () => clearTimeout(timer);
     }
-
-    // Gửi SMS OTP
-    if (!phone) {
-      setErrorMsg('Không tìm thấy thông tin Số điện thoại để gửi mã.');
-      return;
-    }
-
-    setIsSending(true);
-    setErrorMsg('');
-
-    const res = await sendPhoneOtp(phone, 'recaptcha-container');
-    setIsSending(false);
-
-    if (res.success) {
-      if (res.verificationId) {
-        setVerificationId(res.verificationId);
-      }
-      setIsTestSmsMode(false);
-      showToast(
-        'Đã gửi mã OTP SMS! 📱',
-        `Vui lòng kiểm tra tin nhắn trên điện thoại ${phone}.`,
-        'info'
-      );
-    } else {
-      // Khi SMS gateway không khả dụng (chưa kích hoạt billing / test)
-      setIsTestSmsMode(true);
-      showToast(
-        'SMS OTP đang ở chế độ test ⚠️',
-        'Chưa cấu hình SMS gateway thật. Vui lòng nhập mã thử nghiệm 123456.',
-        'warning'
-      );
-    }
-  }, [phone, email, mode, showToast]);
-
-  // 2. Tự động gửi mã OTP khi mở trang lần đầu
-  useEffect(() => {
-    if (hasSentRef.current) return;
-    hasSentRef.current = true;
-    triggerSendOtp();
-  }, [triggerSendOtp]);
+  }, [mode, phone, smsSent, initRecaptcha]);
 
   // Cleanup reCAPTCHA khi unmount
   useEffect(() => {
@@ -124,13 +148,13 @@ export const OtpVerificationPage: React.FC = () => {
     };
   }, []);
 
-  // 3. Đồng hồ đếm ngược 60s
+  // 2. Đồng hồ đếm ngược 60s
   useEffect(() => {
-    if (countdown > 0) {
+    if (countdown > 0 && smsSent) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-  }, [countdown]);
+  }, [countdown, smsSent]);
 
   // 4. Hàm xử lý Xác thực mã OTP
   const handleVerifyOtp = useCallback(
@@ -294,7 +318,12 @@ export const OtpVerificationPage: React.FC = () => {
     if (countdown > 0 || isSending) return;
     setCountdown(60);
     setOtp('');
-    triggerSendOtp();
+    setErrorMsg('');
+    setSmsSent(false);
+    setIsRecaptchaVerified(false);
+    setTimeout(() => {
+      initRecaptcha();
+    }, 150);
   };
 
   // Nếu không có thông tin email lẫn sđt
@@ -322,10 +351,7 @@ export const OtpVerificationPage: React.FC = () => {
 
   return (
     <div className="min-h-[calc(100vh-8rem)] flex items-center justify-center p-4 sm:p-6 py-10">
-      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-6 animate-fadeIn">
-        {/* Invisible reCAPTCHA container */}
-        <div id="recaptcha-container"></div>
-
+      <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl space-y-5 animate-fadeIn">
         {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-14 h-14 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto shadow-xs">
@@ -339,6 +365,37 @@ export const OtpVerificationPage: React.FC = () => {
             </strong>
           </p>
         </div>
+
+        {/* Khối Xác Thực reCAPTCHA (Kích hoạt trực quan cho Số điện thoại khi chưa gửi SMS) */}
+        {mode === 'phone' && !smsSent && (
+          <div className="p-4 bg-emerald-50/50 border border-emerald-200/80 rounded-2xl space-y-3 text-center">
+            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#006d37]">
+              <ShieldCheck className="w-4 h-4 text-[#00a854]" />
+              <span>Xác Thực Bảo Mật reCAPTCHA</span>
+            </div>
+            <p className="text-[11px] text-gray-500 leading-relaxed">
+              Vui lòng tích vào ô <strong className="text-gray-800">"Tôi không phải là người máy"</strong> bên dưới để hệ thống Firebase gửi mã OTP SMS tới số <strong className="text-gray-900">{phone}</strong>.
+            </p>
+
+            {/* Container hiển thị widget Google reCAPTCHA v2 */}
+            <div className="flex flex-col items-center justify-center py-2 min-h-[82px] bg-white rounded-xl border border-gray-100 shadow-2xs">
+              <div id="recaptcha-container" className="flex justify-center"></div>
+              {!isRecaptchaReady && (
+                <div className="flex items-center gap-2 text-xs text-gray-400 py-3">
+                  <Loader2 className="w-4 h-4 animate-spin text-[#00a854]" />
+                  <span>Đang tải Google reCAPTCHA...</span>
+                </div>
+              )}
+            </div>
+
+            {isSending && (
+              <div className="flex items-center justify-center gap-2 text-xs text-[#00a854] font-semibold animate-pulse py-1">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span>Đã xác minh reCAPTCHA! Đang gửi mã SMS...</span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Thẻ hiển thị SMS OTP thử nghiệm nếu chưa cấu hình SMS Gateway */}
         {isTestSmsMode && mode === 'phone' && (
@@ -356,6 +413,7 @@ export const OtpVerificationPage: React.FC = () => {
               type="button"
               onClick={() => {
                 setOtp('123456');
+                setSmsSent(true);
                 handleVerifyOtp('123456');
               }}
               className="w-full py-2 px-3 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
@@ -370,101 +428,115 @@ export const OtpVerificationPage: React.FC = () => {
         {errorMsg && (
           <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2 animate-shake">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{errorMsg}</span>
+            <div className="flex-1 space-y-1">
+              <span>{errorMsg}</span>
+              {errorMsg.includes('hết hạn') && mode === 'phone' && (
+                <button
+                  type="button"
+                  onClick={initRecaptcha}
+                  className="block font-bold text-[#00a854] hover:underline cursor-pointer"
+                >
+                  👉 Bấm vào đây để tải lại reCAPTCHA
+                </button>
+              )}
+            </div>
           </div>
         )}
 
-        <div className="space-y-6">
-          {/* CỤM 6 Ô NHẬP OTP */}
-          <div
-            className="relative cursor-text"
-            onClick={() => masterInputRef.current?.focus()}
-          >
-            {/* Input ngầm bắt trọn mọi phím gõ, numpad, paste, và SMS Autofill */}
-            <input
-              ref={masterInputRef}
-              type="text"
-              inputMode="numeric"
-              pattern="[0-9]*"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={otp}
-              disabled={isLoading}
-              onChange={handleInputChange}
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-text tracking-[1em]"
-              aria-label="Nhập 6 chữ số mã OTP"
-            />
-
-            {/* 6 Ô hiển thị đồ họa */}
+        {/* Khối Nhập OTP (Hiển thị khi đã gửi SMS hoặc khi là Email) */}
+        {(smsSent || mode === 'email' || isTestSmsMode) && (
+          <div className="space-y-6">
+            {/* CỤM 6 Ô NHẬP OTP */}
             <div
-              className={`flex items-center justify-center gap-2 sm:gap-3 select-none ${
-                isErrorShake ? 'animate-shake' : ''
-              }`}
+              className="relative cursor-text"
+              onClick={() => masterInputRef.current?.focus()}
             >
-              {[0, 1, 2, 3, 4, 5].map((index) => {
-                const char = otp[index] || '';
-                const isCurrentActive =
-                  isFocused &&
-                  (otp.length === index || (otp.length === 6 && index === 5));
-                const isFilled = Boolean(char);
+              {/* Input ngầm bắt trọn mọi phím gõ, numpad, paste, và SMS Autofill */}
+              <input
+                ref={masterInputRef}
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={otp}
+                disabled={isLoading}
+                onChange={handleInputChange}
+                onFocus={() => setIsFocused(true)}
+                onBlur={() => setIsFocused(false)}
+                className="absolute inset-0 w-full h-full opacity-0 z-20 cursor-text tracking-[1em]"
+                aria-label="Nhập 6 chữ số mã OTP"
+              />
 
-                return (
-                  <div
-                    key={index}
-                    className={`w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center text-xl sm:text-2xl font-black rounded-2xl border-2 transition-all duration-150 shadow-2xs relative ${
-                      isLoading
-                        ? 'bg-gray-100 text-gray-400 border-gray-200'
-                        : isErrorShake
-                        ? 'border-red-500 bg-red-50 text-red-700 ring-4 ring-red-500/10'
-                        : isCurrentActive
-                        ? 'border-[#00a854] bg-white text-gray-900 ring-4 ring-emerald-500/20 scale-105 shadow-md'
-                        : isFilled
-                        ? 'border-emerald-600/40 bg-emerald-50/30 text-gray-900'
-                        : 'border-gray-200 bg-gray-50/60 text-gray-900'
-                    }`}
-                  >
-                    {char ? (
-                      <span>{char}</span>
-                    ) : isCurrentActive ? (
-                      <span className="w-0.5 h-6 bg-[#00a854] animate-pulse rounded-full" />
-                    ) : null}
-                  </div>
-                );
-              })}
+              {/* 6 Ô hiển thị đồ họa */}
+              <div
+                className={`flex items-center justify-center gap-2 sm:gap-3 select-none ${
+                  isErrorShake ? 'animate-shake' : ''
+                }`}
+              >
+                {[0, 1, 2, 3, 4, 5].map((index) => {
+                  const char = otp[index] || '';
+                  const isCurrentActive =
+                    isFocused &&
+                    (otp.length === index || (otp.length === 6 && index === 5));
+                  const isFilled = Boolean(char);
+
+                  return (
+                    <div
+                      key={index}
+                      className={`w-11 h-13 sm:w-12 sm:h-14 flex items-center justify-center text-xl sm:text-2xl font-black rounded-2xl border-2 transition-all duration-150 shadow-2xs relative ${
+                        isLoading
+                          ? 'bg-gray-100 text-gray-400 border-gray-200'
+                          : isErrorShake
+                          ? 'border-red-500 bg-red-50 text-red-700 ring-4 ring-red-500/10'
+                          : isCurrentActive
+                          ? 'border-[#00a854] bg-white text-gray-900 ring-4 ring-emerald-500/20 scale-105 shadow-md'
+                          : isFilled
+                          ? 'border-emerald-600/40 bg-emerald-50/30 text-gray-900'
+                          : 'border-gray-200 bg-gray-50/60 text-gray-900'
+                      }`}
+                    >
+                      {char ? (
+                        <span>{char}</span>
+                      ) : isCurrentActive ? (
+                        <span className="w-0.5 h-6 bg-[#00a854] animate-pulse rounded-full" />
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div className="text-center space-y-2">
-            <p className="text-xs text-gray-500">
-              {mode === 'email' ? (
-                <span>Vui lòng kiểm tra mã OTP gửi đến hòm thư <strong className="text-gray-900">{email}</strong>.</span>
-              ) : (
-                <span>Vui lòng kiểm tra tin nhắn <strong className="text-gray-900">SMS</strong> gửi đến <strong className="text-gray-900">{phone}</strong>.</span>
-              )}
-            </p>
-          </div>
+            <div className="text-center space-y-2">
+              <p className="text-xs text-gray-500">
+                {mode === 'email' ? (
+                  <span>Vui lòng kiểm tra mã OTP gửi đến hòm thư <strong className="text-gray-900">{email}</strong>.</span>
+                ) : (
+                  <span>Vui lòng kiểm tra tin nhắn <strong className="text-gray-900">SMS</strong> gửi đến <strong className="text-gray-900">{phone}</strong>.</span>
+                )}
+              </p>
+            </div>
 
-          {/* Nút Xác nhận */}
-          <Button
-            type="button"
-            variant="primary"
-            size="lg"
-            className="w-full"
-            isLoading={isLoading}
-            disabled={otp.length < 6 || isLoading}
-            onClick={() => handleVerifyOtp(otp)}
-            rightIcon={!isLoading ? <ArrowRight className="w-4 h-4" /> : undefined}
-          >
-            {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Hoàn Tất'}
-          </Button>
-        </div>
+            {/* Nút Xác nhận */}
+            <Button
+              type="button"
+              variant="primary"
+              size="lg"
+              className="w-full"
+              isLoading={isLoading}
+              disabled={otp.length < 6 || isLoading}
+              onClick={() => handleVerifyOtp(otp)}
+              rightIcon={!isLoading ? <ArrowRight className="w-4 h-4" /> : undefined}
+            >
+              {isLoading ? 'Đang xác thực...' : 'Xác Nhận & Hoàn Tất'}
+            </Button>
+          </div>
+        )}
 
         {/* Resend OTP */}
         <div className="pt-2 text-center text-xs text-gray-500 flex items-center justify-center gap-1.5">
           <span>Chưa nhận được mã?</span>
-          {countdown > 0 ? (
+          {countdown > 0 && smsSent ? (
             <span className="font-bold text-[#00a854]">Gửi lại sau {countdown}s</span>
           ) : (
             <button
@@ -473,7 +545,7 @@ export const OtpVerificationPage: React.FC = () => {
               className="font-bold text-[#00a854] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSending ? 'animate-spin' : ''}`} />
-              <span>Gửi lại mã</span>
+              <span>{smsSent ? 'Gửi lại mã' : 'Xác thực lại reCAPTCHA'}</span>
             </button>
           )}
         </div>

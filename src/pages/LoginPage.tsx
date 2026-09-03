@@ -128,9 +128,10 @@ export const LoginPage: React.FC = () => {
         setError('Số điện thoại không hợp lệ (tối thiểu 10 chữ số).');
         return;
       }
-      const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-      setGeneratedOtp(otpCode);
-      setStep('otp');
+      const otpUrl = `/xac-thuc-otp?mode=phone&phone=${encodeURIComponent(cleanPhone)}&role=${roleParam}&action=login${
+        returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''
+      }`;
+      navigate(otpUrl);
     }
   };
 

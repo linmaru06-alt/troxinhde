@@ -174,10 +174,57 @@ export async function syncFirebaseUserToSupabase(
 }
 
 /**
- * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase Phone SMS)
+ * Khởi tạo và kích hoạt reCAPTCHA Verifier trực quan cho Firebase Auth
+ */
+export function setupRecaptchaVerifier(
+  containerId = 'recaptcha-container',
+  onSuccess?: (token: string) => void,
+  onExpired?: () => void,
+  size: 'normal' | 'invisible' = 'normal'
+): RecaptchaVerifier | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch (e) {
+        console.warn('[Firebase Auth] Lỗi dọn dẹp reCAPTCHA cũ:', e);
+      }
+      window.recaptchaVerifier = undefined;
+    }
+
+    const containerEl = document.getElementById(containerId);
+    if (containerEl) {
+      containerEl.innerHTML = '';
+    }
+
+    const verifier = new RecaptchaVerifier(auth, containerId, {
+      size,
+      callback: (response: any) => {
+        console.log('[Firebase Auth] reCAPTCHA đã xác thực thành công');
+        if (onSuccess) onSuccess(response);
+      },
+      'expired-callback': () => {
+        console.warn('[Firebase Auth] Token reCAPTCHA đã hết hạn');
+        if (onExpired) onExpired();
+      },
+    });
+
+    window.recaptchaVerifier = verifier;
+    return verifier;
+  } catch (error) {
+    console.warn('[Firebase Auth] Lỗi khởi tạo RecaptchaVerifier:', error);
+    return null;
+  }
+}
+
+/**
+ * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase Phone SMS với reCAPTCHA)
  */
 export async function sendPhoneOtp(
   phone: string,
+  appVerifier?: RecaptchaVerifier,
   containerId = 'recaptcha-container'
 ): Promise<SendOtpResult> {
   const formattedPhone = formatVietnamesePhone(phone);
@@ -187,29 +234,26 @@ export async function sendPhoneOtp(
   }
 
   try {
-    if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-      } catch {}
-      window.recaptchaVerifier = undefined;
+    let verifier = appVerifier || window.recaptchaVerifier;
+
+    if (!verifier) {
+      verifier = setupRecaptchaVerifier(containerId, undefined, undefined, 'normal') || undefined;
+      if (verifier) {
+        await verifier.render();
+      }
     }
 
-    const containerEl = document.getElementById(containerId);
-    if (containerEl) {
-      containerEl.innerHTML = '';
+    if (!verifier) {
+      return {
+        success: false,
+        error: 'Không thể khởi tạo reCAPTCHA bảo mật. Vui lòng tải lại trang.',
+      };
     }
-
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-      size: 'invisible',
-      callback: () => {
-        console.log('[Firebase Auth] reCAPTCHA verified');
-      },
-    });
 
     const confirmationResult = await signInWithPhoneNumber(
       auth,
       formattedPhone,
-      window.recaptchaVerifier
+      verifier
     );
 
     window.confirmationResult = confirmationResult;
@@ -226,9 +270,13 @@ export async function sendPhoneOtp(
     if (error.code === 'auth/invalid-phone-number') {
       friendlyError = 'Số điện thoại không đúng định dạng quốc tế (+84).';
     } else if (error.code === 'auth/quota-exceeded' || error.code === 'auth/billing-not-enabled') {
-      friendlyError = 'SMS OTP chưa cấu hình hoặc đã hết hạn mức. Hệ thống chuyển sang chế độ test.';
+      friendlyError = 'SMS OTP chưa cấu hình hoặc đã hết hạn mức SMS trên Firebase Console. Hệ thống chuyển sang chế độ test.';
     } else if (error.code === 'auth/too-many-requests') {
       friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng chờ 1–2 phút.';
+    } else if (error.code === 'auth/captcha-check-failed') {
+      friendlyError = 'Xác minh reCAPTCHA không thành công hoặc đã bị hủy. Vui lòng thử lại!';
+    } else if (error.code === 'auth/invalid-app-credential') {
+      friendlyError = 'Cấu hình bảo mật Firebase reCAPTCHA không hợp lệ trên tên miền này.';
     }
 
     return {
