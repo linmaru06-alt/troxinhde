@@ -51,42 +51,38 @@ export const LandingPage: React.FC = () => {
   const featuredMarketplace = (marketplaceItems || []).slice(0, 4);
 
   return (
-    <div className="space-y-10 sm:space-y-14 pb-16 bg-[#f8f9fa]">
+    <div className="space-y-6 sm:space-y-8 pb-16 bg-[#f8f9fa]">
       <SEOHead
         title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
         description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, tìm bạn ở ghép và chợ đồ cũ sinh viên."
         url="/"
       />
 
-      {/* 1. BRIGHT GREEN WITH YELLOWISH CENTER GLOW HERO BANNER (CHỢ TỐT EXACT STRUCTURE) */}
+      {/* 1. COMPACT BRIGHT GREEN HERO BANNER */}
       <section
-        className="relative pt-8 pb-14 sm:pt-10 sm:pb-16 md:pt-12 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/30"
+        className="relative pt-4 pb-8 sm:pt-5 sm:pb-9 md:pt-6 md:pb-10 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/30"
         style={{
           background: 'radial-gradient(ellipse 85% 85% at 50% 45%, #fff9a6 0%, #a7f3d0 38%, #34d399 70%, #10b981 100%)',
         }}
       >
-        <div className="max-w-6xl mx-auto text-center relative z-10 space-y-3 sm:space-y-4">
+        <div className="max-w-6xl mx-auto text-center relative z-10">
           {/* Slogan Banner with 3D Icons & Black Bold Text */}
-          <div className="relative max-w-3xl mx-auto py-2">
+          <div className="relative max-w-2xl mx-auto py-1">
             {/* Left Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -left-14 top-0 text-3xl animate-bounce duration-1000 select-none pointer-events-none opacity-95">
+            <div className="hidden md:flex flex-col items-center absolute -left-10 top-0 text-2xl animate-bounce duration-1000 select-none pointer-events-none opacity-90">
               <span>🏠</span>
-              <span className="text-xl">🛋️</span>
+              <span className="text-base">🛋️</span>
             </div>
 
             {/* Right Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -right-14 top-0 text-3xl animate-bounce duration-700 select-none pointer-events-none opacity-95">
+            <div className="hidden md:flex flex-col items-center absolute -right-10 top-0 text-2xl animate-bounce duration-700 select-none pointer-events-none opacity-90">
               <span>🛵</span>
-              <span className="text-xl">🎓</span>
+              <span className="text-base">🎓</span>
             </div>
 
-            <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-black text-gray-950 tracking-tight leading-tight drop-shadow-xs">
-              Phòng thật, giá chuẩn, đặt lịch trực tiếp!
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-3xl font-black text-gray-950 tracking-tight leading-snug drop-shadow-xs">
+              Phòng thật, giá chuẩn
             </h1>
-
-            <p className="text-xs sm:text-sm text-gray-950 font-bold max-w-xl mx-auto mt-2 opacity-90">
-              Biết rõ tổng chi phí hàng tháng, đối chiếu thực tế và kết nối trực tiếp với chủ trọ tại Hà Nội
-            </p>
           </div>
         </div>
 
@@ -139,10 +135,10 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Spacer for bottom half of docked search bar */}
-      <div className="h-9 sm:h-11 md:h-13" />
+      <div className="h-6 sm:h-7 md:h-8" />
 
       {/* 3. VERIFIED ROOMS FEED */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-6">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-gray-200">
           <div>
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
