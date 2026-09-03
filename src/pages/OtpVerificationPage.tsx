@@ -53,12 +53,15 @@ export const OtpVerificationPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
   const [isTestSmsMode, setIsTestSmsMode] = useState<boolean>(false);
-  const [generatedOtpCode, setGeneratedOtpCode] = useState<string>('');
+  const [generatedOtpCode, setGeneratedOtpCode] = useState<string>(() => {
+    return sessionStorage.getItem('troxinh_current_otp') || '';
+  });
+  const generatedOtpRef = useRef<string>(sessionStorage.getItem('troxinh_current_otp') || '');
 
   // Trạng thái reCAPTCHA
   const [isRecaptchaReady, setIsRecaptchaReady] = useState<boolean>(false);
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState<boolean>(false);
-  const [smsSent, setSmsSent] = useState<boolean>(false);
+  const [smsSent, setSmsSent] = useState<boolean>(Boolean(sessionStorage.getItem('troxinh_current_otp')));
 
   const masterInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +82,8 @@ export const OtpVerificationPage: React.FC = () => {
 
         // Tự động tạo mã OTP 6 số trực tiếp sau khi qua reCAPTCHA
         const newCode = Math.floor(100000 + Math.random() * 900000).toString();
+        generatedOtpRef.current = newCode;
+        sessionStorage.setItem('troxinh_current_otp', newCode);
         setGeneratedOtpCode(newCode);
 
         setTimeout(() => {
@@ -179,13 +184,21 @@ export const OtpVerificationPage: React.FC = () => {
           } catch {}
         }
 
+        // Đọc mã kỳ vọng từ ref, state hoặc sessionStorage (tránh triệt để stale closure)
+        const expectedOtp = (
+          generatedOtpRef.current ||
+          generatedOtpCode ||
+          sessionStorage.getItem('troxinh_current_otp') ||
+          ''
+        ).trim();
+
         // Kiểm tra khớp mã OTP sinh từ reCAPTCHA hoặc mã test
-        const isMatch = (generatedOtpCode && cleanCode === generatedOtpCode) || (cleanCode === '123456');
+        const isMatch = (expectedOtp && cleanCode === expectedOtp) || (cleanCode === '123456');
 
         if (!isMatch && !firebaseAuthUser) {
           setIsLoading(false);
           setIsErrorShake(true);
-          setErrorMsg(`Mã OTP không chính xác. Vui lòng nhập mã [${generatedOtpCode || '123456'}] hiển thị ở trên.`);
+          setErrorMsg(`Mã OTP không chính xác. Vui lòng nhập đúng mã [${expectedOtp || '123456'}] hiển thị ở trên.`);
           setOtp('');
           masterInputRef.current?.focus();
           setTimeout(() => setIsErrorShake(false), 600);
@@ -278,6 +291,7 @@ export const OtpVerificationPage: React.FC = () => {
       role,
       isRegisterAction,
       isTestSmsMode,
+      generatedOtpCode,
       loginWithSocialUser,
       showToast,
       returnUrl,
