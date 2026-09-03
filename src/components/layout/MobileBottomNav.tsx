@@ -23,11 +23,11 @@ interface NavLinkItem {
 }
 
 export const MobileBottomNav: React.FC = () => {
-  const { currentUser, notifications = [], threads = [], savedRoomIds = [], bookings = [] } = useAppStore();
+  const { currentUser, notifications = [], savedRoomIds = [], bookings = [] } = useAppStore();
   const location = useLocation();
 
   const unreadNotifs = (notifications || []).filter((n) => !n.read).length;
-  const unreadMessages = (threads || []).reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const unreadMessages = 0;
 
   // Hidden on specific fullscreen auth pages
   if (['/dang-nhap', '/dang-ky', '/quen-mat-khau', '/xac-thuc-otp'].includes(location.pathname)) {

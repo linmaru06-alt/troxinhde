@@ -38,10 +38,12 @@ import {
   Eye,
 } from 'lucide-react';
 
+import { getOrCreateConversation } from '../lib/api/messages';
+
 export const RoomDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast, getOrCreateThread } = useAppStore();
+  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
@@ -105,13 +107,28 @@ export const RoomDetailPage: React.FC = () => {
     showToast('Đã sao chép liên kết phòng trọ!', 'Bạn có thể gửi cho bạn bè để cùng xem.', 'success');
   };
 
-  const handleContactChat = () => {
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+
+  const handleContactChat = async () => {
     if (!currentUser) {
       setShowLoginModal(true);
       return;
     }
-    const threadId = getOrCreateThread(room.ownerId, room.id);
-    navigate(`/tin-nhan/${threadId}`);
+    if (currentUser.id === room.ownerId) {
+      showToast('Bạn là chủ bài đăng này', 'Không thể tự nhắn tin cho chính mình.', 'info');
+      return;
+    }
+
+    setIsChatLoading(true);
+    try {
+      const convId = await getOrCreateConversation(currentUser.id, room.ownerId, room.id);
+      navigate(`/tin-nhan/${convId}`);
+    } catch (err: any) {
+      console.error('[RoomDetailPage] Lỗi mở cuộc trò chuyện:', err);
+      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const handleCallPhone = () => {
@@ -866,17 +883,20 @@ export const RoomDetailPage: React.FC = () => {
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2 flex-1 justify-end">
-            <a
-              href={`tel:${room.ownerPhone || '0888110789'}`}
-              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
-              title="Gọi điện ngay"
-            >
-              <Phone className="w-5 h-5" />
-            </a>
+            {room.ownerPhone ? (
+              <a
+                href={`tel:${room.ownerPhone}`}
+                className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
+                title={`Gọi điện trực tiếp: ${room.ownerPhone}`}
+              >
+                <Phone className="w-5 h-5" />
+              </a>
+            ) : null}
 
             <button
               onClick={handleContactChat}
-              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
+              disabled={isChatLoading}
+              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0 disabled:opacity-50 cursor-pointer"
               title="Nhắn tin"
             >
               <MessageSquare className="w-5 h-5" />

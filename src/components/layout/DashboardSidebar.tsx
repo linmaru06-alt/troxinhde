@@ -24,10 +24,10 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications, threads, ownerApplications } = useAppStore();
+  const { logout, currentUser, notifications, ownerApplications } = useAppStore();
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
-  const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const unreadMessages = 0;
   const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;
 
   const ownerLinks: NavLinkItem[] = [

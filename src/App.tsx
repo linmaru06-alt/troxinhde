@@ -309,7 +309,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="/tin-nhan/:threadId"
+              path="/tin-nhan/:conversationId"
               element={
                 <ProtectedRoute>
                   <ChatPage />

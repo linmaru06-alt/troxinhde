@@ -149,30 +149,49 @@ export interface MarketplaceItem {
 
 export interface Message {
   id: string;
-  threadId: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar: string;
-  text: string;
-  createdAt: string;
-  status: 'sending' | 'sent' | 'read' | 'failed';
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  is_read?: boolean;
+  created_at: string;
+  status?: 'sending' | 'sent' | 'read' | 'failed';
+  sender?: {
+    id: string;
+    full_name?: string;
+    name?: string;
+    avatar_url?: string;
+  };
 }
 
-export interface Thread {
+export interface ConversationParticipant {
   id: string;
-  participants: {
+  full_name?: string;
+  name?: string;
+  avatar_url?: string;
+  app_role?: string;
+  phone?: string;
+}
+
+export interface Conversation {
+  id: string;
+  room_id?: string | null;
+  participant_1: string;
+  participant_2: string;
+  last_message?: string | null;
+  last_message_at?: string | null;
+  unread_count_p1?: number;
+  unread_count_p2?: number;
+  created_at?: string;
+  // Joined relations
+  rooms?: {
     id: string;
-    name: string;
-    avatar: string;
-    role: string;
-  }[];
-  relatedRoomId?: string;
-  relatedRoomTitle?: string;
-  relatedRoomPrice?: number;
-  relatedRoomImage?: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  unreadCount: number;
+    name?: string;
+    title?: string;
+    price: number;
+    images?: string[];
+  } | null;
+  p1?: ConversationParticipant | null;
+  p2?: ConversationParticipant | null;
 }
 
 export interface NotificationItem {

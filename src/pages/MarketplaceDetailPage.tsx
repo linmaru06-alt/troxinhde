@@ -16,11 +16,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { getOrCreateConversation } from '../lib/api/messages';
+
 export const MarketplaceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { marketplaceItems, currentUser, getOrCreateThread, showToast } = useAppStore();
+  const { marketplaceItems, currentUser, showToast } = useAppStore();
   const [showReport, setShowReport] = useState<boolean>(false);
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const item = marketplaceItems.find((i) => i.id === id) || marketplaceItems[0];
 
@@ -33,14 +36,27 @@ export const MarketplaceDetailPage: React.FC = () => {
     );
   }
 
-  const handleContactSeller = () => {
+  const handleContactSeller = async () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
       return;
     }
-    const threadId = getOrCreateThread(item.userId);
-    navigate(`/tin-nhan/${threadId}`);
+    if (currentUser.id === item.userId) {
+      showToast('Đây là món đồ của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
+      return;
+    }
+
+    setIsChatLoading(true);
+    try {
+      const convId = await getOrCreateConversation(currentUser.id, item.userId);
+      navigate(`/tin-nhan/${convId}`);
+    } catch (err: any) {
+      console.error('[MarketplaceDetail] Lỗi mở chat:', err);
+      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   return (
@@ -112,8 +128,14 @@ export const MarketplaceDetailPage: React.FC = () => {
                     </Button>
                   </a>
                 )}
-                <Button variant="primary" size="sm" onClick={handleContactSeller} leftIcon={<MessageSquare className="w-3.5 h-3.5" />}>
-                  Nhắn Tin
+                <Button
+                  variant="primary"
+                  size="sm"
+                  disabled={isChatLoading}
+                  onClick={handleContactSeller}
+                  leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
+                >
+                  {isChatLoading ? 'Đang mở...' : 'Nhắn Tin'}
                 </Button>
               </div>
             </div>

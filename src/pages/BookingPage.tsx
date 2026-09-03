@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { formatPrice } from '../components/ui/Cards';
-import { supabase } from '../lib/supabase';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import {
   Calendar,
   Clock,
@@ -17,22 +17,100 @@ import {
   AlertCircle,
   HelpCircle,
   MapPin,
+  Loader2,
 } from 'lucide-react';
 
 export const BookingPage: React.FC = () => {
   const { roomId } = useParams<{ roomId?: string }>();
   const navigate = useNavigate();
-  const { rooms, currentUser, bookings = [], createBooking, updateBookingStatus, showToast } = useAppStore();
+  const { rooms, currentUser, showToast } = useAppStore();
 
   const room = roomId ? rooms.find((r) => r.id === roomId) : null;
 
-  const [date, setDate] = useState<string>(new Date(Date.now() + 86400000).toISOString().split('T')[0]);
+  const [date, setDate] = useState<string>(
+    new Date(Date.now() + 86400000).toISOString().split('T')[0]
+  );
   const [selectedSlot, setSelectedSlot] = useState<string>('09:30 - 10:30 (Sáng)');
   const [name, setName] = useState<string>(currentUser?.name || '');
   const [phone, setPhone] = useState<string>(currentUser?.phone || '');
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Danh sách lịch hẹn nạp từ Supabase thật
+  const [cloudBookings, setCloudBookings] = useState<any[]>([]);
+  const [isFetchingBookings, setIsFetchingBookings] = useState<boolean>(true);
+
+  // Nạp danh sách lịch hẹn khi người dùng xem /lich-hen
+  useEffect(() => {
+    if (roomId || !currentUser?.id || !isSupabaseConfigured) {
+      setIsFetchingBookings(false);
+      return;
+    }
+
+    let isMounted = true;
+    setIsFetchingBookings(true);
+
+    async function loadBookings() {
+      try {
+        const { data, error } = await supabase
+          .from('viewing_requests')
+          .select(`
+            id,
+            room_id,
+            renter_id,
+            owner_id,
+            requested_date,
+            requested_time,
+            message,
+            contact_phone,
+            status,
+            created_at,
+            rooms(id, name, price),
+            owner:profiles!owner_id(id, full_name, name, phone, avatar_url)
+          `)
+          .eq('renter_id', currentUser!.id)
+          .order('created_at', { ascending: false });
+
+        if (isMounted) {
+          if (error) {
+            console.error('[BookingPage] Lỗi truy vấn viewing_requests:', error);
+          } else {
+            setCloudBookings(data || []);
+          }
+        }
+      } catch (err) {
+        console.error('[BookingPage] Exception khi tải viewing_requests:', err);
+      } finally {
+        if (isMounted) setIsFetchingBookings(false);
+      }
+    }
+
+    loadBookings();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [roomId, currentUser?.id]);
+
+  // Xử lý hủy lịch hẹn thật trên Supabase
+  const handleCancelBooking = async (bookingId: string) => {
+    try {
+      const { error } = await supabase
+        .from('viewing_requests')
+        .update({ status: 'declined' })
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      setCloudBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status: 'declined' } : b))
+      );
+      showToast('Đã hủy lịch hẹn', 'Bạn có thể đặt lại lịch bất kỳ lúc nào.', 'info');
+    } catch (err: any) {
+      showToast('Không thể hủy lịch', err?.message || 'Vui lòng thử lại sau.', 'error');
+    }
+  };
 
   // 1. Trường hợp roomId không hợp lệ hoặc không tìm thấy phòng
   if (roomId && !room) {
@@ -63,7 +141,7 @@ export const BookingPage: React.FC = () => {
     );
   }
 
-  // 2. Trường hợp truy cập /lich-hen (không có roomId): hiển thị danh sách tất cả lịch hẹn đã đặt
+  // 2. Trường hợp truy cập /lich-hen (không có roomId): hiển thị danh sách tất cả lịch hẹn thật từ DB
   if (!roomId) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-10 space-y-6">
@@ -88,7 +166,12 @@ export const BookingPage: React.FC = () => {
           </Link>
         </div>
 
-        {bookings.length === 0 ? (
+        {isFetchingBookings ? (
+          <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-gray-200">
+            <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#006d37]" />
+            <p className="text-xs text-gray-500">Đang tải danh sách lịch hẹn từ hệ thống...</p>
+          </div>
+        ) : cloudBookings.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 p-8 space-y-4 shadow-xs">
             <div className="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
               <Calendar className="w-8 h-8" />
@@ -107,62 +190,89 @@ export const BookingPage: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {bookings.map((b) => (
-              <div
-                key={b.id}
-                className="bg-white rounded-3xl p-5 border border-gray-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:shadow-md"
-              >
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
-                        b.status === 'Đã xác nhận'
-                          ? 'bg-emerald-100 text-[#006d37]'
-                          : b.status === 'Đã hủy'
-                          ? 'bg-gray-100 text-gray-500'
-                          : 'bg-amber-100 text-amber-800 animate-pulse'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                    <span className="text-xs font-black text-[#006d37]">
-                      {formatPrice(b.roomPrice)}/tháng
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-bold text-gray-900 leading-snug">{b.roomTitle}</h4>
-                  <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 pt-1">
-                    <span className="flex items-center gap-1 font-semibold text-gray-700">
-                      <Calendar className="w-3.5 h-3.5 text-[#006d37]" /> {b.date}
-                    </span>
-                    <span className="flex items-center gap-1 font-semibold text-gray-700">
-                      <Clock className="w-3.5 h-3.5 text-[#006d37]" /> {b.timeSlot}
-                    </span>
-                    <span className="flex items-center gap-1 text-gray-500">
-                      <User className="w-3.5 h-3.5" /> {b.renterName} ({b.renterPhone})
-                    </span>
-                  </div>
-                </div>
+            {cloudBookings.map((b) => {
+              const statusLabel =
+                b.status === 'confirmed'
+                  ? 'Đã xác nhận'
+                  : b.status === 'declined'
+                  ? 'Đã hủy'
+                  : b.status === 'completed'
+                  ? 'Đã xem phòng'
+                  : 'Chờ chủ trọ xác nhận';
 
-                <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
-                  <Link to={`/phong/${b.roomId}`}>
-                    <Button variant="outline" size="sm" className="text-xs">
-                      Chi tiết phòng
-                    </Button>
-                  </Link>
-                  {b.status === 'Chờ chủ trọ xác nhận' && (
-                    <button
-                      onClick={() => {
-                        updateBookingStatus(b.id, 'Đã hủy');
-                        showToast('Đã hủy lịch hẹn', 'Bạn có thể đặt lại lịch bất kỳ lúc nào', 'info');
-                      }}
-                      className="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 font-bold rounded-xl transition"
-                    >
-                      Hủy hẹn
-                    </button>
-                  )}
+              const statusColor =
+                b.status === 'confirmed'
+                  ? 'bg-emerald-100 text-[#006d37]'
+                  : b.status === 'declined'
+                  ? 'bg-gray-100 text-gray-500'
+                  : b.status === 'completed'
+                  ? 'bg-blue-100 text-blue-800'
+                  : 'bg-amber-100 text-amber-800 animate-pulse';
+
+              const roomTitle = b.rooms?.title || 'Phòng trọ';
+              const roomPrice = b.rooms?.price;
+              const ownerPhone = b.owner?.phone;
+
+              return (
+                <div
+                  key={b.id}
+                  className="bg-white rounded-3xl p-5 border border-gray-200/90 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition hover:shadow-md"
+                >
+                  <div className="space-y-1.5 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${statusColor}`}>
+                        {statusLabel}
+                      </span>
+                      {roomPrice && (
+                        <span className="text-xs font-black text-[#006d37]">
+                          {formatPrice(roomPrice)}/tháng
+                        </span>
+                      )}
+                    </div>
+                    <h4 className="text-sm font-bold text-gray-900 leading-snug">{roomTitle}</h4>
+                    <div className="flex flex-wrap items-center gap-3 text-xs text-gray-500 pt-1">
+                      <span className="flex items-center gap-1 font-semibold text-gray-700">
+                        <Calendar className="w-3.5 h-3.5 text-[#006d37]" /> {b.requested_date}
+                      </span>
+                      <span className="flex items-center gap-1 font-semibold text-gray-700">
+                        <Clock className="w-3.5 h-3.5 text-[#006d37]" /> {b.requested_time}
+                      </span>
+                    </div>
+
+                    {/* Số điện thoại chủ trọ: Chỉ hiển thị khi chủ trọ đã xác nhận lịch hẹn (Tuân thủ Bước 7) */}
+                    <div className="pt-1 text-xs">
+                      {b.status === 'confirmed' && ownerPhone ? (
+                        <span className="inline-flex items-center gap-1 text-[#006d37] font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                          <Phone className="w-3 h-3" /> Chủ trọ: {ownerPhone}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 text-[11px]">
+                          Số điện thoại chủ trọ sẽ hiển thị sau khi yêu cầu được xác nhận
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 shrink-0 border-t sm:border-t-0 pt-3 sm:pt-0 border-gray-100">
+                    {b.room_id && (
+                      <Link to={`/phong/${b.room_id}`}>
+                        <Button variant="outline" size="sm" className="text-xs">
+                          Chi tiết phòng
+                        </Button>
+                      </Link>
+                    )}
+                    {b.status === 'pending' && (
+                      <button
+                        onClick={() => handleCancelBooking(b.id)}
+                        className="px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 font-bold rounded-xl transition cursor-pointer"
+                      >
+                        Hủy hẹn
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
@@ -182,6 +292,13 @@ export const BookingPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!room) return;
+
+    if (!currentUser?.id) {
+      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đặt lịch xem phòng.', 'warning');
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/dat-lich/${room.id}`)}`);
+      return;
+    }
+
     if (!name.trim() || !phone.trim()) {
       showToast('Vui lòng điền đủ họ tên và số điện thoại', '', 'error');
       return;
@@ -190,49 +307,55 @@ export const BookingPage: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // 1. Lưu vào Supabase Cloud viewing_requests
-      const renterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
-      const ownerId = room.ownerId || '00000000-0000-0000-0000-000000000002';
-
-      await supabase.from('viewing_requests').insert({
-        room_id: room.id.length === 36 ? room.id : undefined,
-        renter_id: renterId.length === 36 ? renterId : undefined,
-        owner_id: ownerId.length === 36 ? ownerId : undefined,
+      // 1. Lưu chính xác vào Supabase viewing_requests
+      const viewingPayload = {
+        room_id: room.id,
+        renter_id: currentUser.id,
+        owner_id: room.ownerId,
         requested_date: date,
-        time_slot: selectedSlot,
-        renter_name: name.trim(),
-        renter_phone: phone.trim(),
-        note: note.trim() || null,
+        requested_time: selectedSlot,
+        contact_phone: phone.trim(),
+        message: note.trim() || null,
         status: 'pending',
-      });
+      };
 
-      // 2. Gửi thông báo cho Chủ trọ
-      await supabase.from('notifications').insert({
-        user_id: ownerId.length === 36 ? ownerId : undefined,
-        title: `Lịch hẹn xem phòng mới: ${room.title} 📅`,
-        body: `Khách ${name} (${phone}) đã hẹn xem phòng vào ${date}, khung giờ ${selectedSlot}.`,
-        type: 'booking',
-        cta_url: '/chu-tro/tong-quan',
-        cta_label: 'Xem lịch hẹn',
-      });
-    } catch (cloudErr) {
-      console.warn('[Booking] Lỗi lưu viewing_request lên Cloud:', cloudErr);
+      const { data: createdReq, error: insertErr } = await supabase
+        .from('viewing_requests')
+        .insert(viewingPayload)
+        .select()
+        .single();
+
+      if (insertErr) {
+        throw insertErr;
+      }
+
+      // 2. Gửi notification thật cho Chủ trọ vào bảng notifications
+      try {
+        await supabase.from('notifications').insert({
+          user_id: room.ownerId,
+          type: 'booking_request',
+          title: `Lịch hẹn xem phòng mới: ${room.title} 📅`,
+          body: `Khách thuê ${name.trim()} (${phone.trim()}) đã đặt lịch xem phòng vào ngày ${date}, khung giờ ${selectedSlot}.`,
+          cta_url: '/chu-tro/tong-quan',
+          cta_label: 'Xem lịch hẹn',
+          is_read: false,
+        });
+      } catch (notifErr) {
+        console.warn('[Booking] Lỗi tạo thông báo cho chủ trọ:', notifErr);
+      }
+
+      setIsSuccess(true);
+      showToast('Đã gửi yêu cầu đặt lịch!', 'Chủ trọ sẽ nhận được thông báo và liên hệ lại.', 'success');
+    } catch (err: any) {
+      console.error('[Booking] Lỗi đặt lịch hẹn trên Supabase:', err);
+      showToast(
+        'Không thể đặt lịch hẹn',
+        err?.message || 'Có lỗi xảy ra khi lưu lịch hẹn vào cơ sở dữ liệu. Vui lòng thử lại.',
+        'error'
+      );
+    } finally {
+      setIsLoading(false);
     }
-
-    createBooking({
-      roomId: room.id,
-      roomTitle: room.title,
-      roomPrice: room.price,
-      renterId: currentUser?.id || 'guest',
-      renterName: name,
-      renterPhone: phone,
-      date,
-      timeSlot: selectedSlot,
-      note,
-    });
-
-    setIsLoading(false);
-    setIsSuccess(true);
   };
 
   if (!room) {

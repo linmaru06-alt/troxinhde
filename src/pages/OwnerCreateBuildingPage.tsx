@@ -67,7 +67,7 @@ export const OwnerCreateBuildingPage: React.FC = () => {
     const id = addBuilding({
       ownerId: currentUser?.id || 'user_owner_1',
       ownerName: currentUser?.name || 'Trần Quốc Tuấn',
-      ownerPhone: currentUser?.phone || '0912345678',
+      ownerPhone: currentUser?.phone || '',
       ownerAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
       name,
       address,

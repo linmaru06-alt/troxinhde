@@ -9,8 +9,6 @@ import {
   RoommatePost,
   MarketplaceItem,
   NotificationItem,
-  Thread,
-  Message,
   BookingRequest,
   ReportItem,
   SubscriptionPlanId,
@@ -27,8 +25,6 @@ import {
   initialRoommates,
   initialMarketplaceItems,
   initialNotifications,
-  initialThreads,
-  initialMessages,
 } from '../data/mockData';
 import { signOut } from '../lib/api/auth';
 import { logoutAuth } from '../lib/authService';
@@ -112,8 +108,6 @@ interface AppState {
   roommates: RoommatePost[];
   marketplaceItems: MarketplaceItem[];
   notifications: NotificationItem[];
-  threads: Thread[];
-  messages: Message[];
   savedRoomIds: string[];
   savedRoommateIds: string[];
   savedItemIds: string[];
@@ -183,10 +177,6 @@ interface AppState {
   addReport: (report: Omit<ReportItem, 'id' | 'createdAt' | 'status'>) => string;
   resolveReport: (reportId: string, action: 'hide_listing' | 'dismiss') => void;
 
-  // Messages
-  sendMessage: (threadId: string, text: string) => void;
-  getOrCreateThread: (contactId: string, roomId?: string) => string;
-
   // Notifications
   markNotificationRead: (id: string) => void;
   markAllNotificationsRead: () => void;
@@ -214,8 +204,6 @@ export const useAppStore = create<AppState>()(
       roommates: isDev ? initialRoommates : [],
       marketplaceItems: isDev ? initialMarketplaceItems : [],
       notifications: isDev ? initialNotifications : [],
-      threads: isDev ? initialThreads : [],
-      messages: isDev ? initialMessages : [],
       savedRoomIds: [],
       savedRoommateIds: [],
       savedItemIds: [],
@@ -860,72 +848,6 @@ export const useAppStore = create<AppState>()(
         );
       },
 
-      sendMessage: (threadId, text) => {
-        const { currentUser } = get();
-        const newMsgId = `msg_${Date.now()}`;
-        const newMsg: Message = {
-          id: newMsgId,
-          threadId,
-          senderId: currentUser?.id || 'user_guest',
-          senderName: currentUser?.name || 'Khách',
-          senderAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-          text,
-          createdAt: new Date().toISOString(),
-          status: 'sent',
-        };
-
-        set((state) => ({
-          messages: [...state.messages, newMsg],
-          threads: state.threads.map((t) =>
-            t.id === threadId ? { ...t, lastMessage: text, lastMessageAt: new Date().toISOString() } : t
-          ),
-        }));
-      },
-
-      getOrCreateThread: (contactId, roomId) => {
-        const { threads, currentUser, rooms } = get();
-        const existing = threads.find((t) =>
-          t.participants.some((p) => p.id === contactId) && (!roomId || t.relatedRoomId === roomId)
-        );
-        if (existing) return existing.id;
-
-        const contactUser = initialUsers.find((u) => u.id === contactId) || {
-          id: contactId,
-          name: 'Chủ Trọ',
-          avatarUrl: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-          role: 'owner' as const,
-        };
-
-        const relatedRoom = roomId ? rooms.find((r) => r.id === roomId) : undefined;
-        const newThreadId = `th_${Date.now()}`;
-
-        const newThread: Thread = {
-          id: newThreadId,
-          participants: [
-            {
-              id: currentUser?.id || 'guest',
-              name: currentUser?.name || 'Tôi',
-              avatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-              role: currentUser?.role || 'user',
-            },
-            {
-              id: contactUser.id,
-              name: contactUser.name,
-              avatar: contactUser.avatarUrl,
-              role: 'owner',
-            },
-          ],
-          relatedRoomId: roomId,
-          relatedRoomTitle: relatedRoom?.title,
-          lastMessage: 'Bắt đầu cuộc trò chuyện...',
-          lastMessageAt: new Date().toISOString(),
-          unreadCount: 0,
-        };
-
-        set((state) => ({ threads: [newThread, ...state.threads] }));
-        return newThreadId;
-      },
-
       markNotificationRead: (id) => {
         set((state) => ({
           notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
@@ -993,8 +915,6 @@ export const useAppStore = create<AppState>()(
           roommates: initialRoommates,
           marketplaceItems: initialMarketplaceItems,
           notifications: initialNotifications,
-          threads: initialThreads,
-          messages: initialMessages,
           savedRoomIds: ['room_1', 'room_2'],
           savedRoommateIds: ['rm_1'],
           savedItemIds: ['item_1'],

@@ -1,4 +1,4 @@
-import { User, Building, Room, RoommatePost, MarketplaceItem, NotificationItem, Thread, Message, Review, BookingRequest, OwnerApplication } from '../types';
+import { User, Building, Room, RoommatePost, MarketplaceItem, NotificationItem, Review, BookingRequest, OwnerApplication } from '../types';
 
 export const initialUsers: User[] = [
   {
@@ -657,60 +657,6 @@ export const initialNotifications: NotificationItem[] = [
     createdAt: '2026-02-19T14:20:00Z',
     read: true,
     actionLink: '/chu-tro/toa-nha/bld_1',
-  },
-];
-
-export const initialThreads: Thread[] = [
-  {
-    id: 'thread_1',
-    participants: [
-      { id: 'user_renter_1', name: 'Nguyễn Minh Anh', avatar: '/images/user-avatar.jpg', role: 'renter' },
-      { id: 'user_owner_1', name: 'Trần Quốc Tuấn (Chủ trọ)', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80', role: 'owner' },
-    ],
-    relatedRoomId: 'room_1',
-    relatedRoomTitle: 'Phòng Studio Ban Công Thoáng Mát View Công Viên Cầu Giấy',
-    relatedRoomPrice: 4200000,
-    relatedRoomImage: 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
-    lastMessage: 'Chào em, phòng 302 chiều nay 16h em có thể ghé qua xem trực tiếp nhé.',
-    lastMessageAt: '2026-02-21T09:15:00Z',
-    unreadCount: 1,
-  },
-  {
-    id: 'thread_2',
-    participants: [
-      { id: 'user_renter_1', name: 'Nguyễn Minh Anh', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80', role: 'renter' },
-      { id: 'user_renter_3', name: 'Phương Thảo (Tìm ở ghép)', avatar: 'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=150&auto=format&fit=crop&q=80', role: 'renter' },
-    ],
-    relatedRoomId: 'room_2',
-    relatedRoomTitle: 'Phòng Gác Lửng Full Nội Thất Gần ĐH Sư Phạm & HV Báo Chí',
-    relatedRoomPrice: 3500000,
-    relatedRoomImage: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80',
-    lastMessage: 'Dạ mình thấy bài đăng tìm bạn ghép của bạn, cho mình hỏi phòng có tủ lạnh chưa ạ?',
-    lastMessageAt: '2026-02-20T16:45:00Z',
-    unreadCount: 0,
-  },
-];
-
-export const initialMessages: Message[] = [
-  {
-    id: 'msg_1',
-    threadId: 'thread_1',
-    senderId: 'user_renter_1',
-    senderName: 'Nguyễn Minh Anh',
-    senderAvatar: '/images/user-avatar.jpg',
-    text: 'Dạ chào chú Tuấn, cháu thấy phòng Studio P.302 trên Trọ Xinh rất đẹp ạ. Chiều nay cháu có thể qua xem phòng được không chú?',
-    createdAt: '2026-02-21T09:00:00Z',
-    status: 'read',
-  },
-  {
-    id: 'msg_2',
-    threadId: 'thread_1',
-    senderId: 'user_owner_1',
-    senderName: 'Trần Quốc Tuấn',
-    senderAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
-    text: 'Chào em, phòng 302 chiều nay 16h em có thể ghé qua xem trực tiếp nhé.',
-    createdAt: '2026-02-21T09:15:00Z',
-    status: 'sent',
   },
 ];
 
