@@ -16,13 +16,13 @@
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
-    overflow-x: hidden;
+    overflow-x: clip;
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   html {
     scroll-behavior: smooth;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
 
   /* Custom scrollbar */
