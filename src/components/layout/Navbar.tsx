@@ -363,7 +363,7 @@ export const Navbar: React.FC = () => {
                 className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200/80 rounded-full text-xs font-bold text-gray-800 transition cursor-pointer"
                 title="Chọn khu vực tìm kiếm"
               >
-                <MapPin className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
+                <MapPin className="w-3.5 h-3.5 text-[#00a854] fill-emerald-500/20" />
                 <span className="truncate max-w-[115px]">
                   {selectedDistrict || 'Chọn khu vực'}
                 </span>
@@ -410,7 +410,7 @@ export const Navbar: React.FC = () => {
 
             {/* 3. Center: Thanh tìm kiếm nhanh (Input + Nút kính lúp tròn màu vàng) */}
             <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl mx-1 sm:mx-2 min-w-[140px]">
-              <div className="relative flex items-center bg-gray-100 hover:bg-gray-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-400 focus-within:border-amber-400 rounded-full pl-3 sm:pl-3.5 pr-1 py-1 border border-transparent transition shadow-2xs">
+              <div className="relative flex items-center bg-gray-100 hover:bg-gray-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-[#00a854]/40 focus-within:border-[#00a854] rounded-full pl-3 sm:pl-3.5 pr-1 py-1 border border-transparent transition shadow-2xs">
                 <Search className="w-4 h-4 text-gray-400 shrink-0 mr-1.5 hidden xs:block" />
                 <input
                   type="text"
@@ -429,10 +429,10 @@ export const Navbar: React.FC = () => {
                     <X className="w-3.5 h-3.5" />
                   </button>
                 )}
-                {/* Nút kính lúp tròn màu vàng Chợ Tốt */}
+                {/* Nút kính lúp tròn màu xanh thương hiệu Trọ Xinh */}
                 <button
                   type="submit"
-                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#ffba00] hover:bg-[#e5a700] text-gray-950 flex items-center justify-center shrink-0 transition shadow-xs cursor-pointer"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#00a854] hover:bg-[#008f47] text-white flex items-center justify-center shrink-0 transition shadow-xs cursor-pointer"
                   title="Tìm kiếm"
                 >
                   <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
@@ -488,10 +488,10 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
-              {/* Nút ĐĂNG TIN (Màu vàng Chợ Tốt nổi bật) */}
+              {/* Nút ĐĂNG TIN (Màu xanh Trọ Xinh nổi bật) */}
               <button
                 onClick={handlePostClick}
-                className="flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-full bg-[#ffba00] hover:bg-[#f0b000] text-gray-950 text-xs font-black transition shadow-xs cursor-pointer shrink-0"
+                className="flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-full bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-black transition shadow-xs cursor-pointer shrink-0"
               >
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 <span className="hidden xs:inline">ĐĂNG TIN</span>
@@ -617,7 +617,7 @@ export const Navbar: React.FC = () => {
                     setIsMobileMenuOpen(false);
                     handlePostClick();
                   }}
-                  className="w-full py-2.5 bg-[#ffba00] hover:bg-[#f0b000] text-gray-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  className="w-full py-2.5 bg-[#00a854] hover:bg-[#008f47] text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
                   <Plus className="w-4 h-4 stroke-[3]" /> ĐĂNG TIN PHÒNG TRỌ
                 </button>

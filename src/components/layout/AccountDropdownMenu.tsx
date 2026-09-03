@@ -137,7 +137,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       openAuthModal('login');
                     })
                   }
-                  className="w-full py-2 px-3 rounded-xl bg-[#ffba00] hover:bg-[#e5a700] text-xs font-black text-gray-950 transition shadow-xs cursor-pointer text-center"
+                  className="w-full py-2 px-3 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-xs font-black text-white transition shadow-xs cursor-pointer text-center"
                 >
                   Đăng nhập
                 </button>
@@ -282,7 +282,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center font-black text-[10px]">
+                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center font-black text-[10px]">
                     ĐT
                   </div>
                   <span>Đồng Tốt / Trọ Xinh Xu</span>
@@ -427,7 +427,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
         {/* Floating Sticker Ưu Đãi Vịt Vàng ở góc dưới (như ảnh Chợ Tốt) */}
         {showPromoBadge && (
           <div className="sticky bottom-2 right-2 flex justify-end px-3 pb-1 pointer-events-auto">
-            <div className="bg-white/95 backdrop-blur-xs rounded-2xl p-2 shadow-lg border border-amber-200 flex items-center gap-2 relative animate-bounce-subtle">
+            <div className="bg-white/95 backdrop-blur-xs rounded-2xl p-2 shadow-lg border border-emerald-200 flex items-center gap-2 relative animate-bounce-subtle">
               <button
                 onClick={(e) => {
                   e.stopPropagation();
@@ -440,7 +440,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </button>
               <YellowDuckMascot className="w-8 h-8 shrink-0" />
               <div className="pr-1 text-left">
-                <div className="text-[10px] font-black text-amber-600 leading-tight">TRỌ XINH ƯU ĐÃI</div>
+                <div className="text-[10px] font-black text-[#00a854] leading-tight">TRỌ XINH ƯU ĐÃI</div>
                 <div className="text-[9px] text-gray-500 font-medium">Nhận mã giảm cọc ngay</div>
               </div>
             </div>
