@@ -1,4 +1,5 @@
 export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
+export type AdminRole = 'super_admin' | 'moderator' | 'support' | 'finance';
 
 export interface User {
   id: string;
@@ -15,6 +16,11 @@ export interface User {
   address?: string;
   rating?: number;
   verified?: boolean;
+  isBanned?: boolean;
+  bannedUntil?: string;
+  bannedReason?: string;
+  landlordVerified?: boolean;
+  adminRole?: AdminRole;
   onboardingCompleted?: boolean;
   ownerOnboardingCompleted?: boolean;
   ownerApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
@@ -237,13 +243,47 @@ export interface ReportItem {
   id: string;
   targetId: string;
   targetTitle: string;
-  targetType: 'room' | 'roommate' | 'marketplace';
+  targetType: 'room' | 'roommate' | 'marketplace' | 'user';
+  reporterId?: string;
   reporterName: string;
   reporterPhone?: string;
   reason: string;
   detail?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'resolved' | 'dismissed';
+  adminNotes?: string;
+  resolvedBy?: string;
   createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  admin_id?: string | null;
+  admin_email?: string;
+  admin_role?: string;
+  action: string;
+  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system';
+  entity_id?: string;
+  data_before?: Record<string, any> | null;
+  data_after?: Record<string, any> | null;
+  reason?: string | null;
+  is_demo_admin?: boolean;
+  created_at: string;
+}
+
+export interface AdminMetrics {
+  totalRooms: number;
+  pendingRooms: number;
+  approvedRooms: number;
+  rejectedRooms: number;
+  totalUsers: number;
+  totalOwners: number;
+  pendingOwnerApps: number;
+  totalReports: number;
+  pendingReports: number;
+  totalBookings: number;
+  pendingBookings: number;
 }
 
 export interface Review {

@@ -63,9 +63,14 @@ const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscr
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
 
 // Admin Pages
+const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
 const AdminModerationPage = React.lazy(() => import('./pages/AdminModerationPage').then((m) => ({ default: m.AdminModerationPage })));
 const AdminOwnerApplicationsPage = React.lazy(() => import('./pages/AdminOwnerApplicationsPage').then((m) => ({ default: m.AdminOwnerApplicationsPage })));
 const AdminUsersPage = React.lazy(() => import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
+const AdminBookingsPage = React.lazy(() => import('./pages/AdminBookingsPage').then((m) => ({ default: m.AdminBookingsPage })));
+const AdminAuditLogsPage = React.lazy(() => import('./pages/AdminAuditLogsPage').then((m) => ({ default: m.AdminAuditLogsPage })));
+const AdminSystemHealthPage = React.lazy(() => import('./pages/AdminSystemHealthPage').then((m) => ({ default: m.AdminSystemHealthPage })));
+const AdminFinancePage = React.lazy(() => import('./pages/AdminFinancePage').then((m) => ({ default: m.AdminFinancePage })));
 const AdminAnalyticsPage = React.lazy(() => import('./pages/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })));
 
 // QA & 404
@@ -448,12 +453,20 @@ export const App: React.FC = () => {
               path="/admin"
               element={
                 <AdminRoute>
-                  <AdminModerationPage />
+                  <AdminDashboardPage />
                 </AdminRoute>
               }
             />
             <Route
               path="/admin/kiem-duyet"
+              element={
+                <AdminRoute>
+                  <AdminModerationPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/kiem-duyet/*"
               element={
                 <AdminRoute>
                   <AdminModerationPage />
@@ -477,10 +490,42 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/admin/lich-hen"
+              element={
+                <AdminRoute>
+                  <AdminBookingsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/nhat-ky"
+              element={
+                <AdminRoute>
+                  <AdminAuditLogsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/he-thong"
+              element={
+                <AdminRoute>
+                  <AdminSystemHealthPage />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/thong-ke"
               element={
                 <AdminRoute>
                   <AdminAnalyticsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/tai-chinh"
+              element={
+                <AdminRoute>
+                  <AdminFinancePage />
                 </AdminRoute>
               }
             />

@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { useUIStore } from '../../store/useUIStore';
@@ -22,7 +22,24 @@ import {
   ChevronDown,
   Menu,
   Plus,
+  Search,
+  X,
 } from 'lucide-react';
+
+const HANOI_DISTRICTS = [
+  'Toàn bộ Hà Nội',
+  'Quận Cầu Giấy',
+  'Quận Đống Đa',
+  'Quận Thanh Xuân',
+  'Quận Hai Bà Trưng',
+  'Quận Nam Từ Liêm',
+  'Quận Bắc Từ Liêm',
+  'Quận Hà Đông',
+  'Quận Ba Đình',
+  'Quận Hoàng Mai',
+  'Quận Tây Hồ',
+  'Quận Hoàn Kiếm',
+];
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
@@ -32,9 +49,39 @@ export const Navbar: React.FC = () => {
   const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
+
+  // Search & District State (cho thanh Header chạy theo khi cuộn)
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedDistrict, setSelectedDistrict] = useState('');
+  const [isDistrictDropdownOpen, setIsDistrictDropdownOpen] = useState(false);
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const districtDropdownRef = useRef<HTMLDivElement>(null);
+
   useOutsideClick(dropdownRef, closeAllDropdowns, isAvatarDropdownOpen);
+  useOutsideClick(districtDropdownRef, () => setIsDistrictDropdownOpen(false), isDistrictDropdownOpen);
+
+  // Lắng nghe sự kiện vuốt/cuộn trang
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolled = window.scrollY > 60;
+      setIsScrolled(scrolled);
+    };
+
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Đồng bộ giá trị tìm kiếm từ URL query nếu có
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const q = params.get('q');
+    const khuVuc = params.get('khuVuc');
+    if (q !== null) setSearchQuery(q);
+    if (khuVuc !== null) setSelectedDistrict(khuVuc);
+  }, [location.search]);
 
   const unreadMessages = 0;
 
@@ -59,236 +106,590 @@ export const Navbar: React.FC = () => {
     }
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const params = new URLSearchParams();
+    if (searchQuery.trim()) params.set('q', searchQuery.trim());
+    if (selectedDistrict && selectedDistrict !== 'Toàn bộ Hà Nội') {
+      params.set('khuVuc', selectedDistrict);
+    }
+    navigate(`/tim-kiem?${params.toString()}`);
+  };
+
+  const handleSelectDistrict = (district: string) => {
+    const isAll = district === 'Toàn bộ Hà Nội';
+    setSelectedDistrict(isAll ? '' : district);
+    setIsDistrictDropdownOpen(false);
+
+    const params = new URLSearchParams(location.search);
+    if (isAll) {
+      params.delete('khuVuc');
+    } else {
+      params.set('khuVuc', district);
+    }
+    navigate(`/tim-kiem?${params.toString()}`);
+  };
+
   return (
-    <header className="sticky top-0 z-40 bg-[#00a854] border-b border-emerald-600/30 shadow-xs">
+    <header
+      className={`sticky top-0 z-50 transition-all duration-300 ${
+        isScrolled
+          ? 'bg-white/98 backdrop-blur-md border-b border-gray-200/90 shadow-sm text-gray-900'
+          : 'bg-[#00a854] border-b border-emerald-600/30 shadow-xs text-white'
+      }`}
+    >
       <div className="w-full px-3 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-14 sm:h-16">
-          {/* 1. Left: Hamburger + Pill Logo */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Hamburger Button */}
-            <button
-              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-              aria-label="Mở menu danh mục"
-              className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs"
-              title="Menu danh mục"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
+        {/* =========================================================================
+            TRẠNG THÁI 1: KHI VUỐT TRANG XUỐNG (isScrolled === true)
+            Hiển thị thanh Header chuẩn phong cách Chợ Tốt chạy theo:
+            [ ☰ ] [ Logo ] [ 📍 Chọn khu vực ▾ ] [ Q Tìm sản phẩm... (🔍) ] [ ♡ ] [ 🔔 ] [ 💬 Liên hệ ] [ Đăng nhập ] [ Đăng tin ] [ 👤 ▾ ]
+        ========================================================================= */}
+        {isScrolled ? (
+          <div className="flex items-center justify-between h-14 sm:h-16 gap-2 sm:gap-3">
+            {/* 1. Left: Hamburger + Logo Trọ Xinh */}
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Mở menu danh mục"
+                className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-950 flex items-center justify-center transition shadow-2xs cursor-pointer"
+                title="Menu danh mục"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
 
-            {/* White Pill Logo with Black Text */}
-            <Link
-              to="/"
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-white rounded-full shadow-xs hover:shadow-md transition group"
-            >
-              <OptimizedImage
-                src="/images/logo.png"
-                alt="Trọ Xinh Logo"
-                priority={true}
-                loading="eager"
-                width={28}
-                height={28}
-                className="w-7 h-7 rounded-lg object-cover ring-1 ring-emerald-500/20"
-              />
-              <span className="text-base sm:text-lg font-black tracking-tight text-gray-950 leading-none">
-                Trọ Xinh
-              </span>
-            </Link>
-          </div>
-
-          {/* 2. Center: Desktop Main Navigation Tabs */}
-          <nav className="hidden lg:flex items-center gap-6 text-xs font-bold">
-            {navLinks.map((link) => {
-              const active = isActive(link.to);
-              return (
-                <Link
-                  key={link.to}
-                  to={link.to}
-                  className={`py-1 transition-all ${
-                    active
-                      ? 'text-white border-b-2 border-white font-black'
-                      : 'text-emerald-100/90 hover:text-white font-bold'
-                  }`}
-                >
-                  {link.label}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* 3. Right: Actions & User Menu */}
-          <div className="flex items-center gap-1.5 sm:gap-2">
-            {/* Heart Saved Rooms (Hidden on mobile < 640px to prevent overflow, accessible via bottom nav) */}
-            <Link
-              to="/da-luu"
-              aria-label="Phòng đã lưu"
-              className="hidden sm:flex w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 items-center justify-center transition shadow-2xs relative"
-              title="Phòng đã lưu"
-            >
-              <Heart className="w-4 h-4 text-gray-950 stroke-[2.5]" />
-              {savedRoomIds.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
-                  {savedRoomIds.length}
+              <Link
+                to="/"
+                className="flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-3 py-1 bg-white hover:bg-gray-50 rounded-full transition group shrink-0"
+              >
+                <OptimizedImage
+                  src="/images/logo.png"
+                  alt="Trọ Xinh Logo"
+                  priority={true}
+                  loading="eager"
+                  width={28}
+                  height={28}
+                  className="w-7 h-7 rounded-lg object-cover ring-1 ring-emerald-500/20"
+                />
+                <span className="text-base sm:text-lg font-black tracking-tight text-[#00a854] leading-none hidden xs:inline">
+                  Trọ Xinh
                 </span>
-              )}
-            </Link>
+              </Link>
+            </div>
 
-            {/* Notification Bell */}
-            <Link
-              to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
-              aria-label="Thông báo"
-              className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
-              title="Thông báo"
-            >
-              <Bell className="w-4 h-4 text-gray-950 stroke-[2.5]" />
-              {unreadNotifs > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
-                  {unreadNotifs}
-                </span>
-              )}
-            </Link>
-
-            {/* Chat / Liên hệ Pill (Unified /tin-nhan route) */}
-            <Link
-              to="/tin-nhan"
-              aria-label="Tin nhắn liên hệ"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative"
-              title="Tin nhắn / Liên hệ"
-            >
-              <MessageSquare className="w-4 h-4 text-gray-950 stroke-[2.5]" />
-              <span>Liên hệ</span>
-              {unreadMessages > 0 && (
-                <span className="ml-0.5 px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-black rounded-full">
-                  {unreadMessages}
-                </span>
-              )}
-            </Link>
-
-            {/* Login Pill (if not logged in) */}
-            {!currentUser && (
+            {/* 2. Dropdown Chọn khu vực (Chợ Tốt Style) */}
+            <div className="relative shrink-0 hidden md:block" ref={districtDropdownRef}>
               <button
                 type="button"
-                onClick={() => openAuthModal('login')}
-                className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs cursor-pointer min-h-[36px]"
+                onClick={() => setIsDistrictDropdownOpen(!isDistrictDropdownOpen)}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 hover:bg-gray-200/80 rounded-full text-xs font-bold text-gray-800 transition cursor-pointer"
+                title="Chọn khu vực tìm kiếm"
               >
-                Đăng nhập
+                <MapPin className="w-3.5 h-3.5 text-amber-500 fill-amber-500/20" />
+                <span className="truncate max-w-[115px]">
+                  {selectedDistrict || 'Chọn khu vực'}
+                </span>
+                <ChevronDown
+                  className={`w-3.5 h-3.5 text-gray-500 transition-transform ${
+                    isDistrictDropdownOpen ? 'rotate-180' : ''
+                  }`}
+                />
               </button>
-            )}
 
-            {/* ĐĂNG TIN - Hidden on mobile under 390px, available in mobile drawer */}
-            <button
-              onClick={handlePostClick}
-              className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gray-950 hover:bg-black text-white text-xs font-black transition shadow-md"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[3]" />
-              <span>ĐĂNG TIN</span>
-            </button>
-
-            {/* User Avatar Dropdown (with chevron) */}
-            {currentUser && (
-              <div className="relative" ref={dropdownRef}>
-                <button
-                  onClick={toggleAvatarDropdown}
-                  className="flex items-center gap-1 p-0.5 rounded-full bg-white hover:ring-2 hover:ring-white transition shadow-2xs"
-                  aria-expanded={isAvatarDropdownOpen}
-                >
-                  <OptimizedImage
-                    src={currentUser.avatarUrl}
-                    alt={currentUser.name}
-                    width={32}
-                    height={32}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                  <ChevronDown className={`w-3.5 h-3.5 text-gray-950 pr-1 transition-transform ${isAvatarDropdownOpen ? 'rotate-180' : ''}`} />
-                </button>
-
-                {/* Dropdown Menu */}
-                <AnimatePresence>
-                  {isAvatarDropdownOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -8, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.95 }}
-                      transition={{ duration: 0.15, ease: 'easeOut' }}
-                      className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50 overflow-hidden"
-                      onClick={closeAllDropdowns}
-                    >
-                      <div className="px-4 py-2 border-b border-gray-100">
-                        <p className="text-xs font-black text-gray-900">{currentUser.name}</p>
-                        <p className="text-[11px] text-gray-500">{currentUser.phone}</p>
-                        <div className="mt-1">
-                          <Badge
-                            variant={currentUser.role === 'owner' ? 'verified' : currentUser.role === 'admin' ? 'primary' : 'available'}
-                            size="sm"
-                            showIcon={false}
-                          >
-                            {currentUser.role === 'owner' ? '🏢 Chủ trọ' : currentUser.role === 'admin' ? '🛡️ Quản trị viên' : '👤 Người thuê'}
-                          </Badge>
-                        </div>
-                      </div>
-
-                      <Link
-                        to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
-                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
-                      >
-                        <UserIcon className="w-4 h-4" />
-                        <span>Trang cá nhân</span>
-                      </Link>
-
-                      {currentUser.role === 'owner' ? (
-                        <Link
-                          to="/chu-tro"
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
-                        >
-                          <Building2 className="w-4 h-4" />
-                          <span>Quản lý phòng & tòa nhà</span>
-                        </Link>
-                      ) : (
-                        <Link
-                          to="/nang-cap-chu-tro"
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
-                        >
-                          <Building2 className="w-4 h-4" />
-                          <span>Đăng ký làm chủ trọ</span>
-                        </Link>
-                      )}
-
-                      {currentUser.role === 'admin' && (
-                        <Link
-                          to="/admin"
-                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
-                        >
-                          <ShieldCheck className="w-4 h-4" />
-                          <span>Bảng quản trị</span>
-                        </Link>
-                      )}
-
-                      <Link
-                        to="/ve-chung-toi/kiem-duyet"
-                        className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
-                      >
-                        <ShieldCheck className="w-4 h-4 text-[#00a854]" />
-                        <span>Quy trình kiểm duyệt 24h</span>
-                      </Link>
-
-                      <div className="border-t border-gray-100 my-1" />
-
+              <AnimatePresence>
+                {isDistrictDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -4, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -4, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute left-0 mt-2 w-52 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50 max-h-72 overflow-y-auto"
+                  >
+                    <div className="px-3 py-1.5 text-[10px] font-black text-gray-400 uppercase tracking-wider border-b border-gray-100">
+                      Khu Vực Hà Nội
+                    </div>
+                    {HANOI_DISTRICTS.map((d) => (
                       <button
-                        onClick={logout}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-bold text-left"
+                        key={d}
+                        type="button"
+                        onClick={() => handleSelectDistrict(d)}
+                        className={`w-full text-left px-3.5 py-2 text-xs transition flex items-center justify-between cursor-pointer ${
+                          selectedDistrict === d || (!selectedDistrict && d === 'Toàn bộ Hà Nội')
+                            ? 'bg-emerald-50 text-[#00a854] font-bold'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
                       >
-                        <LogOut className="w-4 h-4" />
-                        <span>Đăng xuất</span>
+                        <span>{d}</span>
+                        {(selectedDistrict === d || (!selectedDistrict && d === 'Toàn bộ Hà Nội')) && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-[#00a854]" />
+                        )}
                       </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                    ))}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
+            {/* 3. Center: Thanh tìm kiếm nhanh (Input + Nút kính lúp tròn màu vàng) */}
+            <form onSubmit={handleSearchSubmit} className="flex-1 max-w-xl mx-1 sm:mx-2 min-w-[140px]">
+              <div className="relative flex items-center bg-gray-100 hover:bg-gray-100/90 focus-within:bg-white focus-within:ring-2 focus-within:ring-amber-400 focus-within:border-amber-400 rounded-full pl-3 sm:pl-3.5 pr-1 py-1 border border-transparent transition shadow-2xs">
+                <Search className="w-4 h-4 text-gray-400 shrink-0 mr-1.5 hidden xs:block" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Tìm phòng trọ, trường ĐH, khu vực..."
+                  className="w-full bg-transparent text-xs text-gray-900 placeholder-gray-400 focus:outline-none pr-1"
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
+                    className="text-gray-400 hover:text-gray-600 mr-1 p-0.5"
+                    title="Xóa tìm kiếm"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {/* Nút kính lúp tròn màu vàng Chợ Tốt */}
+                <button
+                  type="submit"
+                  className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-[#ffba00] hover:bg-[#e5a700] text-gray-950 flex items-center justify-center shrink-0 transition shadow-xs cursor-pointer"
+                  title="Tìm kiếm"
+                >
+                  <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 stroke-[2.5]" />
+                </button>
               </div>
-            )}
+            </form>
+
+            {/* 4. Right: Hành động (Tim, Chuông, Liên hệ, Đăng nhập / Đăng tin / Avatar) */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Icon Trái tim (Phòng đã lưu) */}
+              <Link
+                to="/da-luu"
+                aria-label="Phòng đã lưu"
+                className="hidden lg:flex w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 items-center justify-center transition relative"
+                title="Phòng đã lưu"
+              >
+                <Heart className="w-4 h-4 text-gray-800 stroke-[2.2]" />
+                {savedRoomIds.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                    {savedRoomIds.length}
+                  </span>
+                )}
+              </Link>
+
+              {/* Icon Chuông thông báo */}
+              <Link
+                to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
+                aria-label="Thông báo"
+                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 flex items-center justify-center transition relative"
+                title="Thông báo"
+              >
+                <Bell className="w-4 h-4 text-gray-800 stroke-[2.2]" />
+                {unreadNotifs > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
+                    {unreadNotifs}
+                  </span>
+                )}
+              </Link>
+
+              {/* Nút Liên hệ */}
+              <Link
+                to="/tin-nhan"
+                aria-label="Tin nhắn liên hệ"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 text-gray-900 text-xs font-bold transition shadow-2xs relative"
+                title="Tin nhắn / Liên hệ"
+              >
+                <MessageSquare className="w-4 h-4 text-gray-800 stroke-[2.2]" />
+                <span>Liên hệ</span>
+                {unreadMessages > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-black rounded-full">
+                    {unreadMessages}
+                  </span>
+                )}
+              </Link>
+
+              {/* Nút Đăng nhập (khi chưa login) */}
+              {!currentUser && (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="hidden sm:inline-flex px-3.5 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 text-gray-900 text-xs font-bold transition cursor-pointer min-h-[34px] items-center"
+                >
+                  Đăng nhập
+                </button>
+              )}
+
+              {/* Nút ĐĂNG TIN (Màu vàng Chợ Tốt nổi bật) */}
+              <button
+                onClick={handlePostClick}
+                className="flex items-center gap-1 px-3 sm:px-4 py-1.5 rounded-full bg-[#ffba00] hover:bg-[#f0b000] text-gray-950 text-xs font-black transition shadow-xs cursor-pointer shrink-0"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span className="hidden xs:inline">ĐĂNG TIN</span>
+                <span className="xs:hidden">Đăng</span>
+              </button>
+
+              {/* User Avatar Dropdown (nếu đã login) */}
+              {currentUser && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={toggleAvatarDropdown}
+                    className="flex items-center gap-1 p-0.5 rounded-full hover:ring-2 hover:ring-gray-300 transition shadow-2xs cursor-pointer"
+                    aria-expanded={isAvatarDropdownOpen}
+                  >
+                    <OptimizedImage
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.name}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-gray-700 pr-0.5 transition-transform ${
+                        isAvatarDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {isAvatarDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50 overflow-hidden"
+                        onClick={closeAllDropdowns}
+                      >
+                        <div className="px-4 py-2 border-b border-gray-100">
+                          <p className="text-xs font-black text-gray-900">{currentUser.name}</p>
+                          <p className="text-[11px] text-gray-500">{currentUser.phone}</p>
+                          <div className="mt-1">
+                            <Badge
+                              variant={
+                                currentUser.role === 'owner'
+                                  ? 'verified'
+                                  : currentUser.role === 'admin'
+                                  ? 'primary'
+                                  : 'available'
+                              }
+                              size="sm"
+                              showIcon={false}
+                            >
+                              {currentUser.role === 'owner'
+                                ? '🏢 Chủ trọ'
+                                : currentUser.role === 'admin'
+                                ? '🛡️ Quản trị viên'
+                                : '👤 Người thuê'}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <Link
+                          to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
+                        >
+                          <UserIcon className="w-4 h-4" />
+                          <span>Trang cá nhân</span>
+                        </Link>
+
+                        {currentUser.role === 'owner' ? (
+                          <Link
+                            to="/chu-tro"
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
+                          >
+                            <Building2 className="w-4 h-4" />
+                            <span>Quản lý phòng & tòa nhà</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/nang-cap-chu-tro"
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
+                          >
+                            <Building2 className="w-4 h-4" />
+                            <span>Đăng ký làm chủ trọ</span>
+                          </Link>
+                        )}
+
+                        {currentUser.role === 'admin' && (
+                          <Link
+                            to="/admin"
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Bảng quản trị</span>
+                          </Link>
+                        )}
+
+                        <Link
+                          to="/ve-chung-toi/kiem-duyet"
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-[#00a854]" />
+                          <span>Quy trình kiểm duyệt 24h</span>
+                        </Link>
+
+                        <div className="border-t border-gray-100 my-1" />
+
+                        <button
+                          onClick={logout}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-bold text-left cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Đăng xuất</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        ) : (
+          /* =========================================================================
+             TRẠNG THÁI 2: KHI Ở ĐẦU TRANG (isScrolled === false)
+             Thanh Navbar xanh thương hiệu Trọ Xinh với menu tab chính
+          ========================================================================= */
+          <div className="flex items-center justify-between h-14 sm:h-16">
+            {/* 1. Left: Hamburger + Pill Logo */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                aria-label="Mở menu danh mục"
+                className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs cursor-pointer"
+                title="Menu danh mục"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              <Link
+                to="/"
+                className="flex items-center gap-2 px-3.5 py-1.5 bg-white rounded-full shadow-xs hover:shadow-md transition group"
+              >
+                <OptimizedImage
+                  src="/images/logo.png"
+                  alt="Trọ Xinh Logo"
+                  priority={true}
+                  loading="eager"
+                  width={28}
+                  height={28}
+                  className="w-7 h-7 rounded-lg object-cover ring-1 ring-emerald-500/20"
+                />
+                <span className="text-base sm:text-lg font-black tracking-tight text-gray-950 leading-none">
+                  Trọ Xinh
+                </span>
+              </Link>
+            </div>
+
+            {/* 2. Center: Desktop Main Navigation Tabs */}
+            <nav className="hidden lg:flex items-center gap-6 text-xs font-bold">
+              {navLinks.map((link) => {
+                const active = isActive(link.to);
+                return (
+                  <Link
+                    key={link.to}
+                    to={link.to}
+                    className={`py-1 transition-all ${
+                      active
+                        ? 'text-white border-b-2 border-white font-black'
+                        : 'text-emerald-100/90 hover:text-white font-bold'
+                    }`}
+                  >
+                    {link.label}
+                  </Link>
+                );
+              })}
+            </nav>
+
+            {/* 3. Right: Actions & User Menu */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              {/* Heart Saved Rooms */}
+              <Link
+                to="/da-luu"
+                aria-label="Phòng đã lưu"
+                className="hidden sm:flex w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 items-center justify-center transition shadow-2xs relative"
+                title="Phòng đã lưu"
+              >
+                <Heart className="w-4 h-4 text-gray-950 stroke-[2.5]" />
+                {savedRoomIds.length > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white">
+                    {savedRoomIds.length}
+                  </span>
+                )}
+              </Link>
+
+              {/* Notification Bell */}
+              <Link
+                to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
+                aria-label="Thông báo"
+                className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
+                title="Thông báo"
+              >
+                <Bell className="w-4 h-4 text-gray-950 stroke-[2.5]" />
+                {unreadNotifs > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
+                    {unreadNotifs}
+                  </span>
+                )}
+              </Link>
+
+              {/* Chat / Liên hệ Pill */}
+              <Link
+                to="/tin-nhan"
+                aria-label="Tin nhắn liên hệ"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative"
+                title="Tin nhắn / Liên hệ"
+              >
+                <MessageSquare className="w-4 h-4 text-gray-950 stroke-[2.5]" />
+                <span>Liên hệ</span>
+                {unreadMessages > 0 && (
+                  <span className="ml-0.5 px-1.5 py-0.2 bg-rose-500 text-white text-[9px] font-black rounded-full">
+                    {unreadMessages}
+                  </span>
+                )}
+              </Link>
+
+              {/* Login Pill */}
+              {!currentUser && (
+                <button
+                  type="button"
+                  onClick={() => openAuthModal('login')}
+                  className="px-3.5 py-1.5 rounded-full bg-white text-gray-950 text-xs font-black hover:bg-white/90 transition shadow-2xs cursor-pointer min-h-[36px]"
+                >
+                  Đăng nhập
+                </button>
+              )}
+
+              {/* ĐĂNG TIN */}
+              <button
+                onClick={handlePostClick}
+                className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-gray-950 hover:bg-black text-white text-xs font-black transition shadow-md cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5 stroke-[3]" />
+                <span>ĐĂNG TIN</span>
+              </button>
+
+              {/* User Avatar Dropdown */}
+              {currentUser && (
+                <div className="relative" ref={dropdownRef}>
+                  <button
+                    onClick={toggleAvatarDropdown}
+                    className="flex items-center gap-1 p-0.5 rounded-full bg-white hover:ring-2 hover:ring-white transition shadow-2xs cursor-pointer"
+                    aria-expanded={isAvatarDropdownOpen}
+                  >
+                    <OptimizedImage
+                      src={currentUser.avatarUrl}
+                      alt={currentUser.name}
+                      width={32}
+                      height={32}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 text-gray-950 pr-1 transition-transform ${
+                        isAvatarDropdownOpen ? 'rotate-180' : ''
+                      }`}
+                    />
+                  </button>
+
+                  <AnimatePresence>
+                    {isAvatarDropdownOpen && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -8, scale: 0.95 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: -8, scale: 0.95 }}
+                        transition={{ duration: 0.15, ease: 'easeOut' }}
+                        className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-200 py-2 z-50 overflow-hidden"
+                        onClick={closeAllDropdowns}
+                      >
+                        <div className="px-4 py-2 border-b border-gray-100">
+                          <p className="text-xs font-black text-gray-900">{currentUser.name}</p>
+                          <p className="text-[11px] text-gray-500">{currentUser.phone}</p>
+                          <div className="mt-1">
+                            <Badge
+                              variant={
+                                currentUser.role === 'owner'
+                                  ? 'verified'
+                                  : currentUser.role === 'admin'
+                                  ? 'primary'
+                                  : 'available'
+                              }
+                              size="sm"
+                              showIcon={false}
+                            >
+                              {currentUser.role === 'owner'
+                                ? '🏢 Chủ trọ'
+                                : currentUser.role === 'admin'
+                                ? '🛡️ Quản trị viên'
+                                : '👤 Người thuê'}
+                            </Badge>
+                          </div>
+                        </div>
+
+                        <Link
+                          to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
+                        >
+                          <UserIcon className="w-4 h-4" />
+                          <span>Trang cá nhân</span>
+                        </Link>
+
+                        {currentUser.role === 'owner' ? (
+                          <Link
+                            to="/chu-tro"
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
+                          >
+                            <Building2 className="w-4 h-4" />
+                            <span>Quản lý phòng & tòa nhà</span>
+                          </Link>
+                        ) : (
+                          <Link
+                            to="/nang-cap-chu-tro"
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
+                          >
+                            <Building2 className="w-4 h-4" />
+                            <span>Đăng ký làm chủ trọ</span>
+                          </Link>
+                        )}
+
+                        {currentUser.role === 'admin' && (
+                          <Link
+                            to="/admin"
+                            className="flex items-center gap-2 px-4 py-2.5 text-xs text-[#00a854] hover:bg-emerald-50 font-black"
+                          >
+                            <ShieldCheck className="w-4 h-4" />
+                            <span>Bảng quản trị</span>
+                          </Link>
+                        )}
+
+                        <Link
+                          to="/ve-chung-toi/kiem-duyet"
+                          className="flex items-center gap-2 px-4 py-2.5 text-xs text-gray-900 hover:bg-gray-50 font-bold"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-[#00a854]" />
+                          <span>Quy trình kiểm duyệt 24h</span>
+                        </Link>
+
+                        <div className="border-t border-gray-100 my-1" />
+
+                        <button
+                          onClick={logout}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-xs text-rose-600 hover:bg-rose-50 font-bold text-left cursor-pointer"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Đăng xuất</span>
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Drawer Menu (Chung cho cả 2 trạng thái) */}
       <AnimatePresence>
         {isMobileMenuOpen && (
           <div className="fixed inset-0 z-50 flex">
@@ -316,7 +717,7 @@ export const Navbar: React.FC = () => {
                   <button
                     onClick={() => setIsMobileMenuOpen(false)}
                     aria-label="Đóng menu"
-                    className="text-gray-400 hover:text-gray-700 font-bold text-sm min-w-[36px] min-h-[36px] flex items-center justify-center"
+                    className="text-gray-400 hover:text-gray-700 font-bold text-sm min-w-[36px] min-h-[36px] flex items-center justify-center cursor-pointer"
                   >
                     ✕
                   </button>
@@ -352,9 +753,9 @@ export const Navbar: React.FC = () => {
                     setIsMobileMenuOpen(false);
                     handlePostClick();
                   }}
-                  className="w-full py-2.5 bg-gray-950 text-white font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-md"
+                  className="w-full py-2.5 bg-[#ffba00] hover:bg-[#f0b000] text-gray-950 font-black rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                 >
-                  <Plus className="w-4 h-4" /> ĐĂNG TIN PHÒNG TRỌ
+                  <Plus className="w-4 h-4 stroke-[3]" /> ĐĂNG TIN PHÒNG TRỌ
                 </button>
               </div>
             </motion.div>
