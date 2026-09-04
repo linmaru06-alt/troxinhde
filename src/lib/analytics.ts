@@ -28,7 +28,10 @@ export type EventName =
   | 'marketplace_view'
   | 'review_submit';
 
-export const GA_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-XXXXXXXXXX';
+export const GA_ID =
+  import.meta.env.VITE_GA_MEASUREMENT_ID ||
+  import.meta.env.VITE_FIREBASE_MEASUREMENT_ID ||
+  'G-8Z6N1ZQ5GW';
 
 export function track(name: EventName, params?: Record<string, any>) {
   if (typeof window === 'undefined' || !window.gtag) return;
