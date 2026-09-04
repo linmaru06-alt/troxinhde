@@ -93,10 +93,16 @@ const PageSkeleton = () => (
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
 import { auth, onAuthStateChanged, onIdTokenChanged } from './lib/firebase';
 import { getProfileByFirebaseUid, syncFirebaseUserToSupabase } from './lib/authService';
+import { setAnalyticsUser } from './lib/analytics';
 
 // Global Firebase Auth & Cloud Data Loader
 const AppCloudDataLoader: React.FC = () => {
   const { loginWithSocialUser, logout, currentUser, fetchInitialCloudData } = useAppStore();
+
+  // Đồng bộ định danh và vai trò người dùng (Admin, Chủ trọ, Người thuê) lên GA4
+  React.useEffect(() => {
+    setAnalyticsUser(currentUser ? { id: currentUser.id, role: currentUser.role, email: currentUser.email } : null);
+  }, [currentUser]);
 
   React.useEffect(() => {
     // 1. Tải dữ liệu từ Supabase Cloud khi mở web

@@ -55,3 +55,33 @@ export function trackPage(path: string) {
     page_path: path,
   });
 }
+
+/**
+ * Định danh người dùng và vai trò (admin, owner, renter) lên Google Analytics 4.
+ * Hỗ trợ phân tích hành vi theo vai trò và cấu hình bộ lọc loại trừ truy cập của Admin.
+ */
+export function setAnalyticsUser(user: { id?: string; role?: string; email?: string } | null) {
+  if (typeof window === 'undefined' || !window.gtag) return;
+
+  if (user) {
+    window.gtag('set', 'user_properties', {
+      user_role: user.role || 'renter',
+    });
+    if (user.id) {
+      window.gtag('config', GA_ID, {
+        user_id: user.id,
+      });
+    }
+    if (import.meta.env.DEV) {
+      console.log(`[GA4 User] Đã định danh vai trò: ${user.role} (ID: ${user.id})`);
+    }
+  } else {
+    window.gtag('set', 'user_properties', {
+      user_role: 'guest',
+    });
+    window.gtag('config', GA_ID, {
+      user_id: null,
+    });
+  }
+}
+
