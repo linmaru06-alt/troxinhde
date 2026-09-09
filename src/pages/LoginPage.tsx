@@ -7,7 +7,6 @@ import {
   loginWithApple,
   loginWithEmailPassword,
   loginWithDemoAccount,
-  completePhoneOtpAuth,
 } from '../lib/authService';
 import {
   AlertCircle,
@@ -24,12 +23,10 @@ export const LoginPage: React.FC = () => {
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
   const roleParam = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
 
-  // Steps: 'main' | 'password' | 'otp'
-  const [step, setStep] = useState<'main' | 'password' | 'otp'>('main');
+  // Steps: 'main' | 'password'
+  const [step, setStep] = useState<'main' | 'password'>('main');
   const [identifier, setIdentifier] = useState<string>('');
   const [password, setPassword] = useState<string>('');
-  const [otpInput, setOtpInput] = useState<string>('');
-  const [generatedOtp, setGeneratedOtp] = useState<string>('123456');
 
   const [error, setError] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -40,11 +37,13 @@ export const LoginPage: React.FC = () => {
   const handleFinishLogin = (user: any) => {
     loginWithSocialUser({
       id: user.id,
+      firebaseUid: user.firebaseUid,
       name: user.name,
       email: user.email,
       phone: user.phone,
       role: user.role,
       avatarUrl: user.avatarUrl,
+      isDemoAccount: Boolean(user.isDemoAccount),
     });
 
     showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
@@ -114,7 +113,7 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // 3. Form Submit (Tiếp tục)
+  // 4. Form Submit (Tiếp tục)
   const handleContinue = (e: React.FormEvent) => {
     e.preventDefault();
     if (!identifier.trim()) return;
@@ -135,7 +134,7 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  // 4. Submit Password
+  // 5. Submit Password
   const handleEmailPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!password) {
@@ -155,35 +154,6 @@ export const LoginPage: React.FC = () => {
       }
     } catch {
       setError('Đã có lỗi xảy ra khi xác thực.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 5. Submit OTP Hợp Nhất
-  const handleOtpSubmit = async (codeToVerify?: string) => {
-    const finalCode = (codeToVerify || otpInput).trim();
-    if (!finalCode || finalCode.length < 6) {
-      setError('Vui lòng nhập đủ 6 chữ số mã OTP.');
-      return;
-    }
-
-    setIsLoading(true);
-    setError('');
-
-    try {
-      if (finalCode === generatedOtp || finalCode === '123456') {
-        const res = await completePhoneOtpAuth(identifier, finalCode, undefined, roleParam);
-        if (res.success && res.user) {
-          handleFinishLogin(res.user);
-        } else {
-          setError(res.error || 'Lỗi khi xác thực tài khoản.');
-        }
-      } else {
-        setError('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
-      }
-    } catch {
-      setError('Lỗi kết nối khi xác thực OTP.');
     } finally {
       setIsLoading(false);
     }
@@ -225,12 +195,10 @@ export const LoginPage: React.FC = () => {
             <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
               {step === 'main' && 'Đăng nhập/Đăng ký'}
               {step === 'password' && 'Nhập Mật Khẩu'}
-              {step === 'otp' && 'Xác Thực OTP'}
             </h1>
             <p className="text-[12px] text-gray-500 mt-0.5">
               {step === 'main' && 'Tiếp cận hàng chục ngàn phòng trọ sinh viên Hà Nội'}
               {step === 'password' && `Tài khoản: ${identifier}`}
-              {step === 'otp' && `Mã xác thực gửi tới: ${identifier}`}
             </p>
           </div>
 
@@ -435,55 +403,6 @@ export const LoginPage: React.FC = () => {
               </Link>
             </div>
           </form>
-        )}
-
-        {/* ================= STEP 3: OTP ================= */}
-        {step === 'otp' && (
-          <div className="space-y-4 pt-1">
-            <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#00a854]" />
-                  <span>Mã OTP của bạn:</span>
-                </span>
-                <span className="text-sm font-black text-emerald-950 tracking-widest bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300">
-                  {generatedOtp}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleOtpSubmit(generatedOtp)}
-                className="w-full py-2 px-3 bg-[#00a854] hover:bg-[#009249] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
-              >
-                <span>Điền mã & Xác nhận ngay (1-Chạm)</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Hoặc nhập 6 chữ số mã OTP</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="Nhập 6 số mã OTP"
-                autoFocus
-                className="w-full px-4 py-3 bg-white border border-gray-300 focus:border-[#00a854] focus:ring-2 focus:ring-[#00a854]/20 rounded-2xl text-sm font-medium text-gray-900 text-center tracking-[0.5em] text-lg font-bold placeholder:text-gray-400 placeholder:tracking-normal placeholder:text-sm outline-hidden transition"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={() => handleOtpSubmit()}
-              disabled={otpInput.length < 6 || isLoading}
-              className="w-full py-3 px-4 bg-[#00a854] hover:bg-[#009249] text-white font-bold rounded-2xl text-sm transition active:scale-98 shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <span>{isLoading ? 'Đang xác nhận...' : 'Xác Nhận & Tiếp Tục'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
         )}
 
         {/* Footer */}

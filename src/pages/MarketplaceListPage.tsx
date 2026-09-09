@@ -97,53 +97,66 @@ export const MarketplaceListPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      showToast('Vui lòng nhập tên món đồ', '', 'warning');
+      showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ muốn pass', 'warning');
       return;
     }
 
-    const sellerId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
-    const catMap: Record<string, any> = {
+    const sellerId =
+      currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
+        ? currentUser.id
+        : '00000000-0000-0000-0000-000000000003';
+
+    const catMap: Record<string, string> = {
       'Nội thất': 'furniture',
       'Đồ điện tử': 'electronics',
       'Sách vở': 'books',
       'Đồ gia dụng': 'household',
     };
 
-    createMarketplaceItem({
-      seller_id: sellerId.length === 36 ? sellerId : '00000000-0000-0000-0000-000000000003',
-      title: title.trim(),
-      price: pricingType === 'Miễn phí' ? 0 : Number(price),
-      is_free: pricingType === 'Miễn phí',
-      category: catMap[category] || 'other',
-      district,
-      description: description || 'Đồ thanh lý sinh viên chính chủ.',
-      image_urls: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
-    }).catch((err) => console.warn('[Marketplace] Lỗi lưu đồ cũ lên Cloud:', err));
+    setIsSubmitting(true);
+    try {
+      await createMarketplaceItem({
+        seller_id: sellerId,
+        title: title.trim(),
+        price: pricingType === 'Miễn phí' ? 0 : Number(price),
+        is_free: pricingType === 'Miễn phí',
+        category: (catMap[category] as any) || 'other',
+        district,
+        description: description || 'Đồ thanh lý sinh viên chính chủ.',
+        image_urls: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
+      });
 
-    addMarketplaceItem({
-      userId: currentUser?.id || 'user_1',
-      userName: currentUser?.name || 'Người dùng Trọ Xinh',
-      userPhone: currentUser?.phone || '0987654321',
-      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-      name: title,
-      price: pricingType === 'Miễn phí' ? 0 : Number(price),
-      pricingType,
-      category,
-      condition,
-      location,
-      district,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
-      description: description || 'Đồ thanh lý sinh viên chính chủ.',
-    });
+      addMarketplaceItem({
+        userId: currentUser?.id || 'user_1',
+        userName: currentUser?.name || 'Người dùng Trọ Xinh',
+        userPhone: currentUser?.phone || '',
+        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        name: title,
+        price: pricingType === 'Miễn phí' ? 0 : Number(price),
+        pricingType,
+        category,
+        condition,
+        location,
+        district,
+        images: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
+        description: description || 'Đồ thanh lý sinh viên chính chủ.',
+      });
 
-    setIsModalOpen(false);
-    setTitle('');
-    setDescription('');
-    setImages([]);
-    showToast('Đăng tin đồ cũ thành công! 🎉', 'Món đồ của bạn đã xuất hiện trên chợ sinh viên.', 'success');
+      setIsModalOpen(false);
+      setTitle('');
+      setDescription('');
+      setImages([]);
+      showToast('Đăng tin đồ cũ thành công! 🎉', 'Món đồ của bạn đã xuất hiện trên chợ sinh viên.', 'success');
+    } catch (err: any) {
+      showToast('Lỗi khi đăng tin đồ cũ', err?.message || 'Không thể lưu lên cơ sở dữ liệu. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -412,8 +425,8 @@ export const MarketplaceListPage: React.FC = () => {
             <Button variant="outline" size="md" type="button" onClick={() => setIsModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" size="md" type="submit">
-              Đăng Tin Ngay
+            <Button variant="primary" size="md" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Ngay'}
             </Button>
           </div>
         </form>

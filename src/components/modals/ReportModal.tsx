@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAppStore } from '../../store/useAppStore';
-import { CheckCircle2, ShieldAlert } from 'lucide-react';
+import { createReport } from '../../lib/api/reports';
+import { CheckCircle2, ShieldAlert, AlertCircle } from 'lucide-react';
 
 export interface ReportModalProps {
   isOpen: boolean;
@@ -17,11 +18,12 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   targetTitle = 'Tin đăng này',
   targetId,
 }) => {
-  const { currentUser, addReport } = useAppStore();
+  const { currentUser, addReport, showToast } = useAppStore();
   const [reason, setReason] = useState<string>('Phòng không giống thực tế / Tin ảo');
   const [detail, setDetail] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
 
   const reasons = [
     'Phòng không giống thực tế / Tin ảo',
@@ -33,13 +35,22 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     'Lý do khác',
   ];
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setErrorMessage('');
 
-    setTimeout(() => {
-      setIsSubmitting(false);
-      setIsSuccess(true);
+    try {
+      await createReport({
+        reporter_id: currentUser?.id,
+        target_type: 'room',
+        target_id: targetId || 'target_item',
+        reason,
+        description: detail.trim(),
+        reporter_name: currentUser?.name || 'Người dùng ẩn danh',
+        reporter_phone: currentUser?.phone,
+      });
+
       addReport({
         targetId: targetId || 'target_item',
         targetTitle,
@@ -50,11 +61,18 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         detail,
       });
 
+      setIsSubmitting(false);
+      setIsSuccess(true);
       setTimeout(() => {
         setIsSuccess(false);
         onClose();
       }, 1500);
-    }, 400);
+    } catch (err: any) {
+      setIsSubmitting(false);
+      const msg = err?.message || 'Không thể gửi báo cáo vi phạm. Vui lòng thử lại!';
+      setErrorMessage(msg);
+      showToast('Gửi báo cáo thất bại', msg, 'error');
+    }
   };
 
   return (
@@ -71,6 +89,13 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {errorMessage && (
+            <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-xl">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 p-3 rounded-xl border border-amber-200/50">
             <ShieldAlert className="w-4 h-4 shrink-0 text-amber-600" />
             <span>Báo cáo đối với: <strong className="font-semibold">{targetTitle}</strong></span>

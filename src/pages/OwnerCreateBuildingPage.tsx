@@ -17,25 +17,24 @@ import {
 } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { MapPinPicker } from '../components/map/TroXinhMap';
+import { createBuilding } from '../lib/api/buildings';
 
 export const OwnerCreateBuildingPage: React.FC = () => {
   const navigate = useNavigate();
   const { addBuilding, currentUser, showToast } = useAppStore();
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   // Form State
   const [name, setName] = useState<string>('Tòa Nhà Xanh Trọ Xinh - Cơ Sở 3');
   const [address, setAddress] = useState<string>('Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng');
   const [district, setDistrict] = useState<string>('Quận Cầu Giấy');
   const [totalRooms, setTotalRooms] = useState<number>(20);
-  const [description, setDescription] = useState<string>
-    ('Tòa nhà mới xây 100%, trang bị đầy đủ PCCC và camera an ninh 24/7. Giờ giấc tự do.'
+  const [description, setDescription] = useState<string>(
+    'Tòa nhà mới xây 100%, trang bị đầy đủ PCCC và camera an ninh 24/7. Giờ giấc tự do.'
   );
-  const [images, setImages] = useState<string[]>([
-    'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
-    'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
-  ]);
+  const [images, setImages] = useState<string[]>([]);
   const [geo, setGeo] = useState<{ lat: number; lng: number }>({ lat: 21.0333, lng: 105.7937 });
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     'Wifi tốc độ cao',
@@ -63,29 +62,55 @@ export const OwnerCreateBuildingPage: React.FC = () => {
     );
   };
 
-  const handleSubmit = () => {
-    const id = addBuilding({
-      ownerId: currentUser?.id || 'user_owner_1',
-      ownerName: currentUser?.name || 'Trần Quốc Tuấn',
-      ownerPhone: currentUser?.phone || '',
-      ownerAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      name,
-      address,
-      district,
-      city: 'Hà Nội',
-      totalRooms,
-      availableRooms: totalRooms,
-      amenities: selectedAmenities,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800'],
-      verifiedBadge: false,
-      rating: 5.0,
-      reviewCount: 0,
-      description,
-      geo,
-      nearbyUniversities: [{ name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 }],
-    });
+  const handleSubmit = async () => {
+    const ownerId =
+      currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
+        ? currentUser.id
+        : '00000000-0000-0000-0000-000000000002';
 
-    navigate(`/toa-nha/${id}`);
+    setIsSubmitting(true);
+    try {
+      await createBuilding({
+        owner_id: ownerId,
+        name: name.trim(),
+        address: address.trim(),
+        district: district.trim(),
+        city: 'Hà Nội',
+        lat: geo.lat,
+        lng: geo.lng,
+        description: description.trim(),
+        amenities: selectedAmenities,
+        cover_image_url: images.length > 0 ? images[0] : '/images/hero-banner.webp',
+      });
+
+      const id = addBuilding({
+        ownerId: currentUser?.id || ownerId,
+        ownerName: currentUser?.name || 'Chủ trọ',
+        ownerPhone: currentUser?.phone || '',
+        ownerAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        name,
+        address,
+        district,
+        city: 'Hà Nội',
+        totalRooms,
+        availableRooms: totalRooms,
+        amenities: selectedAmenities,
+        images: images.length > 0 ? images : ['/images/hero-banner.webp'],
+        verifiedBadge: false,
+        rating: 5.0,
+        reviewCount: 0,
+        description,
+        geo,
+        nearbyUniversities: [{ name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 }],
+      });
+
+      showToast('Tạo hồ sơ tòa nhà thành công!', 'Hồ sơ đã được gửi để kiểm duyệt.', 'success');
+      navigate(`/toa-nha/${id}`);
+    } catch (err: any) {
+      showToast('Lỗi khi tạo tòa nhà', err?.message || 'Không thể lưu lên cơ sở dữ liệu. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -291,8 +316,8 @@ export const OwnerCreateBuildingPage: React.FC = () => {
                 <Button variant="outline" size="md" onClick={() => setStep(2)} leftIcon={<ArrowLeft className="w-4 h-4" />}>
                   Chỉnh Sửa
                 </Button>
-                <Button variant="primary" size="lg" onClick={handleSubmit}>
-                  Gửi Hồ Sơ Kiểm Duyệt
+                <Button variant="primary" size="lg" onClick={handleSubmit} disabled={isSubmitting}>
+                  {isSubmitting ? 'Đang Gửi Hồ Sơ...' : 'Gửi Hồ Sơ Kiểm Duyệt'}
                 </Button>
               </div>
             </div>

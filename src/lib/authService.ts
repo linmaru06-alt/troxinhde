@@ -495,16 +495,15 @@ export async function completePhoneRegistration(
   phone: string,
   name: string,
   role: AppUserRole = 'renter',
-  fbUser?: FirebaseUser,
-  isTestMode = false
+  fbUser?: FirebaseUser
 ): Promise<AuthActionResult> {
   const cleanPhone = phone.trim().replace(/\D/g, '');
-  const firebaseUid = fbUser?.uid || (isTestMode ? `test_phone_${Date.now()}` : undefined);
+  const firebaseUid = fbUser?.uid;
 
   if (!firebaseUid) {
     return {
       success: false,
-      error: 'Không tìm thấy phiên xác thực Firebase cho số điện thoại này.',
+      error: 'Không tìm thấy phiên xác thực Firebase hợp lệ cho số điện thoại này. Vui lòng xác thực lại OTP.',
     };
   }
 
@@ -520,7 +519,7 @@ export async function completePhoneRegistration(
       phone: cleanPhone,
       role,
       avatarUrl: '/images/user-avatar.jpg',
-      isDemo: isTestMode,
+      isDemo: false,
     });
 
     if (!profileRes.success || !profileRes.data) {
@@ -545,7 +544,7 @@ export async function completePhoneRegistration(
         role: profileRes.data.role as AppUserRole,
         avatarUrl: profileRes.data.avatar_url,
         ownerApplicationStatus: profileRes.data.owner_application_status,
-        isDemoAccount: isTestMode,
+        isDemoAccount: false,
         createdAt: profileRes.data.created_at,
       },
     };
@@ -657,30 +656,7 @@ export async function loginWithFacebook(intendedRole: AppUserRole = 'renter'): P
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Facebook.';
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
-      // Khi Firebase Console chưa tạo App ID Facebook, chạy chế độ Unified Demo Facebook
-      const mockEmail = 'facebook.user@troxinh.vn';
-      const unifiedRes = await handleUnifiedAuth({
-        identifier: mockEmail,
-        authType: 'facebook',
-        name: 'Người dùng Facebook (Trọ Xinh)',
-        avatarUrl: '/images/user-avatar.jpg',
-        firebaseUid: `fb_${Date.now()}`,
-        intendedRole,
-      });
-
-      return {
-        success: true,
-        user: {
-          id: unifiedRes.user?.id || `usr_fb_${Date.now()}`,
-          firebaseUid: unifiedRes.user?.firebaseUid || `fb_${Date.now()}`,
-          name: unifiedRes.user?.name || 'Người dùng Facebook (Trọ Xinh)',
-          email: mockEmail,
-          phone: '0988110789',
-          role: intendedRole,
-          avatarUrl: '/images/user-avatar.jpg',
-          isDemoAccount: false,
-        },
-      };
+      msg = 'Đăng nhập Facebook chưa được cấu hình hoặc kích hoạt trên Firebase Console. Vui lòng đăng nhập bằng Google hoặc Số điện thoại.';
     } else if (error.code === 'auth/popup-blocked') {
       msg = 'Trình duyệt đã chặn cửa sổ đăng nhập Facebook. Vui lòng cho phép mở popup.';
     }
@@ -730,29 +706,9 @@ export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Prom
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Apple.';
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
-      const mockEmail = 'apple.user@troxinh.vn';
-      const unifiedRes = await handleUnifiedAuth({
-        identifier: mockEmail,
-        authType: 'apple',
-        name: 'Người dùng Apple (Trọ Xinh)',
-        avatarUrl: '/images/user-avatar.jpg',
-        firebaseUid: `apple_${Date.now()}`,
-        intendedRole,
-      });
-
-      return {
-        success: true,
-        user: {
-          id: unifiedRes.user?.id || `usr_apple_${Date.now()}`,
-          firebaseUid: unifiedRes.user?.firebaseUid || `apple_${Date.now()}`,
-          name: unifiedRes.user?.name || 'Người dùng Apple (Trọ Xinh)',
-          email: mockEmail,
-          phone: '0988110789',
-          role: intendedRole,
-          avatarUrl: '/images/user-avatar.jpg',
-          isDemoAccount: false,
-        },
-      };
+      msg = 'Đăng nhập Apple chưa được cấu hình hoặc kích hoạt trên Firebase Console. Vui lòng đăng nhập bằng Google hoặc Số điện thoại.';
+    } else if (error.code === 'auth/popup-blocked') {
+      msg = 'Trình duyệt đã chặn cửa sổ đăng nhập Apple. Vui lòng cho phép mở popup.';
     }
     return { success: false, error: msg };
   }
@@ -763,50 +719,16 @@ export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Prom
  * Nhập SĐT -> Gửi OTP -> Xác thực OTP -> Tự động đăng ký nếu chưa có, hoặc đăng nhập nếu đã có
  */
 export async function completePhoneOtpAuth(
-  phone: string,
-  otpCode: string,
-  fullName?: string,
-  intendedRole: AppUserRole = 'renter'
+  _phone: string,
+  _otpCode: string,
+  _fullName?: string,
+  _intendedRole: AppUserRole = 'renter'
 ): Promise<AuthActionResult> {
-  const cleanPhone = phone.trim().replace(/\D/g, '');
-  if (!cleanPhone || cleanPhone.length < 10) {
-    return { success: false, error: 'Số điện thoại không hợp lệ (tối thiểu 10 chữ số).' };
-  }
-
-  const cleanOtp = otpCode.trim();
-  if (!cleanOtp || cleanOtp.length < 6) {
-    return { success: false, error: 'Vui lòng nhập đủ 6 chữ số mã OTP.' };
-  }
-
-  try {
-    const unifiedRes = await handleUnifiedAuth({
-      identifier: cleanPhone,
-      authType: 'phone',
-      name: fullName?.trim() || undefined,
-      intendedRole,
-    });
-
-    if (!unifiedRes.success || !unifiedRes.user) {
-      return { success: false, error: unifiedRes.error || 'Lỗi khi xử lý tài khoản số điện thoại.' };
-    }
-
-    return {
-      success: true,
-      user: {
-        id: unifiedRes.user.id,
-        firebaseUid: unifiedRes.user.firebaseUid,
-        name: unifiedRes.user.name,
-        email: unifiedRes.user.email,
-        phone: unifiedRes.user.phone,
-        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
-        avatarUrl: unifiedRes.user.avatarUrl,
-        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
-        createdAt: unifiedRes.user.createdAt,
-      },
-    };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Lỗi xác thực số điện thoại.' };
-  }
+  // Tuân thủ quy tắc bảo mật: Không tạo phiên ảo hay bypass OTP mà không có Firebase Phone Auth ConfirmationResult
+  return {
+    success: false,
+    error: 'Vui lòng xác thực số điện thoại qua màn hình OTP Firebase chính thức để đảm bảo an toàn tài khoản.',
+  };
 }
 
 /**

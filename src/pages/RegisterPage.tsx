@@ -154,11 +154,13 @@ export const RegisterPage: React.FC = () => {
     if (res.success && res.user) {
       loginWithSocialUser({
         id: res.user.id,
+        firebaseUid: res.user.firebaseUid,
         name: res.user.name,
         email: res.user.email,
         phone: res.user.phone,
         role: res.user.role,
         avatarUrl: res.user.avatarUrl,
+        isDemoAccount: Boolean(res.user.isDemoAccount),
       });
 
       showToast('Đăng ký Google thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
@@ -186,11 +188,13 @@ export const RegisterPage: React.FC = () => {
     if (res.success && res.user) {
       loginWithSocialUser({
         id: res.user.id,
+        firebaseUid: res.user.firebaseUid,
         name: res.user.name,
         email: res.user.email,
         phone: res.user.phone,
         role: res.user.role,
         avatarUrl: res.user.avatarUrl,
+        isDemoAccount: Boolean(res.user.isDemoAccount),
       });
 
       showToast(`Kích hoạt tài khoản ${demoType.toUpperCase()} Demo thành công! ✨`, `Chào mừng ${res.user.name}`, 'success');

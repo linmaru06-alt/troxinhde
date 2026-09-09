@@ -25,7 +25,7 @@ export interface SEOProps {
 export const SEOHead: React.FC<SEOProps> = ({
   title = 'TroXinh - Tìm Phòng Trọ Sinh Viên Đã Kiểm Duyệt tại Hà Nội',
   description = 'Nền tảng tìm phòng trọ uy tín dành cho sinh viên và người đi làm tại Hà Nội. 100% phòng đã kiểm duyệt PCCC, giá minh bạch, kết nối trực tiếp với chủ trọ.',
-  image = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=1200&h=630&fit=crop',
+  image = '/images/hero-banner.webp',
   url,
   type = 'website',
   keywords = 'phòng trọ hà nội, thuê phòng sinh viên, nhà trọ cầu giấy, phòng trọ đống đa, bách khoa, đhqg hà nội',

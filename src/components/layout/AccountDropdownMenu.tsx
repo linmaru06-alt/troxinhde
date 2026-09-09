@@ -152,7 +152,14 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   className="w-12 h-12 rounded-full object-cover ring-2 ring-[#006d37]/30 shrink-0"
                 />
                 <div className="overflow-hidden flex-1">
-                  <h3 className="text-sm font-black text-gray-900 truncate">{currentUser.name}</h3>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-sm font-black text-gray-900 truncate">{currentUser.name}</h3>
+                    {currentUser.isDemoAccount && (
+                      <span className="bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                        ⚠️ Demo
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-gray-500 font-mono">{currentUser.phone || 'Thành viên Trọ Xinh'}</p>
                   <span
                     className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
@@ -171,6 +178,13 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   </span>
                 </div>
               </div>
+
+              {currentUser.isDemoAccount && (
+                <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-tight flex items-start gap-1.5">
+                  <span className="shrink-0 text-xs">⚠️</span>
+                  <span>Bạn đang dùng <strong>Tài khoản Demo</strong> để trải nghiệm tính năng.</span>
+                </div>
+              )}
 
               <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">
                 <Link

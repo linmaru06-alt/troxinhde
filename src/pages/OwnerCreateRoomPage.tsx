@@ -21,6 +21,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
     SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
   const isLimitReached = currentPlan.roomLimit !== 999 && myRooms.length >= currentPlan.roomLimit;
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(isLimitReached);
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const [buildingId, setBuildingId] = useState<string>(buildings[0]?.id || 'bld_1');
   const [roomNumber, setRoomNumber] = useState<string>('P.305');
@@ -58,7 +59,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
     status: 'Chờ duyệt',
     verified: false,
     amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
-    images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
+    images: images.length > 0 ? images : ['/images/hero-banner.webp'],
     distanceToSchoolKm: 0.5,
     nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
     address: selectedBuilding?.address || 'Ngõ 165 Cầu Giấy, P. Dịch Vọng',
@@ -69,7 +70,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
     createdAt: new Date().toISOString(),
   };
 
-  const handleCreate = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (isLimitReached) {
@@ -85,53 +86,58 @@ export const OwnerCreateRoomPage: React.FC = () => {
     const ownerId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
     const bldId = (buildingId && buildingId.length === 36) ? buildingId : '00000000-0000-0000-0000-000000000001';
 
-    // 1. Đồng bộ lên Supabase Cloud
-    createRoom({
-      building_id: bldId,
-      owner_id: ownerId,
-      title: title.trim(),
-      room_number: roomNumber.trim(),
-      price: Number(price),
-      deposit: Number(deposit),
-      electricity_price: 3800,
-      water_price: 100000,
-      area: Number(area),
-      room_type: type,
-      amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
-      description: description.trim(),
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
-    }).catch((err) => {
-      console.warn('[Owner Room] Lỗi khi tạo phòng lên Supabase Cloud:', err);
-    });
+    setIsSubmitting(true);
+    try {
+      // 1. Đồng bộ lưu trực tiếp lên Supabase Cloud
+      await createRoom({
+        building_id: bldId,
+        owner_id: ownerId,
+        title: title.trim(),
+        room_number: roomNumber.trim(),
+        price: Number(price),
+        deposit: Number(deposit),
+        electricity_price: 3800,
+        water_price: 100000,
+        area: Number(area),
+        room_type: type,
+        amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
+        description: description.trim(),
+        images: images.length > 0 ? images : ['/images/hero-banner.webp'],
+      });
 
-    addRoom({
-      buildingId,
-      buildingName: selectedBuilding.name,
-      ownerId: currentUser?.id || 'user_owner_1',
-      ownerName: currentUser?.name || 'Trần Quốc Tuấn',
-      ownerPhone: currentUser?.phone || '',
-      ownerAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150',
-      title,
-      roomNumber,
-      price: Number(price),
-      deposit: Number(deposit),
-      electricityPrice: 3800,
-      waterPrice: 100000,
-      area: Number(area),
-      type,
-      status: 'Chờ duyệt',
-      verified: false,
-      amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
-      distanceToSchoolKm: 0.5,
-      nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
-      address: selectedBuilding.address,
-      district: selectedBuilding.district,
-      description,
-    });
+      addRoom({
+        buildingId,
+        buildingName: selectedBuilding?.name || 'Tòa nhà Trọ Xinh',
+        ownerId: currentUser?.id || ownerId,
+        ownerName: currentUser?.name || 'Chủ trọ',
+        ownerPhone: currentUser?.phone || '',
+        ownerAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        title,
+        roomNumber,
+        price: Number(price),
+        deposit: Number(deposit),
+        electricityPrice: 3800,
+        waterPrice: 100000,
+        area: Number(area),
+        type,
+        status: 'Chờ duyệt',
+        verified: false,
+        amenities: ['Máy lạnh', 'Tủ lạnh', 'Ban công', 'Bếp', 'Wifi'],
+        images: images.length > 0 ? images : ['/images/hero-banner.webp'],
+        distanceToSchoolKm: 0.5,
+        nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
+        address: selectedBuilding?.address || 'Hà Nội',
+        district: selectedBuilding?.district || 'Cầu Giấy',
+        description,
+      });
 
-    showToast('Tạo phòng trọ thành công!', 'Phòng của bạn đang được chuyển đến ban quản trị phê duyệt.', 'success');
-    navigate('/chu-tro');
+      showToast('Tạo phòng trọ thành công!', 'Phòng của bạn đang được chuyển đến ban quản trị phê duyệt.', 'success');
+      navigate('/chu-tro');
+    } catch (err: any) {
+      showToast('Lỗi khi tạo phòng', err?.message || 'Không thể lưu lên cơ sở dữ liệu. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -175,7 +181,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
           <div className="lg:col-span-2 bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">
             <h1 className="text-xl font-black text-gray-900">Thông Tin Phòng Cho Thuê</h1>
 
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               {/* Select building */}
               <div className="space-y-1.5 text-left">
                 <label className="block text-sm font-medium text-gray-700">Thuộc Tòa Nhà</label>
@@ -267,8 +273,8 @@ export const OwnerCreateRoomPage: React.FC = () => {
                 />
               </div>
 
-              <Button type="submit" variant="primary" size="lg" className="w-full">
-                Xác Nhận & Gửi Duyệt Tin Đăng
+              <Button type="submit" variant="primary" size="lg" className="w-full" disabled={isSubmitting}>
+                {isSubmitting ? 'Đang Gửi Duyệt...' : 'Xác Nhận & Gửi Duyệt Tin Đăng'}
               </Button>
             </form>
           </div>
