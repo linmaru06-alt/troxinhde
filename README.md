@@ -121,3 +121,4 @@ Bạn có thể bấm trực tiếp các nút 1-chạm (Người thuê, Chủ tr
 
 © 2026 **Trọ Xinh Việt Nam (TroXinh.vn)**. Vận hành bởi **Nguyễn Vũ Chính** (18 Ngõ 167 Tây Sơn, Đống Đa, Hà Nội).  
 Hotline: **0888 110 789** | Email: **nguyenvuchinhb1hhb@gmail.com**.
+
