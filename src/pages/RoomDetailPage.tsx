@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { formatPrice, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import { LoginPromptModal } from '../components/modals/LoginPromptModal';
-import { initialReviews } from '../data/mockData';
+import { getReviews, createReview } from '../lib/api/reviews';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { ImageWithFallback } from '../components/ui/ImageWithFallback';
 import { MiniRoomMap } from '../components/map/TroXinhMap';
@@ -50,7 +50,7 @@ export const RoomDetailPage: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [showPhoneConfirm, setShowPhoneConfirm] = useState<boolean>(false);
-  const [userReviews, setUserReviews] = useState(initialReviews);
+  const [userReviews, setUserReviews] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [newReviewText, setNewReviewText] = useState<string>('');
   const [newReviewStars, setNewReviewStars] = useState<number>(5);
@@ -131,30 +131,81 @@ export const RoomDetailPage: React.FC = () => {
     }
   };
 
+  // Fetch reviews thật từ Supabase
+  useEffect(() => {
+    if (!room?.id) return;
+    let isMounted = true;
+    getReviews(room.id)
+      .then((data) => {
+        if (!isMounted) return;
+        if (data && data.length > 0) {
+          const mapped = data.map((r: any) => ({
+            id: r.id,
+            roomId: r.room_id,
+            userId: r.reviewer_id,
+            userName: r.reviewer?.full_name || 'Khách thuê Trọ Xinh',
+            userAvatar: r.reviewer?.avatar_url || '/images/user-avatar.webp',
+            stars: r.rating || 5,
+            criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
+            text: r.content || '',
+            createdAt: r.created_at || new Date().toISOString(),
+          }));
+          setUserReviews(mapped);
+        } else {
+          setUserReviews([]);
+        }
+      })
+      .catch((err) => {
+        console.warn('[Reviews] Không thể lấy reviews từ Supabase:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [room?.id]);
+
   const handleCallPhone = () => {
     navigator.clipboard.writeText(room.ownerPhone);
     showToast(`Đã sao chép số điện thoại: ${room.ownerPhone}`, 'Bạn có thể gọi trực tiếp cho chủ trọ.', 'success');
     setShowPhoneConfirm(false);
   };
 
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      setShowLoginModal(true);
+      return;
+    }
     if (!newReviewText.trim()) return;
-    const newRev = {
-      id: `rev_${Date.now()}`,
-      roomId: room.id,
-      userId: currentUser?.id || 'guest',
-      userName: currentUser?.name || 'Khách thuê',
-      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-      stars: newReviewStars,
-      criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
-      text: newReviewText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    setUserReviews([newRev, ...userReviews]);
-    setNewReviewText('');
-    setShowReviewModal(false);
-    showToast('Đã gửi đánh giá thành công! ⭐', 'Cảm ơn bạn đã đóng góp cho cộng đồng.', 'success');
+
+    try {
+      const created = await createReview({
+        room_id: room.id,
+        reviewer_id: currentUser.id,
+        rating: newReviewStars,
+        content: newReviewText.trim(),
+        image_urls: reviewImages,
+      });
+
+      const newRev = {
+        id: created?.id || `rev_${Date.now()}`,
+        roomId: room.id,
+        userId: currentUser.id,
+        userName: currentUser.name || 'Khách thuê',
+        userAvatar: currentUser.avatarUrl || '/images/user-avatar.webp',
+        stars: newReviewStars,
+        criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
+        text: newReviewText.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      setUserReviews([newRev, ...userReviews]);
+      setNewReviewText('');
+      setReviewImages([]);
+      setShowReviewModal(false);
+      showToast('Đã gửi đánh giá thành công! ⭐', 'Cảm ơn bạn đã đóng góp cho cộng đồng.', 'success');
+    } catch (err: any) {
+      showToast('Gửi đánh giá thất bại', err?.message || 'Vui lòng thử lại sau!', 'error');
+    }
   };
 
   return (
@@ -565,27 +616,34 @@ export const RoomDetailPage: React.FC = () => {
                 </div>
 
                 {/* Review List */}
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  {userReviews.map((rev) => (
-                    <div key={rev.id} className="p-4 rounded-2xl bg-gray-50 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <img src={rev.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                          <div>
-                            <h4 className="text-xs font-bold text-gray-900">{rev.userName}</h4>
-                            <div className="flex text-amber-400 text-xs">
-                              {Array.from({ length: rev.stars }).map((_, i) => '★')}
+                {userReviews.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500 text-xs space-y-1.5 border-t border-gray-100">
+                    <p className="font-semibold text-gray-700">Chưa có đánh giá nào cho phòng trọ này</p>
+                    <p>Hãy là người đầu tiên trải nghiệm thực tế và để lại nhận xét đóng góp cho cộng đồng!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-4 border-t border-gray-100">
+                    {userReviews.map((rev) => (
+                      <div key={rev.id} className="p-4 rounded-2xl bg-gray-50 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <img src={rev.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            <div>
+                              <h4 className="text-xs font-bold text-gray-900">{rev.userName}</h4>
+                              <div className="flex text-amber-400 text-xs">
+                                {Array.from({ length: rev.stars }).map((_, i) => '★')}
+                              </div>
                             </div>
                           </div>
+                          <span className="text-[11px] text-gray-400">
+                            {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-gray-400">
-                          {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
-                        </span>
+                        <p className="text-xs text-gray-700 leading-relaxed">{rev.text}</p>
                       </div>
-                      <p className="text-xs text-gray-700 leading-relaxed">{rev.text}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>

@@ -115,6 +115,26 @@ export const CheckoutPage: React.FC = () => {
     setIsProcessing(true);
 
     try {
+      if (currentUser?.isDemoAccount) {
+        // Chế độ Sandbox cho tài khoản Demo: Không gọi API thanh toán thật
+        const mockOrderCode = `DEMO_${Date.now().toString().slice(-6)}`;
+        setPaymentData({
+          method: paymentMethod,
+          orderCode: mockOrderCode,
+          qrCode: `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=DEMO_PAYMENT_${mockOrderCode}`,
+          amount: totalAmount,
+          receiverTitle: 'Môi trường Thử Nghiệm (Sandbox)',
+          receiverName: 'TRỌ XINH SANDBOX DEMO',
+          accountNumber: '9999DEMO8888',
+          accountNumberLabel: 'Mã thử nghiệm',
+          badgeLabel: 'Demo Sandbox',
+          transferContent: `TROXINH ${mockOrderCode}`,
+        });
+        setIsProcessing(false);
+        showToast('Chế độ Demo Sandbox 🧪', 'Tài khoản demo sử dụng giao dịch giả lập không mất tiền thật.', 'info');
+        return;
+      }
+
       if (paymentMethod === 'vietqr' || paymentMethod === 'banking') {
         const res = await createPaymentOrder({
           planId: selectedPlan.id,

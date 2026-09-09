@@ -41,17 +41,17 @@ export const AIRecommendationsSection: React.FC = () => {
           
           <div className="flex items-center gap-2">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#00a854] text-white text-xs font-black shadow-xs">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-spin" /> AI Recommendations
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" /> Gợi Ý Phù Hợp
             </span>
             <span className="text-xs text-emerald-800 font-semibold flex items-center gap-1">
-              <Bot className="w-3.5 h-3.5" /> Gợi ý cá nhân hóa
+              <Bot className="w-3.5 h-3.5" /> Gợi ý theo nhu cầu
             </span>
           </div>
           <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
-            Gợi Ý Phòng Dành Riêng Cho Bạn ✨
+            Gợi Ý Phòng Theo Khu Vực & Ngân Sách ✨
           </h2>
           <p className="text-xs sm:text-sm text-gray-500 max-w-xl">
-            Thuật toán phân tích vị trí, tiện nghi và mức giá tối ưu nhất cho nhu cầu thuê phòng của bạn.
+            Danh sách phòng trọ nổi bật được tổng hợp theo vị trí gần trường đại học, tiện nghi và mức giá phù hợp với sinh viên.
           </p>
         </div>
 

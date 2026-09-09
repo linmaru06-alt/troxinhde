@@ -147,7 +147,7 @@ export const OwnerUpgradePage: React.FC = () => {
             Đăng Ký Trở Thành Chủ Trọ Đối Tác Trọ Xinh
           </h1>
           <p className="text-emerald-100 text-xs sm:text-sm leading-relaxed">
-            Đăng phòng miễn phí, tiếp cận 50.000+ sinh viên thuê phòng văn minh, sử dụng phần mềm quản lý tòa nhà chuyên nghiệp.
+            Đăng phòng miễn phí, kết nối sinh viên thuê phòng văn minh, sử dụng công cụ quản lý phòng trọ minh bạch và hiệu quả.
           </p>
         </div>
       </div>

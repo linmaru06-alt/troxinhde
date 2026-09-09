@@ -10,7 +10,7 @@ export const OwnerOnboardingPage: React.FC = () => {
   const slides = [
     {
       title: 'Chào Mừng Đối Tác Chủ Trọ!',
-      desc: 'Tiếp cận hơn 50.000+ sinh viên và khách thuê văn minh mỗi tháng hoàn toàn miễn phí trên nền tảng Trọ Xinh.',
+      desc: 'Tiếp cận cộng đồng sinh viên và khách thuê văn minh tại Hà Nội hoàn toàn miễn phí trên nền tảng Trọ Xinh.',
       icon: Building2,
       color: 'bg-amber-50 text-[#904d00]',
     },

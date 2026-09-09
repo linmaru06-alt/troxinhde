@@ -275,6 +275,11 @@ export const Navbar: React.FC = () => {
                       height={32}
                       className="w-8 h-8 rounded-full object-cover ring-1 ring-white/60"
                     />
+                    {currentUser.isDemoAccount && (
+                      <span className="bg-amber-400 text-amber-950 text-[9px] font-black px-1.5 py-0.5 rounded-md leading-none uppercase tracking-wide">
+                        DEMO
+                      </span>
+                    )}
                     <ChevronDown
                       className={`w-3.5 h-3.5 text-gray-950 pr-1 transition-transform ${
                         isTopAvatarOpen ? 'rotate-180' : ''

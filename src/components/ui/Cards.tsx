@@ -37,7 +37,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
           <ImageWithFallback
-            src={room.images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'}
+            src={room.images[0] || '/images/hero-banner.webp'}
             alt={room.title}
             preset="thumbnail"
             loading="lazy"
