@@ -233,6 +233,70 @@ export const MarketplaceListPage: React.FC = () => {
         </div>
       </div>
 
+      {/* Visual Category Showcase Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {CATEGORY_SHOWCASE.map((cat) => {
+          const isSelected = selectedCategory === cat.name;
+          const count = marketplaceItems.filter((i) => i.category === cat.name).length;
+
+          return (
+            <button
+              key={cat.name}
+              type="button"
+              onClick={() => setSelectedCategory(isSelected ? 'Tất cả' : cat.name)}
+              className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 p-3.5 sm:p-4 flex flex-col justify-between h-32 sm:h-36 cursor-pointer shadow-xs hover:shadow-md ${
+                isSelected
+                  ? 'border-[#006d37] ring-2 ring-[#006d37]/30 shadow-emerald-900/10 -translate-y-0.5'
+                  : 'border-gray-200/80 hover:border-[#006d37]/30 bg-white hover:-translate-y-0.5'
+              }`}
+            >
+              {/* Background Decorative Image */}
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-20 group-hover:opacity-30"
+                style={{ backgroundImage: `url('${cat.image}')` }}
+              />
+              <div
+                className={`absolute inset-0 transition-colors ${
+                  isSelected
+                    ? 'bg-gradient-to-t from-emerald-900/90 via-emerald-900/50 to-emerald-900/20'
+                    : 'bg-gradient-to-t from-white via-white/80 to-white/40'
+                }`}
+              />
+
+              {/* Top Row: Icon & Count Badge */}
+              <div className="relative z-10 flex items-center justify-between w-full">
+                <span className="text-2xl sm:text-3xl filter drop-shadow-xs">{cat.icon}</span>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    isSelected ? 'bg-white text-[#006d37] shadow-xs' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {count} món
+                </span>
+              </div>
+
+              {/* Bottom Row: Label & Subtitle */}
+              <div className="relative z-10 space-y-0.5">
+                <h3
+                  className={`text-xs sm:text-sm font-black transition-colors ${
+                    isSelected ? 'text-white' : 'text-gray-900 group-hover:text-[#006d37]'
+                  }`}
+                >
+                  {cat.label}
+                </h3>
+                <p
+                  className={`text-[10px] sm:text-[11px] line-clamp-1 ${
+                    isSelected ? 'text-emerald-100' : 'text-gray-500'
+                  }`}
+                >
+                  {cat.desc}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filter Bar & Search */}
       <div className="space-y-3 bg-white p-4 sm:p-5 rounded-3xl border border-gray-200 shadow-xs">
         {/* Search & Sort Row */}
