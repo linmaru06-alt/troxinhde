@@ -34,6 +34,37 @@ const DISTRICTS = [
   'Quận Hoàng Mai',
 ];
 
+const CATEGORY_SHOWCASE = [
+  {
+    name: 'Nội thất',
+    label: 'Nội thất sinh viên',
+    desc: 'Bàn ghế, tủ vải, kệ sách',
+    icon: '🪑',
+    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Đồ điện tử',
+    label: 'Đồ điện tử giá rẻ',
+    desc: 'Tủ lạnh mini, màn hình, tai nghe',
+    icon: '⚡',
+    image: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Sách vở',
+    label: 'Sách & Giáo trình',
+    desc: 'TOEIC, IT, giáo trình đại học 0đ',
+    icon: '📚',
+    image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Đồ gia dụng',
+    label: 'Đồ gia dụng phòng trọ',
+    desc: 'Nồi cơm điện, bếp từ, quạt máy',
+    icon: '🍳',
+    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=80',
+  },
+];
+
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
   const { marketplaceItems, currentUser, addMarketplaceItem, showToast } = useAppStore();
