@@ -152,7 +152,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       {currentUser.phone || 'Thành viên Trọ Xinh'}
                       {currentUser.phoneVerified && (
                         <span title="SĐT đã xác minh" className="inline-flex">
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
                         </span>
                       )}
                     </p>
@@ -161,7 +161,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                         {currentUser.email}
                         {currentUser.emailVerified && (
                           <span title="Email đã xác minh" className="inline-flex">
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
                           </span>
                         )}
                       </p>

@@ -72,7 +72,7 @@ export const RenterProfilePage: React.FC = () => {
                 {currentUser.phone || 'Chưa cập nhật SĐT'}
                 {currentUser.phoneVerified && (
                   <span title="Đã xác minh" className="inline-flex">
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
                   </span>
                 )}
               </p>
@@ -82,7 +82,7 @@ export const RenterProfilePage: React.FC = () => {
                   {currentUser.email}
                   {currentUser.emailVerified && (
                     <span title="Đã xác minh" className="inline-flex">
-                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
                     </span>
                   )}
                 </p>

@@ -73,15 +73,24 @@ export const RoommateListPage: React.FC = () => {
       {/* Create Roommate Modal */}
       <CreateRoommateModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
-      {/* Header Banner with Premium Gradient Backdrop */}
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-emerald-900/30 bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/20 via-transparent to-transparent pointer-events-none" />
-        <div className="absolute -bottom-10 -right-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+      {/* Header Banner with Custom Illustration Backdrop & Cinematic Overlay */}
+      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-emerald-500/20 bg-slate-950">
+        {/* Background Image */}
+        <div
+          className="absolute inset-0 bg-cover bg-right md:bg-center bg-no-repeat transition-transform duration-700"
+          style={{ backgroundImage: `url('/roommate-banner.webp')` }}
+        />
+        {/* Sophisticated Dark Gradient & Frosted Overlay for crystal-clear text readability */}
+        <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/85 to-slate-950/30" />
+        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-transparent to-slate-950/40" />
+        {/* Ambient Emerald Glow */}
+        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-emerald-500/15 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
-          <div className="space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/15 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/30 backdrop-blur-md shadow-xs">
+          <div className="space-y-3.5 max-w-xl">
+            {/* 1. Bỏ dòng 'Giai Đoạn 3', dùng badge cộng đồng chuẩn */}
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/25 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/40 backdrop-blur-md shadow-xs transition">
               <Users className="w-4 h-4 text-emerald-400" />
               <span>Cộng Đồng Tìm Bạn Ở Ghép Văn Minh Hà Nội</span>
             </div>
@@ -94,16 +103,23 @@ export const RoommateListPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="shrink-0 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={handlePostClick}
-              leftIcon={<PlusCircle className="w-5 h-5" />}
-              className="font-bold shadow-lg cursor-pointer"
-            >
-              Đăng Tin Tìm Bạn Ghép
-            </Button>
+          {/* 3. Phần đăng tin tìm bạn ghép nổi bật hơn vượt trội */}
+          <div className="shrink-0 flex flex-col items-center md:items-end gap-2.5 w-full md:w-auto">
+            <div className="p-1 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.4)] hover:shadow-[0_0_35px_rgba(16,185,129,0.65)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
+              <button
+                type="button"
+                onClick={handlePostClick}
+                className="w-full md:w-auto flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-[#008f47] to-[#00a854] hover:from-[#005a2d] hover:to-[#008f47] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200"
+              >
+                <PlusCircle className="w-5 h-5 text-emerald-200 shrink-0" />
+                <span>Đăng Tin Tìm Bạn Ghép</span>
+                <Sparkles className="w-4 h-4 text-emerald-300 shrink-0" />
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300 font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/30">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              <span>Miễn phí 100% • Tiếp cận 10.000+ sinh viên</span>
+            </div>
           </div>
         </div>
       </div>

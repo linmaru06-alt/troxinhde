@@ -107,7 +107,6 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       });
 
       addRoommatePost({
-        id: created?.id,
         userId: currentUser?.id || `user_${Date.now()}`,
         userName: userName.trim(),
         userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
