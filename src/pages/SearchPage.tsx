@@ -28,6 +28,8 @@ import {
   CheckCircle2,
   Clock,
   ArrowUpDown,
+  Banknote,
+  Zap,
 } from 'lucide-react';
 
 import { Room } from '../types';
@@ -316,7 +318,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          🛡️ Đã kiểm duyệt
+          Đã kiểm duyệt
         </button>
         <button
           onClick={() => updateParam('gia', selectedPrice === '0-2500000' ? '' : '0-2500000')}
@@ -326,7 +328,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          💵 Dưới 2.5 triệu
+          Dưới 2.5 triệu
         </button>
         <button
           onClick={() => updateParam('gia', selectedPrice === '2500000-4000000' ? '' : '2500000-4000000')}
@@ -336,7 +338,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          ⚡ 2.5 - 4 triệu
+          2.5 - 4 triệu
         </button>
         <button
           onClick={() => updateParam('truong', selectedSchool === 'ĐH Bách Khoa Hà Nội' ? '' : 'ĐH Bách Khoa Hà Nội')}
@@ -346,7 +348,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          🎓 Bách Khoa
+          Bách Khoa
         </button>
         <button
           onClick={() => updateParam('khuVuc', selectedDistrict === 'Quận Cầu Giấy' ? '' : 'Quận Cầu Giấy')}
@@ -356,7 +358,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          📍 Cầu Giấy
+          Cầu Giấy
         </button>
         <button
           onClick={() => updateParam('khuVuc', selectedDistrict === 'Quận Đống Đa' ? '' : 'Quận Đống Đa')}
@@ -366,7 +368,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          📍 Đống Đa
+          Đống Đa
         </button>
         <button
           onClick={() => updateParam('loai', selectedType === 'Studio' ? '' : 'Studio')}
@@ -376,7 +378,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          🏠 Studio
+          Studio
         </button>
       </div>
 
@@ -484,7 +486,9 @@ export const SearchPage: React.FC = () => {
 
           {/* Price Range */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
-            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider">Mức giá thuê</label>
+            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Banknote className="w-3.5 h-3.5 text-[#00a854]" /> Mức giá thuê
+            </label>
             <div className="space-y-1">
               <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854]">
                 <input
@@ -541,7 +545,9 @@ export const SearchPage: React.FC = () => {
 
           {/* Amenities */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
-            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider">Tiện ích kèm theo</label>
+            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích kèm theo
+            </label>
             <div className="space-y-1">
               <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854]">
                 <input
