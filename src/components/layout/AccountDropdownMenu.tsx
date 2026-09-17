@@ -151,14 +151,18 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                     <p className="text-xs text-gray-500 font-mono flex items-center gap-1">
                       {currentUser.phone || 'Thành viên Trọ Xinh'}
                       {currentUser.phoneVerified && (
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="SĐT đã xác minh" />
+                        <span title="SĐT đã xác minh" className="inline-flex">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                        </span>
                       )}
                     </p>
                     {currentUser.email && (
                       <p className="text-xs text-gray-500 font-mono flex items-center gap-1">
                         {currentUser.email}
                         {currentUser.emailVerified && (
-                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Email đã xác minh" />
+                          <span title="Email đã xác minh" className="inline-flex">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" />
+                          </span>
                         )}
                       </p>
                     )}

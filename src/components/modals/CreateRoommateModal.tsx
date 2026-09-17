@@ -65,8 +65,6 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   const [linkedRoomId, setLinkedRoomId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
   const toggleHabit = (habit: string) => {
     if (selectedHabits.includes(habit)) {
       setSelectedHabits(selectedHabits.filter((h) => h !== habit));
