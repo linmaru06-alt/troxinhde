@@ -71,7 +71,9 @@ export const RenterProfilePage: React.FC = () => {
                 <Phone className="w-3.5 h-3.5 text-gray-400" />
                 {currentUser.phone || 'Chưa cập nhật SĐT'}
                 {currentUser.phoneVerified && (
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Đã xác minh" />
+                  <span title="Đã xác minh">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                  </span>
                 )}
               </p>
               {currentUser.email && (
@@ -79,7 +81,9 @@ export const RenterProfilePage: React.FC = () => {
                   <Mail className="w-3.5 h-3.5 text-gray-400" />
                   {currentUser.email}
                   {currentUser.emailVerified && (
-                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Đã xác minh" />
+                    <span title="Đã xác minh">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                    </span>
                   )}
                 </p>
               )}

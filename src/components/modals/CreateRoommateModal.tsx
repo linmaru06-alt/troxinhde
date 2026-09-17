@@ -65,8 +65,6 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   const [linkedRoomId, setLinkedRoomId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-
   const toggleHabit = (habit: string) => {
     if (selectedHabits.includes(habit)) {
       setSelectedHabits(selectedHabits.filter((h) => h !== habit));
@@ -109,7 +107,6 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       });
 
       addRoommatePost({
-        id: created?.id,
         userId: currentUser?.id || `user_${Date.now()}`,
         userName: userName.trim(),
         userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
