@@ -60,7 +60,14 @@ export const Footer: React.FC = () => {
               </div>
               <div className="flex items-start gap-2">
                 <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mt-0.5" />
-                <span className="text-gray-500">18 Ngõ 167 Tây Sơn, P. Quang Trung, Q. Đống Đa, Hà Nội</span>
+                <a
+                  href="https://www.google.com/maps/dir/?api=1&destination=18+Ngõ+167+Tây+Sơn,+Quang+Trung,+Đống+Đa,+Hà+Nội"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-gray-500 hover:text-[#006d37] hover:underline transition-colors"
+                >
+                  18 Ngõ 167 Tây Sơn, P. Quang Trung, Q. Đống Đa, Hà Nội
+                </a>
               </div>
             </div>
           </div>
