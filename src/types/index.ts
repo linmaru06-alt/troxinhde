@@ -131,6 +131,7 @@ export interface RoommatePost {
   linkedRoomArea?: number;
   linkedRoomImage?: string;
   status?: 'Đang tìm' | 'Đã ghép';
+  images?: string[];
   createdAt: string;
 }
 
