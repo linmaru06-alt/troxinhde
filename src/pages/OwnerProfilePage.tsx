@@ -37,7 +37,7 @@ export const OwnerProfilePage: React.FC = () => {
                   <Phone className="w-3.5 h-3.5 text-gray-400" />
                   {currentUser?.phone || 'Chưa cập nhật SĐT'}
                   {currentUser?.phoneVerified && (
-                    <span title="Đã xác minh">
+                    <span title="Đã xác minh" className="inline-flex">
                       <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
                     </span>
                   )}
@@ -47,7 +47,7 @@ export const OwnerProfilePage: React.FC = () => {
                     <Mail className="w-3.5 h-3.5 text-gray-400" />
                     {currentUser.email}
                     {currentUser.emailVerified && (
-                      <span title="Đã xác minh">
+                      <span title="Đã xác minh" className="inline-flex">
                         <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
                       </span>
                     )}

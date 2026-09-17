@@ -39,7 +39,7 @@
 - Trước khi sửa: kiểm tra `git status` và đọc đầy đủ luồng liên quan.
 - Sau khi sửa: kiểm tra diff, chạy `npm run build` và test liên quan.
 - Test phải sử dụng đường code production, không viết lại logic giả để test luôn thành công.
-- Không commit, push, merge hoặc deploy nếu người dùng chưa yêu cầu rõ.
+- Khi người dùng yêu cầu đồng bộ hoặc đẩy code: kiểm tra build thành công và đẩy trực tiếp lên nhánh `main`.
 - Báo cáo: nguyên nhân, thay đổi, kiểm thử đã chạy và hạn chế còn lại.
 
 Khi tác vụ liên quan auth, Supabase/RLS, thanh toán hoặc hành trình nhiều trang, đọc thêm `.agents/skills/troxinh-workflow/SKILL.md`.

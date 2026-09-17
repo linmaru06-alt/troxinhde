@@ -13,9 +13,7 @@ export const AdminFinancePage: React.FC = () => {
             <CreditCard className="w-7 h-7 text-[#006d37]" />
             Quản Lý Doanh Thu & Tài Chính
           </h1>
-          <p className="text-xs text-gray-500 mt-1">
-            Theo dõi dòng tiền nạp gói chủ trọ, đối soát giao dịch và hoàn tiền.
-          </p>
+
         </div>
 
         {/* Banner bảo vệ theo tiêu chuẩn Public Beta */}

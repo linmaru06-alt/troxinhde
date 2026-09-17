@@ -168,7 +168,7 @@ interface AppState {
   rejectRoom: (roomId: string, reason: string) => void;
 
   // Community & Marketplace
-  addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'>) => string;
+  addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
   addMarketplaceItem: (item: Omit<MarketplaceItem, 'id' | 'createdAt'>) => string;
 
   // Bookings
@@ -735,7 +735,7 @@ export const useAppStore = create<AppState>()(
       },
 
       addRoommatePost: (data) => {
-        const newId = `rm_${Date.now()}`;
+        const newId = data.id || `rm_${Date.now()}`;
         const newPost: RoommatePost = {
           ...data,
           id: newId,
