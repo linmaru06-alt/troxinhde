@@ -220,6 +220,8 @@ export const OtpVerificationPage: React.FC = () => {
               role: res.user.role as any,
               avatarUrl: res.user.avatarUrl,
               isDemoAccount: false,
+              phoneVerified: true,
+              emailVerified: false,
             });
 
             showToast(
@@ -264,6 +266,8 @@ export const OtpVerificationPage: React.FC = () => {
             role: (existingUser.role === 'user' ? 'renter' : existingUser.role || role) as any,
             avatarUrl: existingUser.avatar_url || '/images/user-avatar.jpg',
             isDemoAccount: false,
+            phoneVerified: true,
+            emailVerified: existingUser.email ? undefined : false,
           });
 
           showToast('Đăng nhập thành công! 👋', `Chào mừng ${existingUser.name}`, 'success');

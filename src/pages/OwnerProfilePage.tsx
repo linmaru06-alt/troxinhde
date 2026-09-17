@@ -32,10 +32,24 @@ export const OwnerProfilePage: React.FC = () => {
                 <h1 className="text-2xl font-black text-gray-900">{currentUser?.name}</h1>
                 <Badge variant="verified" size="sm">Chủ trọ uy tín 5★</Badge>
               </div>
-              <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
-                <Phone className="w-3.5 h-3.5 text-gray-400" />
-                {currentUser?.phone}
-              </p>
+              <div className="flex flex-col gap-1.5 mt-2">
+                <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
+                  <Phone className="w-3.5 h-3.5 text-gray-400" />
+                  {currentUser?.phone || 'Chưa cập nhật SĐT'}
+                  {currentUser?.phoneVerified && (
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Đã xác minh" />
+                  )}
+                </p>
+                {currentUser?.email && (
+                  <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
+                    <Mail className="w-3.5 h-3.5 text-gray-400" />
+                    {currentUser.email}
+                    {currentUser.emailVerified && (
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Đã xác minh" />
+                    )}
+                  </p>
+                )}
+              </div>
               <p className="text-xs text-gray-500">{currentUser?.bio}</p>
             </div>
 

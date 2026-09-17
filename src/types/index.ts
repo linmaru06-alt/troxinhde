@@ -15,7 +15,9 @@ export interface User {
   bio?: string;
   address?: string;
   rating?: number;
-  verified?: boolean;
+  verified?: boolean; // Generic verification badge
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
   isBanned?: boolean;
   bannedUntil?: string;
   bannedReason?: string;

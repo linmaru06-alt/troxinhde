@@ -121,6 +121,8 @@ const AppCloudDataLoader: React.FC = () => {
               phone: profile.phone,
               role: profile.role,
               avatarUrl: profile.avatarUrl,
+              emailVerified: fbUser.emailVerified,
+              phoneVerified: !!fbUser.phoneNumber,
             });
           } else {
             const synced = await syncFirebaseUserToSupabase(fbUser);
@@ -131,6 +133,8 @@ const AppCloudDataLoader: React.FC = () => {
               phone: synced.phone,
               role: synced.role,
               avatarUrl: synced.avatarUrl,
+              emailVerified: fbUser.emailVerified,
+              phoneVerified: !!fbUser.phoneNumber,
             });
           }
         } catch (err) {

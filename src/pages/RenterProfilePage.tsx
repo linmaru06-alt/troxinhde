@@ -66,10 +66,24 @@ export const RenterProfilePage: React.FC = () => {
               <School className="w-3.5 h-3.5 text-[#00a854]" />
               {currentUser.school || 'Sinh viên đại học'} • {currentUser.year || 'Năm 3'}
             </p>
-            <p className="text-xs text-gray-500 font-medium flex items-center justify-center sm:justify-start gap-1">
-              <Phone className="w-3.5 h-3.5 text-gray-400" />
-              {currentUser.phone}
-            </p>
+            <div className="flex flex-col gap-1.5 mt-2">
+              <p className="text-xs text-gray-500 font-medium flex items-center justify-center sm:justify-start gap-1">
+                <Phone className="w-3.5 h-3.5 text-gray-400" />
+                {currentUser.phone || 'Chưa cập nhật SĐT'}
+                {currentUser.phoneVerified && (
+                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Đã xác minh" />
+                )}
+              </p>
+              {currentUser.email && (
+                <p className="text-xs text-gray-500 font-medium flex items-center justify-center sm:justify-start gap-1">
+                  <Mail className="w-3.5 h-3.5 text-gray-400" />
+                  {currentUser.email}
+                  {currentUser.emailVerified && (
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Đã xác minh" />
+                  )}
+                </p>
+              )}
+            </div>
           </div>
 
           <button onClick={logout} className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1">

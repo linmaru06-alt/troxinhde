@@ -137,6 +137,8 @@ interface AppState {
     role?: UserRole;
     avatarUrl?: string;
     isDemoAccount?: boolean;
+    emailVerified?: boolean;
+    phoneVerified?: boolean;
   }) => void;
   registerUser: (data: { name: string; phone: string; email?: string; id?: string; role?: UserRole }) => User;
   logout: () => void;
@@ -436,6 +438,8 @@ export const useAppStore = create<AppState>()(
           role: userRole,
           avatarUrl: userData.avatarUrl || '/images/user-avatar.jpg',
           verified: true,
+          emailVerified: userData.emailVerified,
+          phoneVerified: userData.phoneVerified,
           ownerApplicationStatus: userRole === 'owner' ? 'approved' : 'none',
           createdAt: new Date().toISOString(),
         };

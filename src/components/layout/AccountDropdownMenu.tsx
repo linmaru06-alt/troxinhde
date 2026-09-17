@@ -160,7 +160,22 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-gray-500 font-mono">{currentUser.phone || 'Thành viên Trọ Xinh'}</p>
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <p className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                      {currentUser.phone || 'Thành viên Trọ Xinh'}
+                      {currentUser.phoneVerified && (
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="SĐT đã xác minh" />
+                      )}
+                    </p>
+                    {currentUser.email && (
+                      <p className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                        {currentUser.email}
+                        {currentUser.emailVerified && (
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" title="Email đã xác minh" />
+                        )}
+                      </p>
+                    )}
+                  </div>
                   <span
                     className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                       currentUser.role === 'owner'
