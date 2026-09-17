@@ -37,5 +37,5 @@ Không tải skill cho các tác vụ nhỏ như sửa văn bản, icon, khoản
 - Chạy `npm run build`.
 - Chạy thêm test đúng phạm vi nếu có.
 - Không tuyên bố thành công nếu chưa chạy hoặc test thất bại.
-- Không tự đẩy `main`.
+- Khi người dùng yêu cầu đồng bộ hoặc đẩy code, đẩy trực tiếp lên nhánh `main`.
 - Báo cáo ngắn gọn các file đã thay đổi, kết quả kiểm thử và phần chưa xác minh.
