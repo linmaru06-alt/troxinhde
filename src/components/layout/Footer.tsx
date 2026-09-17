@@ -69,21 +69,17 @@ export const Footer: React.FC = () => {
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Pháp Lý & Điều Khoản</h4>
             <ul className="space-y-2 text-xs">
-              <li>
-                <Link to="/dieu-khoan" className="hover:text-[#006d37] transition font-medium">
-                  Điều khoản sử dụng
-                </Link>
-              </li>
-              <li>
-                <Link to="/chinh-sach-bao-mat" className="hover:text-[#006d37] transition font-medium">
-                  Chính sách bảo mật & quyền riêng tư
-                </Link>
-              </li>
-              <li>
-                <Link to="/ve-chung-toi/kiem-duyet" className="hover:text-[#006d37] transition font-medium">
-                  Quy trình kiểm duyệt phòng 24h
-                </Link>
-              </li>
+              {[
+                { to: '/dieu-khoan', label: 'Điều khoản sử dụng' },
+                { to: '/chinh-sach-bao-mat', label: 'Chính sách bảo mật & quyền riêng tư' },
+                { to: '/ve-chung-toi/kiem-duyet', label: 'Quy trình kiểm duyệt phòng 24h' },
+              ].map((link) => (
+                <li key={link.to}>
+                  <Link to={link.to} className="hover:text-[#006d37] transition font-medium">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </div>
 
