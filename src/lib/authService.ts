@@ -273,11 +273,18 @@ export async function sendPhoneOtp(
     console.warn('[Firebase Auth] Lỗi gửi SMS OTP:', error);
     window.confirmationResult = undefined;
 
-    let friendlyError = 'Không thể gửi tin nhắn SMS xác thực. Vui lòng kiểm tra lại số điện thoại.';
+    let friendlyError = error.code 
+      ? `Không thể gửi tin nhắn SMS xác thực (${error.code}). Vui lòng kiểm tra lại cấu hình Firebase hoặc số điện thoại.`
+      : 'Không thể gửi tin nhắn SMS xác thực. Vui lòng kiểm tra lại số điện thoại.';
+
     if (error.code === 'auth/invalid-phone-number') {
       friendlyError = 'Số điện thoại không đúng định dạng quốc tế (+84).';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      friendlyError = 'Phương thức đăng nhập Bằng Số Điện Thoại (Phone) chưa được BẬT trong Firebase Console > Authentication > Sign-in method.';
+    } else if (error.code === 'auth/unauthorized-domain') {
+      friendlyError = 'Tên miền hiện tại chưa được cấp phép trong Firebase Console > Authentication > Settings > Authorized domains.';
     } else if (error.code === 'auth/quota-exceeded' || error.code === 'auth/billing-not-enabled') {
-      friendlyError = 'SMS OTP chưa cấu hình hoặc đã hết hạn mức SMS trên Firebase Console. Hệ thống chuyển sang chế độ test.';
+      friendlyError = 'Firebase chưa cấu hình gói thanh toán (Blaze) hoặc đã hết hạn mức gửi SMS. Vui lòng thêm số điện thoại này vào "Phone numbers for testing" trong Firebase Console.';
     } else if (error.code === 'auth/too-many-requests') {
       friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng chờ 1–2 phút.';
     } else if (error.code === 'auth/captcha-check-failed') {
