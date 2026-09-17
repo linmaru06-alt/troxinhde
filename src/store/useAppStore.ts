@@ -427,7 +427,8 @@ export const useAppStore = create<AppState>()(
       },
 
       loginWithSocialUser: (userData) => {
-        const userRole: 'user' | 'owner' | 'admin' = userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user';
+        const isSuperAdmin = userData.email?.toLowerCase() === 'quan66934@gmail.com' || userData.email?.toLowerCase() === 'admin@troxinh.vn';
+        const userRole: 'user' | 'owner' | 'admin' = isSuperAdmin ? 'admin' : (userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user');
         const userObj: User = {
           id: userData.id,
           firebaseUid: userData.firebaseUid,

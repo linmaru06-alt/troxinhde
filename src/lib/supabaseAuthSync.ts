@@ -130,7 +130,8 @@ export async function createSupabaseProfile(
 ): Promise<{ success: boolean; data?: SupabaseUserProfile; error?: string }> {
   const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
   const cleanPhone = data.phone ? data.phone.replace(/\D/g, '') : null;
-  const role = data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'renter';
+  const isSuperAdmin = cleanEmail === 'quan66934@gmail.com' || cleanEmail === 'admin@troxinh.vn';
+  const role = isSuperAdmin ? 'admin' : (data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'renter');
   const avatarUrl = data.avatarUrl || '/images/user-avatar.jpg';
 
   try {
@@ -437,10 +438,12 @@ export async function handleUnifiedAuth(params: {
     }
 
     // 4. NẾU CHƯA CÓ PROFILE -> TỰ ĐỘNG ĐĂNG KÝ & LƯU SUPABASE PROFILES
+    const isSuperAdmin = cleanEmail === 'quan66934@gmail.com' || cleanEmail === 'admin@troxinh.vn';
     const defaultName =
+      (isSuperAdmin ? 'Quản Trị Viên (Quân)' : undefined) ||
       params.name?.trim() ||
       (cleanPhone ? `Người dùng ${cleanPhone.slice(-4)}` : cleanEmail ? cleanEmail.split('@')[0] : 'Người dùng Trọ Xinh');
-    const role = params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'renter';
+    const role = isSuperAdmin ? 'admin' : (params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'renter');
     const avatar = params.avatarUrl || '/images/user-avatar.jpg';
 
     const newProfileRecord = {

@@ -91,13 +91,18 @@ export async function getProfileByFirebaseUid(firebaseUid: string): Promise<Auth
       .maybeSingle();
 
     if (!profErr && profile) {
+      const isSuperAdmin = profile.email === 'quan66934@gmail.com' || profile.email === 'admin@troxinh.vn';
+      const resolvedRole: AppUserRole = isSuperAdmin
+        ? 'admin'
+        : ((profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole);
+
       return {
         id: profile.id,
         firebaseUid: profile.firebase_uid || profile.id,
-        name: profile.full_name || profile.name || 'Người dùng Trọ Xinh',
+        name: profile.full_name || profile.name || (isSuperAdmin ? 'Quản Trị Viên (Quân)' : 'Người dùng Trọ Xinh'),
         email: profile.email || undefined,
         phone: profile.phone || undefined,
-        role: (profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole,
+        role: resolvedRole,
         avatarUrl: profile.avatar_url || '/images/user-avatar.jpg',
         ownerApplicationStatus: profile.owner_application_status || 'none',
         isDemoAccount: Boolean(profile.is_demo_account),
@@ -122,8 +127,10 @@ export async function syncFirebaseUserToSupabase(
   isDemo = false
 ): Promise<AuthUserProfile> {
   const email = fbUser.email ? fbUser.email.trim().toLowerCase() : undefined;
+  const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+  const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : customRole;
   const phone = fbUser.phoneNumber ? fbUser.phoneNumber.replace(/\D/g, '') : undefined;
-  const name = customName || fbUser.displayName || (email ? email.split('@')[0] : 'Người dùng Trọ Xinh');
+  const name = customName || fbUser.displayName || (isSuperAdmin ? 'Quản Trị Viên (Quân)' : (email ? email.split('@')[0] : 'Người dùng Trọ Xinh'));
   const avatarUrl = fbUser.photoURL || '/images/user-avatar.jpg';
 
   try {
@@ -138,7 +145,7 @@ export async function syncFirebaseUserToSupabase(
       name,
       email,
       phone,
-      role: customRole,
+      role: effectiveRole,
       avatarUrl,
       isDemo,
     });
@@ -569,13 +576,16 @@ export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Pro
     const fbUser = result.user;
 
     const email = fbUser.email ? fbUser.email.toLowerCase() : `google_${fbUser.uid}@troxinh.vn`;
+    const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+    const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : intendedRole;
+
     const unifiedRes = await handleUnifiedAuth({
       identifier: email,
       authType: 'google',
-      name: fbUser.displayName || undefined,
+      name: isSuperAdmin ? (fbUser.displayName || 'Quản Trị Viên (Quân)') : (fbUser.displayName || undefined),
       avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
       firebaseUid: fbUser.uid,
-      intendedRole,
+      intendedRole: effectiveRole,
     });
 
     if (!unifiedRes.success || !unifiedRes.user) {
