@@ -11,8 +11,14 @@ export async function getUserSubscription(userId: string) {
     .limit(1)
     .maybeSingle();
 
-  if (error) return null;
-  return data;
+  if (error || !data) return null;
+
+  const isActive = Boolean(data.expires_at && new Date(data.expires_at).getTime() > Date.now());
+
+  return {
+    ...data,
+    is_active: isActive,
+  };
 }
 
 export async function getUserTransactions(userId: string) {

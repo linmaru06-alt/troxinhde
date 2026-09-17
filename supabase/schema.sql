@@ -176,7 +176,6 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   started_at TIMESTAMPTZ DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
-  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

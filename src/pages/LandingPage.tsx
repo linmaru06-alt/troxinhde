@@ -74,7 +74,7 @@ export const LandingPage: React.FC = () => {
           {/* Slogan Banner with Bold Text */}
           <div className="relative max-w-2xl mx-auto py-1">
             <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-gray-950 tracking-tight leading-snug drop-shadow-xs">
-              Phòng thật, giá chuẩn
+              Phòng tốt chốt ngay, đồ hay giá rẻ
             </h1>
           </div>
         </div>

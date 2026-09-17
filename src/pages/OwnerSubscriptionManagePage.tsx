@@ -99,6 +99,10 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
   const currentPlan =
     SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
 
+  const isSubscriptionActive = Boolean(
+    ownerSubscription.expiresAt && new Date(ownerSubscription.expiresAt).getTime() > Date.now()
+  );
+
   const totalUsedRooms = myRooms.length;
   const roomLimit = currentPlan.roomLimit;
   const usagePercent = Math.min(100, Math.round((totalUsedRooms / (roomLimit === 999 ? 100 : roomLimit)) * 100));
@@ -154,8 +158,8 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-extrabold text-gray-900">{currentPlan.name}</h2>
-                  <Badge variant="verified" size="sm">
-                    {ownerSubscription.status === 'active' ? 'Đang hoạt động' : 'Đã hết hạn'}
+                  <Badge variant={isSubscriptionActive ? 'verified' : 'secondary'} size="sm">
+                    {isSubscriptionActive ? 'Đang hoạt động' : 'Đã hết hạn'}
                   </Badge>
                 </div>
                 <p className="text-xs text-gray-500 mt-0.5">

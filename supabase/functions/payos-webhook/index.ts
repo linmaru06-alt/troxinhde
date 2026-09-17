@@ -68,7 +68,6 @@ serve(async (req) => {
               started_at: new Date().toISOString(),
               expires_at: expiresAt.toISOString(),
               transaction_id: tx.id,
-              is_active: true,
             });
           }
 

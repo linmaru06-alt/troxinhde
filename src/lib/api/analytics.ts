@@ -23,7 +23,7 @@ export async function getAdminStats() {
     supabase.from('rooms').select('*', { count: 'exact', head: true }),
     supabase.from('rooms').select('*', { count: 'exact', head: true }).eq('moderation_status', 'pending'),
     supabase.from('owner_applications').select('*', { count: 'exact', head: true }).eq('status', 'pending'),
-    supabase.from('user_subscriptions').select('*', { count: 'exact', head: true }).eq('is_active', true),
+    supabase.from('user_subscriptions').select('*', { count: 'exact', head: true }).gt('expires_at', new Date().toISOString()),
   ]);
 
   return {
