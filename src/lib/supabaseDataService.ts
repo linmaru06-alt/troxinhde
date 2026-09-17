@@ -140,7 +140,8 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
   try {
     const { data: rmData, error: rmErr } = await supabase
       .from('roommate_posts')
-      .select('*, profiles:poster_id(*)')
+      .select('*, profiles:poster_id(id, full_name, avatar_url)')
+      .eq('status', 'active')
       .order('created_at', { ascending: false });
 
     if (rmErr) {
@@ -150,13 +151,13 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
 
     if (!rmData || rmData.length === 0) return [];
 
-    const genderMap: Record<string, string> = {
+    const genderMap: Record<string, 'Nam' | 'Nữ' | 'Khác'> = {
       male: 'Nam',
       female: 'Nữ',
-      any: 'Tất cả',
+      any: 'Khác',
     };
 
-    const targetGenderMap: Record<string, string> = {
+    const targetGenderMap: Record<string, 'Chỉ tìm Nam' | 'Chỉ tìm Nữ' | 'Tất cả'> = {
       male: 'Chỉ tìm Nam',
       female: 'Chỉ tìm Nữ',
       any: 'Tất cả',
@@ -166,20 +167,21 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       const poster = r.profiles || {};
       return {
         id: r.id,
-        userId: r.poster_id || poster.id || 'user_1',
+        userId: r.poster_id || poster.id || '',
         userName: r.nickname || poster.full_name || 'Thành viên Trọ Xinh',
         userAvatar: poster.avatar_url || '/images/user-avatar.jpg',
-        userPhone: poster.phone || '0977112233',
-        userAge: Number(r.age) || 21,
-        userGender: (genderMap[r.gender] || r.gender || 'Nữ') as any,
-        userSchool: r.school || 'Đại Học Hà Nội',
-        genderPreference: (targetGenderMap[r.preferred_gender] || r.target_gender || 'Tất cả') as any,
-        district: r.district || 'Quận Đống Đa',
-        location: r.location || 'Hà Nội',
+        userAge: Number(r.age) || 20,
+        userGender: (genderMap[r.gender] || (r.gender === 'Nam' || r.gender === 'Nữ' ? r.gender : 'Nam')) as any,
+        userSchool: r.school || '',
+        genderPreference: (targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : 'Tất cả')) as any,
+        district: r.district || 'Hà Nội',
         budgetShare: Number(r.budget_per_person || r.budget) || 2000000,
         habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
-        intro: r.self_intro || r.bio || 'Chào bạn, mình đang tìm bạn ở ghép vui vẻ hòa đồng.',
-        images: Array.isArray(r.images) && r.images.length > 0 ? r.images : ['https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=800'],
+        lifestyleTags: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags.slice(0, 3) : [],
+        intro: r.self_intro || r.bio || '',
+        images: Array.isArray(r.images) ? r.images : [],
+        linkedRoomId: r.room_id,
+        status: r.status === 'closed' ? 'Đã ghép' : 'Đang tìm',
         createdAt: r.created_at || new Date().toISOString(),
       };
     });

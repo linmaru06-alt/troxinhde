@@ -200,13 +200,15 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
                 <h4 className="font-bold text-gray-900">{post.userName}</h4>
                 <span className="text-xs text-gray-400">({post.userAge} tuổi • {post.userGender})</span>
               </div>
-              <p className="text-xs text-[#006d37] font-medium">{post.userSchool}</p>
+              {post.userSchool && (
+                <p className="text-xs text-[#006d37] font-medium">{post.userSchool}</p>
+              )}
             </div>
           </div>
 
           <button
             onClick={() => toggleSaveRoommate(post.id)}
-            className={`p-2 rounded-full transition ${isSaved ? 'text-rose-500 bg-rose-50' : 'text-gray-400 hover:text-rose-500 hover:bg-gray-50'}`}
+            className={`p-2 rounded-full transition cursor-pointer ${isSaved ? 'text-rose-500 bg-rose-50' : 'text-gray-400 hover:text-rose-500 hover:bg-gray-50'}`}
           >
             <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
           </button>
@@ -218,9 +220,9 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
           <span className="text-[#006d37] font-bold text-sm">{formatCurrency(post.budgetShare)}/người</span>
         </div>
 
-        {/* Intro */}
+        {/* Intro (Mask contact info if present) */}
         <p className="text-xs text-gray-600 line-clamp-3 mb-3 leading-relaxed">
-          "{post.intro}"
+          "{(post.intro || '').replace(/(0[3|5|7|8|9][0-9]{1}[.\s-]?[0-9]{3}[.\s-]?[0-9]{3,4})/g, (m) => m.slice(0, 3) + '***' + m.slice(-3))}"
         </p>
 
         {Array.isArray(post.lifestyleTags) && post.lifestyleTags.length > 0 && (
@@ -238,7 +240,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
       </div>
 
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-        <span className="text-xs text-gray-400">{post.district}</span>
+        <span className="text-xs text-gray-400">{post.district || 'Hà Nội'}</span>
         <Link
           to={`/roommate/${post.id}`}
           className="text-xs font-bold text-[#006d37] hover:underline"

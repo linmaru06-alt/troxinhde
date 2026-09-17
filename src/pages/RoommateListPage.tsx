@@ -45,13 +45,13 @@ export const RoommateListPage: React.FC = () => {
       if (selectedBudget === '2m_3m' && (r.budgetShare < 2000000 || r.budgetShare > 3000000)) return false;
       if (selectedBudget === 'over_3m' && r.budgetShare < 3000000) return false;
 
-      // Search keyword filter (Name, school, bio)
+      // Search keyword filter (Name, school, bio, district)
       if (searchKeyword.trim()) {
         const q = searchKeyword.toLowerCase();
-        const matchName = r.userName.toLowerCase().includes(q);
-        const matchSchool = r.userSchool.toLowerCase().includes(q);
-        const matchIntro = r.intro.toLowerCase().includes(q);
-        const matchDistrict = r.district.toLowerCase().includes(q);
+        const matchName = (r.userName || '').toLowerCase().includes(q);
+        const matchSchool = (r.userSchool || '').toLowerCase().includes(q);
+        const matchIntro = (r.intro || '').toLowerCase().includes(q);
+        const matchDistrict = (r.district || '').toLowerCase().includes(q);
         if (!matchName && !matchSchool && !matchIntro && !matchDistrict) return false;
       }
 
@@ -73,29 +73,23 @@ export const RoommateListPage: React.FC = () => {
       {/* Create Roommate Modal */}
       <CreateRoommateModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
-      {/* Header Banner with Custom Illustration Backdrop */}
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
-        {/* Background Image */}
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
-          style={{ backgroundImage: `url('/images/roommate-banner.webp')` }}
-        />
-        {/* Sophisticated Dark Gradient & Frosted Overlay */}
-        <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+      {/* Header Banner with Premium Gradient Backdrop */}
+      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-emerald-900/30 bg-gradient-to-br from-slate-950 via-emerald-950 to-slate-900">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-emerald-500/20 via-transparent to-transparent pointer-events-none" />
+        <div className="absolute -bottom-10 -right-10 w-96 h-96 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/15 hover:bg-white/20 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/30 backdrop-blur-md shadow-xs">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/10 hover:bg-white/15 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/30 backdrop-blur-md shadow-xs">
               <Users className="w-4 h-4 text-emerald-400" />
-              <span>Giai Đoạn 3: Cộng Đồng Tìm Bạn Ở Ghép Hà Nội</span>
+              <span>Cộng Đồng Tìm Bạn Ở Ghép Văn Minh Hà Nội</span>
             </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Tìm Bạn Cùng Phòng <br />
               <span className="text-[#4ade80]">Hợp Gu & San Sẻ Chi Phí</span>
             </h1>
-            <p className="text-gray-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-lg">
+            <p className="text-gray-200 text-xs sm:text-sm md:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-lg">
               Kết nối với sinh viên và người đi làm văn minh, có cùng thói quen sinh hoạt, tính cách và mức ngân sách tại các quận Hà Nội.
             </p>
           </div>
