@@ -5,7 +5,7 @@ export async function getNotifications(userId: string) {
 
   const { data, error } = await supabase
     .from('notifications')
-    .select('*')
+    .select('id, user_id, type, title, message, link_url, is_read, created_at')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 

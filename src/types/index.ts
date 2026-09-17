@@ -1,4 +1,5 @@
 export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
+export type AdminRole = 'super_admin' | 'moderator' | 'support' | 'finance';
 
 export interface User {
   id: string;
@@ -15,6 +16,11 @@ export interface User {
   address?: string;
   rating?: number;
   verified?: boolean;
+  isBanned?: boolean;
+  bannedUntil?: string;
+  bannedReason?: string;
+  landlordVerified?: boolean;
+  adminRole?: AdminRole;
   onboardingCompleted?: boolean;
   ownerOnboardingCompleted?: boolean;
   ownerApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
@@ -149,30 +155,49 @@ export interface MarketplaceItem {
 
 export interface Message {
   id: string;
-  threadId: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar: string;
-  text: string;
-  createdAt: string;
-  status: 'sending' | 'sent' | 'read';
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  is_read?: boolean;
+  created_at: string;
+  status?: 'sending' | 'sent' | 'read' | 'failed';
+  sender?: {
+    id: string;
+    full_name?: string;
+    name?: string;
+    avatar_url?: string;
+  };
 }
 
-export interface Thread {
+export interface ConversationParticipant {
   id: string;
-  participants: {
+  full_name?: string;
+  name?: string;
+  avatar_url?: string;
+  app_role?: string;
+  phone?: string;
+}
+
+export interface Conversation {
+  id: string;
+  room_id?: string | null;
+  participant_1: string;
+  participant_2: string;
+  last_message?: string | null;
+  last_message_at?: string | null;
+  unread_count_p1?: number;
+  unread_count_p2?: number;
+  created_at?: string;
+  // Joined relations
+  rooms?: {
     id: string;
-    name: string;
-    avatar: string;
-    role: string;
-  }[];
-  relatedRoomId?: string;
-  relatedRoomTitle?: string;
-  relatedRoomPrice?: number;
-  relatedRoomImage?: string;
-  lastMessage: string;
-  lastMessageAt: string;
-  unreadCount: number;
+    name?: string;
+    title?: string;
+    price: number;
+    images?: string[];
+  } | null;
+  p1?: ConversationParticipant | null;
+  p2?: ConversationParticipant | null;
 }
 
 export interface NotificationItem {
@@ -218,13 +243,47 @@ export interface ReportItem {
   id: string;
   targetId: string;
   targetTitle: string;
-  targetType: 'room' | 'roommate' | 'marketplace';
+  targetType: 'room' | 'roommate' | 'marketplace' | 'user';
+  reporterId?: string;
   reporterName: string;
   reporterPhone?: string;
   reason: string;
   detail?: string;
+  severity?: 'low' | 'medium' | 'high' | 'critical';
   status: 'pending' | 'resolved' | 'dismissed';
+  adminNotes?: string;
+  resolvedBy?: string;
   createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface AuditLog {
+  id: string;
+  admin_id?: string | null;
+  admin_email?: string;
+  admin_role?: string;
+  action: string;
+  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system';
+  entity_id?: string;
+  data_before?: Record<string, any> | null;
+  data_after?: Record<string, any> | null;
+  reason?: string | null;
+  is_demo_admin?: boolean;
+  created_at: string;
+}
+
+export interface AdminMetrics {
+  totalRooms: number;
+  pendingRooms: number;
+  approvedRooms: number;
+  rejectedRooms: number;
+  totalUsers: number;
+  totalOwners: number;
+  pendingOwnerApps: number;
+  totalReports: number;
+  pendingReports: number;
+  totalBookings: number;
+  pendingBookings: number;
 }
 
 export interface Review {

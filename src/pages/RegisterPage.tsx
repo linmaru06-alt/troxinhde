@@ -3,13 +3,14 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAppStore } from '../store/useAppStore';
-import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle, Sparkles, Building2, CheckCircle2 } from 'lucide-react';
-import { registerWithEmailPassword, loginWithGoogle, loginWithDemoAccount } from '../lib/authService';
+import { User, Phone, Lock, Mail, UserPlus, ShieldCheck, AlertCircle, Sparkles, Building2, CheckCircle2, ArrowRight } from 'lucide-react';
+import { loginWithGoogle, loginWithDemoAccount, completeEmailRegistration } from '../lib/authService';
+import { checkUserExists } from '../lib/supabaseAuthSync';
 
 export const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginWithSocialUser, showToast } = useAppStore();
+  const { setCurrentUser, loginWithSocialUser, showToast } = useAppStore();
 
   const returnUrl = searchParams.get('returnUrl') || searchParams.get('next');
   const roleParam = (searchParams.get('role') || 'renter') as 'renter' | 'owner';
@@ -27,7 +28,7 @@ export const RegisterPage: React.FC = () => {
   const [isGoogleLoading, setIsGoogleLoading] = useState<boolean>(false);
   const [demoLoadingType, setDemoLoadingType] = useState<string | null>(null);
 
-  // 1. Xử lý Đăng ký bằng Email & Mật khẩu
+  // 1. Xử lý Đăng ký bằng Email & Mật khẩu -> Kiểm tra trùng lặp -> Chuyển sang /xac-thuc-otp
   const handleEmailRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -40,7 +41,8 @@ export const RegisterPage: React.FC = () => {
 
     // Validate định dạng Email
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!email.trim() || !emailRegex.test(email.trim())) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail || !emailRegex.test(cleanEmail)) {
       setError('Địa chỉ Email không hợp lệ.');
       return;
     }
@@ -58,51 +60,54 @@ export const RegisterPage: React.FC = () => {
     }
 
     const cleanPhone = phone.trim().replace(/\D/g, '');
+    if (phone.trim() && cleanPhone.length < 10) {
+      setError('Số điện thoại không hợp lệ (tối thiểu 10 chữ số).');
+      return;
+    }
 
     setIsLoading(true);
 
     try {
-      const res = await registerWithEmailPassword(
-        email.trim(),
+      // 1. Kiểm tra xem Email hoặc SĐT đã tồn tại chưa
+      const checkRes = await checkUserExists({
+        email: cleanEmail,
+        phone: cleanPhone || undefined,
+      });
+
+      if (checkRes.exists) {
+        setIsLoading(false);
+        setError(checkRes.message || 'Email hoặc số điện thoại này đã được đăng ký tài khoản.');
+        return;
+      }
+
+      // 2. Đăng ký trực tiếp qua Firebase Auth chuẩn bảo mật, không lưu thông tin thô vào client storage
+      const regRes = await completeEmailRegistration(
+        cleanEmail,
         password,
         name.trim(),
         cleanPhone || undefined,
         roleParam
       );
 
-      setIsLoading(false);
-
-      if (res.success && res.user) {
-        // Tự động đăng nhập ngay lập tức
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-
-        showToast('Đăng ký tài khoản thành công! 🎉', `Chào mừng ${res.user.name} đến với Trọ Xinh`, 'success');
-
-        if (returnUrl) {
-          navigate(decodeURIComponent(returnUrl));
-        } else if (res.user.role === 'owner') {
-          navigate('/chu-tro');
-        } else {
-          navigate('/tim-phong');
-        }
-      } else {
-        setError(res.error || 'Đăng ký không thành công. Vui lòng thử lại!');
+      if (!regRes.success || !regRes.user) {
+        setIsLoading(false);
+        setError(regRes.error || 'Đăng ký không thành công. Vui lòng thử lại!');
+        return;
       }
+
+      // Đăng ký thành công -> cập nhật trạng thái user và chuyển hướng an toàn
+      setCurrentUser(regRes.user as any);
+      showToast('Đăng ký tài khoản thành công! 🎉', `Chào mừng ${regRes.user.name} đến với Trọ Xinh.`, 'success');
+      setIsLoading(false);
+      navigate(returnUrl || (roleParam === 'owner' ? '/chu-tro' : '/'));
     } catch (err: any) {
       setIsLoading(false);
-      setError('Đã có lỗi xảy ra trong quá trình đăng ký. Vui lòng thử lại!');
+      setError(err?.message || 'Đã có lỗi xảy ra khi tạo tài khoản. Vui lòng thử lại!');
     }
   };
 
-  // 2. Xử lý Đăng ký bằng Số điện thoại (Nhận OTP SMS)
-  const handlePhoneRegister = (e: React.FormEvent) => {
+  // 2. Xử lý Đăng ký bằng Số điện thoại (Nhận OTP SMS) -> Kiểm tra trùng lặp -> Chuyển sang /xac-thuc-otp
+  const handlePhoneRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
 
@@ -118,13 +123,24 @@ export const RegisterPage: React.FC = () => {
     }
 
     setIsLoading(true);
-    setTimeout(() => {
+
+    try {
+      const checkRes = await checkUserExists({ phone: cleanPhone });
+      if (checkRes.exists) {
+        setIsLoading(false);
+        setError(checkRes.message || 'Số điện thoại này đã được sử dụng cho một tài khoản khác.');
+        return;
+      }
+
       setIsLoading(false);
-      const otpUrl = `/xac-thuc-otp?phone=${encodeURIComponent(cleanPhone)}&name=${encodeURIComponent(
+      const otpUrl = `/xac-thuc-otp?mode=phone&phone=${encodeURIComponent(cleanPhone)}&name=${encodeURIComponent(
         name.trim()
-      )}&role=${roleParam}&mode=phone${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
+      )}&role=${roleParam}&action=register${returnUrl ? `&returnUrl=${encodeURIComponent(returnUrl)}` : ''}`;
       navigate(otpUrl);
-    }, 200);
+    } catch (err: any) {
+      setIsLoading(false);
+      setError('Đã có lỗi xảy ra khi kiểm tra số điện thoại. Vui lòng thử lại!');
+    }
   };
 
   // 3. Xử lý Đăng ký nhanh 1-chạm bằng Google
@@ -138,11 +154,13 @@ export const RegisterPage: React.FC = () => {
     if (res.success && res.user) {
       loginWithSocialUser({
         id: res.user.id,
+        firebaseUid: res.user.firebaseUid,
         name: res.user.name,
         email: res.user.email,
         phone: res.user.phone,
         role: res.user.role,
         avatarUrl: res.user.avatarUrl,
+        isDemoAccount: Boolean(res.user.isDemoAccount),
       });
 
       showToast('Đăng ký Google thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
@@ -170,11 +188,13 @@ export const RegisterPage: React.FC = () => {
     if (res.success && res.user) {
       loginWithSocialUser({
         id: res.user.id,
+        firebaseUid: res.user.firebaseUid,
         name: res.user.name,
         email: res.user.email,
         phone: res.user.phone,
         role: res.user.role,
         avatarUrl: res.user.avatarUrl,
+        isDemoAccount: Boolean(res.user.isDemoAccount),
       });
 
       showToast(`Kích hoạt tài khoản ${demoType.toUpperCase()} Demo thành công! ✨`, `Chào mừng ${res.user.name}`, 'success');
@@ -240,9 +260,19 @@ export const RegisterPage: React.FC = () => {
 
         {/* Error notification */}
         {error && (
-          <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2 animate-shake">
+          <div className="p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs rounded-2xl flex items-start gap-2.5 animate-shake">
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
-            <span>{error}</span>
+            <div className="space-y-1 flex-1">
+              <span className="block font-medium">{error}</span>
+              {(error.includes('đăng ký') || error.includes('sử dụng') || error.includes('hệ thống') || error.includes('Đăng nhập')) && (
+                <Link
+                  to={returnUrl ? `/dang-nhap?returnUrl=${encodeURIComponent(returnUrl)}` : '/dang-nhap'}
+                  className="inline-flex items-center gap-1 font-bold text-[#00a854] hover:underline pt-0.5"
+                >
+                  <span>👉 Bấm vào đây để Đăng nhập ngay</span>
+                </Link>
+              )}
+            </div>
           </div>
         )}
 
@@ -298,15 +328,21 @@ export const RegisterPage: React.FC = () => {
               leftIcon={<Lock className="w-4 h-4" />}
             />
 
+            <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100 text-[11px] text-emerald-900 flex items-center gap-2">
+              <CheckCircle2 className="w-4 h-4 text-[#00a854] shrink-0" />
+              <span>Sau khi bấm nút, hệ thống sẽ gửi mã xác thực OTP 6 số để kích hoạt tài khoản.</span>
+            </div>
+
             <Button
               type="submit"
               variant="primary"
               size="lg"
               className="w-full mt-2"
               isLoading={isLoading}
-              leftIcon={<UserPlus className="w-4 h-4" />}
+              leftIcon={<Mail className="w-4 h-4" />}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Đăng Ký Tài Khoản
+              {isLoading ? 'Đang gửi mã OTP...' : 'Gửi Mã OTP & Xác Nhận Đăng Ký'}
             </Button>
           </form>
         )}
@@ -346,8 +382,9 @@ export const RegisterPage: React.FC = () => {
               className="w-full mt-2"
               isLoading={isLoading}
               leftIcon={<Phone className="w-4 h-4" />}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
             >
-              Gửi Mã Xác Thực OTP SMS
+              {isLoading ? 'Đang gửi mã OTP...' : 'Gửi Mã Xác Thực OTP SMS'}
             </Button>
           </form>
         )}

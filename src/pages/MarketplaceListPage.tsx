@@ -34,6 +34,37 @@ const DISTRICTS = [
   'Quận Hoàng Mai',
 ];
 
+const CATEGORY_SHOWCASE = [
+  {
+    name: 'Nội thất',
+    label: 'Nội thất sinh viên',
+    desc: 'Bàn ghế, tủ vải, kệ sách',
+    icon: '🪑',
+    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Đồ điện tử',
+    label: 'Đồ điện tử giá rẻ',
+    desc: 'Tủ lạnh mini, màn hình, tai nghe',
+    icon: '⚡',
+    image: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Sách vở',
+    label: 'Sách & Giáo trình',
+    desc: 'TOEIC, IT, giáo trình đại học 0đ',
+    icon: '📚',
+    image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Đồ gia dụng',
+    label: 'Đồ gia dụng phòng trọ',
+    desc: 'Nồi cơm điện, bếp từ, quạt máy',
+    icon: '🍳',
+    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=80',
+  },
+];
+
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
   const { marketplaceItems, currentUser, addMarketplaceItem, showToast } = useAppStore();
@@ -97,53 +128,66 @@ export const MarketplaceListPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      showToast('Vui lòng nhập tên món đồ', '', 'warning');
+      showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ muốn pass', 'warning');
       return;
     }
 
-    const sellerId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
-    const catMap: Record<string, any> = {
+    const sellerId =
+      currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
+        ? currentUser.id
+        : '00000000-0000-0000-0000-000000000003';
+
+    const catMap: Record<string, string> = {
       'Nội thất': 'furniture',
       'Đồ điện tử': 'electronics',
       'Sách vở': 'books',
       'Đồ gia dụng': 'household',
     };
 
-    createMarketplaceItem({
-      seller_id: sellerId.length === 36 ? sellerId : '00000000-0000-0000-0000-000000000003',
-      title: title.trim(),
-      price: pricingType === 'Miễn phí' ? 0 : Number(price),
-      is_free: pricingType === 'Miễn phí',
-      category: catMap[category] || 'other',
-      district,
-      description: description || 'Đồ thanh lý sinh viên chính chủ.',
-      image_urls: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
-    }).catch((err) => console.warn('[Marketplace] Lỗi lưu đồ cũ lên Cloud:', err));
+    setIsSubmitting(true);
+    try {
+      await createMarketplaceItem({
+        seller_id: sellerId,
+        title: title.trim(),
+        price: pricingType === 'Miễn phí' ? 0 : Number(price),
+        is_free: pricingType === 'Miễn phí',
+        category: (catMap[category] as any) || 'other',
+        district,
+        description: description || 'Đồ thanh lý sinh viên chính chủ.',
+        image_urls: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
+      });
 
-    addMarketplaceItem({
-      userId: currentUser?.id || 'user_1',
-      userName: currentUser?.name || 'Người dùng Trọ Xinh',
-      userPhone: currentUser?.phone || '0987654321',
-      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-      name: title,
-      price: pricingType === 'Miễn phí' ? 0 : Number(price),
-      pricingType,
-      category,
-      condition,
-      location,
-      district,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
-      description: description || 'Đồ thanh lý sinh viên chính chủ.',
-    });
+      addMarketplaceItem({
+        userId: currentUser?.id || 'user_1',
+        userName: currentUser?.name || 'Người dùng Trọ Xinh',
+        userPhone: currentUser?.phone || '',
+        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        name: title,
+        price: pricingType === 'Miễn phí' ? 0 : Number(price),
+        pricingType,
+        category,
+        condition,
+        location,
+        district,
+        images: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
+        description: description || 'Đồ thanh lý sinh viên chính chủ.',
+      });
 
-    setIsModalOpen(false);
-    setTitle('');
-    setDescription('');
-    setImages([]);
-    showToast('Đăng tin đồ cũ thành công! 🎉', 'Món đồ của bạn đã xuất hiện trên chợ sinh viên.', 'success');
+      setIsModalOpen(false);
+      setTitle('');
+      setDescription('');
+      setImages([]);
+      showToast('Đăng tin đồ cũ thành công! 🎉', 'Món đồ của bạn đã xuất hiện trên chợ sinh viên.', 'success');
+    } catch (err: any) {
+      showToast('Lỗi khi đăng tin đồ cũ', err?.message || 'Không thể lưu lên cơ sở dữ liệu. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -187,6 +231,70 @@ export const MarketplaceListPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      </div>
+
+      {/* Visual Category Showcase Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {CATEGORY_SHOWCASE.map((cat) => {
+          const isSelected = selectedCategory === cat.name;
+          const count = marketplaceItems.filter((i) => i.category === cat.name).length;
+
+          return (
+            <button
+              key={cat.name}
+              type="button"
+              onClick={() => setSelectedCategory(isSelected ? 'Tất cả' : cat.name)}
+              className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 p-3.5 sm:p-4 flex flex-col justify-between h-32 sm:h-36 cursor-pointer shadow-xs hover:shadow-md ${
+                isSelected
+                  ? 'border-[#006d37] ring-2 ring-[#006d37]/30 shadow-emerald-900/10 -translate-y-0.5'
+                  : 'border-gray-200/80 hover:border-[#006d37]/30 bg-white hover:-translate-y-0.5'
+              }`}
+            >
+              {/* Background Decorative Image */}
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-20 group-hover:opacity-30"
+                style={{ backgroundImage: `url('${cat.image}')` }}
+              />
+              <div
+                className={`absolute inset-0 transition-colors ${
+                  isSelected
+                    ? 'bg-gradient-to-t from-emerald-900/90 via-emerald-900/50 to-emerald-900/20'
+                    : 'bg-gradient-to-t from-white via-white/80 to-white/40'
+                }`}
+              />
+
+              {/* Top Row: Icon & Count Badge */}
+              <div className="relative z-10 flex items-center justify-between w-full">
+                <span className="text-2xl sm:text-3xl filter drop-shadow-xs">{cat.icon}</span>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    isSelected ? 'bg-white text-[#006d37] shadow-xs' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {count} món
+                </span>
+              </div>
+
+              {/* Bottom Row: Label & Subtitle */}
+              <div className="relative z-10 space-y-0.5">
+                <h3
+                  className={`text-xs sm:text-sm font-black transition-colors ${
+                    isSelected ? 'text-white' : 'text-gray-900 group-hover:text-[#006d37]'
+                  }`}
+                >
+                  {cat.label}
+                </h3>
+                <p
+                  className={`text-[10px] sm:text-[11px] line-clamp-1 ${
+                    isSelected ? 'text-emerald-100' : 'text-gray-500'
+                  }`}
+                >
+                  {cat.desc}
+                </p>
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Filter Bar & Search */}
@@ -412,8 +520,8 @@ export const MarketplaceListPage: React.FC = () => {
             <Button variant="outline" size="md" type="button" onClick={() => setIsModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" size="md" type="submit">
-              Đăng Tin Ngay
+            <Button variant="primary" size="md" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Ngay'}
             </Button>
           </div>
         </form>

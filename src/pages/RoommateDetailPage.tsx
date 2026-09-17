@@ -17,11 +17,14 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { getOrCreateConversation } from '../lib/api/messages';
+
 export const RoommateDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { roommates, rooms, currentUser, savedRoommateIds, toggleSaveRoommate, getOrCreateThread, showToast } = useAppStore();
+  const { roommates, rooms, currentUser, savedRoommateIds, toggleSaveRoommate, showToast } = useAppStore();
   const [showReport, setShowReport] = useState<boolean>(false);
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const post = roommates.find((r) => r.id === id) || roommates[0];
   const linkedRoom = rooms.find((r) => r.id === post?.linkedRoomId);
@@ -36,14 +39,27 @@ export const RoommateDetailPage: React.FC = () => {
     );
   }
 
-  const handleContactChat = () => {
+  const handleContactChat = async () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người đăng bài', 'warning');
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/roommate/${post.id}`)}`);
       return;
     }
-    const threadId = getOrCreateThread(post.userId, post.linkedRoomId);
-    navigate(`/tin-nhan/${threadId}`);
+    if (currentUser.id === post.userId) {
+      showToast('Đây là bài đăng của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
+      return;
+    }
+
+    setIsChatLoading(true);
+    try {
+      const convId = await getOrCreateConversation(currentUser.id, post.userId, post.linkedRoomId);
+      navigate(`/tin-nhan/${convId}`);
+    } catch (err: any) {
+      console.error('[RoommateDetail] Lỗi mở chat:', err);
+      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   return (
@@ -88,10 +104,11 @@ export const RoommateDetailPage: React.FC = () => {
             <Button
               variant="primary"
               size="md"
+              disabled={isChatLoading}
               onClick={handleContactChat}
               leftIcon={<MessageSquare className="w-4 h-4" />}
             >
-              Nhắn Tin Trò Chuyện
+              {isChatLoading ? 'Đang mở hội thoại...' : 'Nhắn Tin Trò Chuyện'}
             </Button>
           </div>
         </div>

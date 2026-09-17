@@ -1,6 +1,8 @@
 import {
   auth,
   googleProvider,
+  facebookProvider,
+  appleProvider,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   signInWithPopup,
@@ -13,6 +15,13 @@ import {
   FirebaseUser,
 } from './firebase';
 import { supabase, getFirebaseIdToken } from './supabase';
+import {
+  createSupabaseProfile,
+  getSupabaseUserByEmail,
+  handleUnifiedAuth,
+  UnifiedAuthResult,
+} from './supabaseAuthSync';
+import { initialUsers } from '../data/mockData';
 
 declare global {
   interface Window {
@@ -71,51 +80,28 @@ export function formatVietnamesePhone(phone: string): string {
 }
 
 /**
- * Đọc hồ sơ người dùng từ Supabase Database bằng Firebase UID
+ * Đọc hồ sơ người dùng từ Supabase (bảng profiles)
  */
 export async function getProfileByFirebaseUid(firebaseUid: string): Promise<AuthUserProfile | null> {
   try {
-    // 1. Thử truy vấn bảng profiles
-    const { data: profile, error: profileErr } = await supabase
+    const { data: profile, error: profErr } = await supabase
       .from('profiles')
       .select('*')
-      .eq('firebase_uid', firebaseUid)
+      .or(`firebase_uid.eq.${firebaseUid},id.eq.${firebaseUid}`)
       .maybeSingle();
 
-    if (!profileErr && profile) {
+    if (!profErr && profile) {
       return {
         id: profile.id,
-        firebaseUid: profile.firebase_uid || firebaseUid,
+        firebaseUid: profile.firebase_uid || profile.id,
         name: profile.full_name || profile.name || 'Người dùng Trọ Xinh',
         email: profile.email || undefined,
         phone: profile.phone || undefined,
-        role: (profile.app_role || profile.role || 'renter') as AppUserRole,
+        role: (profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole,
         avatarUrl: profile.avatar_url || '/images/user-avatar.jpg',
         ownerApplicationStatus: profile.owner_application_status || 'none',
         isDemoAccount: Boolean(profile.is_demo_account),
         createdAt: profile.created_at,
-      };
-    }
-
-    // 2. Thử fallback kiểm tra bảng users cũ (trong giai đoạn chuyển đổi)
-    const { data: oldUser } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', firebaseUid)
-      .maybeSingle();
-
-    if (oldUser) {
-      return {
-        id: oldUser.id,
-        firebaseUid,
-        name: oldUser.name || 'Người dùng Trọ Xinh',
-        email: oldUser.email || undefined,
-        phone: oldUser.phone || undefined,
-        role: (oldUser.role === 'user' ? 'renter' : oldUser.role) as AppUserRole,
-        avatarUrl: oldUser.avatar_url || '/images/user-avatar.jpg',
-        ownerApplicationStatus: oldUser.owner_application_status || 'none',
-        isDemoAccount: false,
-        createdAt: oldUser.created_at,
       };
     }
 
@@ -147,50 +133,30 @@ export async function syncFirebaseUserToSupabase(
       return existing;
     }
 
-    // 2. Upsert profile mới vào bảng profiles
-    const payload = {
-      firebase_uid: fbUser.uid,
-      full_name: name,
-      email: email || null,
-      phone: phone || null,
-      app_role: customRole,
-      avatar_url: avatarUrl,
-      is_demo_account: isDemo,
-      owner_application_status: customRole === 'owner' ? 'approved' : 'none',
-      updated_at: new Date().toISOString(),
-    };
+    // 2. Tạo profile mới qua createSupabaseProfile
+    const res = await createSupabaseProfile(fbUser.uid, {
+      name,
+      email,
+      phone,
+      role: customRole,
+      avatarUrl,
+      isDemo,
+    });
 
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(payload, { onConflict: 'firebase_uid' })
-      .select()
-      .maybeSingle();
-
-    if (!error && data) {
+    if (res.success && res.data) {
       return {
-        id: data.id,
+        id: res.data.id,
         firebaseUid: fbUser.uid,
-        name: data.full_name,
-        email: data.email || undefined,
-        phone: data.phone || undefined,
-        role: data.app_role as AppUserRole,
-        avatarUrl: data.avatar_url,
-        ownerApplicationStatus: data.owner_application_status,
+        name: res.data.name,
+        email: res.data.email,
+        phone: res.data.phone,
+        role: res.data.role as AppUserRole,
+        avatarUrl: res.data.avatar_url,
+        ownerApplicationStatus: res.data.owner_application_status,
         isDemoAccount: isDemo,
-        createdAt: data.created_at,
+        createdAt: res.data.created_at,
       };
     }
-
-    // 3. Fallback đồng bộ bảng users cũ
-    await supabase.from('users').upsert({
-      id: fbUser.uid,
-      name,
-      email: email || null,
-      phone: phone || null,
-      role: customRole,
-      avatar_url: avatarUrl,
-      updated_at: new Date().toISOString(),
-    });
   } catch (err) {
     console.warn('[AuthService] Không thể sync profile lên Supabase:', err);
   }
@@ -208,10 +174,57 @@ export async function syncFirebaseUserToSupabase(
 }
 
 /**
- * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase Phone SMS)
+ * Khởi tạo và kích hoạt reCAPTCHA Verifier trực quan cho Firebase Auth
+ */
+export function setupRecaptchaVerifier(
+  containerId = 'recaptcha-container',
+  onSuccess?: (token: string) => void,
+  onExpired?: () => void,
+  size: 'normal' | 'invisible' = 'normal'
+): RecaptchaVerifier | null {
+  if (typeof window === 'undefined') return null;
+
+  try {
+    if (window.recaptchaVerifier) {
+      try {
+        window.recaptchaVerifier.clear();
+      } catch (e) {
+        console.warn('[Firebase Auth] Lỗi dọn dẹp reCAPTCHA cũ:', e);
+      }
+      window.recaptchaVerifier = undefined;
+    }
+
+    const containerEl = document.getElementById(containerId);
+    if (containerEl) {
+      containerEl.innerHTML = '';
+    }
+
+    const verifier = new RecaptchaVerifier(auth, containerId, {
+      size,
+      callback: (response: any) => {
+        console.log('[Firebase Auth] reCAPTCHA đã xác thực thành công');
+        if (onSuccess) onSuccess(response);
+      },
+      'expired-callback': () => {
+        console.warn('[Firebase Auth] Token reCAPTCHA đã hết hạn');
+        if (onExpired) onExpired();
+      },
+    });
+
+    window.recaptchaVerifier = verifier;
+    return verifier;
+  } catch (error) {
+    console.warn('[Firebase Auth] Lỗi khởi tạo RecaptchaVerifier:', error);
+    return null;
+  }
+}
+
+/**
+ * 1. GỬI MÃ OTP QUA SỐ ĐIỆN THOẠI (Firebase Phone SMS với reCAPTCHA)
  */
 export async function sendPhoneOtp(
   phone: string,
+  appVerifier?: RecaptchaVerifier,
   containerId = 'recaptcha-container'
 ): Promise<SendOtpResult> {
   const formattedPhone = formatVietnamesePhone(phone);
@@ -221,29 +234,26 @@ export async function sendPhoneOtp(
   }
 
   try {
-    if (window.recaptchaVerifier) {
-      try {
-        window.recaptchaVerifier.clear();
-      } catch {}
-      window.recaptchaVerifier = undefined;
+    let verifier = appVerifier || window.recaptchaVerifier;
+
+    if (!verifier) {
+      verifier = setupRecaptchaVerifier(containerId, undefined, undefined, 'normal') || undefined;
+      if (verifier) {
+        await verifier.render();
+      }
     }
 
-    const containerEl = document.getElementById(containerId);
-    if (containerEl) {
-      containerEl.innerHTML = '';
+    if (!verifier) {
+      return {
+        success: false,
+        error: 'Không thể khởi tạo reCAPTCHA bảo mật. Vui lòng tải lại trang.',
+      };
     }
-
-    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
-      size: 'invisible',
-      callback: () => {
-        console.log('[Firebase Auth] reCAPTCHA verified');
-      },
-    });
 
     const confirmationResult = await signInWithPhoneNumber(
       auth,
       formattedPhone,
-      window.recaptchaVerifier
+      verifier
     );
 
     window.confirmationResult = confirmationResult;
@@ -260,9 +270,13 @@ export async function sendPhoneOtp(
     if (error.code === 'auth/invalid-phone-number') {
       friendlyError = 'Số điện thoại không đúng định dạng quốc tế (+84).';
     } else if (error.code === 'auth/quota-exceeded' || error.code === 'auth/billing-not-enabled') {
-      friendlyError = 'Hệ thống gửi SMS tạm thời bận. Bạn có thể sử dụng Đăng nhập Google hoặc Tài khoản Demo.';
+      friendlyError = 'SMS OTP chưa cấu hình hoặc đã hết hạn mức SMS trên Firebase Console. Hệ thống chuyển sang chế độ test.';
     } else if (error.code === 'auth/too-many-requests') {
       friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng chờ 1–2 phút.';
+    } else if (error.code === 'auth/captcha-check-failed') {
+      friendlyError = 'Xác minh reCAPTCHA không thành công hoặc đã bị hủy. Vui lòng thử lại!';
+    } else if (error.code === 'auth/invalid-app-credential') {
+      friendlyError = 'Cấu hình bảo mật Firebase reCAPTCHA không hợp lệ trên tên miền này.';
     }
 
     return {
@@ -273,7 +287,7 @@ export async function sendPhoneOtp(
 }
 
 /**
- * 2. XÁC MINH MÃ OTP TỪ SĐT
+ * 2. XÁC MINH MÃ OTP TỪ SĐT (Dành cho Đăng Nhập OTP)
  */
 export async function verifyPhoneOtp(
   verificationId: string,
@@ -293,7 +307,7 @@ export async function verifyPhoneOtp(
   if (!window.confirmationResult) {
     return {
       success: false,
-      error: 'Phiên xác thực đã hết hạn. Vui lòng yêu cầu gửi lại mã OTP mới.',
+      error: 'Phiên xác thực SMS đã hết hạn. Vui lòng yêu cầu gửi lại mã OTP mới.',
     };
   }
 
@@ -321,6 +335,7 @@ export async function verifyPhoneOtp(
 
 /**
  * 3. ĐĂNG NHẬP EMAIL & MẬT KHẨU
+ * Hỗ trợ xác thực đa tầng: Demo Mock Accounts -> Firebase Auth -> Supabase Database
  */
 export async function loginWithEmailPassword(
   email: string,
@@ -328,6 +343,37 @@ export async function loginWithEmailPassword(
 ): Promise<AuthActionResult> {
   const cleanEmail = email.trim().toLowerCase();
 
+  // 1. Kiểm tra tài khoản Demo / Mock Accounts
+  const demoFound = initialUsers.find((u) => u.email?.toLowerCase() === cleanEmail);
+  if (demoFound) {
+    return {
+      success: true,
+      user: {
+        id: demoFound.id,
+        firebaseUid: demoFound.id,
+        name: demoFound.name,
+        email: demoFound.email,
+        phone: demoFound.phone,
+        role: (demoFound.role === 'user' ? 'renter' : demoFound.role) as AppUserRole,
+        avatarUrl: demoFound.avatarUrl || '/images/user-avatar.jpg',
+        isDemoAccount: true,
+        createdAt: demoFound.createdAt,
+      },
+    };
+  }
+
+  // Aliases cho các tài khoản mẫu phổ biến
+  if (cleanEmail === 'chutro@troxinh.vn') {
+    return loginWithDemoAccount('owner');
+  }
+  if (cleanEmail === 'admin@troxinh.vn') {
+    return loginWithDemoAccount('admin');
+  }
+  if (cleanEmail === 'nguoithue@troxinh.vn') {
+    return loginWithDemoAccount('renter');
+  }
+
+  // 2. Xác thực an toàn với Firebase Auth (Nguồn xác thực duy nhất)
   try {
     const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
     const fbUser = userCredential.user;
@@ -339,23 +385,27 @@ export async function loginWithEmailPassword(
       user: userProfile,
     };
   } catch (error: any) {
-    console.warn('[Firebase Auth] Đăng nhập Email thất bại:', error);
+    console.warn('[Firebase Auth] Đăng nhập Email thất bại:', error.code);
+
     let msg = 'Email hoặc mật khẩu không chính xác!';
     if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
-      msg = 'Không tìm thấy tài khoản hoặc mật khẩu không đúng.';
+      msg = 'Email hoặc mật khẩu không chính xác. Vui lòng kiểm tra lại!';
     } else if (error.code === 'auth/wrong-password') {
       msg = 'Mật khẩu không chính xác.';
     } else if (error.code === 'auth/invalid-email') {
       msg = 'Địa chỉ email không hợp lệ.';
+    } else if (error.code === 'auth/too-many-requests') {
+      msg = 'Tài khoản tạm thời bị khóa do nhập sai nhiều lần. Vui lòng thử lại sau ít phút!';
     }
     return { success: false, error: msg };
   }
 }
 
 /**
- * 4. ĐĂNG KÝ EMAIL & MẬT KHẨU
+ * 4. HOÀN TẤT ĐĂNG KÝ EMAIL & MẬT KHẨU (CHỈ GỌI SAU KHI XÁC THỰC OTP THÀNH CÔNG)
+ * Cơ chế an toàn: Tạo tài khoản trên Firebase & Supabase. Nếu Supabase profile tạo lỗi -> Rollback signOut Firebase ngay lập tức.
  */
-export async function registerWithEmailPassword(
+export async function completeEmailRegistration(
   email: string,
   pass: string,
   name: string,
@@ -363,68 +413,64 @@ export async function registerWithEmailPassword(
   role: AppUserRole = 'renter'
 ): Promise<AuthActionResult> {
   const cleanEmail = email.trim().toLowerCase();
+  const cleanPhone = phone ? phone.trim().replace(/\D/g, '') : undefined;
 
   try {
+    // Bước 1: Tạo tài khoản trên Firebase Auth (Nguồn xác thực duy nhất)
     const userCredential = await createUserWithEmailAndPassword(auth, cleanEmail, pass);
     const fbUser = userCredential.user;
+    const firebaseUid = fbUser.uid;
 
+    // Cập nhật Display Name trong Firebase
     if (name.trim()) {
       try {
         await updateProfile(fbUser, { displayName: name.trim() });
-      } catch {}
+      } catch (updateErr) {
+        console.warn('[Firebase Auth] Update display name warning:', updateErr);
+      }
     }
 
-    const userProfile = await syncFirebaseUserToSupabase(fbUser, role, name.trim());
+    // Bước 2: Tạo Profile trên Supabase (bảng users & profiles)
+    const profileRes = await createSupabaseProfile(firebaseUid, {
+      name: name.trim(),
+      email: cleanEmail,
+      phone: cleanPhone,
+      role,
+      avatarUrl: '/images/user-avatar.jpg',
+    });
+
+    // Bắt lỗi Supabase: Nếu tạo profile Supabase thất bại -> Rollback
+    if (!profileRes.success || !profileRes.data) {
+      console.error('[AuthService] Supabase profile creation failed -> Rolling back Firebase session.');
+      if (fbUser) {
+        try {
+          await firebaseSignOut(auth);
+        } catch (soErr) {
+          console.warn('[AuthService] Rollback signout error:', soErr);
+        }
+      }
+      return {
+        success: false,
+        error: profileRes.error || 'Không thể tạo hồ sơ tài khoản trên cơ sở dữ liệu. Đã hủy đăng ký để bảo vệ an toàn!',
+      };
+    }
 
     return {
       success: true,
       user: {
-        ...userProfile,
-        phone: phone || userProfile.phone,
+        id: profileRes.data.id,
+        firebaseUid,
+        name: profileRes.data.name,
+        email: profileRes.data.email,
+        phone: profileRes.data.phone,
+        role: profileRes.data.role as AppUserRole,
+        avatarUrl: profileRes.data.avatar_url,
+        ownerApplicationStatus: profileRes.data.owner_application_status,
+        createdAt: profileRes.data.created_at,
       },
     };
   } catch (error: any) {
-    console.warn('[Firebase Auth] Đăng ký Email thất bại:', error);
-    
-    // Nếu Firebase chưa kích hoạt Email provider hoặc lỗi mạng, tự động fallback an toàn
-    if (
-      error.code === 'auth/operation-not-allowed' ||
-      error.code === 'auth/network-request-failed' ||
-      error.code === 'auth/internal-error'
-    ) {
-      const fallbackId = `user_${Date.now()}`;
-      const fallbackProfile: AuthUserProfile = {
-        id: fallbackId,
-        firebaseUid: fallbackId,
-        name: name.trim(),
-        email: cleanEmail,
-        phone: phone || undefined,
-        role,
-        avatarUrl: '/images/user-avatar.jpg',
-        ownerApplicationStatus: role === 'owner' ? 'approved' : 'none',
-        createdAt: new Date().toISOString(),
-      };
-
-      try {
-        await supabase.from('profiles').upsert({
-          firebase_uid: fallbackId,
-          full_name: name.trim(),
-          email: cleanEmail,
-          phone: phone || null,
-          app_role: role,
-          avatar_url: '/images/user-avatar.jpg',
-          owner_application_status: role === 'owner' ? 'approved' : 'none',
-          created_at: new Date().toISOString(),
-        });
-      } catch (dbErr) {
-        console.warn('[AuthService] Fallback DB error:', dbErr);
-      }
-
-      return {
-        success: true,
-        user: fallbackProfile,
-      };
-    }
+    console.warn('[Firebase Auth] Đăng ký thất bại:', error);
 
     let msg = 'Đăng ký không thành công. Vui lòng thử lại!';
     if (error.code === 'auth/email-already-in-use') {
@@ -435,35 +481,254 @@ export async function registerWithEmailPassword(
       msg = 'Địa chỉ email không đúng định dạng.';
     } else if (error.code === 'auth/too-many-requests') {
       msg = 'Quá nhiều yêu cầu đăng ký trong thời gian ngắn. Vui lòng thử lại sau 1 phút.';
+    } else if (error.message) {
+      msg = `Lỗi: ${error.message}`;
     }
     return { success: false, error: msg };
   }
 }
 
 /**
- * 5. ĐĂNG NHẬP GOOGLE OAUTH
+ * 4.1 HOÀN TẤT ĐĂNG KÝ SỐ ĐIỆN THOẠI (CHỈ GỌI SAU KHI XÁC THỰC OTP THÀNH CÔNG)
+ */
+export async function completePhoneRegistration(
+  phone: string,
+  name: string,
+  role: AppUserRole = 'renter',
+  fbUser?: FirebaseUser
+): Promise<AuthActionResult> {
+  const cleanPhone = phone.trim().replace(/\D/g, '');
+  const firebaseUid = fbUser?.uid;
+
+  if (!firebaseUid) {
+    return {
+      success: false,
+      error: 'Không tìm thấy phiên xác thực Firebase hợp lệ cho số điện thoại này. Vui lòng xác thực lại OTP.',
+    };
+  }
+
+  try {
+    if (fbUser && name.trim()) {
+      try {
+        await updateProfile(fbUser, { displayName: name.trim() });
+      } catch {}
+    }
+
+    const profileRes = await createSupabaseProfile(firebaseUid, {
+      name: name.trim(),
+      phone: cleanPhone,
+      role,
+      avatarUrl: '/images/user-avatar.jpg',
+      isDemo: false,
+    });
+
+    if (!profileRes.success || !profileRes.data) {
+      if (fbUser) {
+        try {
+          await firebaseSignOut(auth);
+        } catch {}
+      }
+      return {
+        success: false,
+        error: profileRes.error || 'Không thể tạo hồ sơ tài khoản trên cơ sở dữ liệu.',
+      };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: profileRes.data.id,
+        firebaseUid,
+        name: profileRes.data.name,
+        phone: profileRes.data.phone,
+        role: profileRes.data.role as AppUserRole,
+        avatarUrl: profileRes.data.avatar_url,
+        ownerApplicationStatus: profileRes.data.owner_application_status,
+        isDemoAccount: false,
+        createdAt: profileRes.data.created_at,
+      },
+    };
+  } catch (err: any) {
+    console.warn('[AuthService] Lỗi hoàn tất đăng ký SĐT:', err);
+    return {
+      success: false,
+      error: err.message || 'Lỗi khi lưu hồ sơ người dùng.',
+    };
+  }
+}
+
+// Alias để tương thích nếu còn module gọi
+export const registerWithEmailPassword = completeEmailRegistration;
+
+/**
+ * 5. ĐĂNG NHẬP / ĐĂNG KÝ HỢP NHẤT GOOGLE OAUTH
  */
 export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Promise<AuthActionResult> {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const fbUser = result.user;
 
-    const userProfile = await syncFirebaseUserToSupabase(fbUser, intendedRole);
+    const email = fbUser.email ? fbUser.email.toLowerCase() : `google_${fbUser.uid}@troxinh.vn`;
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: email,
+      authType: 'google',
+      name: fbUser.displayName || undefined,
+      avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
+      firebaseUid: fbUser.uid,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi lưu thông tin tài khoản Google.' };
+    }
 
     return {
       success: true,
-      user: userProfile,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
     };
   } catch (error: any) {
-    console.warn('[Firebase Auth] Đăng nhập Google lỗi:', error);
+    console.error('[Firebase Auth] Đăng nhập Google lỗi:', error);
     let msg = 'Đăng nhập Google không thành công.';
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Google.';
     } else if (error.code === 'auth/unauthorized-domain') {
-      msg = 'Tên miền chưa được ủy quyền trên Firebase Console. Vui lòng thêm domain vào Authorized Domains.';
+      msg = 'Tên miền chưa được ủy quyền trên Firebase Console. Vui lòng thêm localhost vào Authorized Domains.';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      msg = 'Google Sign-In chưa được bật trên Firebase Console (Vào Authentication > Sign-in method > Google > Enable).';
+    } else if (error.code === 'auth/popup-blocked') {
+      msg = 'Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng bấm vào biểu tượng chặn popup trên thanh địa chỉ và chọn "Luôn cho phép".';
+    } else if (error.message) {
+      msg = `Lỗi Google OAuth (${error.code || 'unknown'}): ${error.message}`;
     }
     return { success: false, error: msg };
   }
+}
+
+/**
+ * 5.1 ĐĂNG NHẬP / ĐĂNG KÝ HỢP NHẤT FACEBOOK OAUTH
+ */
+export async function loginWithFacebook(intendedRole: AppUserRole = 'renter'): Promise<AuthActionResult> {
+  try {
+    const result = await signInWithPopup(auth, facebookProvider);
+    const fbUser = result.user;
+
+    const email = fbUser.email ? fbUser.email.toLowerCase() : `fb_${fbUser.uid}@troxinh.vn`;
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: email,
+      authType: 'facebook',
+      name: fbUser.displayName || 'Người dùng Facebook',
+      avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
+      firebaseUid: fbUser.uid,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi lưu thông tin tài khoản Facebook.' };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
+    };
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Đăng nhập Facebook lỗi:', error);
+    let msg = 'Đăng nhập Facebook không thành công.';
+    if (error.code === 'auth/popup-closed-by-user') {
+      msg = 'Bạn đã đóng cửa sổ đăng nhập Facebook.';
+    } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
+      msg = 'Đăng nhập Facebook chưa được cấu hình hoặc kích hoạt trên Firebase Console. Vui lòng đăng nhập bằng Google hoặc Số điện thoại.';
+    } else if (error.code === 'auth/popup-blocked') {
+      msg = 'Trình duyệt đã chặn cửa sổ đăng nhập Facebook. Vui lòng cho phép mở popup.';
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 5.2 ĐĂNG NHẬP / ĐĂNG KÝ HỢP NHẤT APPLE OAUTH
+ */
+export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Promise<AuthActionResult> {
+  try {
+    const result = await signInWithPopup(auth, appleProvider);
+    const fbUser = result.user;
+
+    const email = fbUser.email ? fbUser.email.toLowerCase() : `apple_${fbUser.uid}@troxinh.vn`;
+    const unifiedRes = await handleUnifiedAuth({
+      identifier: email,
+      authType: 'apple',
+      name: fbUser.displayName || 'Người dùng Apple',
+      avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
+      firebaseUid: fbUser.uid,
+      intendedRole,
+    });
+
+    if (!unifiedRes.success || !unifiedRes.user) {
+      return { success: false, error: unifiedRes.error || 'Lỗi lưu thông tin tài khoản Apple.' };
+    }
+
+    return {
+      success: true,
+      user: {
+        id: unifiedRes.user.id,
+        firebaseUid: unifiedRes.user.firebaseUid,
+        name: unifiedRes.user.name,
+        email: unifiedRes.user.email,
+        phone: unifiedRes.user.phone,
+        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
+        avatarUrl: unifiedRes.user.avatarUrl,
+        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
+        createdAt: unifiedRes.user.createdAt,
+      },
+    };
+  } catch (error: any) {
+    console.warn('[Firebase Auth] Đăng nhập Apple lỗi:', error);
+    let msg = 'Đăng nhập Apple không thành công.';
+    if (error.code === 'auth/popup-closed-by-user') {
+      msg = 'Bạn đã đóng cửa sổ đăng nhập Apple.';
+    } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
+      msg = 'Đăng nhập Apple chưa được cấu hình hoặc kích hoạt trên Firebase Console. Vui lòng đăng nhập bằng Google hoặc Số điện thoại.';
+    } else if (error.code === 'auth/popup-blocked') {
+      msg = 'Trình duyệt đã chặn cửa sổ đăng nhập Apple. Vui lòng cho phép mở popup.';
+    }
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * 5.3 XÁC THỰC SỐ ĐIỆN THOẠI HỢP NHẤT (UNIFIED PHONE OTP AUTH)
+ * Nhập SĐT -> Gửi OTP -> Xác thực OTP -> Tự động đăng ký nếu chưa có, hoặc đăng nhập nếu đã có
+ */
+export async function completePhoneOtpAuth(
+  _phone: string,
+  _otpCode: string,
+  _fullName?: string,
+  _intendedRole: AppUserRole = 'renter'
+): Promise<AuthActionResult> {
+  // Tuân thủ quy tắc bảo mật: Không tạo phiên ảo hay bypass OTP mà không có Firebase Phone Auth ConfirmationResult
+  return {
+    success: false,
+    error: 'Vui lòng xác thực số điện thoại qua màn hình OTP Firebase chính thức để đảm bảo an toàn tài khoản.',
+  };
 }
 
 /**

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Button } from '../ui/Button';
+import { useUIStore } from '../../store/useUIStore';
 import { Heart, MessageSquare, Calendar, PlusCircle, LogIn, Sparkles, X } from 'lucide-react';
 
 export type LoginGateTrigger = 'save' | 'message' | 'booking' | 'post' | 'generic';
@@ -17,6 +18,7 @@ export const LoginGateModal: React.FC<LoginGateModalProps> = ({
   trigger = 'generic',
 }) => {
   const location = useLocation();
+  const { openAuthModal } = useUIStore();
 
   if (!isOpen) return null;
 
@@ -81,25 +83,28 @@ export const LoginGateModal: React.FC<LoginGateModalProps> = ({
 
         {/* Action Buttons */}
         <div className="space-y-2.5 pt-2">
-          <Link
-            to={`/dang-nhap?returnUrl=${encodeURIComponent(currentPath)}`}
-            onClick={onClose}
-            className="block"
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openAuthModal('login');
+            }}
+            className="w-full py-3 px-4 bg-[#00a854] hover:bg-[#009249] text-white font-bold rounded-2xl text-xs flex items-center justify-center gap-2 transition shadow-xs cursor-pointer"
           >
-            <Button variant="primary" size="md" className="w-full" leftIcon={<LogIn className="w-4 h-4" />}>
-              Đăng Nhập Ngay
-            </Button>
-          </Link>
+            <LogIn className="w-4 h-4" />
+            <span>Đăng Nhập Ngay</span>
+          </button>
 
-          <Link
-            to={`/dang-ky?returnUrl=${encodeURIComponent(currentPath)}`}
-            onClick={onClose}
-            className="block"
+          <button
+            type="button"
+            onClick={() => {
+              onClose();
+              openAuthModal('register');
+            }}
+            className="w-full py-2.5 px-4 bg-gray-50 hover:bg-gray-100 text-gray-700 font-bold rounded-2xl border border-gray-200 text-xs transition cursor-pointer"
           >
-            <Button variant="outline" size="md" className="w-full">
-              Đăng Ký Tài Khoản Miễn Phí
-            </Button>
-          </Link>
+            <span>Đăng Ký Tài Khoản Miễn Phí</span>
+          </button>
         </div>
 
         {/* Continue browsing */}

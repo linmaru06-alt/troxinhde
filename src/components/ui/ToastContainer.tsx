@@ -20,7 +20,10 @@ export const ToastContainer: React.FC = () => {
   };
 
   return (
-    <div className="fixed z-50 bottom-20 md:bottom-6 right-0 md:right-6 left-0 md:left-auto flex flex-col items-center md:items-end gap-2.5 pointer-events-none px-4 max-w-md w-full">
+    <div
+      className="fixed z-50 right-0 md:right-6 left-0 md:left-auto flex flex-col items-center md:items-end gap-2.5 pointer-events-none px-4 max-w-md w-full md:!bottom-6"
+      style={{ bottom: 'calc(var(--mobile-bottom-offset, 3.5rem) + 0.75rem)' }}
+    >
       <AnimatePresence>
         {(toasts || []).map((toast) => (
           <motion.div

@@ -36,19 +36,27 @@ export default defineConfig({
       workbox: {
         runtimeCaching: [
           {
-            urlPattern: /^https:\/\/.*supabase\.co\/rest/,
-            handler: 'NetworkFirst',
-            options: {
-              cacheName: 'api-cache',
-              expiration: { maxAgeSeconds: 300 },
-            },
-          },
-          {
             urlPattern: /^https:\/\/.*tile\.openstreetmap\.org/,
             handler: 'CacheFirst',
             options: {
               cacheName: 'osm-tiles-cache',
-              expiration: { maxEntries: 200, maxAgeSeconds: 86400 * 7 },
+              expiration: { maxEntries: 300, maxAgeSeconds: 86400 * 7 },
+            },
+          },
+          {
+            urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-cache',
+              expiration: { maxEntries: 20, maxAgeSeconds: 86400 * 365 },
+            },
+          },
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'images-cache',
+              expiration: { maxEntries: 100, maxAgeSeconds: 86400 * 30 },
             },
           },
         ],

@@ -1,9 +1,11 @@
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { getOrCreateConversation } from '../lib/api/messages';
 
 export type CTAContext =
   | 'save-room'
   | 'message-owner'
+  | 'chat-owner'
   | 'book-viewing'
   | 'post-roommate'
   | 'post-marketplace'
@@ -19,7 +21,7 @@ export interface SmartCTAResult {
 
 export function useSmartCTA(context: CTAContext, extraPayload?: any): SmartCTAResult {
   const navigate = useNavigate();
-  const { currentUser, showToast, toggleSaveRoom, getOrCreateThread } = useAppStore();
+  const { currentUser, showToast, toggleSaveRoom } = useAppStore();
 
   const isGuest = !currentUser;
   const role = currentUser?.role || 'guest';
@@ -41,14 +43,16 @@ export function useSmartCTA(context: CTAContext, extraPayload?: any): SmartCTARe
       return {
         label: 'Lưu phòng',
         action: (roomId?: string) => {
-          if (roomId) toggleSaveRoom(roomId);
+          const targetId = roomId || extraPayload?.roomId;
+          if (targetId) toggleSaveRoom(targetId);
         },
         disabled: false,
         tooltip: null,
       };
     }
 
-    case 'message-owner': {
+    case 'message-owner':
+    case 'chat-owner': {
       if (isGuest) {
         return {
           label: 'Nhắn tin chủ trọ',
@@ -62,10 +66,23 @@ export function useSmartCTA(context: CTAContext, extraPayload?: any): SmartCTARe
       }
       return {
         label: 'Nhắn tin chủ trọ',
-        action: (ownerId?: string) => {
-          const targetId = ownerId || extraPayload?.ownerId || 'user_owner_1';
-          const threadId = getOrCreateThread(targetId, extraPayload?.roomId);
-          navigate(`/tin-nhan/${threadId}`);
+        action: async (ownerId?: string) => {
+          const targetId = ownerId || extraPayload?.ownerId;
+          if (!targetId || !currentUser?.id) {
+            navigate('/tin-nhan');
+            return;
+          }
+          if (targetId === currentUser.id) {
+            showToast('Bạn là chủ phòng này', 'Không thể tự nhắn tin cho chính mình', 'info');
+            return;
+          }
+          try {
+            const convId = await getOrCreateConversation(currentUser.id, targetId, extraPayload?.roomId);
+            navigate(`/tin-nhan/${convId}`);
+          } catch (err: any) {
+            console.error('[useSmartCTA] Lỗi mở chat:', err);
+            navigate('/tin-nhan');
+          }
         },
         disabled: false,
         tooltip: null,

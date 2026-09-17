@@ -28,7 +28,6 @@ export const DebugPage: React.FC = () => {
     roommates,
     marketplaceItems,
     notifications,
-    threads,
     savedRoomIds,
     loginAsRole,
     resetAllData,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
@@ -16,10 +16,13 @@ import {
   Sparkles,
 } from 'lucide-react';
 
+import { getOrCreateConversation } from '../lib/api/messages';
+
 export const BuildingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { buildings, rooms, getOrCreateThread, currentUser } = useAppStore();
+  const { buildings, rooms, currentUser, showToast } = useAppStore();
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const building = buildings.find((b) => b.id === id) || buildings[0];
   const buildingRooms = rooms.filter((r) => r.buildingId === building?.id);
@@ -33,9 +36,26 @@ export const BuildingDetailPage: React.FC = () => {
     );
   }
 
-  const handleContactOwner = () => {
-    const threadId = getOrCreateThread(building.ownerId);
-    navigate(`/tin-nhan/${threadId}`);
+  const handleContactOwner = async () => {
+    if (!currentUser) {
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/toa-nha/${building.id}`)}`);
+      return;
+    }
+    if (currentUser.id === building.ownerId) {
+      showToast('Bạn là chủ tòa nhà này', 'Không thể tự nhắn tin cho chính mình', 'info');
+      return;
+    }
+
+    setIsChatLoading(true);
+    try {
+      const convId = await getOrCreateConversation(currentUser.id, building.ownerId);
+      navigate(`/tin-nhan/${convId}`);
+    } catch (err: any) {
+      console.error('[BuildingDetail] Lỗi mở chat:', err);
+      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   return (
@@ -140,11 +160,12 @@ export const BuildingDetailPage: React.FC = () => {
               <Button
                 variant="primary"
                 size="md"
-                className="w-full"
+                className="w-full cursor-pointer"
+                disabled={isChatLoading}
                 onClick={handleContactOwner}
                 leftIcon={<MessageSquare className="w-4 h-4" />}
               >
-                Nhắn Tin Cho Chủ Trọ
+                {isChatLoading ? 'Đang mở cuộc trò chuyện...' : 'Nhắn Tin Cho Chủ Trọ'}
               </Button>
             </div>
 

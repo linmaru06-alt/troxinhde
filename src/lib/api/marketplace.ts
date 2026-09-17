@@ -6,7 +6,16 @@ export async function getMarketplaceItems(category?: string, district?: string) 
   let query = supabase
     .from('marketplace_items')
     .select(`
-      *,
+      id,
+      title,
+      price,
+      is_free,
+      condition,
+      category,
+      district,
+      image_urls,
+      status,
+      created_at,
       seller:profiles!seller_id(full_name, avatar_url, phone)
     `)
     .eq('status', 'available');

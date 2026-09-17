@@ -69,18 +69,56 @@ export function usePaymentPolling(
     return () => clearInterval(pollInterval);
   }, [orderCode, status, planId, totalAmount, method, navigate, upgradeSubscription, currentUser, showToast, onSuccess]);
 
-  const triggerManualSuccess = () => {
-    setStatus('success');
-    const userId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
-    recordSuccessfulPayment(userId, orderCode || Date.now(), planId, totalAmount, method).then();
-    upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
-    showToast('🎉 Xác nhận thanh toán thành công!', `Gói dịch vụ đã được kích hoạt.`, 'success');
-    if (onSuccess) onSuccess();
-    setTimeout(() => {
-      navigate(
-        `/thanh-toan/ket-qua?orderId=${orderCode || Date.now()}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
+  const triggerManualSuccess = async () => {
+    if (!orderCode) return;
+
+    // 1. Trường hợp Tài khoản Demo (Sandbox): kích hoạt mô phỏng an toàn
+    if (orderCode.toString().startsWith('DEMO_')) {
+      setStatus('success');
+      upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
+      showToast('🎉 Kích hoạt gói thử nghiệm Demo thành công!', 'Gói dịch vụ đã được kích hoạt trong phiên làm việc.', 'success');
+      if (onSuccess) onSuccess();
+      setTimeout(() => {
+        navigate(
+          `/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
+        );
+      }, 1000);
+      return;
+    }
+
+    showToast('Đang kiểm tra giao dịch...', 'Hệ thống đang kiểm tra giao dịch với ngân hàng/MoMo...', 'info');
+
+    // Kiểm tra trực tiếp với Gateway / Supabase
+    let isConfirmed = false;
+    if (method === 'momo') {
+      const momoStatus = await checkPaymentStatus(orderCode);
+      isConfirmed = momoStatus.status === 'success';
+    } else {
+      const payosStatus = await checkPaymentStatus(orderCode);
+      isConfirmed = payosStatus.status === 'success';
+    }
+
+    // Nếu đã nhận được tiền từ Webhook / IPN
+    if (isConfirmed) {
+      setStatus('success');
+      const userId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
+      recordSuccessfulPayment(userId, orderCode, planId, totalAmount, method).then();
+      upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
+      showToast('🎉 Thanh toán thành công!', `Gói dịch vụ đã được kích hoạt.`, 'success');
+      if (onSuccess) onSuccess();
+      setTimeout(() => {
+        navigate(
+          `/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
+        );
+      }, 1200);
+    } else {
+      // Đang đối soát
+      showToast(
+        '⏳ Đang chờ xác nhận từ MoMo/Ngân hàng',
+        'Giao dịch của bạn đang được hệ thống tự động đối soát (thường mất 5-30 giây). Trang sẽ tự động chuyển khi nhận được tiền!',
+        'info'
       );
-    }, 1200);
+    }
   };
 
   const formatCountdown = () => {

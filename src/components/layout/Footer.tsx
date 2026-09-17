@@ -84,16 +84,6 @@ export const Footer: React.FC = () => {
                   Quy trình kiểm duyệt phòng 24h
                 </Link>
               </li>
-              <li>
-                <Link to="/hop-dong-mau" className="hover:text-[#006d37] transition font-semibold text-emerald-800 flex items-center gap-1">
-                  📄 Mẫu hợp đồng thuê trọ (PDF)
-                </Link>
-              </li>
-              <li>
-                <Link to="/bien-ban-dat-coc" className="hover:text-[#006d37] transition font-semibold text-emerald-800 flex items-center gap-1">
-                  📝 Mẫu biên bản đặt cọc (PDF)
-                </Link>
-              </li>
             </ul>
           </div>
 

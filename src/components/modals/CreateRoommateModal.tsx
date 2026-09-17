@@ -63,6 +63,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   ]);
   const [intro, setIntro] = useState<string>('');
   const [linkedRoomId, setLinkedRoomId] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const toggleHabit = (habit: string) => {
     if (selectedHabits.includes(habit)) {
@@ -72,7 +73,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!userName.trim()) {
@@ -87,41 +88,48 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     const selectedRoom = rooms.find((r) => r.id === linkedRoomId);
     const posterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
 
-    createRoommatePost({
-      poster_id: posterId.length === 36 ? posterId : '00000000-0000-0000-0000-000000000003',
-      room_id: (selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
-      nickname: userName.trim(),
-      age: Number(userAge) || 20,
-      gender: userGender === 'Nam' ? 'male' : userGender === 'Nữ' ? 'female' : 'any',
-      preferred_gender: genderPreference === 'Chỉ tìm Nam' ? 'male' : genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
-      budget_per_person: Number(budgetShare) || 2000000,
-      lifestyle_tags: selectedHabits,
-      self_intro: intro.trim(),
-    }).catch((err) => console.warn('[Roommate] Lỗi lưu bài lên Cloud:', err));
+    setIsSubmitting(true);
+    try {
+      await createRoommatePost({
+        poster_id: posterId.length === 36 ? posterId : '00000000-0000-0000-0000-000000000003',
+        room_id: (selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
+        nickname: userName.trim(),
+        age: Number(userAge) || 20,
+        gender: userGender === 'Nam' ? 'male' : userGender === 'Nữ' ? 'female' : 'any',
+        preferred_gender: genderPreference === 'Chỉ tìm Nam' ? 'male' : genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
+        budget_per_person: Number(budgetShare) || 2000000,
+        lifestyle_tags: selectedHabits,
+        self_intro: intro.trim(),
+      });
 
-    addRoommatePost({
-      userId: currentUser?.id || `user_${Date.now()}`,
-      userName: userName.trim(),
-      userAvatar: currentUser?.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
-      userGender,
-      userAge: Number(userAge) || 20,
-      userSchool: userSchool.trim(),
-      district,
-      budgetShare: Number(budgetShare) || 2000000,
-      genderPreference,
-      habits: selectedHabits,
-      lifestyleTags: selectedHabits.slice(0, 3),
-      intro: intro.trim(),
-      linkedRoomId: selectedRoom?.id,
-      linkedRoomTitle: selectedRoom?.title,
-      linkedRoomPrice: selectedRoom?.price,
-      linkedRoomArea: selectedRoom?.area,
-      linkedRoomImage: selectedRoom?.images[0],
-      status: 'Đang tìm',
-    });
+      addRoommatePost({
+        userId: currentUser?.id || `user_${Date.now()}`,
+        userName: userName.trim(),
+        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        userGender,
+        userAge: Number(userAge) || 20,
+        userSchool: userSchool.trim(),
+        district,
+        budgetShare: Number(budgetShare) || 2000000,
+        genderPreference,
+        habits: selectedHabits,
+        lifestyleTags: selectedHabits.slice(0, 3),
+        intro: intro.trim(),
+        linkedRoomId: selectedRoom?.id,
+        linkedRoomTitle: selectedRoom?.title,
+        linkedRoomPrice: selectedRoom?.price,
+        linkedRoomArea: selectedRoom?.area,
+        linkedRoomImage: selectedRoom?.images[0],
+        status: 'Đang tìm',
+      });
 
-    showToast('Đăng tin tìm bạn thành công!', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng.', 'success');
-    onClose();
+      showToast('Đăng tin tìm bạn thành công!', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng.', 'success');
+      onClose();
+    } catch (err: any) {
+      showToast('Lỗi khi đăng tin tìm bạn', err?.message || 'Không thể lưu bài đăng. Vui lòng thử lại!', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -307,8 +315,8 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
           <Button type="button" variant="outline" size="md" onClick={onClose}>
             Hủy Bỏ
           </Button>
-          <Button type="submit" variant="primary" size="md" leftIcon={<Sparkles className="w-4 h-4" />}>
-            Đăng Tin Tìm Bạn Ngay
+          <Button type="submit" variant="primary" size="md" leftIcon={<Sparkles className="w-4 h-4" />} disabled={isSubmitting}>
+            {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Tìm Bạn Ngay'}
           </Button>
         </div>
       </form>

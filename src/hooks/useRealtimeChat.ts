@@ -1,82 +1,136 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { Message } from '../types';
+import { getMessages, sendMessage as sendMessageApi } from '../lib/api/messages';
 
 export interface UseRealtimeChatReturn {
   messages: Message[];
-  sendMessage: (text: string) => Promise<void>;
+  isLoading: boolean;
+  isReconnecting: boolean;
+  sendMessage: (content: string) => Promise<void>;
+  retryMessage: (failedMessage: Message) => Promise<void>;
   isOtherOnline: boolean;
   lastSeenText: string;
 }
 
-export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
-  const { messages: storeMessages, currentUser, sendMessage: storeSendMessage, showToast } = useAppStore();
+export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn {
+  const { currentUser, showToast } = useAppStore();
   const [messages, setMessages] = useState<Message[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isReconnecting, setIsReconnecting] = useState<boolean>(false);
   const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(new Set());
 
-  // Filter messages for current thread
+  // Lưu trữ conversationId hiện tại vào ref để tránh stale closure trong realtime callback
+  const activeConversationIdRef = useRef<string | undefined>(conversationId);
   useEffect(() => {
-    if (!threadId) {
+    activeConversationIdRef.current = conversationId;
+  }, [conversationId]);
+
+  // 1. Tải lịch sử tin nhắn thật từ Supabase khi mở conversation
+  useEffect(() => {
+    if (!conversationId) {
       setMessages([]);
       return;
     }
-    const currentThreadMsgs = (storeMessages || []).filter((m) => m.threadId === threadId);
-    setMessages(currentThreadMsgs);
-  }, [threadId, storeMessages]);
 
-  // 1. Supabase Realtime Message Subscription
+    let isMounted = true;
+    setIsLoading(true);
+
+    getMessages(conversationId)
+      .then((data) => {
+        if (isMounted) {
+          setMessages(data);
+        }
+      })
+      .catch((err) => {
+        console.error('[useRealtimeChat] Lỗi tải tin nhắn:', err);
+        if (isMounted) {
+          showToast('Không thể tải lịch sử tin nhắn', 'Vui lòng kiểm tra kết nối mạng.', 'error');
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [conversationId, showToast]);
+
+  // 2. Lắng nghe tin nhắn mới qua Supabase Realtime Channel
   useEffect(() => {
-    if (!threadId || !isSupabaseConfigured) return;
+    if (!conversationId || !isSupabaseConfigured) return;
 
     const channel = supabase
-      .channel(`conversation:${threadId}`)
+      .channel(`conversation:${conversationId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'messages',
-          filter: `thread_id=eq.${threadId}`,
+          filter: `conversation_id=eq.${conversationId}`,
         },
         (payload: any) => {
           const newRow = payload.new;
           if (!newRow) return;
 
+          // Chỉ nhận tin nhắn thuộc đúng conversation đang mở
+          if (newRow.conversation_id !== activeConversationIdRef.current) return;
+
           const incomingMsg: Message = {
-            id: newRow.id || `msg_${Date.now()}`,
-            threadId: newRow.thread_id || threadId,
-            senderId: newRow.sender_id,
-            senderName: newRow.sender_name || 'Người dùng',
-            senderAvatar: newRow.sender_avatar || '/images/user-avatar.jpg',
-            text: newRow.text || newRow.content || '',
-            createdAt: newRow.created_at || new Date().toISOString(),
+            id: newRow.id,
+            conversation_id: newRow.conversation_id,
+            sender_id: newRow.sender_id,
+            content: newRow.content,
+            is_read: Boolean(newRow.is_read),
+            created_at: newRow.created_at || new Date().toISOString(),
             status: 'sent',
           };
 
           setMessages((prev) => {
-            // Avoid duplicate if optimistic temp already added
-            if (prev.some((m) => m.id === incomingMsg.id || (m.text === incomingMsg.text && m.senderId === incomingMsg.senderId))) {
-              return prev.map((m) => (m.text === incomingMsg.text && m.senderId === incomingMsg.senderId ? incomingMsg : m));
+            // Tránh trùng lặp nếu optimistic message đã được render trước đó
+            const exists = prev.some(
+              (m) =>
+                m.id === incomingMsg.id ||
+                (m.status === 'sending' &&
+                  m.content === incomingMsg.content &&
+                  m.sender_id === incomingMsg.sender_id)
+            );
+
+            if (exists) {
+              return prev.map((m) =>
+                m.content === incomingMsg.content &&
+                m.sender_id === incomingMsg.sender_id &&
+                m.status === 'sending'
+                  ? incomingMsg
+                  : m
+              );
             }
+
             return [...prev, incomingMsg];
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          setIsReconnecting(false);
+        } else if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR') {
+          setIsReconnecting(true);
+        }
+      });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [threadId]);
+  }, [conversationId]);
 
-  // 2. Supabase Presence Channel (Online Status)
+  // 3. Quản lý trạng thái trực tuyến (Presence)
   useEffect(() => {
-    if (!isSupabaseConfigured || !currentUser) {
-      // Default to online in mock mode for great demo experience
-      setOnlineUserIds(new Set(['user_1', 'user_owner_1', 'user_renter_1', 'admin_1']));
-      return;
-    }
+    if (!isSupabaseConfigured || !currentUser?.id) return;
 
     const presenceChannel = supabase.channel('online-users');
 
@@ -103,62 +157,105 @@ export function useRealtimeChat(threadId?: string): UseRealtimeChatReturn {
     return () => {
       supabase.removeChannel(presenceChannel);
     };
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
-  // 3. Send Message with Optimistic UI & Supabase sync
+  // 4. Hàm gửi tin nhắn với Optimistic Update và xử lý lỗi
   const sendMessage = useCallback(
-    async (text: string) => {
-      if (!threadId || !text.trim() || !currentUser) return;
+    async (content: string) => {
+      const cleanContent = content.trim();
+      if (!conversationId || !cleanContent || !currentUser?.id) return;
 
       const tempId = `temp-${Date.now()}`;
       const tempMessage: Message = {
         id: tempId,
-        threadId,
-        senderId: currentUser.id,
-        senderName: currentUser.name,
-        senderAvatar: currentUser.avatarUrl,
-        text: text.trim(),
-        createdAt: new Date().toISOString(),
+        conversation_id: conversationId,
+        sender_id: currentUser.id,
+        content: cleanContent,
+        created_at: new Date().toISOString(),
         status: 'sending',
+        sender: {
+          id: currentUser.id,
+          full_name: currentUser.name,
+          name: currentUser.name,
+          avatar_url: currentUser.avatarUrl,
+        },
       };
 
-      // Optimistic local update & store update
+      // Optimistic update vào giao diện ngay lập tức
       setMessages((prev) => [...prev, tempMessage]);
-      storeSendMessage(threadId, text.trim());
 
-      if (isSupabaseConfigured) {
-        try {
-          const { error } = await supabase.from('messages').insert({
-            thread_id: threadId,
-            sender_id: currentUser.id,
-            sender_name: currentUser.name,
-            sender_avatar: currentUser.avatarUrl,
-            text: text.trim(),
-            created_at: new Date().toISOString(),
-          });
+      try {
+        const savedMessage = await sendMessageApi(conversationId, currentUser.id, cleanContent);
 
-          if (error) {
-            setMessages((prev) => prev.filter((m) => m.id !== tempId));
-            showToast('Gửi tin nhắn thất bại', 'Vui lòng thử lại sau', 'warning');
-          } else {
-            setMessages((prev) =>
-              prev.map((m) => (m.id === tempId ? { ...m, status: 'sent' } : m))
-            );
-          }
-        } catch {
-          // Graceful fallback in offline mode
-        }
+        // Cập nhật trạng thái thành 'sent' và gắn ID thật từ Supabase
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === tempId
+              ? {
+                  ...savedMessage,
+                  status: 'sent',
+                  sender: tempMessage.sender,
+                }
+              : m
+          )
+        );
+      } catch (err: any) {
+        console.error('[useRealtimeChat] Lỗi khi gửi tin nhắn:', err);
+
+        // Đánh dấu tin nhắn bị lỗi, hiển thị nút Thử lại
+        setMessages((prev) =>
+          prev.map((m) => (m.id === tempId ? { ...m, status: 'failed' } : m))
+        );
+
+        showToast(
+          'Không thể gửi tin nhắn',
+          err?.message || 'Vui lòng bấm Thử lại để gửi lại tin nhắn.',
+          'warning'
+        );
       }
     },
-    [threadId, currentUser, storeSendMessage, showToast]
+    [conversationId, currentUser, showToast]
+  );
+
+  // 5. Thử gửi lại tin nhắn lỗi
+  const retryMessage = useCallback(
+    async (failedMessage: Message) => {
+      if (!conversationId || !currentUser?.id) return;
+
+      // Đặt lại trạng thái sending
+      setMessages((prev) =>
+        prev.map((m) => (m.id === failedMessage.id ? { ...m, status: 'sending' } : m))
+      );
+
+      try {
+        const saved = await sendMessageApi(
+          conversationId,
+          currentUser.id,
+          failedMessage.content
+        );
+
+        setMessages((prev) =>
+          prev.map((m) => (m.id === failedMessage.id ? { ...saved, status: 'sent' } : m))
+        );
+      } catch (err: any) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === failedMessage.id ? { ...m, status: 'failed' } : m))
+        );
+        showToast('Gửi lại thất bại', 'Kiểm tra kết nối và thử lại sau.', 'error');
+      }
+    },
+    [conversationId, currentUser, showToast]
   );
 
   const isOtherOnline = onlineUserIds.size > 0;
-  const lastSeenText = isOtherOnline ? 'Đang trực tuyến' : 'Hoạt động 5 phút trước';
+  const lastSeenText = isOtherOnline ? 'Đang trực tuyến' : 'Hoạt động gần đây';
 
   return {
     messages,
+    isLoading,
+    isReconnecting,
     sendMessage,
+    retryMessage,
     isOtherOnline,
     lastSeenText,
   };

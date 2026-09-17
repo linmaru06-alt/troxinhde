@@ -13,6 +13,10 @@ import {
   BarChart3,
   LogOut,
   Home,
+  Calendar,
+  History,
+  Activity,
+  CreditCard,
   Crown,
 } from 'lucide-react';
 
@@ -24,10 +28,10 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications, threads, ownerApplications } = useAppStore();
+  const { logout, currentUser, notifications, ownerApplications } = useAppStore();
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
-  const unreadMessages = threads.reduce((acc, t) => acc + (t.unreadCount || 0), 0);
+  const unreadMessages = 0;
   const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;
 
   const ownerLinks: NavLinkItem[] = [
@@ -41,10 +45,14 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
   ];
 
   const adminLinks: NavLinkItem[] = [
-    { to: '/admin', label: 'Kiểm duyệt tin đăng', icon: ShieldCheck },
-    { to: '/admin/don-chu-tro', label: 'Đơn Chủ trọ', icon: Building2, badge: pendingOwnerApps },
+    { to: '/admin', label: 'Tổng quan điều hành', icon: LayoutDashboard },
+    { to: '/admin/kiem-duyet', label: 'Kiểm duyệt nội dung', icon: ShieldCheck },
     { to: '/admin/nguoi-dung', label: 'Quản lý người dùng', icon: Users },
+    { to: '/admin/lich-hen', label: 'Theo dõi lịch hẹn', icon: Calendar },
+    { to: '/admin/nhat-ky', label: 'Nhật ký Audit Logs', icon: History },
+    { to: '/admin/he-thong', label: 'Trạng thái hệ thống', icon: Activity },
     { to: '/admin/thong-ke', label: 'Báo cáo thống kê', icon: BarChart3 },
+    { to: '/admin/tai-chinh', label: 'Tài chính & Doanh thu', icon: CreditCard },
   ];
 
   const links = role === 'owner' ? ownerLinks : adminLinks;

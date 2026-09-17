@@ -10,6 +10,7 @@ import { Button } from './components/ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
+import { AuthModal } from './components/modals/AuthModal';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 
@@ -62,9 +63,14 @@ const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscr
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
 
 // Admin Pages
+const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
 const AdminModerationPage = React.lazy(() => import('./pages/AdminModerationPage').then((m) => ({ default: m.AdminModerationPage })));
 const AdminOwnerApplicationsPage = React.lazy(() => import('./pages/AdminOwnerApplicationsPage').then((m) => ({ default: m.AdminOwnerApplicationsPage })));
 const AdminUsersPage = React.lazy(() => import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
+const AdminBookingsPage = React.lazy(() => import('./pages/AdminBookingsPage').then((m) => ({ default: m.AdminBookingsPage })));
+const AdminAuditLogsPage = React.lazy(() => import('./pages/AdminAuditLogsPage').then((m) => ({ default: m.AdminAuditLogsPage })));
+const AdminSystemHealthPage = React.lazy(() => import('./pages/AdminSystemHealthPage').then((m) => ({ default: m.AdminSystemHealthPage })));
+const AdminFinancePage = React.lazy(() => import('./pages/AdminFinancePage').then((m) => ({ default: m.AdminFinancePage })));
 const AdminAnalyticsPage = React.lazy(() => import('./pages/AdminAnalyticsPage').then((m) => ({ default: m.AdminAnalyticsPage })));
 
 // QA & 404
@@ -87,10 +93,16 @@ const PageSkeleton = () => (
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
 import { auth, onAuthStateChanged, onIdTokenChanged } from './lib/firebase';
 import { getProfileByFirebaseUid, syncFirebaseUserToSupabase } from './lib/authService';
+import { setAnalyticsUser } from './lib/analytics';
 
 // Global Firebase Auth & Cloud Data Loader
 const AppCloudDataLoader: React.FC = () => {
   const { loginWithSocialUser, logout, currentUser, fetchInitialCloudData } = useAppStore();
+
+  // Đồng bộ định danh và vai trò người dùng (Admin, Chủ trọ, Người thuê) lên GA4
+  React.useEffect(() => {
+    setAnalyticsUser(currentUser ? { id: currentUser.id, role: currentUser.role, email: currentUser.email } : null);
+  }, [currentUser]);
 
   React.useEffect(() => {
     // 1. Tải dữ liệu từ Supabase Cloud khi mở web
@@ -211,11 +223,11 @@ export const App: React.FC = () => {
             <Routes>
               {/* Public Core Routes */}
               <Route path="/" element={<LandingPage />} />
-            <Route path="/tim-kiem" element={<SearchPage />} />
-            <Route path="/tim-phong" element={<SearchPage />} />
-            <Route path="/ban-do" element={<MapViewPage />} />
-            <Route path="/phong/:id" element={<RoomDetailPage />} />
-            <Route path="/toa-nha/:id" element={<BuildingDetailPage />} />
+              <Route path="/tim-kiem" element={<SearchPage />} />
+              <Route path="/tim-phong" element={<Navigate to="/tim-kiem" replace />} />
+              <Route path="/ban-do" element={<MapViewPage />} />
+              <Route path="/phong/:id" element={<RoomDetailPage />} />
+              <Route path="/toa-nha/:id" element={<BuildingDetailPage />} />
 
             {/* Roommate & Marketplace */}
             <Route path="/roommate" element={<RoommateListPage />} />
@@ -308,7 +320,7 @@ export const App: React.FC = () => {
               }
             />
             <Route
-              path="/tin-nhan/:threadId"
+              path="/tin-nhan/:conversationId"
               element={
                 <ProtectedRoute>
                   <ChatPage />
@@ -317,6 +329,14 @@ export const App: React.FC = () => {
             />
             <Route
               path="/dat-lich/:roomId"
+              element={
+                <ProtectedRoute>
+                  <BookingPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/lich-hen"
               element={
                 <ProtectedRoute>
                   <BookingPage />
@@ -399,14 +419,8 @@ export const App: React.FC = () => {
                 </OwnerRoute>
               }
             />
-            <Route
-              path="/chu-tro/tin-nhan"
-              element={
-                <OwnerRoute>
-                  <ChatPage />
-                </OwnerRoute>
-              }
-            />
+            <Route path="/chu-tro/tin-nhan" element={<Navigate to="/tin-nhan" replace />} />
+            <Route path="/chu-tro/lich-hen" element={<Navigate to="/lich-hen" replace />} />
             <Route
               path="/chu-tro/thong-bao"
               element={
@@ -445,12 +459,20 @@ export const App: React.FC = () => {
               path="/admin"
               element={
                 <AdminRoute>
-                  <AdminModerationPage />
+                  <AdminDashboardPage />
                 </AdminRoute>
               }
             />
             <Route
               path="/admin/kiem-duyet"
+              element={
+                <AdminRoute>
+                  <AdminModerationPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/kiem-duyet/*"
               element={
                 <AdminRoute>
                   <AdminModerationPage />
@@ -474,10 +496,42 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/admin/lich-hen"
+              element={
+                <AdminRoute>
+                  <AdminBookingsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/nhat-ky"
+              element={
+                <AdminRoute>
+                  <AdminAuditLogsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/he-thong"
+              element={
+                <AdminRoute>
+                  <AdminSystemHealthPage />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/thong-ke"
               element={
                 <AdminRoute>
                   <AdminAnalyticsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/tai-chinh"
+              element={
+                <AdminRoute>
+                  <AdminFinancePage />
                 </AdminRoute>
               }
             />
@@ -498,6 +552,7 @@ export const App: React.FC = () => {
         <OfflineBanner />
         <PushPermissionToast />
         <ToastContainer />
+        <AuthModal />
       </div>
     </BrowserRouter>
   );

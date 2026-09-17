@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Room } from '../types';
@@ -106,8 +106,23 @@ export const MapViewPage: React.FC = () => {
     );
   };
 
+  // Lazy load Leaflet CSS only when MapViewPage is mounted
+  useEffect(() => {
+    const leafletId = 'leaflet-dynamic-css';
+    if (!document.getElementById(leafletId)) {
+      const link = document.createElement('link');
+      link.id = leafletId;
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+    }
+  }, []);
+
+  const [showUniFilterMobile, setShowUniFilterMobile] = useState(false);
+
   return (
-    <div className="h-[calc(100vh-4rem)] flex flex-col overflow-hidden bg-gray-50">
+    <div className="h-[100dvh] flex flex-col overflow-hidden bg-gray-50 relative">
       {/* Top Map Filter Sub-bar */}
       <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 space-y-2 z-20 shrink-0 shadow-xs">
         <div className="flex items-center justify-between gap-3">
@@ -162,25 +177,18 @@ export const MapViewPage: React.FC = () => {
               <option value="over_8m">&gt; 8 Triệu / tháng</option>
             </select>
 
-            {/* Mobile View Switcher */}
-            <div className="md:hidden flex items-center bg-gray-100 rounded-xl p-0.5">
-              <button
-                onClick={() => setMobileTab('map')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-                  mobileTab === 'map' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
-                }`}
-              >
-                Bản đồ
-              </button>
-              <button
-                onClick={() => setMobileTab('list')}
-                className={`px-3 py-1 text-xs font-bold rounded-lg transition ${
-                  mobileTab === 'list' ? 'bg-white text-[#00a854] shadow-xs' : 'text-gray-500'
-                }`}
-              >
-                Danh sách
-              </button>
-            </div>
+            {/* Mobile Uni Filter Toggle Button */}
+            <button
+              onClick={() => setShowUniFilterMobile(!showUniFilterMobile)}
+              className={`md:hidden px-2.5 py-1.5 text-xs font-bold rounded-xl border transition flex items-center gap-1 ${
+                selectedUniversity !== 'all' || showUniFilterMobile
+                  ? 'bg-emerald-50 text-[#006d37] border-emerald-200'
+                  : 'bg-white text-gray-700 border-gray-200'
+              }`}
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Đại học</span>
+            </button>
 
             <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
               <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
@@ -190,8 +198,8 @@ export const MapViewPage: React.FC = () => {
           </div>
         </div>
 
-        {/* University Filter Pills Bar */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none">
+        {/* University Filter Pills Bar (Always visible on desktop, toggleable on mobile) */}
+        <div className={`${showUniFilterMobile ? 'flex' : 'hidden md:flex'} items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none animate-fadeIn`}>
           <span className="text-[11px] font-bold text-gray-400 shrink-0 flex items-center gap-1 mr-1">
             <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
             Trường ĐH:
@@ -211,7 +219,10 @@ export const MapViewPage: React.FC = () => {
           {HANOI_UNIVERSITIES.map((uni) => (
             <button
               key={uni.name}
-              onClick={() => setSelectedUniversity(uni.name)}
+              onClick={() => {
+                setSelectedUniversity(uni.name);
+                setShowUniFilterMobile(false);
+              }}
               className={`px-2.5 py-1 rounded-full font-bold transition shrink-0 text-xs flex items-center gap-1 ${
                 selectedUniversity === uni.name
                   ? 'bg-blue-600 text-white shadow-xs'
@@ -312,7 +323,10 @@ export const MapViewPage: React.FC = () => {
             const activeRoom = rooms.find((r) => r.id === activeRoomId);
             if (!activeRoom) return null;
             return (
-              <div className="md:hidden absolute bottom-3 left-3 right-3 z-20 bg-white rounded-3xl p-3 shadow-2xl border border-gray-200 tap-bounce animate-fadeIn">
+              <div
+                className="md:hidden absolute left-3 right-3 z-20 bg-white rounded-3xl p-3 shadow-2xl border border-gray-200 tap-bounce animate-fadeIn"
+                style={{ bottom: 'calc(var(--mobile-bottom-offset, 3.5rem) + 3.5rem)' }}
+              >
                 <div className="flex items-center gap-3">
                   <img
                     src={activeRoom.images[0]}
@@ -349,6 +363,31 @@ export const MapViewPage: React.FC = () => {
             );
           })()}
         </div>
+      </div>
+
+      {/* Mobile Floating View Switcher (Bản đồ / Danh sách) - Luôn nổi và không bị bottom nav che */}
+      <div
+        className="md:hidden fixed z-30 left-1/2 -translate-x-1/2 flex items-center bg-gray-950/90 backdrop-blur-md text-white rounded-full p-1 shadow-2xl border border-white/20"
+        style={{ bottom: 'calc(var(--mobile-bottom-offset, 3.5rem) + 0.75rem)' }}
+      >
+        <button
+          onClick={() => setMobileTab('map')}
+          className={`px-3.5 py-1.5 text-xs font-black rounded-full transition flex items-center gap-1.5 ${
+            mobileTab === 'map' ? 'bg-[#00a854] text-white shadow-md' : 'text-gray-300 hover:text-white'
+          }`}
+        >
+          <MapPin className="w-3.5 h-3.5" />
+          <span>Bản đồ</span>
+        </button>
+        <button
+          onClick={() => setMobileTab('list')}
+          className={`px-3.5 py-1.5 text-xs font-black rounded-full transition flex items-center gap-1.5 ${
+            mobileTab === 'list' ? 'bg-[#00a854] text-white shadow-md' : 'text-gray-300 hover:text-white'
+          }`}
+        >
+          <List className="w-3.5 h-3.5" />
+          <span>Danh sách ({filteredRooms.length})</span>
+        </button>
       </div>
     </div>
   );

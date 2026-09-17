@@ -4,7 +4,7 @@ import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
-import { Heart, MapPin, Sparkles, Navigation, CheckCircle } from 'lucide-react';
+import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag } from 'lucide-react';
 
 export const formatPrice = (price: number): string => {
   if (price === 0) return 'Miễn phí';
@@ -32,12 +32,12 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   const totalEstimatedMonthly = room.price + estimatedServices;
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
+    <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
           <ImageWithFallback
-            src={room.images[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=600'}
+            src={room.images[0] || '/images/hero-banner.webp'}
             alt={room.title}
             preset="thumbnail"
             loading="lazy"
@@ -89,17 +89,19 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
       {/* Info Content */}
       <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
         <div>
-          <div className="flex items-center gap-2 text-[11px] text-gray-500 mb-1.5 font-medium">
-            <span className="font-bold text-gray-800">{room.area} m²</span>
-            <span>•</span>
-            <span>{room.type}</span>
+          {/* Info row: 2 rows on screens < 380px, single line with truncate on larger */}
+          <div className="flex flex-col min-[380px]:flex-row min-[380px]:items-center gap-1 min-[380px]:gap-1.5 text-[11px] text-gray-500 mb-1.5 font-medium overflow-hidden">
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="font-bold text-gray-800">{room.area} m²</span>
+              <span>•</span>
+              <span className="truncate max-w-[110px]">{room.type}</span>
+            </div>
             {room.nearestSchool && (
-              <>
-                <span>•</span>
-                <span className="text-[#00a854] font-bold flex items-center gap-1">
-                  <Navigation className="w-3 h-3" /> {room.nearestSchool}
-                </span>
-              </>
+              <div className="flex items-center gap-1 min-w-0 overflow-hidden text-[#00a854] font-bold">
+                <span className="hidden min-[380px]:inline text-gray-400">•</span>
+                <Navigation className="w-3 h-3 shrink-0" />
+                <span className="truncate">{room.nearestSchool}</span>
+              </div>
             )}
           </div>
 
@@ -249,12 +251,23 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
 };
 
 // 4. MarketplaceCard
+const CATEGORY_ICONS: Record<string, string> = {
+  'Nội thất': '🪑',
+  'Đồ điện tử': '⚡',
+  'Sách vở': '📚',
+  'Đồ gia dụng': '🍳',
+};
+
 export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
+  const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
+  const hasMultipleImages = Array.isArray(item.images) && item.images.length > 1;
+
   return (
     <Link
       to={`/cho-do-cu/${item.id}`}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
     >
+      {/* 1. Hình ảnh sản phẩm + Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <ImageWithFallback
           src={item.images[0]}
@@ -264,27 +277,54 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           fallback="item"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute top-3 left-3">
-          <Badge variant={item.pricingType === 'Miễn phí' ? 'free' : 'cheap'} size="sm">
-            {item.pricingType === 'Miễn phí' ? 'Miễn phí 0đ' : formatCurrency(item.price)}
+
+        {/* 2. Giá sản phẩm (Góc trên bên trái) */}
+        <div className="absolute top-2.5 left-2.5">
+          <Badge variant={item.pricingType === 'Miễn phí' || item.price === 0 ? 'free' : 'cheap'} size="sm">
+            {item.pricingType === 'Miễn phí' || item.price === 0 ? '🎁 Tặng 0đ' : formatCurrency(item.price)}
           </Badge>
         </div>
-        <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[11px] px-2 py-0.5 rounded-md backdrop-blur-xs">
+
+        {/* Huy hiệu số lượng ảnh bổ trợ (Góc trên bên phải) */}
+        {hasMultipleImages && (
+          <span className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs border border-white/20">
+            <Camera className="w-3 h-3 text-amber-300" />
+            {item.images.length} ảnh
+          </span>
+        )}
+
+        {/* 3. Tình trạng món đồ (Góc dưới bên trái) */}
+        <div className="absolute bottom-2 left-2 bg-slate-950/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-xs border border-white/10">
           {item.condition}
         </div>
       </div>
 
-      <div className="p-3.5 flex-1 flex flex-col justify-between">
+      {/* Thông tin chi tiết */}
+      <div className="p-3.5 flex-1 flex flex-col justify-between gap-2.5">
         <div>
-          <span className="text-[11px] font-medium text-gray-400 uppercase">{item.category}</span>
-          <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#006d37] transition-colors line-clamp-2 mb-1">
+          {/* 4. Danh mục */}
+          <div className="flex items-center gap-1 mb-1">
+            <span className="text-xs">{categoryIcon}</span>
+            <span className="text-[11px] font-bold text-gray-500 tracking-wide uppercase">
+              {item.category}
+            </span>
+          </div>
+
+          {/* 5. Tên món đồ */}
+          <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#006d37] transition-colors line-clamp-2 leading-snug">
             {item.name}
           </h3>
         </div>
 
-        <div className="pt-2 mt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
-          <span className="truncate">{item.district}</span>
-          <span className="text-[#006d37] font-semibold">Xem ngay</span>
+        {/* 6. Khu vực & Nút xem */}
+        <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs">
+          <span className="text-gray-500 font-medium flex items-center gap-1 truncate max-w-[65%]">
+            <MapPin className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span className="truncate">{item.district}</span>
+          </span>
+          <span className="text-[#006d37] font-bold text-xs shrink-0 group-hover:translate-x-0.5 transition-transform">
+            Xem ngay →
+          </span>
         </div>
       </div>
     </Link>

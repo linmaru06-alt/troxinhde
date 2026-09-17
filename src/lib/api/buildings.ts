@@ -6,8 +6,17 @@ export async function getBuildings(ownerId?: string) {
   let query = supabase
     .from('buildings')
     .select(`
-      *,
-      rooms(*)
+      id,
+      name,
+      address,
+      district,
+      city,
+      cover_image_url,
+      total_rooms,
+      available_rooms,
+      status,
+      created_at,
+      rooms(id, title, price, status)
     `);
 
   if (ownerId) {

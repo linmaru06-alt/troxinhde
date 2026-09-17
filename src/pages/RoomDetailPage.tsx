@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
@@ -6,7 +6,7 @@ import { Badge } from '../components/ui/Badge';
 import { formatPrice, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import { LoginPromptModal } from '../components/modals/LoginPromptModal';
-import { initialReviews } from '../data/mockData';
+import { getReviews, createReview } from '../lib/api/reviews';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { ImageWithFallback } from '../components/ui/ImageWithFallback';
 import { MiniRoomMap } from '../components/map/TroXinhMap';
@@ -38,32 +38,47 @@ import {
   Eye,
 } from 'lucide-react';
 
+import { getOrCreateConversation } from '../lib/api/messages';
+
 export const RoomDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast, getOrCreateThread } = useAppStore();
+  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
   const [showPhoneConfirm, setShowPhoneConfirm] = useState<boolean>(false);
-  const [userReviews, setUserReviews] = useState(initialReviews);
+  const [userReviews, setUserReviews] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [newReviewText, setNewReviewText] = useState<string>('');
   const [newReviewStars, setNewReviewStars] = useState<number>(5);
   const [reviewImages, setReviewImages] = useState<string[]>([]);
   const [revealedPhone, setRevealedPhone] = useState<boolean>(false);
 
-  const room = (rooms || []).find((r) => r.id === id) || (rooms || [])[0];
-  const building = (buildings || []).find((b) => room && b.id === room.buildingId) || (buildings || [])[0];
+  const room = (rooms || []).find((r) => r.id === id);
+  const building = (buildings || []).find((b) => room && b.id === room.buildingId);
   const isSaved = room ? (savedRoomIds || []).includes(room.id) : false;
 
   if (!room) {
     return (
-      <div className="text-center py-20">
-        <h2 className="text-xl font-bold">Không tìm thấy phòng trọ</h2>
-        <Link to="/tim-phong" className="text-[#006d37] font-semibold mt-2 inline-block">← Về trang tìm phòng</Link>
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 py-20">
+        <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mb-4">
+          <Building2 className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-extrabold text-gray-900">Phòng Trọ Không Tồn Tại Hoặc Đã Bị Gỡ</h1>
+        <p className="text-gray-500 text-sm mt-2 max-w-md">
+          Tin đăng phòng này có thể đã hết hạn, đã được cho thuê hoặc đường dẫn không chính xác.
+        </p>
+        <div className="mt-6 flex items-center gap-3">
+          <Link
+            to="/tim-kiem"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00a854] hover:bg-[#009249] text-white font-bold text-sm shadow-md transition"
+          >
+            ← Khám Phá Phòng Trọ Khác
+          </Link>
+        </div>
       </div>
     );
   }
@@ -92,14 +107,62 @@ export const RoomDetailPage: React.FC = () => {
     showToast('Đã sao chép liên kết phòng trọ!', 'Bạn có thể gửi cho bạn bè để cùng xem.', 'success');
   };
 
-  const handleContactChat = () => {
+  const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+
+  const handleContactChat = async () => {
     if (!currentUser) {
       setShowLoginModal(true);
       return;
     }
-    const threadId = getOrCreateThread(room.ownerId, room.id);
-    navigate(`/tin-nhan/${threadId}`);
+    if (currentUser.id === room.ownerId) {
+      showToast('Bạn là chủ bài đăng này', 'Không thể tự nhắn tin cho chính mình.', 'info');
+      return;
+    }
+
+    setIsChatLoading(true);
+    try {
+      const convId = await getOrCreateConversation(currentUser.id, room.ownerId, room.id);
+      navigate(`/tin-nhan/${convId}`);
+    } catch (err: any) {
+      console.error('[RoomDetailPage] Lỗi mở cuộc trò chuyện:', err);
+      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
   };
+
+  // Fetch reviews thật từ Supabase
+  useEffect(() => {
+    if (!room?.id) return;
+    let isMounted = true;
+    getReviews(room.id)
+      .then((data) => {
+        if (!isMounted) return;
+        if (data && data.length > 0) {
+          const mapped = data.map((r: any) => ({
+            id: r.id,
+            roomId: r.room_id,
+            userId: r.reviewer_id,
+            userName: r.reviewer?.full_name || 'Khách thuê Trọ Xinh',
+            userAvatar: r.reviewer?.avatar_url || '/images/user-avatar.webp',
+            stars: r.rating || 5,
+            criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
+            text: r.content || '',
+            createdAt: r.created_at || new Date().toISOString(),
+          }));
+          setUserReviews(mapped);
+        } else {
+          setUserReviews([]);
+        }
+      })
+      .catch((err) => {
+        console.warn('[Reviews] Không thể lấy reviews từ Supabase:', err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [room?.id]);
 
   const handleCallPhone = () => {
     navigator.clipboard.writeText(room.ownerPhone);
@@ -107,24 +170,42 @@ export const RoomDetailPage: React.FC = () => {
     setShowPhoneConfirm(false);
   };
 
-  const handleAddReview = (e: React.FormEvent) => {
+  const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!currentUser) {
+      setShowLoginModal(true);
+      return;
+    }
     if (!newReviewText.trim()) return;
-    const newRev = {
-      id: `rev_${Date.now()}`,
-      roomId: room.id,
-      userId: currentUser?.id || 'guest',
-      userName: currentUser?.name || 'Khách thuê',
-      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-      stars: newReviewStars,
-      criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
-      text: newReviewText.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    setUserReviews([newRev, ...userReviews]);
-    setNewReviewText('');
-    setShowReviewModal(false);
-    showToast('Đã gửi đánh giá thành công! ⭐', 'Cảm ơn bạn đã đóng góp cho cộng đồng.', 'success');
+
+    try {
+      const created = await createReview({
+        room_id: room.id,
+        reviewer_id: currentUser.id,
+        rating: newReviewStars,
+        content: newReviewText.trim(),
+        image_urls: reviewImages,
+      });
+
+      const newRev = {
+        id: created?.id || `rev_${Date.now()}`,
+        roomId: room.id,
+        userId: currentUser.id,
+        userName: currentUser.name || 'Khách thuê',
+        userAvatar: currentUser.avatarUrl || '/images/user-avatar.webp',
+        stars: newReviewStars,
+        criteria: { cleanliness: 5, landlord: 5, accuracy: 5, location: 5 },
+        text: newReviewText.trim(),
+        createdAt: new Date().toISOString(),
+      };
+      setUserReviews([newRev, ...userReviews]);
+      setNewReviewText('');
+      setReviewImages([]);
+      setShowReviewModal(false);
+      showToast('Đã gửi đánh giá thành công! ⭐', 'Cảm ơn bạn đã đóng góp cho cộng đồng.', 'success');
+    } catch (err: any) {
+      showToast('Gửi đánh giá thất bại', err?.message || 'Vui lòng thử lại sau!', 'error');
+    }
   };
 
   return (
@@ -506,7 +587,7 @@ export const RoomDetailPage: React.FC = () => {
                 <div>
                   <h3 className="text-sm font-bold text-gray-900 mb-2">Khoảng cách tới các trường đại học:</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {building.nearbyUniversities.map((u, i) => (
+                    {building?.nearbyUniversities?.map((u, i) => (
                       <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs">
                         <span className="font-bold text-gray-800">🎓 {u.name}</span>
                         <span className="text-[#006d37] font-semibold">Cách {u.distanceKm} km</span>
@@ -535,27 +616,34 @@ export const RoomDetailPage: React.FC = () => {
                 </div>
 
                 {/* Review List */}
-                <div className="space-y-4 pt-4 border-t border-gray-100">
-                  {userReviews.map((rev) => (
-                    <div key={rev.id} className="p-4 rounded-2xl bg-gray-50 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2.5">
-                          <img src={rev.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
-                          <div>
-                            <h4 className="text-xs font-bold text-gray-900">{rev.userName}</h4>
-                            <div className="flex text-amber-400 text-xs">
-                              {Array.from({ length: rev.stars }).map((_, i) => '★')}
+                {userReviews.length === 0 ? (
+                  <div className="py-8 text-center text-gray-500 text-xs space-y-1.5 border-t border-gray-100">
+                    <p className="font-semibold text-gray-700">Chưa có đánh giá nào cho phòng trọ này</p>
+                    <p>Hãy là người đầu tiên trải nghiệm thực tế và để lại nhận xét đóng góp cho cộng đồng!</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4 pt-4 border-t border-gray-100">
+                    {userReviews.map((rev) => (
+                      <div key={rev.id} className="p-4 rounded-2xl bg-gray-50 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2.5">
+                            <img src={rev.userAvatar} alt="" className="w-8 h-8 rounded-full object-cover" />
+                            <div>
+                              <h4 className="text-xs font-bold text-gray-900">{rev.userName}</h4>
+                              <div className="flex text-amber-400 text-xs">
+                                {Array.from({ length: rev.stars }).map((_, i) => '★')}
+                              </div>
                             </div>
                           </div>
+                          <span className="text-[11px] text-gray-400">
+                            {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
+                          </span>
                         </div>
-                        <span className="text-[11px] text-gray-400">
-                          {new Date(rev.createdAt).toLocaleDateString('vi-VN')}
-                        </span>
+                        <p className="text-xs text-gray-700 leading-relaxed">{rev.text}</p>
                       </div>
-                      <p className="text-xs text-gray-700 leading-relaxed">{rev.text}</p>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -615,8 +703,8 @@ export const RoomDetailPage: React.FC = () => {
               </p>
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-2.5">
+            {/* Action Buttons (Desktop Sidebar Only - Mobile uses fixed Bottom CTA) */}
+            <div className="hidden lg:block space-y-2.5">
               <Link to={`/dat-lich/${room.id}`} className="block">
                 <Button
                   variant="primary"
@@ -692,41 +780,48 @@ export const RoomDetailPage: React.FC = () => {
         </div>
       </div>
 
-      {/* MOBILE STICKY BOTTOM ACTION CTA BAR */}
-      <div className="lg:hidden fixed bottom-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl p-3">
-        <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
-          <div>
-            <span className="text-[10px] text-gray-500 block">Giá thuê</span>
-            <span className="text-base font-black text-[#006d37] leading-none">
-              {formatPrice(room.price)}
-            </span>
-          </div>
+      {/* MOBILE STICKY BOTTOM ACTION CTA BAR - DUY NHẤT 1 THANH TRÊN MOBILE */}
+      {!showPhoneConfirm && !showReportModal && (
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl p-3"
+          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
+        >
+          <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
+            <div>
+              <span className="text-[10px] text-gray-500 block">Giá thuê</span>
+              <span className="text-base font-black text-[#006d37] leading-none">
+                {formatPrice(room.price)}
+              </span>
+            </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleContactChat}
-              className="p-2.5 rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-xs"
-              title="Nhắn tin"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleContactChat}
+                className="p-2.5 min-w-[44px] min-h-[44px] rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-xs flex items-center justify-center"
+                aria-label="Nhắn tin cho chủ trọ"
+                title="Nhắn tin"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </button>
 
-            <button
-              onClick={() => setShowPhoneConfirm(true)}
-              className="p-2.5 rounded-xl border border-gray-200 text-[#006d37] hover:bg-emerald-50 shadow-xs"
-              title="Gọi điện"
-            >
-              <Phone className="w-5 h-5" />
-            </button>
+              <button
+                onClick={() => setShowPhoneConfirm(true)}
+                className="p-2.5 min-w-[44px] min-h-[44px] rounded-xl border border-gray-200 text-[#006d37] hover:bg-emerald-50 shadow-xs flex items-center justify-center"
+                aria-label="Gọi điện cho chủ trọ"
+                title="Gọi điện"
+              >
+                <Phone className="w-5 h-5" />
+              </button>
 
-            <Link to={`/dat-lich/${room.id}`}>
-              <Button variant="primary" size="md" className="font-bold shadow-md" leftIcon={<Calendar className="w-4 h-4" />}>
-                Đặt Lịch Ngay
-              </Button>
-            </Link>
+              <Link to={`/dat-lich/${room.id}`}>
+                <Button variant="primary" size="md" className="font-bold shadow-md min-h-[44px]" leftIcon={<Calendar className="w-4 h-4" />}>
+                  Đặt Lịch Ngay
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Phone Call Confirm Modal */}
       {showPhoneConfirm && (
@@ -846,17 +941,20 @@ export const RoomDetailPage: React.FC = () => {
 
           {/* Quick Action Buttons */}
           <div className="flex items-center gap-2 flex-1 justify-end">
-            <a
-              href={`tel:${room.ownerPhone || '0888110789'}`}
-              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
-              title="Gọi điện ngay"
-            >
-              <Phone className="w-5 h-5" />
-            </a>
+            {room.ownerPhone ? (
+              <a
+                href={`tel:${room.ownerPhone}`}
+                className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
+                title={`Gọi điện trực tiếp: ${room.ownerPhone}`}
+              >
+                <Phone className="w-5 h-5" />
+              </a>
+            ) : null}
 
             <button
               onClick={handleContactChat}
-              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
+              disabled={isChatLoading}
+              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0 disabled:opacity-50 cursor-pointer"
               title="Nhắn tin"
             >
               <MessageSquare className="w-5 h-5" />

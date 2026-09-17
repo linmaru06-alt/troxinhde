@@ -33,51 +33,68 @@ export const OwnerBuildingListPage: React.FC = () => {
           </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {myBuildings.map((bld) => (
-            <div
-              key={bld.id}
-              className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all space-y-4"
-            >
-              <div className="relative aspect-16/9 w-full bg-gray-100">
-                <img src={bld.images[0]} alt={bld.name} className="w-full h-full object-cover" />
-                <div className="absolute top-3 left-3">
-                  <Badge variant="verified" size="sm">Đã kiểm duyệt PCCC</Badge>
-                </div>
-              </div>
-
-              <div className="p-6 pt-0 space-y-3">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">{bld.name}</h3>
-                  <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                    <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                    {bld.address}, {bld.district}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl text-xs">
-                  <div>
-                    <span className="text-gray-400 block">Tổng quy mô:</span>
-                    <span className="font-bold text-gray-900">{bld.totalRooms} phòng</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-400 block">Phòng còn trống:</span>
-                    <span className="font-bold text-[#006d37]">{bld.availableRooms} phòng</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-amber-500 font-bold">★ {bld.rating} ({bld.reviewCount} đánh giá)</span>
-                  <Link to={`/toa-nha/${bld.id}`}>
-                    <Button variant="outline" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                      Xem Trang Công Khai
-                    </Button>
-                  </Link>
-                </div>
-              </div>
+        {myBuildings.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-gray-200 p-12 text-center space-y-4">
+            <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto">
+              <Building2 className="w-8 h-8" />
             </div>
-          ))}
-        </div>
+            <h3 className="text-lg font-bold text-gray-900">Chưa Có Hồ Sơ Tòa Nhà Nào</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">
+              Tạo hồ sơ tòa nhà để bắt đầu đăng và quản lý danh sách phòng trọ cho thuê trên Trọ Xinh.
+            </p>
+            <Link to="/chu-tro/toa-nha/tao-moi" className="inline-block pt-2">
+              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                Thêm Hồ Sơ Tòa Nhà Đầu Tiên
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {myBuildings.map((bld) => (
+              <div
+                key={bld.id}
+                className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all space-y-4"
+              >
+                <div className="relative aspect-16/9 w-full bg-gray-100">
+                  <img src={bld.images[0]} alt={bld.name} className="w-full h-full object-cover" />
+                  <div className="absolute top-3 left-3">
+                    <Badge variant="verified" size="sm">Đã kiểm duyệt PCCC</Badge>
+                  </div>
+                </div>
+
+                <div className="p-6 pt-0 space-y-3">
+                  <div>
+                    <h3 className="text-lg font-bold text-gray-900">{bld.name}</h3>
+                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                      <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                      {bld.address}, {bld.district}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl text-xs">
+                    <div>
+                      <span className="text-gray-400 block">Tổng quy mô:</span>
+                      <span className="font-bold text-gray-900">{bld.totalRooms} phòng</span>
+                    </div>
+                    <div>
+                      <span className="text-gray-400 block">Phòng còn trống:</span>
+                      <span className="font-bold text-[#006d37]">{bld.availableRooms} phòng</span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2">
+                    <span className="text-xs text-amber-500 font-bold">★ {bld.rating} ({bld.reviewCount} đánh giá)</span>
+                    <Link to={`/toa-nha/${bld.id}`}>
+                      <Button variant="outline" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
+                        Xem Trang Công Khai
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </main>
     </div>
   );

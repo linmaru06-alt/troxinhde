@@ -6,10 +6,13 @@ import {
   signInWithPhoneNumber,
   ConfirmationResult,
   GoogleAuthProvider,
+  FacebookAuthProvider,
+  OAuthProvider,
   signInWithPopup,
   signInWithEmailAndPassword,
   signInWithCustomToken,
   createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   sendPasswordResetEmail,
   signOut as firebaseSignOut,
   onAuthStateChanged,
@@ -34,6 +37,11 @@ let auth: Auth;
 const googleProvider = new GoogleAuthProvider();
 googleProvider.setCustomParameters({ prompt: 'select_account' });
 
+const facebookProvider = new FacebookAuthProvider();
+facebookProvider.setCustomParameters({ display: 'popup' });
+
+const appleProvider = new OAuthProvider('apple.com');
+
 try {
   app = getApps().length > 0 ? getApps()[0] : initializeApp(firebaseConfig);
   auth = getAuth(app);
@@ -48,12 +56,15 @@ export {
   app,
   auth,
   googleProvider,
+  facebookProvider,
+  appleProvider,
   RecaptchaVerifier,
   signInWithPhoneNumber,
   signInWithPopup,
   signInWithEmailAndPassword,
   signInWithCustomToken,
   createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
   sendPasswordResetEmail,
   firebaseSignOut,
   onAuthStateChanged,
