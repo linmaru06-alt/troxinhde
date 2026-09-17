@@ -158,7 +158,7 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
               <div>
                 <div className="flex items-center gap-2">
                   <h2 className="text-xl font-extrabold text-gray-900">{currentPlan.name}</h2>
-                  <Badge variant={isSubscriptionActive ? 'verified' : 'secondary'} size="sm">
+                  <Badge variant={isSubscriptionActive ? 'verified' : 'outline'} size="sm">
                     {isSubscriptionActive ? 'Đang hoạt động' : 'Đã hết hạn'}
                   </Badge>
                 </div>
