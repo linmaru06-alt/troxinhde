@@ -58,29 +58,22 @@ export const LandingPage: React.FC = () => {
         url="/"
       />
 
-      {/* 1. COMPACT BRIGHT GREEN HERO BANNER */}
-      <section
-        className="relative pt-4 pb-8 sm:pt-5 sm:pb-9 md:pt-6 md:pb-10 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/30"
-        style={{
-          background: 'radial-gradient(ellipse 85% 85% at 50% 45%, #fff9a6 0%, #a7f3d0 38%, #34d399 70%, #10b981 100%)',
-        }}
-      >
+      {/* 1. HERO BANNER WITH CUSTOM ILLUSTRATION BACKGROUND */}
+      <section className="relative pt-6 pb-12 sm:pt-8 sm:pb-16 md:pt-10 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/20 bg-[#e6f4ea] bg-[url('/hero-bg.png')] bg-cover bg-center bg-no-repeat overflow-visible">
+        {/* Background Image Container */}
+        <div className="absolute inset-0 overflow-hidden -z-10 pointer-events-none">
+          <img
+            src="/hero-bg.png"
+            alt="Trọ Xinh Hero Background"
+            className="w-full h-full object-cover object-center"
+            loading="eager"
+          />
+        </div>
+
         <div className="max-w-6xl mx-auto text-center relative z-10">
-          {/* Slogan Banner with 3D Icons & Black Bold Text */}
+          {/* Slogan Banner with Bold Text */}
           <div className="relative max-w-2xl mx-auto py-1">
-            {/* Left Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -left-10 top-0 text-2xl animate-bounce duration-1000 select-none pointer-events-none opacity-90">
-              <span>🏠</span>
-              <span className="text-base">🛋️</span>
-            </div>
-
-            {/* Right Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -right-10 top-0 text-2xl animate-bounce duration-700 select-none pointer-events-none opacity-90">
-              <span>🛵</span>
-              <span className="text-base">🎓</span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-3xl font-black text-gray-950 tracking-tight leading-snug drop-shadow-xs">
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-gray-950 tracking-tight leading-snug drop-shadow-xs">
               Phòng thật, giá chuẩn
             </h1>
           </div>
