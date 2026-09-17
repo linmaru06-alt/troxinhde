@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../types';
@@ -16,7 +16,6 @@ import {
   Headphones,
   ChevronRight,
   LogOut,
-  X,
   User as UserIcon,
   Building2,
 } from 'lucide-react';
@@ -81,7 +80,6 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
   logout,
 }) => {
   const navigate = useNavigate();
-  const [showPromoBadge, setShowPromoBadge] = useState<boolean>(true);
 
   if (!isOpen) return null;
 
@@ -117,19 +115,8 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 </div>
               </div>
 
-              {/* 2 nút Đăng ký & Đăng nhập */}
-              <div className="grid grid-cols-2 gap-2 mt-3.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAction(() => {
-                      openAuthModal('register');
-                    })
-                  }
-                  className="w-full py-2 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-900 transition shadow-2xs cursor-pointer text-center"
-                >
-                  Tạo tài khoản
-                </button>
+              {/* Nút Đăng ký / Đăng nhập hợp nhất */}
+              <div className="mt-3.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -137,9 +124,9 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       openAuthModal('login');
                     })
                   }
-                  className="w-full py-2 px-3 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-xs font-black text-white transition shadow-xs cursor-pointer text-center"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#00a854] hover:bg-[#008f47] active:scale-[0.99] text-xs font-black text-white transition-all shadow-xs hover:shadow-sm cursor-pointer text-center flex items-center justify-center gap-1.5"
                 >
-                  Đăng nhập
+                  Đăng ký / Đăng nhập
                 </button>
               </div>
             </div>
@@ -453,28 +440,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
           </div>
         </div>
 
-        {/* Floating Sticker Ưu Đãi Vịt Vàng ở góc dưới (như ảnh Chợ Tốt) */}
-        {showPromoBadge && (
-          <div className="sticky bottom-2 right-2 flex justify-end px-3 pb-1 pointer-events-auto">
-            <div className="bg-white/95 backdrop-blur-xs rounded-2xl p-2 shadow-lg border border-emerald-200 flex items-center gap-2 relative animate-bounce-subtle">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPromoBadge(false);
-                }}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-gray-900 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-black cursor-pointer"
-                title="Đóng"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-              <YellowDuckMascot className="w-8 h-8 shrink-0" />
-              <div className="pr-1 text-left">
-                <div className="text-[10px] font-black text-[#00a854] leading-tight">TRỌ XINH ƯU ĐÃI</div>
-                <div className="text-[9px] text-gray-500 font-medium">Nhận mã giảm cọc ngay</div>
-              </div>
-            </div>
-          </div>
-        )}
+
       </motion.div>
     </AnimatePresence>
   );
