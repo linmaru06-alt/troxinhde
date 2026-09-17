@@ -9,11 +9,7 @@ import {
   Users,
   PlusCircle,
   Search,
-  Filter,
   Sparkles,
-  Heart,
-  GraduationCap,
-  MapPin,
   X,
   SlidersHorizontal,
 } from 'lucide-react';

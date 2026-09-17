@@ -6,13 +6,8 @@ import { createRoommatePost } from '../../lib/api/roommates';
 import {
   Users,
   Sparkles,
-  MapPin,
-  DollarSign,
-  GraduationCap,
-  Heart,
   Check,
   X,
-  Building2,
   PlusCircle,
   Home,
   Search,
@@ -162,6 +157,9 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       return;
     }
 
+    const validGender = userGender as 'Nam' | 'Nữ' | 'Khác';
+    const validGenderPreference = genderPreference as 'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả';
+
     const selectedRoom = rooms.find((r) => r.id === linkedRoomId);
     const posterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
 
@@ -177,8 +175,8 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         room_id: (hasRoom && selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
         nickname: userName.trim(),
         age: Number(userAge),
-        gender: userGender === 'Nam' ? 'male' : userGender === 'Nữ' ? 'female' : 'any',
-        preferred_gender: genderPreference === 'Chỉ tìm Nam' ? 'male' : genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
+        gender: validGender === 'Nam' ? 'male' : validGender === 'Nữ' ? 'female' : 'any',
+        preferred_gender: validGenderPreference === 'Chỉ tìm Nam' ? 'male' : validGenderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
         budget_per_person: Number(budgetShare),
         lifestyle_tags: selectedHabits,
         self_intro: intro.trim(),
@@ -192,12 +190,12 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         userId: currentUser?.id || `user_${Date.now()}`,
         userName: userName.trim(),
         userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-        userGender,
+        userGender: validGender,
         userAge: Number(userAge),
         userSchool: userSchool.trim(),
         district,
         budgetShare: Number(budgetShare),
-        genderPreference,
+        genderPreference: validGenderPreference,
         habits: selectedHabits,
         lifestyleTags: selectedHabits.slice(0, 3),
         intro: intro.trim(),

@@ -12,7 +12,6 @@ import {
   CheckCircle2,
   AlertTriangle,
   ShieldCheck,
-  Building,
 } from 'lucide-react';
 
 import { getOrCreateConversation } from '../lib/api/messages';
