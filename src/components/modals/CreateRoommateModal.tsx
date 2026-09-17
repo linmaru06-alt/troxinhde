@@ -65,6 +65,8 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   const [linkedRoomId, setLinkedRoomId] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+
   const toggleHabit = (habit: string) => {
     if (selectedHabits.includes(habit)) {
       setSelectedHabits(selectedHabits.filter((h) => h !== habit));
@@ -87,10 +89,11 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
 
     const selectedRoom = rooms.find((r) => r.id === linkedRoomId);
     const posterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
+    const roomImages = selectedRoom?.images || [];
 
     setIsSubmitting(true);
     try {
-      await createRoommatePost({
+      const created = await createRoommatePost({
         poster_id: posterId.length === 36 ? posterId : '00000000-0000-0000-0000-000000000003',
         room_id: (selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
         nickname: userName.trim(),
@@ -100,12 +103,16 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         budget_per_person: Number(budgetShare) || 2000000,
         lifestyle_tags: selectedHabits,
         self_intro: intro.trim(),
+        district,
+        school: userSchool.trim(),
+        images: roomImages.slice(0, 3),
       });
 
       addRoommatePost({
+        id: created?.id,
         userId: currentUser?.id || `user_${Date.now()}`,
         userName: userName.trim(),
-        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
         userGender,
         userAge: Number(userAge) || 20,
         userSchool: userSchool.trim(),
@@ -120,12 +127,14 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         linkedRoomPrice: selectedRoom?.price,
         linkedRoomArea: selectedRoom?.area,
         linkedRoomImage: selectedRoom?.images[0],
+        images: roomImages.slice(0, 3),
         status: 'Đang tìm',
       });
 
       showToast('Đăng tin tìm bạn thành công!', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng.', 'success');
       onClose();
     } catch (err: any) {
+      console.error('[Roommate] Lỗi lưu bài lên Cloud:', err);
       showToast('Lỗi khi đăng tin tìm bạn', err?.message || 'Không thể lưu bài đăng. Vui lòng thử lại!', 'error');
     } finally {
       setIsSubmitting(false);
@@ -315,7 +324,13 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
           <Button type="button" variant="outline" size="md" onClick={onClose}>
             Hủy Bỏ
           </Button>
-          <Button type="submit" variant="primary" size="md" leftIcon={<Sparkles className="w-4 h-4" />} disabled={isSubmitting}>
+          <Button
+            type="submit"
+            variant="primary"
+            size="md"
+            disabled={isSubmitting}
+            leftIcon={<Sparkles className="w-4 h-4" />}
+          >
             {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Tìm Bạn Ngay'}
           </Button>
         </div>
