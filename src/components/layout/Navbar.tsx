@@ -183,17 +183,17 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* 2. Center: Desktop Main Navigation Tabs */}
-            <nav className="hidden lg:flex items-center gap-6 text-xs font-bold">
+            <nav className="hidden lg:flex items-center gap-3 text-xs font-bold">
               {navLinks.map((link) => {
                 const active = isActive(link.to);
                 return (
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={`py-1 transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition shadow-2xs ${
                       active
-                        ? 'text-white border-b-2 border-white font-black'
-                        : 'text-emerald-100/90 hover:text-white font-bold'
+                        ? 'bg-white text-gray-950 shadow-md'
+                        : 'bg-white/90 hover:bg-white text-gray-900/80 hover:text-gray-950'
                     }`}
                   >
                     {link.label}
