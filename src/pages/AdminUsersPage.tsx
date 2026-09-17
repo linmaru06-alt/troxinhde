@@ -183,9 +183,7 @@ export const AdminUsersPage: React.FC = () => {
               <Users className="w-7 h-7 text-[#006d37]" />
               Quản Lý Người Dùng & Phân Quyền
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Tra cứu hồ sơ, phân quyền đối tác chủ trọ, xử lý khóa tài khoản vi phạm qua Supabase thật.
-            </p>
+
           </div>
 
           <Button

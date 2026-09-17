@@ -113,9 +113,7 @@ export const AdminAnalyticsPage: React.FC = () => {
               <BarChart3 className="w-7 h-7 text-[#006d37]" />
               Báo Cáo & Thống Kê Nền Tảng
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              100% dữ liệu thống kê tổng hợp từ Supabase, không sử dụng số liệu minh họa hoặc dự phóng ảo.
-            </p>
+
           </div>
 
           <button

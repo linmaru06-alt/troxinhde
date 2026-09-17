@@ -261,17 +261,9 @@ export const AdminDashboardPage: React.FC = () => {
         {/* Header Tổng Quan */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-                Trung Tâm Điều Hành Quản Trị
-              </h1>
-              <span className="px-2.5 py-0.5 rounded-full text-[11px] font-extrabold bg-[#006d37]/10 text-[#006d37] uppercase">
-                Live Supabase
-              </span>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              Giám sát chất lượng phòng, theo dõi SLA, duyệt hồ sơ và bảo đảm tiêu chuẩn an toàn sinh viên.
-            </p>
+            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
+              Trung Tâm Điều Hành Quản Trị
+            </h1>
           </div>
 
           <div className="flex items-center gap-2 self-start sm:self-auto">

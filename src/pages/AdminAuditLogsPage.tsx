@@ -64,9 +64,7 @@ export const AdminAuditLogsPage: React.FC = () => {
               <History className="w-7 h-7 text-[#006d37]" />
               Nhật Ký Quản Trị (Audit Logs)
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Hệ thống lưu vết bất biến: theo dõi ai đã làm gì, vào thời điểm nào, đối tượng nào và lý do cụ thể.
-            </p>
+
           </div>
 
           <Button

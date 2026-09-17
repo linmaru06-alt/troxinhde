@@ -214,9 +214,7 @@ export const AdminModerationPage: React.FC = () => {
               <ShieldCheck className="w-8 h-8 text-[#006d37]" />
               Trung Tâm Kiểm Duyệt Nội Dung
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Thẩm định tin đăng với checklist bắt buộc, xét duyệt hồ sơ chủ trọ và xử lý báo cáo vi phạm qua Supabase thật.
-            </p>
+
           </div>
 
           <Button
