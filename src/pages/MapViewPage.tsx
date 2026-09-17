@@ -29,7 +29,6 @@ export const MapViewPage: React.FC = () => {
 
   const [activeRoomId, setActiveRoomId] = useState<string | null>(activeRooms[0]?.id || null);
   const [mobileTab, setMobileTab] = useState<'map' | 'list'>('map');
-  const [selectedUniversity, setSelectedUniversity] = useState<string>('all');
   const [priceRange, setPriceRange] = useState<string>('all');
   const [keyword, setKeyword] = useState<string>('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -37,21 +36,9 @@ export const MapViewPage: React.FC = () => {
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // University coordinates lookup
-  const selectedUniObj = useMemo(() => {
-    if (selectedUniversity === 'all') return null;
-    return HANOI_UNIVERSITIES.find((u) => u.name === selectedUniversity) || null;
-  }, [selectedUniversity]);
-
   // Filtered rooms on map
   const filteredRooms = useMemo(() => {
     return (activeRooms || []).filter((r: any) => {
-      // University filter
-      if (selectedUniversity !== 'all' && r.nearestSchool) {
-        if (!r.nearestSchool.toLowerCase().includes(selectedUniversity.toLowerCase().replace('đh ', '').replace('học viện ', ''))) {
-          // allow partial matches
-        }
-      }
 
       // Price filter
       if (priceRange === 'under_3m' && r.price >= 3000000) return false;
@@ -71,7 +58,7 @@ export const MapViewPage: React.FC = () => {
 
       return true;
     });
-  }, [activeRooms, selectedUniversity, priceRange, keyword]);
+  }, [activeRooms, priceRange, keyword]);
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -118,8 +105,6 @@ export const MapViewPage: React.FC = () => {
       document.head.appendChild(link);
     }
   }, []);
-
-  const [showUniFilterMobile, setShowUniFilterMobile] = useState(false);
 
   return (
     <div className="h-[100dvh] flex flex-col overflow-hidden bg-gray-50 relative">
@@ -177,62 +162,12 @@ export const MapViewPage: React.FC = () => {
               <option value="over_8m">&gt; 8 Triệu / tháng</option>
             </select>
 
-            {/* Mobile Uni Filter Toggle Button */}
-            <button
-              onClick={() => setShowUniFilterMobile(!showUniFilterMobile)}
-              className={`md:hidden px-2.5 py-1.5 text-xs font-bold rounded-xl border transition flex items-center gap-1 ${
-                selectedUniversity !== 'all' || showUniFilterMobile
-                  ? 'bg-emerald-50 text-[#006d37] border-emerald-200'
-                  : 'bg-white text-gray-700 border-gray-200'
-              }`}
-            >
-              <GraduationCap className="w-3.5 h-3.5" />
-              <span>Đại học</span>
-            </button>
-
             <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
               <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
                 Xem danh sách
               </Button>
             </Link>
           </div>
-        </div>
-
-        {/* University Filter Pills Bar (Always visible on desktop, toggleable on mobile) */}
-        <div className={`${showUniFilterMobile ? 'flex' : 'hidden md:flex'} items-center gap-1.5 overflow-x-auto pb-1 text-xs scrollbar-none animate-fadeIn`}>
-          <span className="text-[11px] font-bold text-gray-400 shrink-0 flex items-center gap-1 mr-1">
-            <GraduationCap className="w-3.5 h-3.5 text-blue-600" />
-            Trường ĐH:
-          </span>
-
-          <button
-            onClick={() => setSelectedUniversity('all')}
-            className={`px-2.5 py-1 rounded-full font-bold transition shrink-0 text-xs ${
-              selectedUniversity === 'all'
-                ? 'bg-[#006d37] text-white shadow-xs'
-                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}
-          >
-            Tất cả khu vực
-          </button>
-
-          {HANOI_UNIVERSITIES.map((uni) => (
-            <button
-              key={uni.name}
-              onClick={() => {
-                setSelectedUniversity(uni.name);
-                setShowUniFilterMobile(false);
-              }}
-              className={`px-2.5 py-1 rounded-full font-bold transition shrink-0 text-xs flex items-center gap-1 ${
-                selectedUniversity === uni.name
-                  ? 'bg-blue-600 text-white shadow-xs'
-                  : 'bg-blue-50/80 text-blue-800 border border-blue-200/60 hover:bg-blue-100'
-              }`}
-            >
-              <span>🎓</span>
-              <span>{uni.name}</span>
-            </button>
-          ))}
         </div>
       </div>
 
@@ -244,6 +179,20 @@ export const MapViewPage: React.FC = () => {
             mobileTab === 'list' ? 'block' : 'hidden md:block'
           }`}
         >
+          {/* Search Bar */}
+          <div className="relative">
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <Search className="h-4 w-4 text-gray-400" />
+            </div>
+            <input
+              type="text"
+              placeholder="Nhập địa điểm tìm kiếm cụ thể..."
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#006d37] focus:border-transparent text-sm transition font-medium"
+            />
+          </div>
+
           <div className="flex items-center justify-between pb-1">
             <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí trên bản đồ:</p>
             <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-md">
@@ -264,7 +213,6 @@ export const MapViewPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  setSelectedUniversity('all');
                   setPriceRange('all');
                   setKeyword('');
                 }}
@@ -306,15 +254,14 @@ export const MapViewPage: React.FC = () => {
             activeRoomId={activeRoomId}
             onSelectRoom={handleSelectRoom}
             userLocation={userLocation}
-            universityRadiusCenter={selectedUniObj ? selectedUniObj.coords : null}
-            zoom={selectedUniObj || userLocation ? 14 : 13}
+            universityRadiusCenter={null}
+            zoom={userLocation ? 14 : 13}
           />
 
-          {/* Floating Quick Info Pill */}
           <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-200 shadow-md text-xs font-bold text-gray-700 flex items-center gap-2 pointer-events-none">
             <span className="w-2.5 h-2.5 rounded-full bg-[#006d37] animate-pulse" />
             <span>
-              {selectedUniObj ? `Quanh ${selectedUniObj.name} (2km)` : 'Bản đồ phòng trọ Hà Nội'}
+              Bản đồ phòng trọ Hà Nội
             </span>
           </div>
 
