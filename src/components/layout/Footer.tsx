@@ -80,7 +80,7 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
               <li>
-                <Link to="/ve-chung-toi/kiem-duyet" className="hover:text-[#006d37] transition">
+                <Link to="/ve-chung-toi/kiem-duyet" className="hover:text-[#006d37] transition font-medium">
                   Quy trình kiểm duyệt phòng 24h
                 </Link>
               </li>
