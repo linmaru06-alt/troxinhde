@@ -112,15 +112,17 @@ const AppCloudDataLoader: React.FC = () => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         try {
+          const email = fbUser.email?.toLowerCase();
+          const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
           const profile = await getProfileByFirebaseUid(fbUser.uid);
           if (profile) {
             loginWithSocialUser({
               id: profile.id,
-              name: profile.name,
-              email: profile.email,
-              phone: profile.phone,
-              role: profile.role,
-              avatarUrl: profile.avatarUrl,
+              name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
+              email: profile.email || fbUser.email || undefined,
+              phone: profile.phone || fbUser.phoneNumber || undefined,
+              role: isSuperAdmin ? 'admin' : profile.role,
+              avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,
             });
@@ -128,11 +130,11 @@ const AppCloudDataLoader: React.FC = () => {
             const synced = await syncFirebaseUserToSupabase(fbUser);
             loginWithSocialUser({
               id: synced.id,
-              name: synced.name,
-              email: synced.email,
-              phone: synced.phone,
-              role: synced.role,
-              avatarUrl: synced.avatarUrl,
+              name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : synced.name,
+              email: synced.email || fbUser.email || undefined,
+              phone: synced.phone || fbUser.phoneNumber || undefined,
+              role: isSuperAdmin ? 'admin' : synced.role,
+              avatarUrl: synced.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,
             });

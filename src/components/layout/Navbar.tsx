@@ -21,6 +21,7 @@ import {
   Plus,
   Search,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 
 const HANOI_DISTRICTS = [
@@ -258,6 +259,18 @@ export const Navbar: React.FC = () => {
                 <Plus className="w-3.5 h-3.5 stroke-[3]" />
                 <span>ĐĂNG TIN</span>
               </button>
+
+              {/* NÚT QUẢN TRỊ KHI LÀ ADMIN */}
+              {currentUser?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-purple-800 hover:bg-purple-900 text-white text-xs font-black transition shadow-md cursor-pointer"
+                  title="Bảng điều khiển quản trị viên"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>QUẢN TRỊ</span>
+                </Link>
+              )}
 
               {/* Ô Tài Khoản & Dropdown Menu Chợ Tốt */}
               <div className="relative" ref={topDropdownRef}>

@@ -200,7 +200,15 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 >
                   Trang cá nhân
                 </Link>
-                {currentUser.role === 'owner' ? (
+                {currentUser.role === 'admin' ? (
+                  <Link
+                    to="/admin"
+                    onClick={onClose}
+                    className="text-center py-1.5 px-2 bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white rounded-xl transition shadow-xs"
+                  >
+                    Trang quản trị
+                  </Link>
+                ) : currentUser.role === 'owner' ? (
                   <Link
                     to="/chu-tro"
                     onClick={onClose}
@@ -217,6 +225,49 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                     Đăng ký Chủ trọ
                   </Link>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* BAN QUẢN TRỊ SHORTCUT */}
+          {currentUser && currentUser.role === 'admin' && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-purple-800 px-1 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                <span>Ban Quản Trị Hệ Thống</span>
+              </span>
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50/80 rounded-2xl shadow-2xs border border-purple-200 overflow-hidden divide-y divide-purple-100/60">
+                <Link
+                  to="/admin"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-2.5 text-xs font-black text-purple-950 hover:bg-purple-100/70 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="w-4 h-4 text-purple-600" />
+                    <span>Bảng Điều Khiển Quản Trị</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </Link>
+                <Link
+                  to="/admin/kiem-duyet"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-2.5 text-xs font-bold text-purple-900 hover:bg-purple-100/70 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>📋 Duyệt tin phòng trọ</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </Link>
+                <Link
+                  to="/admin/nguoi-dung"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-2.5 text-xs font-bold text-purple-900 hover:bg-purple-100/70 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>👥 Quản lý người dùng</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </Link>
               </div>
             </div>
           )}

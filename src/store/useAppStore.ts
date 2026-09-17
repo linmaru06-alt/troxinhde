@@ -368,7 +368,15 @@ export const useAppStore = create<AppState>()(
         return { valid: false, discountPercent: 0, message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' };
       },
 
-      setCurrentUser: (user) => set({ currentUser: user }),
+      setCurrentUser: (user) => {
+        if (user) {
+          const isSuperAdmin = user.email?.toLowerCase() === 'quan66934@gmail.com' || user.email?.toLowerCase() === 'admin@troxinh.vn';
+          if (isSuperAdmin) {
+            user.role = 'admin';
+          }
+        }
+        set({ currentUser: user });
+      },
 
       loginAsRole: (role) => {
         if (role === 'guest') {
@@ -931,6 +939,14 @@ export const useAppStore = create<AppState>()(
     }),
     {
       name: 'troxinh_storage_v4',
+      onRehydrateStorage: () => (state) => {
+        if (state?.currentUser) {
+          const email = state.currentUser.email?.toLowerCase();
+          if (email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn') {
+            state.currentUser.role = 'admin';
+          }
+        }
+      },
       partialize: (state) => ({
         currentUser: state.currentUser,
         savedRoomIds: state.savedRoomIds,
