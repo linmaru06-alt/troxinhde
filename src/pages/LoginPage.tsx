@@ -405,42 +405,6 @@ export const LoginPage: React.FC = () => {
           </form>
         )}
 
-        {/* Footer */}
-        <div className="pt-3 border-t border-gray-100 text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400 flex-wrap">
-            <Link to="/dieu-khoan" className="hover:text-gray-600 underline">
-              Quy chế hoạt động sàn
-            </Link>
-            <span>•</span>
-            <Link to="/chinh-sach-bao-mat" className="hover:text-gray-600 underline">
-              Chính sách bảo mật
-            </Link>
-            <span>•</span>
-            <button
-              type="button"
-              onClick={() => showToast('Hotline hỗ trợ', '1900 6868 (8:00 - 21:00 hàng ngày)', 'info')}
-              className="hover:text-gray-600 underline cursor-pointer"
-            >
-              Liên hệ hỗ trợ
-            </button>
-          </div>
-
-          {/* Logo Hệ sinh thái */}
-          <div className="flex items-center justify-center gap-3 pt-0.5 opacity-85 select-none">
-            <span className="text-xs font-black tracking-tight text-[#00a854]">
-              TRỌ<span className="text-emerald-700">XINH</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#f37021]">
-              NHÀ<span className="text-amber-700">TỐT</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#006492]">
-              VIỆC<span className="text-blue-700">TỐT</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#f5a623]">
-              CHỢ<span className="text-amber-600">XE</span>
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -473,38 +473,6 @@ export const AuthModal: React.FC = () => {
 
 
 
-        {/* Footer: Quy chế, Chính sách & Logo hệ sinh thái Chợ Tốt / Trọ Xinh */}
-        <div className="pt-3 border-t border-gray-100 text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400 flex-wrap">
-            <a href="/dieu-khoan" target="_blank" rel="noreferrer" className="hover:text-gray-600 underline">
-              Quy chế hoạt động sàn
-            </a>
-            <span>•</span>
-            <a href="/chinh-sach-bao-mat" target="_blank" rel="noreferrer" className="hover:text-gray-600 underline">
-              Chính sách bảo mật
-            </a>
-            <span>•</span>
-            <a href="#support" onClick={(e) => { e.preventDefault(); showToast('Hotline hỗ trợ', '1900 6868 (8:00 - 21:00 hàng ngày)', 'info'); }} className="hover:text-gray-600 underline">
-              Liên hệ hỗ trợ
-            </a>
-          </div>
-
-          {/* Logo Hệ sinh thái Trọ Xinh phong cách Chợ Tốt */}
-          <div className="flex items-center justify-center gap-3 pt-0.5 opacity-85 select-none">
-            <span className="text-xs font-black tracking-tight text-[#00a854]">
-              TRỌ<span className="text-emerald-700">XINH</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#f37021]">
-              NHÀ<span className="text-amber-700">TỐT</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#006492]">
-              VIỆC<span className="text-blue-700">TỐT</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#f5a623]">
-              CHỢ<span className="text-amber-600">XE</span>
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );
