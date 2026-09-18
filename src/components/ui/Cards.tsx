@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
@@ -281,13 +281,13 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
         />
 
         {/* 2. Giá sản phẩm */}
-        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
-          <Badge variant={item.pricingType === 'Miễn phí' ? 'free' : (item.price > 0 ? 'cheap' : 'outline')} size={"sm"}>
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 items-start">
+          <Badge variant={item.pricingType === 'Miễn phí' ? 'free' : (item.price > 0 ? 'cheap' : 'outline')} size="sm">
             {item.pricingType === 'Miễn phí'
-              ? ' Tặng 0đ'
+              ? 'Tặng 0đ'
               : item.price > 0
                 ? formatCurrency(item.price)
-                : ' Liên hệ giá'}
+                : 'Chưa nhập giá'}
           </Badge>
         </div>
 

@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
@@ -269,22 +269,22 @@ export const MarketplaceDetailPage: React.FC = () => {
               </h1>
 
               {/* Price Row */}
-              <div className="flex items-baseline gap-3 pt-1">
+              <div className="flex flex-wrap items-baseline gap-3 pt-1">
                 <span className={`text-2xl sm:text-3xl font-black ${item.status === 'Đã bán' ? 'text-gray-400 line-through' : 'text-[#006d37]'}`}>
                   {item.pricingType === 'Miễn phí'
                     ? 'Tặng 0đ (Miễn phí)'
                     : item.price > 0
                       ? formatCurrency(item.price)
-                      : 'Liên hệ giá'}
+                      : 'Liên hệ thỏa thuận'}
                 </span>
                 {item.pricingType === 'Miễn phí' && (
-                  <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
-                    Đồ tặng sinh viên
+                  <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2.5 py-1 rounded-full border border-emerald-200 flex items-center gap-1">
+                    🎁 Đồ tặng sinh viên
                   </span>
                 )}
-                {item.pricingType === 'Giá rẻ' && item.price === 0 && (
-                  <span className="text-xs bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded-full">
-                    Chưa nhập giá
+                {item.pricingType === 'Giá rẻ' && (!item.price || item.price === 0) && (
+                  <span className="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-full border border-amber-200 flex items-center gap-1">
+                    ⚠️ Chưa nhập giá
                   </span>
                 )}
               </div>

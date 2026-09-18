@@ -1,4 +1,4 @@
-﻿import { User, Building, Room, RoommatePost, MarketplaceItem, NotificationItem, Review, BookingRequest, OwnerApplication } from '../types';
+import { User, Building, Room, RoommatePost, MarketplaceItem, NotificationItem, Review, BookingRequest, OwnerApplication } from '../types';
 
 export const initialUsers: User[] = [
   {
@@ -910,8 +910,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Mới 99%',
     images: [
       'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?w=800&auto=format&fit=crop&q=80',
     ],
     location: '165 Cầu Giấy',
     district: 'Quận Cầu Giấy',
@@ -931,8 +931,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Còn dùng tốt',
     images: [
       'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1584622650111-993a426fbf0a?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1584568694244-14fbdf83bd30?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1536353284924-9220c464e262?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Trần Đại Nghĩa',
     district: 'Quận Hai Bà Trưng',
@@ -951,9 +951,9 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     category: 'Đồ gia dụng',
     condition: 'Dùng tốt',
     images: [
-      'https://images.unsplash.com/photo-1544233726-9f1d2b27be8b?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1585515320310-259814833e62?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1574269909862-7e1d70bb8078?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Chùa Láng',
     district: 'Quận Đống Đa',
@@ -974,8 +974,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Mới 99%',
     images: [
       'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1617375534640-8ad1e3c70f3e?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Nguyễn Trãi',
     district: 'Quận Thanh Xuân',
@@ -1015,9 +1015,9 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     category: 'Đồ gia dụng',
     condition: 'Còn dùng tốt',
     images: [
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1583778176476-4a8b02a64c01?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1585515320310-259814833e62?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1590794056226-79ef3a8147e1?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1556909172-54557c7e4fb7?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Trần Đại Nghĩa',
     district: 'Quận Hai Bà Trưng',
@@ -1036,9 +1036,9 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     category: 'Nội thất',
     condition: 'Mới 99%',
     images: [
-      'https://images.unsplash.com/photo-1580481077195-c999834162e0?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1505797149-43b0069ec26b?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1580481072645-022f859ff33e?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1592078615290-033ee584e267?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1541558869434-2840d308329a?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Lê Đức Thọ',
     district: 'Quận Nam Từ Liêm',
@@ -1058,8 +1058,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Mới 99%',
     images: [
       'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1593642632559-0c6d3fc62b89?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1547082297-8196ed1dd7f8?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1593642632823-8f785ba67e45?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Xuân Thủy',
     district: 'Quận Cầu Giấy',
@@ -1079,8 +1079,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Còn dùng tốt',
     images: [
       'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1584992236310-6edddc08acff?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1594213114663-d94db9b89539?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1570222094114-d054a817e56b?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Trần Phú',
     district: 'Quận Hà Đông',
@@ -1101,8 +1101,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Còn dùng tốt',
     images: [
       'https://images.unsplash.com/photo-1558997519-83ea9252edf8?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1540518614846-7ede433c4550?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1567016432779-094069958ea5?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Phạm Văn Đồng',
     district: 'Quận Bắc Từ Liêm',
@@ -1123,7 +1123,7 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     images: [
       'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1540518614846-7ede433c4550?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Chùa Láng',
     district: 'Quận Đống Đa',
@@ -1142,9 +1142,9 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     category: 'Nội thất',
     condition: 'Còn dùng tốt',
     images: [
+      'https://images.unsplash.com/photo-1595428774223-ef52624120d2?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1558997519-83ea9252edf8?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1556020685-ae41abfc9365?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Nguyễn Trãi',
     district: 'Quận Thanh Xuân',
@@ -1165,7 +1165,7 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     images: [
       'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1595526114035-0d45ed16cfbf?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1611269154421-4e27233ac5c7?w=800&auto=format&fit=crop&q=80',
     ],
     location: '165 Cầu Giấy',
     district: 'Quận Cầu Giấy',
@@ -1186,7 +1186,7 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     images: [
       'https://images.unsplash.com/photo-1507473885765-e6ed057ab6fe?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1513506003901-1e6a229e2d15?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1534105615256-13940a56ff44?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Trần Đại Nghĩa',
     district: 'Quận Hai Bà Trưng',
@@ -1227,8 +1227,8 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     condition: 'Còn dùng tốt',
     images: [
       'https://images.unsplash.com/photo-1522338242992-e1a54571a9f7?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1583778176476-4a8b02a64c01?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1585652757173-0b9a5b6e5e6b?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1621607512214-68297480165e?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Lê Đức Thọ',
     district: 'Quận Nam Từ Liêm',
@@ -1247,9 +1247,9 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     category: 'Đồ gia dụng',
     condition: 'Mới 99%',
     images: [
+      'https://images.unsplash.com/photo-1648455166820-30df7e5e0509?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1626509653291-18d9a934b9db?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1585515320310-259814833e62?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1507089947368-19c1da9775ae?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Phạm Văn Đồng',
     district: 'Quận Bắc Từ Liêm',
@@ -1270,7 +1270,7 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     images: [
       'https://images.unsplash.com/photo-1602143407151-7111542de6e8?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1570831739435-6601aa3fa4fb?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1517256064527-09c73fc73e38?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1523362628745-0c100150b504?w=800&auto=format&fit=crop&q=80',
     ],
     location: '165 Cầu Giấy',
     district: 'Quận Cầu Giấy',
@@ -1310,14 +1310,34 @@ export const initialMarketplaceItems: MarketplaceItem[] = [
     category: 'Đồ gia dụng',
     condition: 'Tặng miễn phí',
     images: [
+      'https://images.unsplash.com/photo-1617375534640-8ad1e3c70f3e?w=800&auto=format&fit=crop&q=80',
       'https://images.unsplash.com/photo-1563245372-f21724e3856d?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1618221195710-dd6b41faaea6?w=800&auto=format&fit=crop&q=80',
-      'https://images.unsplash.com/photo-1513694203232-719a280e022f?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1585771724684-38269d6639fd?w=800&auto=format&fit=crop&q=80',
     ],
     location: 'Lê Đức Thọ',
     district: 'Quận Nam Từ Liêm',
     description: 'Quạt mini sạc USB pin 2000mAh dùng 4-6 tiếng, có kẹp bàn học tiện lợi hoặc đặt đứng trên bàn. 3 tốc độ gió, quay 360 độ. Mình mua phòng mới có quạt trần nên tặng lại bạn nào cần.',
     createdAt: '2026-02-25T10:30:00Z',
+  },
+  {
+    id: 'item_21',
+    userId: 'user_renter_2',
+    userName: 'Hoàng Long',
+    userAvatar: 'https://images.unsplash.com/photo-1539571696357-5a69c17a67c6?w=150&auto=format&fit=crop&q=80',
+    userPhone: '0933112233',
+    name: 'Giá phơi quần áo inox gấp gọn thông minh chữ X',
+    pricingType: 'Giá rẻ',
+    price: 0,
+    category: 'Đồ gia dụng',
+    condition: 'Còn dùng tốt',
+    images: [
+      'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=800&auto=format&fit=crop&q=80',
+      'https://images.unsplash.com/photo-1545173168-9f1947eebb7f?w=800&auto=format&fit=crop&q=80',
+    ],
+    location: 'Trần Đại Nghĩa',
+    district: 'Quận Hai Bà Trưng',
+    description: 'Giá phơi quần áo đôi chữ X bằng inox 304 không rỉ sét, chịu lực tốt, có thể gấp gọn để góc phòng rất tiện lợi cho phòng trọ nhỏ. Mình chuyển phòng nên để lại, chưa định giá cụ thể, bạn nào cần cứ liên hệ thỏa thuận nhé.',
+    createdAt: '2026-02-25T11:00:00Z',
   },
 ];
 
