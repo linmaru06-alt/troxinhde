@@ -1,5 +1,6 @@
 import React from 'react';
 import { SEOHead } from '../components/seo/SEOHead';
+import { Phone, Mail, MessageCircle, MapPin, ExternalLink } from 'lucide-react';
 
 export const PrivacyPage: React.FC = () => {
   return (
@@ -134,24 +135,41 @@ export const PrivacyPage: React.FC = () => {
             <h2 className="mt-8 font-semibold text-lg text-green-700 text-left mb-3">
               LIÊN HỆ VỀ BẢO MẬT
             </h2>
-            <ul className="list-disc pl-5 space-y-2 text-gray-700 leading-relaxed text-left">
-              <li>
-                Hotline/Zalo hỗ trợ bảo mật:{' '}
-                <a href="tel:0888110789" className="font-semibold text-[#006d37] hover:underline">
+            <div className="bg-gray-50/80 p-5 rounded-2xl border border-gray-200/80 space-y-2.5 text-gray-700 leading-relaxed text-left">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-[#006d37] shrink-0" />
+                <a href="tel:0888110789" className="hover:text-green-700 hover:underline transition-colors font-medium">
                   0888 110 789
-                </a>{' '}
-                (08:00 – 21:00)
-              </li>
-              <li>
-                Email:{' '}
-                <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-semibold text-[#006d37] hover:underline">
+                </a>
+                <span className="text-gray-500 text-sm">(08:00 – 21:00)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-[#006d37] shrink-0" />
+                <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="hover:text-green-700 hover:underline transition-colors font-medium">
                   nguyenvuchinhb1hhb@gmail.com
                 </a>
-              </li>
-              <li>
-                Địa chỉ: 18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội
-              </li>
-            </ul>
+              </div>
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-[#006d37] shrink-0" />
+                <a
+                  href="https://zalo.me/0888110789"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-green-700 hover:underline transition-colors font-medium inline-flex items-center gap-1"
+                >
+                  0888 110 789 <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                </a>
+              </div>
+              <a
+                href="https://www.google.com/maps/dir/?api=1&destination=18+Ngõ+167+Tây+Sơn,+Phường+Quang+Trung,+Quận+Đống+Đa,+TP.+Hà+Nội"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2 hover:underline hover:text-green-700 cursor-pointer transition-colors"
+              >
+                <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mt-0.5" />
+                <span>18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội</span>
+              </a>
+            </div>
           </section>
         </div>
       </div>

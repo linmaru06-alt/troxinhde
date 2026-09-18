@@ -225,11 +225,16 @@ export const PrivacyPolicyPage: React.FC = () => {
             <div className="pl-9 bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-2.5">
               <div className="flex items-center gap-2">
                 <Phone className="w-4 h-4 text-[#006d37]" />
-                <span>Hotline: <strong>0888 110 789</strong> (08:00 – 21:00)</span>
+                <a href="tel:0888110789" className="hover:text-green-700 hover:underline transition-colors">
+                  <strong>0888 110 789</strong>
+                </a>
+                <span className="text-gray-500 text-xs">(08:00 – 21:00)</span>
               </div>
               <div className="flex items-center gap-2">
                 <Mail className="w-4 h-4 text-[#006d37]" />
-                <span>Email: <strong>nguyenvuchinhb1hhb@gmail.com</strong></span>
+                <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="hover:text-green-700 hover:underline transition-colors">
+                  <strong>nguyenvuchinhb1hhb@gmail.com</strong>
+                </a>
               </div>
               <div className="flex items-center gap-2">
                 <MessageCircle className="w-4 h-4 text-[#006d37]" />
@@ -239,13 +244,18 @@ export const PrivacyPolicyPage: React.FC = () => {
                   rel="noopener noreferrer"
                   className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
                 >
-                  Zalo hỗ trợ bảo mật: 0888 110 789 <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
+                  0888 110 789 <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
                 </a>
               </div>
-              <div className="flex items-start gap-2">
+              <a
+                href="https://www.google.com/maps/dir/?api=1&destination=18+Ngõ+167+Tây+Sơn,+Phường+Quang+Trung,+Quận+Đống+Đa,+TP.+Hà+Nội"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-start gap-2 hover:underline hover:text-green-700 cursor-pointer transition-colors"
+              >
                 <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mt-0.5" />
-                <span>Địa chỉ: 18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội</span>
-              </div>
+                <span>18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội</span>
+              </a>
             </div>
           </section>
         </div>
