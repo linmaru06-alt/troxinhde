@@ -35,6 +35,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'firebase_uid') THEN
     ALTER TABLE public.profiles ADD COLUMN firebase_uid TEXT UNIQUE;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'email') THEN
+    ALTER TABLE public.profiles ADD COLUMN email TEXT;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'app_role') THEN
     ALTER TABLE public.profiles ADD COLUMN app_role TEXT NOT NULL DEFAULT 'renter';
   END IF;

@@ -1,252 +1,91 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
 import { SEOHead } from '../components/seo/SEOHead';
-import { Button } from '../components/ui/Button';
-import {
-  FileText,
-  Printer,
-  ShieldCheck,
-  CheckCircle2,
-  AlertCircle,
-  Phone,
-  Mail,
-  MessageCircle,
-  Clock,
-  ExternalLink,
-  ChevronRight,
-  MapPin,
-} from 'lucide-react';
 
 export const TermsPage: React.FC = () => {
-  const handlePrint = () => {
-    window.print();
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50/60 py-10 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gray-50/50 py-10">
       <SEOHead
-        title="Điều Khoản Sử Dụng Dịch Vụ | TroXinh Hà Nội"
-        description="Quy chế và điều khoản sử dụng dịch vụ tìm trọ, đăng tin và bảo vệ tiền cọc trên nền tảng Trọ Xinh (TroXinh.vn)."
-        url="/dieu-khoan"
+        title="Điều Khoản Sử Dụng – Trọ Xinh"
+        description="Quy định và điều khoản sử dụng nền tảng Trọ Xinh. Cam kết kết nối minh bạch, an toàn giữa người tìm phòng và chủ nhà."
+        url="/terms"
       />
 
-      <div className="max-w-[800px] mx-auto space-y-8">
-        {/* Header with Print button */}
-        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 text-[#006d37] text-xs font-bold">
-              <FileText className="w-4 h-4" />
-              <span>Văn Bản Quy Chế & Pháp Lý</span>
-            </div>
+      <div className="max-w-4xl mx-auto px-4 py-12 bg-white rounded-2xl border border-gray-200/80 shadow-xs text-gray-700 leading-relaxed space-y-4">
+        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6">
+          ĐIỀU KHOẢN SỬ DỤNG – TRỌ XINH
+        </h1>
 
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              leftIcon={<Printer className="w-4 h-4" />}
-              className="print:hidden"
-            >
-              In Trang
-            </Button>
-          </div>
+        <p>
+          Chào mừng bạn đến với Trọ Xinh! Cảm ơn bạn đã tin tưởng và sử dụng nền tảng của chúng tôi. Khi truy cập, đăng ký tài khoản hoặc sử dụng bất kỳ dịch vụ nào trên website Trọ Xinh (bao gồm nhưng không giới hạn ở: Tìm phòng, Đăng tin, Tìm bạn cùng phòng, Chợ đồ cũ sinh viên), bạn đồng ý đã đọc, hiểu và cam kết tuân thủ toàn bộ các Điều khoản sử dụng dưới đây.
+        </p>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-            Điều Khoản Sử Dụng Dịch Vụ Trọ Xinh
-          </h1>
+        <h2 className="mt-8 font-semibold text-lg text-gray-900">
+          Điều 1: Mục Đích &amp; Bản Chất Nền Tảng
+        </h2>
+        <p>
+          Trọ Xinh là một nền tảng công nghệ trung gian cung cấp không gian trực tuyến giúp kết nối Người có phòng cho thuê/nhà trọ với Người có nhu cầu tìm phòng, tìm bạn ở ghép, và trao đổi đồ dùng sinh viên.
+        </p>
+        <p>
+          <strong>Miễn trừ trách nhiệm:</strong> Trọ Xinh KHÔNG sở hữu, quản lý, hay vận hành bất kỳ phòng trọ hay tài sản nào trên nền tảng. Chúng tôi KHÔNG phải là một bên tham gia vào hợp đồng thuê nhà hay giao dịch mua bán giữa các người dùng.
+        </p>
 
-          <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
-            <span className="flex items-center gap-1.5">
-              <Clock className="w-3.5 h-3.5 text-gray-400" />
-              Ngày hiệu lực: <strong>01/09/2026</strong>
-            </span>
-            <span>•</span>
-            <span>Vận hành: <strong>Nguyễn Vũ Chính</strong></span>
-            <span>•</span>
-            <span>Địa chỉ: <strong>18 Ngõ 167 Tây Sơn, Đống Đa, Hà Nội</strong></span>
-          </div>
-        </div>
+        <h2 className="mt-8 font-semibold text-lg text-gray-900">
+          Điều 2: Quy Định Về Tài Khoản Người Dùng
+        </h2>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>Người dùng chịu trách nhiệm cung cấp thông tin cá nhân chính xác, đầy đủ khi đăng ký.</li>
+          <li>Người dùng phải tự bảo mật thông tin đăng nhập. Trọ Xinh không chịu trách nhiệm cho tổn thất phát sinh từ việc lộ thông tin.</li>
+          <li>Ban quản trị có quyền tạm khóa hoặc xóa vĩnh viễn tài khoản mà không cần báo trước nếu phát hiện gian lận, lừa đảo.</li>
+        </ul>
 
-        {/* Content Body */}
-        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-gray-200 shadow-xs space-y-8 text-sm text-gray-700 leading-relaxed print:shadow-none print:border-none print:p-0">
-          {/* Section 1 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                1
-              </span>
-              GIỚI THIỆU VỀ DỊCH VỤ
-            </h2>
-            <p className="pl-9 text-gray-600">
-              Trọ Xinh (<strong>troxinh.vn</strong>) là nền tảng kết nối trực tuyến giúp sinh viên và người đi làm tại Hà Nội tìm kiếm phòng trọ đã được kiểm duyệt, tìm bạn ở ghép và mua bán đồ dùng sinh viên. Vận hành bởi cá nhân <strong>Nguyễn Vũ Chính</strong>, địa chỉ: Số 18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, Thành phố Hà Nội.
-            </p>
-          </section>
+        <h2 className="mt-8 font-semibold text-lg text-gray-900">
+          Điều 3: Quy Định Dành Cho Người Đăng Tin
+        </h2>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>
+            <strong>Tính xác thực:</strong> Mọi thông tin mô tả, giá cả, địa chỉ và hình ảnh phải đúng 100% thực tế. Cấm đăng tin môi giới ảo.
+          </li>
+          <li>
+            <strong>Tính hợp pháp:</strong> Không đăng tải nội dung trái quy định pháp luật Việt Nam. Tuyệt đối không đăng bán hàng cấm trong 'Chợ đồ cũ'.
+          </li>
+          <li>
+            <strong>Quyền kiểm duyệt:</strong> Trọ Xinh có quyền yêu cầu chỉnh sửa, ẩn hoặc xóa bỏ các tin đăng không đáp ứng tiêu chuẩn theo 'Quy trình kiểm duyệt phòng 24h'.
+          </li>
+        </ul>
 
-          {/* Section 2 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                2
-              </span>
-              ĐIỀU KIỆN SỬ DỤNG
-            </h2>
-            <div className="pl-9 space-y-2 text-gray-600">
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Người dùng phải từ đủ <strong>16 tuổi trở lên</strong> hoặc có sự đồng ý của người giám hộ hợp pháp.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Thông tin đăng ký phải chính xác và trung thực.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
-                <span>Nghiêm cấm đăng tin sai sự thật, lừa đảo hoặc dùng dịch vụ cho mục đích phi pháp.</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                <span>Một cá nhân chỉ được đăng ký và sử dụng một tài khoản chính thức.</span>
-              </div>
-            </div>
-          </section>
+        <h2 className="mt-8 font-semibold text-lg text-gray-900">
+          Điều 4: An Toàn Giao Dịch &amp; Khuyến Cáo
+        </h2>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>
+            <strong>Giao dịch độc lập:</strong> Mọi giao dịch diễn ra hoàn toàn giữa hai bên. Trọ Xinh không thu phí hoa hồng và không chịu trách nhiệm pháp lý đối với bất kỳ rủi ro hay tranh chấp nào.
+          </li>
+          <li>
+            <strong>Khuyến cáo:</strong> Tuyệt đối KHÔNG chuyển khoản đặt cọc trước khi đến xem phòng thực tế. Người dùng tự chịu trách nhiệm tìm hiểu kỹ đối tác trước khi quyết định ở ghép hoặc mua bán.
+          </li>
+        </ul>
 
-          {/* Section 3 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                3
-              </span>
-              QUYỀN VÀ NGHĨA VỤ NGƯỜI DÙNG
-            </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
-              <p>• Được tìm kiếm, lưu tin và liên hệ miễn phí.</p>
-              <p>• Có trách nhiệm bảo mật tài khoản và mật khẩu của mình.</p>
-              <p>• Có trách nhiệm hoàn toàn đối với nội dung thông tin do mình đăng tải.</p>
-              <p>• Không được sao chép, thu thập hoặc phát tán dữ liệu từ Trọ Xinh khi chưa có sự đồng ý.</p>
-            </div>
-          </section>
+        <h2 className="mt-8 font-semibold text-lg text-gray-900">
+          Điều 5: Quyền Sở Hữu Trí Tuệ
+        </h2>
+        <p>
+          Mọi nội dung, thiết kế giao diện, logo và mã nguồn trên website Trọ Xinh đều là tài sản trí tuệ thuộc quyền sở hữu của Ban quản trị. Nghiêm cấm mọi hành vi sao chép hoặc sử dụng cho mục đích thương mại khi chưa có sự đồng ý.
+        </p>
 
-          {/* Section 4 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                4
-              </span>
-              QUYỀN VÀ NGHĨA VỤ CỦA TRỌ XINH
-            </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
-              <p>• Kiểm duyệt tin đăng trong vòng 24 giờ làm việc.</p>
-              <p>• Có quyền xóa tin vi phạm mà không cần thông báo trước.</p>
-              <p>• Cam kết bảo mật thông tin người dùng theo quy định pháp luật.</p>
-              <p>• Tiếp nhận và hỗ trợ giải quyết khiếu nại trong vòng 48 giờ.</p>
-            </div>
-          </section>
-
-          {/* Section 5 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                5
-              </span>
-              CHÍNH SÁCH THANH TOÁN & HOÀN TIỀN
-            </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
-              <p>• Thanh toán qua <strong>VietQR (Techcombank)</strong> hoặc <strong>Ví MoMo</strong>.</p>
-              <p>• Hoàn tiền 100% nếu lỗi phát sinh từ phía hệ thống Trọ Xinh.</p>
-              <p>• Không hoàn tiền nếu đã kích hoạt và sử dụng dịch vụ quá 24 giờ.</p>
-              <p>• Mọi yêu cầu khiếu nại hoàn tiền vui lòng gửi về email: <strong>nguyenvuchinhb1hhb@gmail.com</strong>.</p>
-            </div>
-          </section>
-
-          {/* Section 6 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                6
-              </span>
-              GIỚI HẠN TRÁCH NHIỆM
-            </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
-              <p>• Trọ Xinh là nền tảng trung gian kết nối giữa người có nhu cầu thuê và chủ nhà trọ.</p>
-              <p>• Trọ Xinh không chịu trách nhiệm về giao dịch dân sự trực tiếp giữa chủ trọ và người thuê sau khi đã kết nối.</p>
-              <p>• Khuyến khích hai bên sử dụng mẫu hợp đồng thuê trọ và biên bản đặt cọc có sẵn trên nền tảng.</p>
-            </div>
-          </section>
-
-          {/* Section 7 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                7
-              </span>
-              SỞ HỮU TRÍ TUỆ
-            </h2>
-            <p className="pl-9 text-gray-600">
-              Toàn bộ nội dung, giao diện thiết kế, thương hiệu và logo Trọ Xinh thuộc quyền sở hữu của <strong>Nguyễn Vũ Chính</strong>. Nghiêm cấm mọi hành vi sao chép, giả mạo khi chưa có sự đồng ý bằng văn bản.
-            </p>
-          </section>
-
-          {/* Section 8 */}
-          <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                8
-              </span>
-              THAY ĐỔI ĐIỀU KHOẢN
-            </h2>
-            <p className="pl-9 text-gray-600">
-              Trọ Xinh có quyền cập nhật điều khoản bất kỳ lúc nào để phù hợp với định hướng hoạt động và quy định pháp lý. Thay đổi quan trọng sẽ được thông báo qua email ít nhất 7 ngày trước ngày áp dụng.
-            </p>
-          </section>
-
-          {/* Section 9 */}
-          <section className="space-y-3 pt-4 border-t border-gray-100">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
-                9
-              </span>
-              THÔNG TIN LIÊN HỆ
-            </h2>
-            <div className="pl-9 bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-2.5">
-              <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#006d37]" />
-                <span>Hotline: <strong>0888 110 789</strong> (08:00 – 21:00 hàng ngày)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#006d37]" />
-                <span>Email: <strong>nguyenvuchinhb1hhb@gmail.com</strong></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-[#006d37]" />
-                <a
-                  href="https://zalo.me/0888110789"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
-                >
-                  Zalo: 0888 110 789 <ExternalLink className="w-3.5 h-3.5 text-emerald-600" />
-                </a>
-              </div>
-              <div className="flex items-start gap-2">
-                <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mt-0.5" />
-                <span>Địa chỉ: 18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội</span>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {/* Bottom CTA */}
-        <div className="flex flex-wrap items-center justify-between gap-4 p-6 bg-emerald-900 text-white rounded-3xl shadow-xs print:hidden">
-          <div>
-            <h3 className="font-bold text-base">Xem thêm chính sách bảo mật & quyền riêng tư</h3>
-            <p className="text-xs text-emerald-200">Tìm hiểu cách chúng tôi bảo vệ thông tin cá nhân của bạn.</p>
-          </div>
-          <Link
-            to="/chinh-sach-bao-mat"
-            className="px-5 py-2.5 bg-white text-[#006d37] hover:bg-emerald-50 rounded-xl font-bold text-xs transition flex items-center gap-1.5"
-          >
-            Chính Sách Bảo Mật <ChevronRight className="w-4 h-4" />
-          </Link>
-        </div>
+        <h2 className="mt-8 font-semibold text-lg text-gray-900">
+          Điều 6: Giải Quyết Tranh Chấp &amp; Liên Hệ
+        </h2>
+        <p>
+          Mọi khiếu nại, thắc mắc hoặc báo cáo lừa đảo, vui lòng liên hệ Ban quản trị qua Hotline/Zalo:{' '}
+          <a href="tel:0888110789" className="font-semibold text-[#006d37] hover:underline">
+            0888 110 789
+          </a>{' '}
+          hoặc Email:{' '}
+          <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-semibold text-[#006d37] hover:underline">
+            nguyenvuchinhb1hhb@gmail.com
+          </a>
+          .
+        </p>
       </div>
     </div>
   );

@@ -77,12 +77,12 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Pháp Lý & Điều Khoản</h4>
             <ul className="space-y-2 text-xs">
               {[
-                { to: '/dieu-khoan', label: 'Điều khoản sử dụng' },
+                { to: '/terms', label: 'Điều khoản sử dụng' },
                 { to: '/chinh-sach-bao-mat', label: 'Chính sách bảo mật & quyền riêng tư' },
                 { to: '/ve-chung-toi/kiem-duyet', label: 'Quy trình kiểm duyệt phòng 24h' },
               ].map((link) => (
                 <li key={link.to}>
-                  <Link to={link.to} className="hover:text-[#006d37] transition font-medium">
+                  <Link to={link.to} className="hover:text-[#006d37] hover:underline transition font-medium">
                     {link.label}
                   </Link>
                 </li>

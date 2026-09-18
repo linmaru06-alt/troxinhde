@@ -245,6 +245,7 @@ export const App: React.FC = () => {
             <Route path="/hop-dong-mau" element={<ContractTemplatePage />} />
             <Route path="/bien-ban-dat-coc" element={<DepositContractPage />} />
             <Route path="/dieu-khoan" element={<TermsPage />} />
+            <Route path="/terms" element={<TermsPage />} />
             <Route path="/chinh-sach-bao-mat" element={<PrivacyPolicyPage />} />
 
             {/* Auth Flow */}
