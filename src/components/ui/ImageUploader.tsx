@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UploadFolder, uploadImage, validateImageFile } from '../../lib/cloudinary';
 import { useAppStore } from '../../store/useAppStore';
-import { Image as ImageIcon, X, Check, AlertCircle, Loader2, GripVertical, Plus } from 'lucide-react';
+import { Image as ImageIcon, X, Check, AlertCircle, Loader2, GripVertical, Plus, ChevronLeft, ChevronRight, Star, RotateCw } from 'lucide-react';
 
 export interface ImageUploaderProps {
   folder: UploadFolder;
@@ -147,6 +147,61 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     notifyUrls(filtered);
   };
 
+  // Move item left or right (convenient for mobile and quick reordering)
+  const handleMove = (index: number, direction: 'left' | 'right') => {
+    if (disabled || isUploading) return;
+    const targetIndex = direction === 'left' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= items.length) return;
+
+    const reordered = [...items];
+    const [moved] = reordered.splice(index, 1);
+    reordered.splice(targetIndex, 0, moved);
+    setItems(reordered);
+    notifyUrls(reordered);
+  };
+
+  // Make an image the cover photo (move to index 0)
+  const handleSetCover = (index: number) => {
+    if (disabled || isUploading || index === 0) return;
+    const reordered = [...items];
+    const [moved] = reordered.splice(index, 1);
+    reordered.unshift(moved);
+    setItems(reordered);
+    notifyUrls(reordered);
+    showToast('Đã đặt làm ảnh bìa', 'Ảnh này sẽ hiển thị đầu tiên trên tin đăng', 'success');
+  };
+
+  // Retry uploading a failed image
+  const handleRetry = async (idToRetry: string) => {
+    const itemToRetry = items.find((it) => it.id === idToRetry);
+    if (!itemToRetry || !itemToRetry.file) return;
+
+    setItems((prev) =>
+      prev.map((it) => (it.id === idToRetry ? { ...it, status: 'uploading', errorMsg: undefined } : it))
+    );
+    setIsUploading(true);
+
+    try {
+      const secureUrl = await uploadImage(itemToRetry.file, folder);
+      setItems((prev) => {
+        const next = prev.map((it) =>
+          it.id === idToRetry ? { ...it, url: secureUrl, status: 'done' as const, progress: 100 } : it
+        );
+        notifyUrls(next);
+        return next;
+      });
+      showToast('Tải lại ảnh thành công', '', 'success');
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Tải lại thất bại';
+      setItems((prev) =>
+        prev.map((it) => (it.id === idToRetry ? { ...it, status: 'error' as const, errorMsg } : it))
+      );
+      showToast('Tải lại ảnh thất bại', errorMsg, 'error');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   // HTML5 Drag & Drop reorder
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -172,6 +227,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   const doneCount = items.filter((it) => it.status === 'done').length;
+  const errorCount = items.filter((it) => it.status === 'error').length;
   const uploadingCount = items.filter((it) => it.status === 'uploading').length;
 
   return (
@@ -184,12 +240,19 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           </label>
           {helperText && <p className="text-[11px] text-gray-500 mt-0.5">{helperText}</p>}
         </div>
-        {isUploading && (
-          <div className="flex items-center gap-1.5 text-xs text-[#006d37] font-semibold animate-pulse">
-            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-            <span>Đang tải lên ({doneCount}/{items.length})...</span>
-          </div>
-        )}
+        <div className="flex items-center gap-2">
+          {errorCount > 0 && (
+            <span className="text-[11px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+              {errorCount} ảnh tải lỗi
+            </span>
+          )}
+          {isUploading && (
+            <div className="flex items-center gap-1.5 text-xs text-[#006d37] font-semibold animate-pulse">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <span>Đang tải lên ({doneCount}/{items.length})...</span>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Upload Zone & Previews Grid */}
@@ -239,7 +302,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                   Kéo thả ảnh vào đây hoặc <span className="text-[#006d37] underline">chọn từ thiết bị</span>
                 </p>
                 <p className="text-[11px] text-gray-400">
-                  Tối đa {maxFiles} ảnh • Mỗi ảnh không quá {maxSizeMB}MB • Định dạng JPG, PNG, WebP
+                  Tối đa {maxFiles} ảnh • Mỗi ảnh không quá {maxSizeMB}MB • Kéo thả hoặc bấm nút mũi tên để sắp xếp thứ tự
                 </p>
               </div>
             </div>
@@ -281,44 +344,20 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                     className="w-full h-full object-cover"
                   />
 
-                  {/* Cover Badge on First Image */}
-                  {isCover && (
-                    <div className="absolute top-2 left-2 bg-[#006d37] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1">
-                      <span>★ Ảnh Bìa</span>
-                    </div>
-                  )}
-
-                  {/* Drag Handle Indicator */}
-                  <div className="absolute bottom-2 left-2 p-1 rounded-md bg-black/40 text-white opacity-0 group-hover:opacity-100 transition cursor-grab">
-                    <GripVertical className="w-3.5 h-3.5" />
+                  {/* Position Badge (Top Left) */}
+                  <div className="absolute top-2 left-2 flex items-center gap-1 z-10">
+                    {isCover ? (
+                      <span className="bg-[#006d37] text-white text-[10px] font-extrabold px-2 py-0.5 rounded-lg shadow-sm flex items-center gap-1">
+                        ★ Ảnh Bìa
+                      </span>
+                    ) : (
+                      <span className="bg-black/60 backdrop-blur-xs text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+                        #{index + 1}
+                      </span>
+                    )}
                   </div>
 
-                  {/* Status Overlay: Uploading */}
-                  {item.status === 'uploading' && (
-                    <div className="absolute inset-0 bg-black/50 backdrop-blur-2xs flex flex-col items-center justify-center text-white gap-1 p-2">
-                      <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
-                      <span className="text-[10px] font-semibold">Đang tải lên...</span>
-                    </div>
-                  )}
-
-                  {/* Status Overlay: Done checkmark */}
-                  {item.status === 'done' && (
-                    <div className="absolute bottom-2 right-2 w-5 h-5 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-xs">
-                      <Check className="w-3 h-3 stroke-[3]" />
-                    </div>
-                  )}
-
-                  {/* Status Overlay: Error */}
-                  {item.status === 'error' && (
-                    <div className="absolute inset-0 bg-rose-900/80 backdrop-blur-2xs flex flex-col items-center justify-center text-white p-2 text-center gap-1">
-                      <AlertCircle className="w-5 h-5 text-rose-300" />
-                      <span className="text-[10px] font-bold leading-tight line-clamp-2">
-                        {item.errorMsg || 'Lỗi tải ảnh'}
-                      </span>
-                    </div>
-                  )}
-
-                  {/* Delete Button */}
+                  {/* Top Right: Delete Button */}
                   {!disabled && (
                     <button
                       type="button"
@@ -326,11 +365,109 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
                         e.stopPropagation();
                         handleRemove(item.id);
                       }}
-                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition opacity-0 group-hover:opacity-100 shadow-sm"
+                      className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/60 hover:bg-rose-600 text-white flex items-center justify-center transition shadow-sm z-10 cursor-pointer"
                       title="Xóa ảnh này"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
+                  )}
+
+                  {/* Status Overlay: Uploading */}
+                  {item.status === 'uploading' && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-2xs flex flex-col items-center justify-center text-white gap-1 p-2 z-20">
+                      <Loader2 className="w-5 h-5 animate-spin text-emerald-400" />
+                      <span className="text-[10px] font-semibold">Đang tải lên...</span>
+                    </div>
+                  )}
+
+                  {/* Status Overlay: Error with retry & remove options */}
+                  {item.status === 'error' && (
+                    <div className="absolute inset-0 bg-rose-950/85 backdrop-blur-2xs flex flex-col items-center justify-center text-white p-2 text-center gap-1.5 z-20">
+                      <AlertCircle className="w-5 h-5 text-rose-300 shrink-0" />
+                      <span className="text-[10px] font-bold leading-tight line-clamp-2 text-rose-200">
+                        {item.errorMsg || 'Tải ảnh lỗi'}
+                      </span>
+                      <div className="flex items-center gap-1 pt-1">
+                        {item.file && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleRetry(item.id);
+                            }}
+                            className="bg-white/20 hover:bg-white/30 text-white text-[9px] font-bold px-2 py-0.5 rounded flex items-center gap-1 cursor-pointer transition"
+                            title="Thử tải lại ảnh này"
+                          >
+                            <RotateCw className="w-3 h-3" />
+                            Thử lại
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleRemove(item.id);
+                          }}
+                          className="bg-rose-600/80 hover:bg-rose-600 text-white text-[9px] font-bold px-2 py-0.5 rounded cursor-pointer transition"
+                          title="Bỏ qua ảnh này"
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Bottom Action Bar: Set as cover & Reorder Arrows */}
+                  {!disabled && !isUploading && item.status !== 'uploading' && (
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-1.5 flex items-center justify-between opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity z-10">
+                      {/* Left arrow */}
+                      <button
+                        type="button"
+                        disabled={index === 0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMove(index, 'left');
+                        }}
+                        className={`w-5 h-5 rounded flex items-center justify-center text-white transition ${
+                          index === 0 ? 'opacity-30 cursor-not-allowed' : 'bg-white/20 hover:bg-white/40 cursor-pointer'
+                        }`}
+                        title="Chuyển sang trước"
+                      >
+                        <ChevronLeft className="w-3.5 h-3.5" />
+                      </button>
+
+                      {/* Set as cover button (if not already cover) */}
+                      {!isCover && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleSetCover(index);
+                          }}
+                          className="px-1.5 py-0.5 rounded bg-amber-500/90 hover:bg-amber-500 text-white text-[9px] font-bold flex items-center gap-0.5 transition cursor-pointer shadow-xs"
+                          title="Đặt ảnh này làm ảnh bìa"
+                        >
+                          <Star className="w-2.5 h-2.5 fill-white" />
+                          <span>Làm bìa</span>
+                        </button>
+                      )}
+
+                      {/* Right arrow */}
+                      <button
+                        type="button"
+                        disabled={index === items.length - 1}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMove(index, 'right');
+                        }}
+                        className={`w-5 h-5 rounded flex items-center justify-center text-white transition ${
+                          index === items.length - 1 ? 'opacity-30 cursor-not-allowed' : 'bg-white/20 hover:bg-white/40 cursor-pointer'
+                        }`}
+                        title="Chuyển sang sau"
+                      >
+                        <ChevronRight className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   )}
                 </div>
               );

@@ -163,6 +163,7 @@ interface AppState {
   // Room & Building management
   addBuilding: (building: Omit<Building, 'id'>) => string;
   addRoom: (room: Omit<Room, 'id' | 'views' | 'savedCount' | 'createdAt'>) => string;
+  updateRoom: (roomId: string, updates: Partial<Room>) => void;
   updateRoomStatus: (roomId: string, status: Room['status']) => void;
   approveRoom: (roomId: string) => void;
   rejectRoom: (roomId: string, reason: string) => void;
@@ -170,6 +171,7 @@ interface AppState {
   // Community & Marketplace
   addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
   addMarketplaceItem: (item: Omit<MarketplaceItem, 'id' | 'createdAt'>) => string;
+  updateMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
 
   // Bookings
   createBooking: (booking: Omit<BookingRequest, 'id' | 'createdAt' | 'status'>) => string;
@@ -692,6 +694,13 @@ export const useAppStore = create<AppState>()(
         return newId;
       },
 
+      updateRoom: (roomId, updates) => {
+        set((state) => ({
+          rooms: state.rooms.map((r) => (r.id === roomId ? { ...r, ...updates } : r)),
+        }));
+        get().showToast('Cập nhật phòng thành công!', 'Thông tin phòng đã được lưu lại', 'success');
+      },
+
       updateRoomStatus: (roomId, status) => {
         set((state) => ({
           rooms: state.rooms.map((r) => (r.id === roomId ? { ...r, status } : r)),
@@ -713,12 +722,12 @@ export const useAppStore = create<AppState>()(
               body: `Phòng ID ${roomId} đã được phê duyệt và hiển thị công khai trên ứng dụng.`,
               createdAt: new Date().toISOString(),
               read: false,
-              actionLink: `/phong/${roomId}`,
+              actionLink: `/chu-tro/phong/${roomId}`,
             },
             ...state.notifications,
           ],
         }));
-        get().showToast('Đã phê duyệt tin đăng!', 'Tin đăng đã được xuất bản công khai', 'success');
+        get().showToast('Phê duyệt tin thành công', 'Phòng đã được chuyển sang trạng thái Còn trống', 'success');
       },
 
       rejectRoom: (roomId, reason) => {
@@ -730,8 +739,8 @@ export const useAppStore = create<AppState>()(
             {
               id: `notif_${Date.now()}`,
               userId: 'user_owner_1',
-              type: 'rejected',
-              title: 'Tin đăng phòng bị từ chối ❌',
+              type: 'rejection',
+              title: 'Tin đăng phòng bị từ chối ⚠️',
               body: `Lý do từ chối: ${reason}. Vui lòng cập nhật lại thông tin.`,
               createdAt: new Date().toISOString(),
               read: false,
@@ -769,6 +778,15 @@ export const useAppStore = create<AppState>()(
         syncMarketplaceItemToSupabase(newItem).catch(console.warn);
         get().showToast('Đăng món đồ thành công!', 'Sản phẩm đã xuất hiện trên chợ đồ cũ', 'success');
         return newId;
+      },
+
+      updateMarketplaceItem: (itemId, updates) => {
+        set((state) => ({
+          marketplaceItems: state.marketplaceItems.map((m) =>
+            m.id === itemId ? { ...m, ...updates } : m
+          ),
+        }));
+        get().showToast('Cập nhật món đồ thành công!', 'Thông tin sản phẩm đã được lưu lại', 'success');
       },
 
       createBooking: (data) => {

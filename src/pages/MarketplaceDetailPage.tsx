@@ -1,8 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { Modal } from '../components/ui/Modal';
+import { Input } from '../components/ui/Input';
+import { ImageUploader } from '../components/ui/ImageUploader';
 import { MarketplaceCard, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import {
@@ -21,6 +24,9 @@ import {
   Tag,
   Camera,
   Share2,
+  Edit,
+  Save,
+  Check,
 } from 'lucide-react';
 import { getOrCreateConversation } from '../lib/api/messages';
 
@@ -34,7 +40,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 export const MarketplaceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { marketplaceItems, currentUser, showToast } = useAppStore();
+  const { marketplaceItems, currentUser, updateMarketplaceItem, showToast } = useAppStore();
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
@@ -42,6 +48,75 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const item = marketplaceItems.find((i) => i.id === id) || marketplaceItems[0];
+
+  // Edit Item Modal State
+  const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
+  const [editTitle, setEditTitle] = useState<string>(item?.name || '');
+  const [editPrice, setEditPrice] = useState<number>(item?.price || 0);
+  const [editPricingType, setEditPricingType] = useState<'Giá rẻ' | 'Miễn phí'>(item?.pricingType || 'Giá rẻ');
+  const [editCategory, setEditCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>(
+    item?.category || 'Nội thất'
+  );
+  const [editCondition, setEditCondition] = useState<
+    'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'
+  >(item?.condition || 'Còn dùng tốt');
+  const [editLocation, setEditLocation] = useState<string>(item?.location || '');
+  const [editDistrict, setEditDistrict] = useState<string>(item?.district || '');
+  const [editDescription, setEditDescription] = useState<string>(item?.description || '');
+  const [editImages, setEditImages] = useState<string[]>(item?.images || []);
+  const [editStatus, setEditStatus] = useState<'Còn hàng' | 'Đã bán'>(item?.status || 'Còn hàng');
+  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
+
+  // Sync edit state whenever item changes or modal opens
+  useEffect(() => {
+    if (item) {
+      setEditTitle(item.name);
+      setEditPrice(item.price);
+      setEditPricingType(item.pricingType);
+      setEditCategory(item.category);
+      setEditCondition(item.condition);
+      setEditLocation(item.location);
+      setEditDistrict(item.district);
+      setEditDescription(item.description);
+      setEditImages(item.images || []);
+      setEditStatus(item.status || 'Còn hàng');
+    }
+  }, [item, isEditModalOpen]);
+
+  const handleSaveEdit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTitle.trim()) {
+      showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ', 'warning');
+      return;
+    }
+    if (editImages.length === 0) {
+      showToast('Thiếu ảnh', 'Vui lòng tải lên ít nhất 1 ảnh sản phẩm', 'warning');
+      return;
+    }
+
+    setIsSavingEdit(true);
+    try {
+      updateMarketplaceItem(item.id, {
+        name: editTitle.trim(),
+        price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
+        pricingType: editPricingType,
+        category: editCategory,
+        condition: editCondition,
+        location: editLocation,
+        district: editDistrict,
+        description: editDescription.trim(),
+        images: editImages,
+        status: editStatus,
+      });
+
+      setIsEditModalOpen(false);
+      showToast('Cập nhật tin thành công!', 'Các thay đổi đã được áp dụng ngay lập tức', 'success');
+    } catch (err: any) {
+      showToast('Lỗi cập nhật', err?.message || 'Không thể lưu thay đổi. Dữ liệu đã được giữ nguyên.', 'error');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
 
   if (!item) {
     return (
@@ -131,13 +206,25 @@ export const MarketplaceDetailPage: React.FC = () => {
           <span className="text-gray-900 font-bold truncate max-w-[200px] sm:max-w-xs">{item.name}</span>
         </div>
 
-        <button
-          onClick={handleShare}
-          className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold shrink-0 transition"
-        >
-          <Share2 className="w-3.5 h-3.5" />
-          <span>Chia sẻ</span>
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setIsEditModalOpen(true)}
+            leftIcon={<Edit className="w-3.5 h-3.5 text-[#006d37]" />}
+            className="text-xs border-[#006d37]/40 text-[#006d37] hover:bg-emerald-50"
+          >
+            Sửa Tin Này
+          </Button>
+
+          <button
+            onClick={handleShare}
+            className="flex items-center gap-1 px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-xs font-semibold shrink-0 transition cursor-pointer"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+            <span>Chia sẻ</span>
+          </button>
+        </div>
       </div>
 
       {/* 2. Main Product Card */}
@@ -511,6 +598,139 @@ export const MarketplaceDetailPage: React.FC = () => {
         targetTitle={`Món đồ: ${item.name}`}
         targetId={item.id}
       />
+
+      {/* 6. Edit Marketplace Item Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        title={`Chỉnh Sửa Tin: ${item.name}`}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleSaveEdit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 text-left">
+          <Input
+            label="Tên món đồ / Sản phẩm"
+            required
+            value={editTitle}
+            onChange={(e) => setEditTitle(e.target.value)}
+            placeholder="Ví dụ: Bàn học gấp gọn sinh viên, Nồi cơm điện Sharp..."
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Danh mục</label>
+              <select
+                value={editCategory}
+                onChange={(e) => setEditCategory(e.target.value as any)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
+              >
+                <option value="Nội thất">Nội thất</option>
+                <option value="Đồ điện tử">Đồ điện tử</option>
+                <option value="Sách vở">Sách vở</option>
+                <option value="Đồ gia dụng">Đồ gia dụng</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Hình thức</label>
+              <select
+                value={editPricingType}
+                onChange={(e) => setEditPricingType(e.target.value as any)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
+              >
+                <option value="Giá rẻ">Thanh lý có phí (Giá rẻ)</option>
+                <option value="Miễn phí">Tặng miễn phí (0 đồng)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {editPricingType === 'Giá rẻ' ? (
+              <Input
+                label="Mức giá bán (VNĐ)"
+                type="number"
+                required
+                min={0}
+                step={10000}
+                value={editPrice}
+                onChange={(e) => setEditPrice(Number(e.target.value))}
+                placeholder="150000 (Nhập 0 nếu là giá thỏa thuận)"
+              />
+            ) : (
+              <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 text-xs font-bold text-emerald-800 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600" />
+                Món đồ tặng miễn phí cho sinh viên (0đ)
+              </div>
+            )}
+
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Trạng thái tin đăng</label>
+              <select
+                value={editStatus}
+                onChange={(e) => setEditStatus(e.target.value as any)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm font-bold text-gray-800 focus:ring-2 focus:ring-[#006d37]"
+              >
+                <option value="Còn hàng">🟢 Còn hàng (Đang mở bán/tặng)</option>
+                <option value="Đã bán">🔴 Đã bán (Đã đóng tin)</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Tình trạng đồ</label>
+              <select
+                value={editCondition}
+                onChange={(e) => setEditCondition(e.target.value as any)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
+              >
+                <option value="Mới 99%">Mới 99%</option>
+                <option value="Còn dùng tốt">Còn dùng tốt</option>
+                <option value="Dùng tốt">Dùng tốt</option>
+                <option value="Đã qua sử dụng">Đã qua sử dụng</option>
+                <option value="Tặng miễn phí">Tặng miễn phí</option>
+              </select>
+            </div>
+            <Input
+              label="Địa chỉ lấy đồ"
+              value={editLocation}
+              onChange={(e) => setEditLocation(e.target.value)}
+              placeholder="Quận Cầu Giấy, Hà Nội"
+            />
+          </div>
+
+          <div className="space-y-1.5 text-left">
+            <label className="block text-sm font-medium text-gray-700">Mô tả chi tiết</label>
+            <textarea
+              rows={3}
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Thông tin chi tiết về sản phẩm, tình trạng, phụ kiện đi kèm..."
+              className="w-full rounded-xl border border-gray-300 p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
+            />
+          </div>
+
+          {/* Cloudinary Image Uploader với tính năng sắp xếp ảnh */}
+          <div className="pt-1">
+            <ImageUploader
+              folder="troxinh/marketplace"
+              maxFiles={5}
+              label="Hình ảnh sản phẩm thực tế"
+              helperText="Tối đa 5 ảnh. Ảnh đầu tiên làm ảnh bìa. Dùng nút mũi tên hoặc kéo thả để đổi thứ tự."
+              onComplete={(urls) => setEditImages(urls)}
+              existingUrls={editImages}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
+            <Button variant="outline" size="md" type="button" onClick={() => setIsEditModalOpen(false)}>
+              Hủy
+            </Button>
+            <Button variant="primary" size="md" type="submit" disabled={isSavingEdit}>
+              {isSavingEdit ? 'Đang Lưu...' : 'Lưu Thay Đổi'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

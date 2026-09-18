@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
+import { RoommateCard } from '../ui/Cards';
+import { RoommatePost } from '../../types';
 import { createRoommatePost } from '../../lib/api/roommates';
 import {
   Users,
@@ -13,6 +15,12 @@ import {
   Search,
   Image as ImageIcon,
   Upload,
+  Save,
+  Eye,
+  AlertTriangle,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 interface CreateRoommateModalProps {
@@ -70,6 +78,147 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isUploadingImg, setIsUploadingImg] = useState<boolean>(false);
 
+  // Quản lý lưu nháp
+  const DRAFT_KEY = 'troxinh_draft_roommate';
+  const [lastSavedTime, setLastSavedTime] = useState<string | null>(null);
+  const [hasDraft, setHasDraft] = useState<boolean>(false);
+  const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Tải nháp khi mở modal
+  useEffect(() => {
+    if (!isOpen) return;
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.userName) setUserName(d.userName);
+        if (d.userGender) setUserGender(d.userGender);
+        if (d.userAge) setUserAge(d.userAge);
+        if (d.userSchool) setUserSchool(d.userSchool);
+        if (d.district) setDistrict(d.district);
+        if (d.budgetShare) setBudgetShare(d.budgetShare);
+        if (d.genderPreference) setGenderPreference(d.genderPreference);
+        if (d.selectedHabits) setSelectedHabits(d.selectedHabits);
+        if (d.intro) setIntro(d.intro);
+        if (typeof d.hasRoom === 'boolean') setHasRoom(d.hasRoom);
+        if (d.roomAddress) setRoomAddress(d.roomAddress);
+        if (d.roomPrice) setRoomPrice(d.roomPrice);
+        if (d.roomArea) setRoomArea(d.roomArea);
+        if (d.linkedRoomId) setLinkedRoomId(d.linkedRoomId);
+        if (d.uploadedImages) setUploadedImages(d.uploadedImages);
+        if (d.savedAt) setLastSavedTime(d.savedAt);
+        setHasDraft(true);
+      }
+    } catch (e) {
+      console.error('Lỗi nạp nháp roommate:', e);
+    }
+  }, [isOpen]);
+
+  // Tự động lưu nháp
+  useEffect(() => {
+    if (!isOpen) return;
+    // Chỉ lưu nếu có ít nhất 1 thông tin
+    if (userName || userSchool || district || intro || uploadedImages.length > 0) {
+      const timer = setTimeout(() => {
+        const draftData = {
+          userName,
+          userGender,
+          userAge,
+          userSchool,
+          district,
+          budgetShare,
+          genderPreference,
+          selectedHabits,
+          intro,
+          hasRoom,
+          roomAddress,
+          roomPrice,
+          roomArea,
+          linkedRoomId,
+          uploadedImages,
+          savedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+        };
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+        setLastSavedTime(draftData.savedAt);
+        setHasDraft(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [
+    isOpen,
+    userName,
+    userGender,
+    userAge,
+    userSchool,
+    district,
+    budgetShare,
+    genderPreference,
+    selectedHabits,
+    intro,
+    hasRoom,
+    roomAddress,
+    roomPrice,
+    roomArea,
+    linkedRoomId,
+    uploadedImages,
+  ]);
+
+  const handleManualSaveDraft = () => {
+    const draftData = {
+      userName,
+      userGender,
+      userAge,
+      userSchool,
+      district,
+      budgetShare,
+      genderPreference,
+      selectedHabits,
+      intro,
+      hasRoom,
+      roomAddress,
+      roomPrice,
+      roomArea,
+      linkedRoomId,
+      uploadedImages,
+      savedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+    };
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+    setLastSavedTime(draftData.savedAt);
+    setHasDraft(true);
+    showToast('Đã lưu bản nháp', `Bản nháp đã lưu lúc ${draftData.savedAt}. Bạn có thể tiếp tục chỉnh sửa bất kỳ lúc nào.`, 'success');
+  };
+
+  const handleClearDraft = () => {
+    localStorage.removeItem(DRAFT_KEY);
+    setUserName('');
+    setUserGender('');
+    setUserAge('');
+    setUserSchool('');
+    setDistrict('');
+    setBudgetShare('');
+    setGenderPreference('');
+    setSelectedHabits([]);
+    setIntro('');
+    setHasRoom(false);
+    setRoomAddress('');
+    setRoomPrice('');
+    setRoomArea('');
+    setLinkedRoomId('');
+    setUploadedImages([]);
+    setHasDraft(false);
+    setLastSavedTime(null);
+    setSubmitError(null);
+    showToast('Đã xóa bản nháp', 'Form đã được làm mới hoàn toàn', 'info');
+  };
+
+  const handleMoveImage = (fromIdx: number, toIdx: number) => {
+    if (toIdx < 0 || toIdx >= uploadedImages.length) return;
+    setUploadedImages((prev) => {
+      const next = [...prev];
+      const [item] = next.splice(fromIdx, 1);
+      next.splice(toIdx, 0, item);
+      return next;
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const toggleHabit = (habit: string) => {
@@ -123,6 +272,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
 
     if (!userName.trim()) {
       showToast('Vui lòng nhập họ tên', '', 'warning');
@@ -208,19 +358,79 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         status: 'Đang tìm',
       });
 
+      // Xóa bản nháp khi đăng thành công
+      localStorage.removeItem(DRAFT_KEY);
+      setHasDraft(false);
+
       showToast('Đăng tin tìm bạn thành công!', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng.', 'success');
       onClose();
     } catch (err: any) {
       console.error('[Roommate] Lỗi lưu bài lên Cloud:', err);
-      showToast('Lỗi khi đăng tin tìm bạn', err?.message || 'Không thể lưu bài đăng. Vui lòng thử lại!', 'error');
+      const errMsg = err?.message || 'Không thể lưu bài đăng do lỗi mạng/hệ thống. Dữ liệu đã nhập của bạn được giữ nguyên!';
+      setSubmitError(errMsg);
+      showToast('Lỗi khi đăng tin tìm bạn', errMsg, 'error');
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const previewPost: RoommatePost = {
+    id: 'preview_roommate',
+    userId: currentUser?.id || 'preview_user',
+    userName: userName.trim() || 'Họ và tên của bạn',
+    userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
+    userGender: (userGender as any) || 'Nam',
+    userAge: Number(userAge) || 20,
+    userSchool: userSchool.trim() || 'Trường / Nơi làm việc',
+    district: district || 'Khu vực mong muốn',
+    budgetShare: Number(budgetShare) || 2000000,
+    genderPreference: (genderPreference as any) || 'Tất cả',
+    habits: selectedHabits.length > 0 ? selectedHabits : ['Giữ vệ sinh sạch sẽ'],
+    lifestyleTags: selectedHabits.slice(0, 3),
+    intro: intro.trim() || 'Chưa nhập lời giới thiệu bản thân...',
+    linkedRoomTitle: hasRoom ? (roomAddress.trim() || 'Phòng trọ sẵn có') : undefined,
+    linkedRoomPrice: hasRoom ? (Number(roomPrice) || 4000000) : undefined,
+    linkedRoomImage: uploadedImages[0],
+    images: uploadedImages,
+    status: 'Đang tìm',
+  };
+
   return (
     <Modal isOpen={isOpen} onClose={onClose} title="Đăng Tin Tìm Bạn Cùng Phòng" maxWidth="lg">
       <form onSubmit={handleSubmit} className="space-y-5">
+        {/* Banner Khôi phục Nháp nếu có */}
+        {hasDraft && (
+          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800">
+            <div className="flex items-center gap-2">
+              <Save className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                Đang dùng bản nháp {lastSavedTime ? `(lưu lúc ${lastSavedTime})` : ''} - Dữ liệu được bảo toàn tự động.
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={handleClearDraft}
+              className="text-xs font-semibold text-rose-600 hover:text-rose-700 underline cursor-pointer ml-3 shrink-0 flex items-center gap-1"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              Xóa nháp
+            </button>
+          </div>
+        )}
+
+        {/* Banner Lỗi Submit nếu có */}
+        {submitError && (
+          <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-xl flex items-start gap-2.5 text-xs text-rose-800">
+            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="font-bold">Không thể đăng bài: {submitError}</p>
+              <p className="text-[11px] text-rose-600 mt-0.5">
+                Dữ liệu bạn đã điền vẫn được giữ nguyên đầy đủ. Vui lòng kiểm tra lại kết nối và thử gửi lại!
+              </p>
+            </div>
+          </div>
+        )}
+
         {/* Header Info */}
         <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-[#006d37] text-white flex items-center justify-center font-bold shrink-0">
@@ -346,9 +556,9 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         {/* Habits Checklist */}
         <div className="space-y-2 pt-2 border-t border-gray-100">
           <label className="block text-xs font-bold text-gray-700">
-            Thói quen sinh hoạt & Tính cách (Chọn các mục phù hợp)
+            Thói quen & Lối sống của bạn (Chọn các mục phù hợp)
           </label>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-1.5">
             {COMMON_HABITS.map((habit) => {
               const isSelected = selectedHabits.includes(habit);
               return (
@@ -356,71 +566,43 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
                   type="button"
                   key={habit}
                   onClick={() => toggleHabit(habit)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-medium transition flex items-center gap-1.5 cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
                     isSelected
-                      ? 'bg-[#006d37] text-white shadow-xs'
-                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      ? 'bg-[#006d37] border-[#006d37] text-white shadow-xs font-bold'
+                      : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/40'
                   }`}
                 >
                   {isSelected ? <Check className="w-3.5 h-3.5" /> : <PlusCircle className="w-3.5 h-3.5 text-gray-400" />}
-                  <span>{habit}</span>
+                  {habit}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* 2. PHẦN TÙY CHỌN: ĐÃ CÓ PHÒNG SẴN HAY CHƯA + TẢI ẢNH */}
-        <div className="space-y-3 pt-3 border-t border-gray-100">
-          <label className="block text-xs font-bold text-gray-700">
-            Tình trạng phòng trọ hiện tại của bạn *
+        {/* Option: Đã có phòng hay chưa */}
+        <div className="pt-2 border-t border-gray-100">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={hasRoom}
+              onChange={(e) => setHasRoom(e.target.checked)}
+              className="w-4 h-4 rounded text-[#006d37] focus:ring-[#006d37] border-gray-300"
+            />
+            <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
+              <Home className="w-4 h-4 text-[#006d37]" />
+              Tôi hiện đã thuê được phòng và đang tìm người dọn vào ở chung
+            </span>
           </label>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              type="button"
-              onClick={() => setHasRoom(false)}
-              className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
-                !hasRoom
-                  ? 'border-[#006d37] bg-emerald-50/70 ring-2 ring-[#006d37]/20 shadow-xs'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className={`p-2 rounded-xl shrink-0 ${!hasRoom ? 'bg-[#006d37] text-white' : 'bg-gray-100 text-gray-500'}`}>
-                <Search className="w-4 h-4" />
-              </div>
-              <div>
-                <p className={`text-xs font-bold ${!hasRoom ? 'text-[#006d37]' : 'text-gray-800'}`}>Chưa có phòng</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Tìm bạn hợp gu để cùng nhau đi tìm và thuê phòng mới</p>
-              </div>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setHasRoom(true)}
-              className={`p-3.5 rounded-2xl border text-left transition cursor-pointer flex items-start gap-3 ${
-                hasRoom
-                  ? 'border-[#006d37] bg-emerald-50/70 ring-2 ring-[#006d37]/20 shadow-xs'
-                  : 'border-gray-200 bg-white hover:bg-gray-50'
-              }`}
-            >
-              <div className={`p-2 rounded-xl shrink-0 ${hasRoom ? 'bg-[#006d37] text-white' : 'bg-gray-100 text-gray-500'}`}>
-                <Home className="w-4 h-4" />
-              </div>
-              <div>
-                <p className={`text-xs font-bold ${hasRoom ? 'text-[#006d37]' : 'text-gray-800'}`}>Đã có phòng sẵn</p>
-                <p className="text-[11px] text-gray-500 mt-0.5">Đang ở phòng trọ và cần tìm bạn vào ở ghép cùng</p>
-              </div>
-            </button>
-          </div>
         </div>
 
-        {/* Khung nhập chi tiết phòng + Tải ảnh khi ĐÃ CÓ PHÒNG */}
+        {/* Thông tin phòng đã có (chỉ hiện khi hasRoom = true) */}
         {hasRoom && (
-          <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-4 animate-in fade-in duration-200">
-            <div className="flex items-center gap-2 text-xs font-black text-[#006d37]">
-              <Home className="w-4 h-4" />
-              <span>Thông tin chi tiết phòng đang ở cần tìm bạn ghép:</span>
-            </div>
+          <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/60 space-y-3">
+            <h5 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+              <Home className="w-3.5 h-3.5 text-[#006d37]" />
+              Thông tin chi tiết căn phòng bạn đang ở
+            </h5>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
@@ -482,33 +664,73 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
               </div>
             </div>
 
-            {/* UPLOAD ẢNH PHÒNG TRỰC TIẾP */}
+            {/* UPLOAD & SẮP XẾP ẢNH PHÒNG TRỰC TIẾP */}
             <div className="space-y-2 pt-2 border-t border-emerald-200/60">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
                   <ImageIcon className="w-4 h-4 text-[#006d37]" />
                   Ảnh chụp thực tế phòng trọ ({uploadedImages.length}/5)
                 </label>
-                <span className="text-[10px] text-gray-500 font-medium">Tối đa 5 ảnh rõ nét</span>
+                <span className="text-[10px] text-gray-500 font-medium">Bấm mũi tên hoặc 'Bìa' để sắp xếp</span>
               </div>
 
-              {/* Grid Preview ảnh đã chọn */}
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2.5">
+              {/* Grid Preview ảnh đã chọn kèm công cụ sắp xếp */}
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
                 {uploadedImages.map((imgUrl, idx) => (
                   <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-emerald-200 bg-gray-100 shadow-xs">
                     <img src={imgUrl} alt={`Ảnh phòng ${idx + 1}`} className="w-full h-full object-cover" />
+                    
+                    {/* Badge số thứ tự / Ảnh bìa */}
+                    <span className={`absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs ${
+                      idx === 0 ? 'bg-[#006d37] text-white' : 'bg-black/60 text-white'
+                    }`}>
+                      {idx === 0 ? '★ Bìa' : `#${idx + 1}`}
+                    </span>
+
+                    {/* Nút xóa */}
                     <button
                       type="button"
                       onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/75 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/75 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                      title="Xóa ảnh"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
-                    {idx === 0 && (
-                      <span className="absolute bottom-1 left-1 right-1 text-[9px] font-bold bg-[#006d37]/90 text-white text-center py-0.5 rounded-md backdrop-blur-xs">
-                        Ảnh chính
-                      </span>
-                    )}
+
+                    {/* Thanh điều khiển sắp xếp ảnh */}
+                    <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-between">
+                      <div className="flex items-center gap-1">
+                        <button
+                          type="button"
+                          disabled={idx === 0}
+                          onClick={() => handleMoveImage(idx, idx - 1)}
+                          className="w-5 h-5 rounded bg-white/80 hover:bg-white text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-[10px]"
+                          title="Chuyển sang trước"
+                        >
+                          <ChevronLeft className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={idx === uploadedImages.length - 1}
+                          onClick={() => handleMoveImage(idx, idx + 1)}
+                          className="w-5 h-5 rounded bg-white/80 hover:bg-white text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-[10px]"
+                          title="Chuyển sang sau"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+
+                      {idx !== 0 && (
+                        <button
+                          type="button"
+                          onClick={() => handleSetMainImage(idx)}
+                          className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold"
+                          title="Đặt ảnh này làm ảnh bìa"
+                        >
+                          Làm bìa
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
 
@@ -552,21 +774,79 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
-          <Button type="button" variant="outline" size="md" onClick={onClose}>
-            Hủy Bỏ
-          </Button>
-          <Button
-            type="submit"
-            variant="primary"
-            size="md"
-            disabled={isSubmitting || isUploadingImg}
-            leftIcon={<Sparkles className="w-4 h-4" />}
-          >
-            {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Tìm Bạn Ngay'}
-          </Button>
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-gray-200">
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleManualSaveDraft}
+              leftIcon={<Save className="w-3.5 h-3.5 text-emerald-700" />}
+            >
+              Lưu Nháp
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setShowPreviewModal(true)}
+              leftIcon={<Eye className="w-3.5 h-3.5 text-gray-700" />}
+            >
+              Xem Trước
+            </Button>
+          </div>
+
+          <div className="flex items-center justify-end gap-2.5">
+            <Button type="button" variant="outline" size="md" onClick={onClose}>
+              Hủy Bỏ
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              size="md"
+              disabled={isSubmitting || isUploadingImg}
+              leftIcon={<Sparkles className="w-4 h-4" />}
+            >
+              {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Tìm Bạn Ngay'}
+            </Button>
+          </div>
         </div>
       </form>
+
+      {/* MODAL XEM TRƯỚC HỒ SƠ TÌM BẠN */}
+      {showPreviewModal && (
+        <Modal
+          isOpen={showPreviewModal}
+          onClose={() => setShowPreviewModal(false)}
+          title="Xem Trước Hồ Sơ Tìm Bạn Ở Ghép"
+          maxWidth="md"
+        >
+          <div className="space-y-4">
+            <div className="p-2.5 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-800 flex items-center gap-2">
+              <Eye className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>Đây là giao diện hồ sơ của bạn khi hiển thị với các thành viên khác trên cộng đồng.</span>
+            </div>
+
+            <div className="max-w-md mx-auto">
+              <RoommateCard post={previewPost} />
+            </div>
+
+            <div className="flex justify-end gap-3 pt-3 border-t border-gray-200">
+              <Button type="button" variant="outline" size="sm" onClick={() => setShowPreviewModal(false)}>
+                Đóng & Chỉnh Sửa Tiếp
+              </Button>
+              <Button
+                type="button"
+                variant="primary"
+                size="sm"
+                onClick={() => setShowPreviewModal(false)}
+              >
+                Quay Lại Form Đăng
+              </Button>
+            </div>
+          </div>
+        </Modal>
+      )}
     </Modal>
   );
 };

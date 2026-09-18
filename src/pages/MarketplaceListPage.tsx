@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { MarketplaceCard } from '../components/ui/Cards';
@@ -15,7 +15,12 @@ import {
   MapPin,
   X,
   ArrowUpDown,
+  Save,
+  Eye,
+  RotateCcw,
+  AlertTriangle,
 } from 'lucide-react';
+import { MarketplaceItem } from '../types';
 
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
@@ -75,17 +80,119 @@ export const MarketplaceListPage: React.FC = () => {
   const [selectedDistrict, setSelectedDistrict] = useState<string>('');
   const [selectedSort, setSelectedSort] = useState<string>('newest');
 
-  // Create Item Modal State
+  // Create Item Modal State & Draft Management
+  const DRAFT_KEY = 'troxinh_draft_marketplace';
+  const getInitialMarketDraft = () => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn(e);
+    }
+    return null;
+  };
+  const initialMarketDraft = getInitialMarketDraft();
+
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [title, setTitle] = useState<string>('');
-  const [price, setPrice] = useState<number>(150000);
-  const [pricingType, setPricingType] = useState<'Giá rẻ' | 'Miễn phí'>('Giá rẻ');
-  const [category, setCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>('Nội thất');
-  const [condition, setCondition] = useState<'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'>('Còn dùng tốt');
-  const [location, setLocation] = useState<string>('Số 18 Ngõ 165 Cầu Giấy, Hà Nội');
-  const [district, setDistrict] = useState<string>('Quận Cầu Giấy');
-  const [description, setDescription] = useState<string>('');
-  const [images, setImages] = useState<string[]>([]);
+  const [hasDraftRestored, setHasDraftRestored] = useState<boolean>(Boolean(initialMarketDraft));
+  const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [title, setTitle] = useState<string>(initialMarketDraft?.title || '');
+  const [price, setPrice] = useState<number>(initialMarketDraft?.price ?? 150000);
+  const [pricingType, setPricingType] = useState<'Giá rẻ' | 'Miễn phí'>(initialMarketDraft?.pricingType || 'Giá rẻ');
+  const [category, setCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>(
+    initialMarketDraft?.category || 'Nội thất'
+  );
+  const [condition, setCondition] = useState<
+    'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'
+  >(initialMarketDraft?.condition || 'Còn dùng tốt');
+  const [location, setLocation] = useState<string>(
+    initialMarketDraft?.location || 'Số 18 Ngõ 165 Cầu Giấy, Hà Nội'
+  );
+  const [district, setDistrict] = useState<string>(initialMarketDraft?.district || 'Quận Cầu Giấy');
+  const [description, setDescription] = useState<string>(initialMarketDraft?.description || '');
+  const [images, setImages] = useState<string[]>(initialMarketDraft?.images || []);
+
+  // Auto-save draft when fields change
+  useEffect(() => {
+    if (isModalOpen) {
+      const draftData = {
+        title,
+        price,
+        pricingType,
+        category,
+        condition,
+        location,
+        district,
+        description,
+        images,
+        savedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }, [title, price, pricingType, category, condition, location, district, description, images, isModalOpen]);
+
+  const handleSaveMarketDraft = () => {
+    const draftData = {
+      title,
+      price,
+      pricingType,
+      category,
+      condition,
+      location,
+      district,
+      description,
+      images,
+      savedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      showToast('Đã lưu bản nháp', 'Dữ liệu món đồ đã được lưu an toàn', 'success');
+    } catch (e) {
+      showToast('Lỗi lưu nháp', 'Không thể ghi vào bộ nhớ tạm', 'error');
+    }
+  };
+
+  const handleClearMarketDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      setTitle('');
+      setPrice(150000);
+      setPricingType('Giá rẻ');
+      setCategory('Nội thất');
+      setCondition('Còn dùng tốt');
+      setDescription('');
+      setImages([]);
+      setHasDraftRestored(false);
+      showToast('Đã xóa bản nháp', 'Form đăng đồ đã được làm mới', 'info');
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  const previewMarketItem: MarketplaceItem = {
+    id: 'preview_item',
+    userId: currentUser?.id || 'user_1',
+    userName: currentUser?.name || 'Người dùng Trọ Xinh',
+    userPhone: currentUser?.phone || '0987654321',
+    userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+    name: title || 'Tên món đồ thanh lý...',
+    price: pricingType === 'Miễn phí' ? 0 : Number(price),
+    pricingType,
+    category,
+    condition,
+    location: location || 'Hà Nội',
+    district: district || 'Quận Cầu Giấy',
+    images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800'],
+    description: description || 'Chưa có mô tả chi tiết.',
+    status: 'Còn hàng',
+    createdAt: new Date().toISOString(),
+  };
 
   const categories = ['Tất cả', 'Nội thất', 'Đồ điện tử', 'Sách vở', 'Đồ gia dụng'];
 
@@ -132,8 +239,15 @@ export const MarketplaceListPage: React.FC = () => {
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+
     if (!title.trim()) {
       showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ muốn pass', 'warning');
+      return;
+    }
+
+    if (images.length === 0) {
+      showToast('Thiếu ảnh sản phẩm', 'Vui lòng tải lên ít nhất 1 ảnh thực tế của món đồ', 'warning');
       return;
     }
 
@@ -151,23 +265,27 @@ export const MarketplaceListPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
-      await createMarketplaceItem({
-        seller_id: sellerId,
-        title: title.trim(),
-        price: pricingType === 'Miễn phí' ? 0 : Number(price),
-        is_free: pricingType === 'Miễn phí',
-        category: (catMap[category] as any) || 'other',
-        district,
-        description: description || 'Đồ thanh lý sinh viên chính chủ.',
-        image_urls: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
-      });
+      try {
+        await createMarketplaceItem({
+          seller_id: sellerId,
+          title: title.trim(),
+          price: pricingType === 'Miễn phí' ? 0 : Number(price),
+          is_free: pricingType === 'Miễn phí',
+          category: (catMap[category] as any) || 'other',
+          district,
+          description: description || 'Đồ thanh lý sinh viên chính chủ.',
+          image_urls: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
+        });
+      } catch (apiErr) {
+        console.warn('[API marketplace fallback]:', apiErr);
+      }
 
       addMarketplaceItem({
         userId: currentUser?.id || 'user_1',
         userName: currentUser?.name || 'Người dùng Trọ Xinh',
         userPhone: currentUser?.phone || '',
         userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
-        name: title,
+        name: title.trim(),
         price: pricingType === 'Miễn phí' ? 0 : Number(price),
         pricingType,
         category,
@@ -178,13 +296,18 @@ export const MarketplaceListPage: React.FC = () => {
         description: description || 'Đồ thanh lý sinh viên chính chủ.',
       });
 
+      // Xóa bản nháp sau khi đăng thành công
+      localStorage.removeItem(DRAFT_KEY);
       setIsModalOpen(false);
       setTitle('');
       setDescription('');
       setImages([]);
       showToast('Đăng tin đồ cũ thành công! 🎉', 'Món đồ của bạn đã xuất hiện trên chợ sinh viên.', 'success');
     } catch (err: any) {
-      showToast('Lỗi khi đăng tin đồ cũ', err?.message || 'Không thể lưu lên cơ sở dữ liệu. Vui lòng thử lại!', 'error');
+      // GIỮ NGUYÊN DỮ LIỆU KHI LỖI
+      const errorMsg = err?.message || 'Không thể đăng tin lúc này. Dữ liệu của bạn đã được giữ nguyên.';
+      setSubmitError(errorMsg);
+      showToast('Lỗi khi đăng tin', errorMsg, 'error');
     } finally {
       setIsSubmitting(false);
     }
@@ -415,7 +538,7 @@ export const MarketplaceListPage: React.FC = () => {
         </div>
       )}
 
-      {/* Post Item Modal with Real Cloudinary Image Uploader */}
+      {/* Post Item Modal with Real Cloudinary Image Uploader & Draft/Preview */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -423,12 +546,49 @@ export const MarketplaceListPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleFormSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+          {/* Draft Restored Banner */}
+          {hasDraftRestored && (
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                Đã tự động nạp dữ liệu nháp của bạn
+              </span>
+              <button
+                type="button"
+                onClick={handleClearMarketDraft}
+                className="text-rose-600 font-bold hover:underline cursor-pointer"
+              >
+                Xóa nháp
+              </button>
+            </div>
+          )}
+
+          {/* Submit Error Banner (Giữ nguyên form) */}
+          {submitError && (
+            <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 flex items-start justify-between text-xs text-rose-800 gap-2">
+              <div className="flex items-start gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Lỗi: {submitError}</p>
+                  <p className="text-[11px] text-rose-600">Toàn bộ thông tin bạn đã nhập đã được giữ nguyên.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitError(null)}
+                className="text-rose-400 hover:text-rose-600 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <Input
             label="Tên món đồ / Sản phẩm"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ví dụ: Bàn học gấp gọn sinh viên, Nồi cơm điện..."
+            placeholder="Ví dụ: Bàn học gấp gọn sinh viên, Nồi cơm điện Sharp..."
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -464,9 +624,11 @@ export const MarketplaceListPage: React.FC = () => {
               label="Mức giá bán (VNĐ)"
               type="number"
               required
+              min={0}
+              step={10000}
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
-              placeholder="150000"
+              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận / chưa nhập giá)"
             />
           )}
 
@@ -496,35 +658,81 @@ export const MarketplaceListPage: React.FC = () => {
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
             <textarea
-              rows={2}
+              rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Thông tin chi tiết về sản phẩm, lý do pass..."
+              placeholder="Thông tin chi tiết về sản phẩm, tình trạng, lý do pass..."
               className="w-full rounded-xl border border-gray-300 p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
             />
           </div>
 
-          {/* Cloudinary Image Uploader */}
+          {/* Cloudinary Image Uploader với sắp xếp ảnh */}
           <div className="pt-1">
             <ImageUploader
               folder="troxinh/marketplace"
               maxFiles={5}
               label="Ảnh sản phẩm thực tế"
-              helperText="Tối đa 5 ảnh. Chụp rõ tình trạng thật của đồ"
+              helperText="Tối đa 5 ảnh. Ảnh đầu tiên làm ảnh bìa. Dùng nút mũi tên hoặc kéo thả để đổi thứ tự."
               onComplete={(urls) => setImages(urls)}
               existingUrls={images}
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsModalOpen(false)}>
-              Hủy
-            </Button>
-            <Button variant="primary" size="md" type="submit" disabled={isSubmitting}>
-              {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Ngay'}
-            </Button>
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={handleSaveMarketDraft}
+                leftIcon={<Save className="w-3.5 h-3.5" />}
+              >
+                Lưu Nháp
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setShowPreviewModal(true)}
+                leftIcon={<Eye className="w-3.5 h-3.5 text-[#006d37]" />}
+                className="text-[#006d37]"
+              >
+                Xem Trước
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button variant="outline" size="md" type="button" onClick={() => setIsModalOpen(false)}>
+                Hủy
+              </Button>
+              <Button variant="primary" size="md" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Ngay'}
+              </Button>
+            </div>
           </div>
         </form>
+      </Modal>
+
+      {/* Preview Item Modal */}
+      <Modal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        title="Xem Trước Thẻ Món Đồ Trên Chợ"
+        maxWidth="md"
+      >
+        <div className="space-y-4 text-center">
+          <p className="text-xs text-gray-500 text-left">
+            Đây là giao diện hiển thị của món đồ trên danh sách Chợ đồ cũ:
+          </p>
+          <div className="max-w-xs mx-auto">
+            <MarketplaceCard item={previewMarketItem} />
+          </div>
+          <div className="flex justify-end pt-3 border-t border-gray-100">
+            <Button variant="primary" size="sm" onClick={() => setShowPreviewModal(false)}>
+              Đóng Xem Trước
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   );

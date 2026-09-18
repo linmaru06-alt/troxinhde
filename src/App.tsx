@@ -428,6 +428,14 @@ export const App: React.FC = () => {
                 </OwnerRoute>
               }
             />
+            <Route
+              path="/chu-tro/phong/chinh-sua/:id"
+              element={
+                <OwnerRoute>
+                  <OwnerCreateRoomPage />
+                </OwnerRoute>
+              }
+            />
             <Route path="/chu-tro/tin-nhan" element={<Navigate to="/tin-nhan" replace />} />
             <Route path="/chu-tro/lich-hen" element={<Navigate to="/lich-hen" replace />} />
             <Route
