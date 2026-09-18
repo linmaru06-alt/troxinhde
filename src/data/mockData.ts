@@ -27,6 +27,17 @@ export const initialUsers: User[] = [
     createdAt: '2025-11-20T09:30:00Z',
   },
   {
+    id: 'usr_admin_quan66934',
+    name: 'Quản Trị Viên (Quân)',
+    phone: '0888110789',
+    email: 'quan66934@gmail.com',
+    role: 'admin',
+    avatarUrl: '/images/user-avatar.jpg',
+    bio: 'Ban Quản Trị Hệ Thống Trọ Xinh',
+    verified: true,
+    createdAt: '2025-01-01T00:00:00Z',
+  },
+  {
     id: 'user_admin_1',
     name: 'Nguyễn Vũ Chính (Admin)',
     phone: '0888110789',

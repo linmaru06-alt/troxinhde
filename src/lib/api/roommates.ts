@@ -47,22 +47,50 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
   if (!isSupabaseConfigured) return [];
 
   // Bảo mật: Tuyệt đối không select cột phone của bảng profiles để tránh rò rỉ SĐT
-  let query = supabase
-    .from('roommate_posts')
-    .select(`
-      *,
-      poster:profiles!poster_id(id, full_name, avatar_url),
-      room:rooms(id, name, price, area, room_images(url))
-    `)
-    .eq('status', 'active');
+  try {
+    let query = supabase
+      .from('roommate_posts')
+      .select(`
+        *,
+        poster:profiles!poster_id(id, full_name, avatar_url),
+        room:rooms(id, name, price, area, room_images(url))
+      `)
+      .eq('status', 'active');
 
-  if (district && district !== 'Tất cả quận' && district !== 'Tất cả khu vực') {
-    query = query.eq('district', district);
+    if (district && district !== 'Tất cả quận' && district !== 'Tất cả khu vực') {
+      query = query.eq('district', district);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
+    if (!error && data) {
+      return data.map(formatRoommatePost);
+    }
+  } catch (err) {
+    console.warn('[Roommates API] Lỗi truy vấn getRoommatePosts:', err);
   }
 
-  const { data, error } = await query.order('created_at', { ascending: false });
-  if (error) throw error;
-  return (data || []).map(formatRoommatePost);
+  // Fallback an toàn nếu cột district chưa được migrate trên Supabase
+  try {
+    const { data, error } = await supabase
+      .from('roommate_posts')
+      .select(`
+        *,
+        poster:profiles!poster_id(id, full_name, avatar_url),
+        room:rooms(id, name, price, area, room_images(url))
+      `)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      let results = data.map(formatRoommatePost);
+      if (district && district !== 'Tất cả quận' && district !== 'Tất cả khu vực') {
+        results = results.filter((p) => p.district === district);
+      }
+      return results;
+    }
+  } catch {}
+
+  return [];
 }
 
 export async function getRoommatePostById(id: string): Promise<RoommatePost | null> {
@@ -102,9 +130,35 @@ export async function createRoommatePost(postData: {
     return { id: `post_${Date.now()}`, ...postData, status: 'active', created_at: new Date().toISOString() };
   }
 
+  // 1. Thử insert đầy đủ các cột mới
+  const fullPayload = {
+    poster_id: postData.poster_id,
+    room_id: postData.room_id || null,
+    nickname: postData.nickname,
+    age: postData.age,
+    gender: postData.gender,
+    preferred_gender: postData.preferred_gender,
+    budget_per_person: postData.budget_per_person,
+    lifestyle_tags: postData.lifestyle_tags || [],
+    self_intro: postData.self_intro,
+    district: postData.district,
+    school: postData.school,
+    images: postData.images || [],
+    status: 'active',
+  };
+
   const { data, error } = await supabase
     .from('roommate_posts')
-    .insert({
+    .insert(fullPayload)
+    .select()
+    .single();
+
+  if (!error && data) return data;
+
+  // 2. Nếu lỗi do Supabase chưa migrate các cột mới (school, district, images) -> Fallback insert các cột cơ bản
+  if (error && error.message?.includes('does not exist')) {
+    console.warn('[Roommate Post] Supabase chưa có cột mới, tự động fallback insert schema cơ bản:', error.message);
+    const basicPayload = {
       poster_id: postData.poster_id,
       room_id: postData.room_id || null,
       nickname: postData.nickname,
@@ -114,13 +168,17 @@ export async function createRoommatePost(postData: {
       budget_per_person: postData.budget_per_person,
       lifestyle_tags: postData.lifestyle_tags || [],
       self_intro: postData.self_intro,
-      district: postData.district,
-      school: postData.school,
-      images: postData.images || [],
       status: 'active',
-    })
-    .select()
-    .single();
+    };
+    const { data: fallbackData, error: fallbackErr } = await supabase
+      .from('roommate_posts')
+      .insert(basicPayload)
+      .select()
+      .single();
+
+    if (fallbackErr) throw fallbackErr;
+    return fallbackData;
+  }
 
   if (error) throw error;
   return data;
