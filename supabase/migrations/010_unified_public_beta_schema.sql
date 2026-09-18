@@ -35,11 +35,26 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'firebase_uid') THEN
     ALTER TABLE public.profiles ADD COLUMN firebase_uid TEXT UNIQUE;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'full_name') THEN
+    ALTER TABLE public.profiles ADD COLUMN full_name TEXT NOT NULL DEFAULT 'Người Dùng Trọ Xinh';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'name') THEN
+    ALTER TABLE public.profiles ADD COLUMN name TEXT;
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'email') THEN
     ALTER TABLE public.profiles ADD COLUMN email TEXT;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'phone') THEN
+    ALTER TABLE public.profiles ADD COLUMN phone TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'avatar_url') THEN
+    ALTER TABLE public.profiles ADD COLUMN avatar_url TEXT DEFAULT '/images/user-avatar.jpg';
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'app_role') THEN
     ALTER TABLE public.profiles ADD COLUMN app_role TEXT NOT NULL DEFAULT 'renter';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'role') THEN
+    ALTER TABLE public.profiles ADD COLUMN role TEXT DEFAULT 'renter';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'is_demo_account') THEN
     ALTER TABLE public.profiles ADD COLUMN is_demo_account BOOLEAN DEFAULT false;
@@ -537,7 +552,6 @@ INSERT INTO public.profiles (
   id,
   firebase_uid,
   full_name,
-  name,
   email,
   phone,
   app_role,
@@ -549,7 +563,6 @@ INSERT INTO public.profiles (
   (
     '00000000-0000-0000-0000-000000000001',
     'demo_admin_troxinh',
-    'Ban Quản Trị Trọ Xinh',
     'Ban Quản Trị Trọ Xinh',
     'admin@troxinh.vn',
     '0888110789',
@@ -563,7 +576,6 @@ INSERT INTO public.profiles (
     '00000000-0000-0000-0000-000000000002',
     'demo_owner_troxinh',
     'Trần Quốc Tuấn (Chủ Trọ)',
-    'Trần Quốc Tuấn (Chủ Trọ)',
     'chutro@troxinh.vn',
     '0912345678',
     'owner',
@@ -575,7 +587,6 @@ INSERT INTO public.profiles (
   (
     '00000000-0000-0000-0000-000000000003',
     'demo_renter_troxinh',
-    'Nguyễn Văn An (Người Thuê)',
     'Nguyễn Văn An (Người Thuê)',
     'nguoithue@troxinh.vn',
     '0988110789',
