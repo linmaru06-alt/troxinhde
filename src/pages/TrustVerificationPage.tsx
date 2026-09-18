@@ -19,6 +19,7 @@ import {
   Flame,
   Scale,
   Award,
+  Plus,
 } from 'lucide-react';
 
 export const TrustVerificationPage: React.FC = () => {
@@ -172,22 +173,57 @@ export const TrustVerificationPage: React.FC = () => {
             );
           })}
         </div>
+
+        {/* Call to Action Buttons */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <Link to="/tim-kiem">
+            <Button
+              variant="primary"
+              size="md"
+              leftIcon={<ShieldCheck className="w-4 h-4" />}
+              className="bg-[#00a854] hover:bg-[#008f47] text-white font-bold px-6 py-2.5 rounded-xl shadow-xs transition"
+            >
+              Xem phòng đã kiểm duyệt
+            </Button>
+          </Link>
+          <Link to="/nang-cap-chu-tro">
+            <Button
+              variant="outline"
+              size="md"
+              leftIcon={<Plus className="w-4 h-4" />}
+              className="border-[#00a854] text-[#006d37] hover:bg-emerald-50 hover:border-[#008f47] font-bold px-6 py-2.5 rounded-xl transition"
+            >
+              Đăng tin cho thuê ngay
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* 4 Pillars of Trust */}
-      <div className="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {trustBadges.map((badge, idx) => {
-          const Icon = badge.icon;
-          return (
-            <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-2">
-              <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center">
-                <Icon className="w-5 h-5" />
+      {/* 4 Cam Kết Vàng Từ Trọ Xinh */}
+      <div className="max-w-5xl mx-auto space-y-4">
+        <div className="text-center space-y-1">
+          <h3 className="text-lg sm:text-xl font-black text-gray-900">4 Cam Kết Vàng Từ Trọ Xinh</h3>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {trustBadges.map((badge, idx) => {
+            const Icon = badge.icon;
+            return (
+              <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-2.5 hover:shadow-xs hover:border-emerald-200 transition">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center">
+                  <Icon className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm sm:text-base font-black text-gray-900">{badge.title}</h4>
+                <p className="text-xs text-gray-600 leading-relaxed">{badge.desc}</p>
               </div>
-              <h4 className="text-xs font-extrabold text-gray-900">{badge.title}</h4>
-              <p className="text-[11px] text-gray-500 leading-relaxed">{badge.desc}</p>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+
+        {/* Ghi chú liên kết */}
+        <p className="text-center text-gray-500 text-sm italic max-w-3xl mx-auto pt-2">
+          Đối với tin đăng Chợ đồ cũ sinh viên và Tìm bạn cùng phòng, Trọ Xinh áp dụng hệ thống kiểm duyệt tự động kết hợp báo cáo từ cộng đồng nhằm đảm bảo môi trường giao dịch an toàn.
+        </p>
       </div>
 
       {/* DEDICATED SECTION: LEGAL PDF TEMPLATES */}
