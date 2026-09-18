@@ -219,6 +219,15 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       const [item] = next.splice(fromIdx, 1);
       next.splice(toIdx, 0, item);
       return next;
+    });
+  };
+
+  const handleSetMainImage = (idx: number) => {
+    if (idx === 0) return;
+    handleMoveImage(idx, 0);
+    showToast('Đã đặt làm ảnh chính', 'Ảnh đầu tiên sẽ hiển thị nổi bật trên danh sách.', 'info');
+  };
+
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
   const toggleHabit = (habit: string) => {
