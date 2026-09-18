@@ -278,11 +278,33 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 CREATE TABLE IF NOT EXISTS public.reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+  reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-  comment TEXT NOT NULL,
+  content TEXT,
+  comment TEXT,
+  cleanliness_rating INTEGER,
+  owner_rating INTEGER,
+  accuracy_rating INTEGER,
+  location_rating INTEGER,
+  rental_period TEXT,
+  image_urls JSONB DEFAULT '[]'::jsonb,
+  helpful_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng reviews đã tồn tại từ trước (khắc phục lỗi thiếu reviewer_id / user_id)
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS content TEXT;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS comment TEXT;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS cleanliness_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS owner_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS accuracy_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS location_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS rental_period TEXT;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS image_urls JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS helpful_count INTEGER DEFAULT 0;
 
 -- 12. BẢNG BÁO CÁO VI PHẠM (REPORTS)
 CREATE TABLE IF NOT EXISTS public.reports (
@@ -296,6 +318,10 @@ CREATE TABLE IF NOT EXISTS public.reports (
   admin_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng reports đã tồn tại từ trước
+ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS admin_notes TEXT;
 
 -- 13. BẢNG ĐƠN ĐĂNG KÝ CHỦ TRỌ (OWNER_APPLICATIONS)
 CREATE TABLE IF NOT EXISTS public.owner_applications (
@@ -313,6 +339,15 @@ CREATE TABLE IF NOT EXISTS public.owner_applications (
   created_at TIMESTAMPTZ DEFAULT now(),
   reviewed_at TIMESTAMPTZ
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng owner_applications đã tồn tại từ trước
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS building_name TEXT DEFAULT '';
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS total_rooms INTEGER DEFAULT 1;
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS cccd_number TEXT DEFAULT '';
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS legal_docs_note TEXT;
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
 
 -- =================================================================
 -- 14. THIẾT LẬP TOÀN BỘ ROW LEVEL SECURITY (RLS) POLICIES
@@ -453,7 +488,8 @@ DROP POLICY IF EXISTS "Users create reviews for visited rooms" ON public.reviews
 CREATE POLICY "Users create reviews for visited rooms"
   ON public.reviews FOR INSERT
   WITH CHECK (
-    user_id = public.current_profile_id()
+    reviewer_id = public.current_profile_id()
+    OR user_id = public.current_profile_id()
     OR public.is_admin()
   );
 
