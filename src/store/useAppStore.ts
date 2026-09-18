@@ -759,10 +759,11 @@ export const useAppStore = create<AppState>()(
           id: newId,
           createdAt: new Date().toISOString(),
         };
-        set((state) => ({ roommates: [newPost, ...state.roommates] }));
+        set((state) => ({
+          roommates: [newPost, ...state.roommates.filter((r) => r.id !== newId)],
+        }));
         // Sync lên Supabase Cloud
         syncRoommatePostToSupabase(newPost).catch(console.warn);
-        get().showToast('Đăng tin tìm bạn thành công!', 'Bài viết của bạn đã được hiển thị', 'success');
         return newId;
       },
 
@@ -917,12 +918,19 @@ export const useAppStore = create<AppState>()(
             fetchMarketplaceItemsFromSupabase(),
           ]);
 
-          set((state) => ({
-            rooms: cloudRooms.length > 0 ? cloudRooms : (isDev ? state.rooms : []),
-            buildings: cloudBuildings.length > 0 ? cloudBuildings : (isDev ? state.buildings : []),
-            roommates: cloudRoommates.length > 0 ? cloudRoommates : (isDev ? state.roommates : []),
-            marketplaceItems: cloudItems.length > 0 ? cloudItems : (isDev ? state.marketplaceItems : []),
-          }));
+          set((state) => {
+            const existingUserPosts = state.roommates.filter(
+              (r) =>
+                !cloudRoommates.some((cr) => cr.id === r.id) &&
+                (r.id.startsWith('rm_') || (state.currentUser?.id && r.userId === state.currentUser.id))
+            );
+            return {
+              rooms: cloudRooms.length > 0 ? cloudRooms : (isDev ? state.rooms : []),
+              buildings: cloudBuildings.length > 0 ? cloudBuildings : (isDev ? state.buildings : []),
+              roommates: [...existingUserPosts, ...cloudRoommates],
+              marketplaceItems: cloudItems.length > 0 ? cloudItems : (isDev ? state.marketplaceItems : []),
+            };
+          });
         } catch (err) {
           console.warn('[useAppStore] Không thể tải dữ liệu cloud:', err);
           if (!isDev) {

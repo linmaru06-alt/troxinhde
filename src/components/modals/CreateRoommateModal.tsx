@@ -109,11 +109,13 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         if (d.uploadedImages) setUploadedImages(d.uploadedImages);
         if (d.savedAt) setLastSavedTime(d.savedAt);
         setHasDraft(true);
+      } else if (currentUser?.name) {
+        setUserName(currentUser.name);
       }
     } catch (e) {
       console.error('Lỗi nạp nháp roommate:', e);
     }
-  }, [isOpen]);
+  }, [isOpen, currentUser]);
 
   // Tự động lưu nháp
   useEffect(() => {
@@ -320,7 +322,10 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     const validGenderPreference = genderPreference as 'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả';
 
     const selectedRoom = rooms.find((r) => r.id === linkedRoomId);
-    const posterId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
+    // Ưu tiên UUID của tài khoản hiện tại, nếu ID dạng khác thì dùng profile UUID hợp lệ trong DB
+    const posterId = (currentUser?.id && currentUser.id.length === 36)
+      ? currentUser.id
+      : '0016bd8f-d19e-4348-9175-3a4379cffad4';
 
     // Tổng hợp danh sách ảnh phòng thực tế
     const finalImages = hasRoom
@@ -330,7 +335,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     setIsSubmitting(true);
     try {
       const created = await createRoommatePost({
-        poster_id: posterId.length === 36 ? posterId : '00000000-0000-0000-0000-000000000003',
+        poster_id: posterId,
         room_id: (hasRoom && selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
         nickname: userName.trim(),
         age: Number(userAge),
@@ -344,9 +349,11 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         images: finalImages.slice(0, 5),
       });
 
+      const finalPostId = created?.id || `rm_${Date.now()}`;
+
       addRoommatePost({
-        id: created?.id,
-        userId: currentUser?.id || `user_${Date.now()}`,
+        id: finalPostId,
+        userId: currentUser?.id || posterId,
         userName: userName.trim(),
         userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
         userGender: validGender,
@@ -370,12 +377,13 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       // Xóa bản nháp khi đăng thành công
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
+      setSubmitError(null);
 
-      showToast('Đăng tin tìm bạn thành công!', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng.', 'success');
+      showToast('Đăng tin tìm bạn thành công! 🎉', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng Trọ Xinh.', 'success');
       onClose();
     } catch (err: any) {
-      console.error('[Roommate] Lỗi lưu bài lên Cloud:', err);
-      const errMsg = err?.message || 'Không thể lưu bài đăng do lỗi mạng/hệ thống. Dữ liệu đã nhập của bạn được giữ nguyên!';
+      console.error('[Roommate] Lỗi đăng bài:', err);
+      const errMsg = err?.message || 'Không thể đăng tin lúc này. Dữ liệu đã nhập của bạn được giữ nguyên!';
       setSubmitError(errMsg);
       showToast('Lỗi khi đăng tin tìm bạn', errMsg, 'error');
     } finally {

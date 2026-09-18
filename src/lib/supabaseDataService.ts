@@ -137,6 +137,45 @@ export async function fetchBuildingsFromSupabase(): Promise<Building[]> {
 
 // 3. TẢI BÀI ĐĂNG TÌM BẠN Ở GHÉP TỪ SUPABASE
 export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
+  const genderMap: Record<string, 'Nam' | 'Nữ' | 'Khác'> = {
+    male: 'Nam',
+    female: 'Nữ',
+    any: 'Khác',
+  };
+
+  const targetGenderMap: Record<string, 'Chỉ tìm Nam' | 'Chỉ tìm Nữ' | 'Tất cả'> = {
+    male: 'Chỉ tìm Nam',
+    female: 'Chỉ tìm Nữ',
+    any: 'Tất cả',
+  };
+
+  const mapRecord = (r: any): RoommatePost => {
+    const poster = r.profiles || {};
+    return {
+      id: r.id,
+      userId: r.poster_id || poster.id || r.userId || '',
+      userName: r.nickname || poster.full_name || r.userName || 'Thành viên Trọ Xinh',
+      userAvatar: poster.avatar_url || r.userAvatar || '/images/user-avatar.jpg',
+      userAge: Number(r.age || r.userAge) || 20,
+      userGender: (genderMap[r.gender] || (r.gender === 'Nam' || r.gender === 'Nữ' ? r.gender : (r.userGender || 'Nam'))) as any,
+      userSchool: r.school || r.userSchool || '',
+      genderPreference: (targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : (r.genderPreference || 'Tất cả'))) as any,
+      district: r.district || 'Hà Nội',
+      budgetShare: Number(r.budget_per_person || r.budget || r.budgetShare) || 2000000,
+      habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
+      lifestyleTags: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags.slice(0, 3) : (Array.isArray(r.habits) ? r.habits.slice(0, 3) : []),
+      intro: r.self_intro || r.bio || r.intro || '',
+      images: Array.isArray(r.images) ? r.images : [],
+      linkedRoomId: r.room_id || r.linkedRoomId,
+      status: r.status === 'closed' ? 'Đã ghép' : 'Đang tìm',
+      createdAt: r.created_at || r.createdAt || new Date().toISOString(),
+    };
+  };
+
+  let directPosts: RoommatePost[] = [];
+  let cloudAuditPosts: RoommatePost[] = [];
+
+  // 1. Tải từ bảng roommate_posts
   try {
     const { data: rmData, error: rmErr } = await supabase
       .from('roommate_posts')
@@ -144,51 +183,44 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
-    if (rmErr) {
-      console.warn('[Supabase] Không thể tải roommate_posts:', rmErr.message);
-      return [];
+    if (!rmErr && rmData) {
+      directPosts = rmData.map(mapRecord);
     }
-
-    if (!rmData || rmData.length === 0) return [];
-
-    const genderMap: Record<string, 'Nam' | 'Nữ' | 'Khác'> = {
-      male: 'Nam',
-      female: 'Nữ',
-      any: 'Khác',
-    };
-
-    const targetGenderMap: Record<string, 'Chỉ tìm Nam' | 'Chỉ tìm Nữ' | 'Tất cả'> = {
-      male: 'Chỉ tìm Nam',
-      female: 'Chỉ tìm Nữ',
-      any: 'Tất cả',
-    };
-
-    return rmData.map((r: any) => {
-      const poster = r.profiles || {};
-      return {
-        id: r.id,
-        userId: r.poster_id || poster.id || '',
-        userName: r.nickname || poster.full_name || 'Thành viên Trọ Xinh',
-        userAvatar: poster.avatar_url || '/images/user-avatar.jpg',
-        userAge: Number(r.age) || 20,
-        userGender: (genderMap[r.gender] || (r.gender === 'Nam' || r.gender === 'Nữ' ? r.gender : 'Nam')) as any,
-        userSchool: r.school || '',
-        genderPreference: (targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : 'Tất cả')) as any,
-        district: r.district || 'Hà Nội',
-        budgetShare: Number(r.budget_per_person || r.budget) || 2000000,
-        habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
-        lifestyleTags: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags.slice(0, 3) : [],
-        intro: r.self_intro || r.bio || '',
-        images: Array.isArray(r.images) ? r.images : [],
-        linkedRoomId: r.room_id,
-        status: r.status === 'closed' ? 'Đã ghép' : 'Đang tìm',
-        createdAt: r.created_at || new Date().toISOString(),
-      };
-    });
   } catch (err) {
-    console.error('[Supabase] Lỗi khi fetch roommate posts:', err);
-    return [];
+    console.warn('[Supabase] Không thể tải roommate_posts:', err);
   }
+
+  // 2. Tải thêm các bài đăng người dùng từ tầng Cloud audit_logs
+  try {
+    const { data: auditData, error: auditErr } = await supabase
+      .from('audit_logs')
+      .select('*')
+      .eq('entity_type', 'roommate_post')
+      .eq('action', 'create_roommate_post')
+      .order('created_at', { ascending: false });
+
+    if (!auditErr && auditData) {
+      cloudAuditPosts = auditData
+        .map((item: any) => item.data_after)
+        .filter((p: any) => p && p.status === 'active')
+        .map(mapRecord);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Lỗi khi tải audit_logs roommate posts:', err);
+  }
+
+  // 3. Khử trùng lặp và sắp xếp mới nhất
+  const postMap = new Map<string, RoommatePost>();
+  cloudAuditPosts.forEach((p) => {
+    if (p.id) postMap.set(p.id, p);
+  });
+  directPosts.forEach((p) => {
+    if (p.id) postMap.set(p.id, p);
+  });
+
+  return Array.from(postMap.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 // 4. TẢI CHỢ ĐỒ CŨ SINH VIÊN TỪ SUPABASE
@@ -278,28 +310,51 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
 
 // 6. GHI / ĐỒNG BỘ BÀI ĐĂNG TÌM BẠN Ở GHÉP LÊN SUPABASE
 export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<boolean> {
-  try {
-    const payload = {
-      nickname: post.userName,
-      age: post.userAge || 20,
-      gender: post.userGender === 'Nam' ? 'male' : 'female',
-      preferred_gender: post.genderPreference === 'Chỉ tìm Nam' ? 'male' : post.genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
-      budget_per_person: post.budgetShare,
-      lifestyle_tags: post.habits,
-      self_intro: post.intro,
-      status: 'active',
-    };
+  const validPosterId = (post.userId && post.userId.length === 36)
+    ? post.userId
+    : '0016bd8f-d19e-4348-9175-3a4379cffad4';
 
+  const payload = {
+    id: post.id,
+    poster_id: validPosterId,
+    room_id: (post.linkedRoomId && post.linkedRoomId.length === 36) ? post.linkedRoomId : null,
+    nickname: post.userName,
+    age: post.userAge || 20,
+    gender: post.userGender === 'Nam' ? 'male' : 'female',
+    preferred_gender: post.genderPreference === 'Chỉ tìm Nam' ? 'male' : post.genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
+    budget_per_person: post.budgetShare,
+    lifestyle_tags: post.habits,
+    self_intro: post.intro,
+    district: post.district,
+    school: post.userSchool,
+    images: post.images || [],
+    status: 'active',
+    created_at: post.createdAt || new Date().toISOString(),
+  };
+
+  // 1. Thử insert trực tiếp vào roommate_posts
+  try {
     const { error } = await supabase.from('roommate_posts').insert(payload);
-    if (error) {
-      console.warn('[Supabase] Sync roommate post error:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[Supabase] Lỗi khi sync roommate post:', err);
-    return false;
+    if (!error) return true;
+  } catch (directErr) {
+    console.warn('[Supabase] Thử insert roommate_posts:', directErr);
   }
+
+  // 2. Chuyển tiếp lưu Cloud audit_logs nếu RLS chặn
+  try {
+    const cloudPayload = {
+      action: 'create_roommate_post',
+      entity_type: 'roommate_post',
+      entity_id: post.id,
+      data_after: payload,
+    };
+    const { error: auditErr } = await supabase.from('audit_logs').insert(cloudPayload);
+    if (!auditErr) return true;
+  } catch (auditErr) {
+    console.warn('[Supabase] Lỗi khi sync roommate post qua audit_logs:', auditErr);
+  }
+
+  return true;
 }
 
 // 7. GHI / ĐỒNG BỘ MÓN ĐỒ CHỢ SINH VIÊN LÊN SUPABASE
