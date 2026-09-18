@@ -32,6 +32,8 @@ create table if not exists public.rooms (
   description text,
   status text default 'available'
     check (status in ('available','rented','hidden')),
+  availability_status text default 'available'
+    check (availability_status in ('available','reserved','rented')),
   moderation_status text default 'pending'
     check (moderation_status in ('pending','approved','rejected')),
   rejection_reason text,

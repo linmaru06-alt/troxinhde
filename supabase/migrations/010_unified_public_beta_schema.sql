@@ -141,6 +141,17 @@ CREATE TABLE IF NOT EXISTS public.buildings (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Đảm bảo có các cột cần thiết nếu bảng buildings đã tồn tại từ trước
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS total_rooms INTEGER DEFAULT 1;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS water_price NUMERIC DEFAULT 100000;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS amenities JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS lat NUMERIC;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS lng NUMERIC;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- 6. BẢNG PHÒNG TRỌ (ROOMS)
 CREATE TABLE IF NOT EXISTS public.rooms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -171,6 +182,30 @@ CREATE TABLE IF NOT EXISTS public.rooms (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Đảm bảo có các cột cần thiết nếu bảng rooms đã tồn tại từ trước (khắc phục lỗi CI thiếu availability_status)
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS room_number TEXT NOT NULL DEFAULT '101';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS deposit NUMERIC DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS water_price NUMERIC DEFAULT 100000;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS area NUMERIC DEFAULT 20;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS room_type TEXT DEFAULT 'Phòng đơn';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'approved';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS availability_status TEXT DEFAULT 'available';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'available';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS amenities JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS is_boosted BOOLEAN DEFAULT false;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS boost_expires_at TIMESTAMPTZ;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS boost_badge TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS saved_count INTEGER DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- 7. BẢNG PHÒNG ĐÃ LƯU (SAVED_ROOMS)
 CREATE TABLE IF NOT EXISTS public.saved_rooms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -196,6 +231,14 @@ CREATE TABLE IF NOT EXISTS public.viewing_requests (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng viewing_requests đã tồn tại từ trước
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS time_slot TEXT DEFAULT '09:00 - 10:00';
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS renter_phone TEXT DEFAULT '';
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS renter_name TEXT DEFAULT '';
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS owner_response_note TEXT;
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- 9. BẢNG CUỘC TRÒ CHUYỆN & TIN NHẮN (CONVERSATIONS & MESSAGES)
 CREATE TABLE IF NOT EXISTS public.conversations (
