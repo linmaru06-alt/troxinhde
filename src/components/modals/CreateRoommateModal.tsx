@@ -410,6 +410,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     linkedRoomImage: uploadedImages[0],
     images: uploadedImages,
     status: 'Đang tìm',
+    createdAt: new Date().toISOString(),
   };
 
   return (

@@ -111,6 +111,8 @@ export interface Building {
     name: string;
     distanceKm: number;
   }[];
+  electricityPrice?: number;
+  waterPrice?: number;
 }
 
 export interface RoommatePost {
@@ -214,6 +216,7 @@ export interface NotificationItem {
     | 'booking'
     | 'system'
     | 'rejected'
+    | 'rejection'
     | 'upgrade'
     | 'action_required'
     | 'owner_approved'

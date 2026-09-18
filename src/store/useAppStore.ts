@@ -739,7 +739,7 @@ export const useAppStore = create<AppState>()(
             {
               id: `notif_${Date.now()}`,
               userId: 'user_owner_1',
-              type: 'rejection',
+              type: 'rejected',
               title: 'Tin đăng phòng bị từ chối ⚠️',
               body: `Lý do từ chối: ${reason}. Vui lòng cập nhật lại thông tin.`,
               createdAt: new Date().toISOString(),
