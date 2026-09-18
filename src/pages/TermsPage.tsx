@@ -76,16 +76,22 @@ export const TermsPage: React.FC = () => {
           Điều 6: Giải Quyết Tranh Chấp &amp; Liên Hệ
         </h2>
         <p>
-          Mọi khiếu nại, thắc mắc hoặc báo cáo lừa đảo, vui lòng liên hệ Ban quản trị qua Hotline/Zalo:{' '}
-          <a href="tel:0888110789" className="font-semibold text-[#006d37] hover:underline">
-            0888 110 789
-          </a>{' '}
-          hoặc Email:{' '}
-          <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-semibold text-[#006d37] hover:underline">
-            nguyenvuchinhb1hhb@gmail.com
-          </a>
-          .
+          Mọi khiếu nại, thắc mắc hoặc báo cáo lừa đảo, vui lòng liên hệ Ban quản trị qua:
         </p>
+        <ul className="list-disc pl-5 space-y-2">
+          <li>
+            Hotline/Zalo:{' '}
+            <a href="tel:0888110789" className="font-semibold text-[#006d37] hover:underline">
+              0888 110 789
+            </a>
+          </li>
+          <li>
+            Email:{' '}
+            <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-semibold text-[#006d37] hover:underline">
+              nguyenvuchinhb1hhb@gmail.com
+            </a>
+          </li>
+        </ul>
       </div>
     </div>
   );
