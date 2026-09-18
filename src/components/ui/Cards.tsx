@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
@@ -280,10 +280,14 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
 
-        {/* 2. Giá sản phẩm (Góc trên bên trái) */}
-        <div className="absolute top-2.5 left-2.5">
-          <Badge variant={item.pricingType === 'Miễn phí' || item.price === 0 ? 'free' : 'cheap'} size="sm">
-            {item.pricingType === 'Miễn phí' || item.price === 0 ? '🎁 Tặng 0đ' : formatCurrency(item.price)}
+        {/* 2. Giá sản phẩm */}
+        <div className="absolute top-2.5 left-2.5 flex flex-col gap-1">
+          <Badge variant={item.pricingType === 'Miễn phí' ? 'free' : (item.price > 0 ? 'cheap' : 'outline')} size={"sm"}>
+            {item.pricingType === 'Miễn phí'
+              ? ' Tặng 0đ'
+              : item.price > 0
+                ? formatCurrency(item.price)
+                : ' Liên hệ giá'}
           </Badge>
         </div>
 
@@ -299,6 +303,15 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
         <div className="absolute bottom-2 left-2 bg-slate-950/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-xs border border-white/10">
           {item.condition}
         </div>
+
+        {/* 3b. Trạng thái Đã bán / Đã đóng (overlay mờ toàn ảnh) */}
+        {item.status === 'Đã bán' && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+            <span className="bg-rose-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider border-2 border-white/30">
+              Đã bán
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Thông tin chi tiết */}
@@ -316,6 +329,22 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           <h3 className="text-sm font-bold text-gray-900 group-hover:text-[#006d37] transition-colors line-clamp-2 leading-snug">
             {item.name}
           </h3>
+        </div>
+
+
+        {/* 5b. Trạng thái còn hàng / đã bán */}
+        <div className="flex items-center gap-1.5 mt-1">
+          {item.status === 'Đã bán' ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+              Đã đóng
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full" />
+              Còn hàng
+            </span>
+          )}
         </div>
 
         {/* 6. Khu vực & Nút xem */}

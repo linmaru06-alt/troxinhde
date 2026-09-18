@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
@@ -156,8 +156,12 @@ export const MarketplaceDetailPage: React.FC = () => {
 
               {/* Top-left Badges */}
               <div className="absolute top-3 left-3 flex flex-wrap gap-1.5 z-10 pointer-events-none">
-                <Badge variant={item.pricingType === 'Miễn phí' || item.price === 0 ? 'free' : 'cheap'} size="md">
-                  {item.pricingType === 'Miễn phí' || item.price === 0 ? '🎁 Tặng Miễn Phí 0đ' : formatCurrency(item.price)}
+              <Badge variant={item.pricingType === 'Miễn phí' ? 'free' : (item.price > 0 ? 'cheap' : 'outline')} size={"md"}>
+                  {item.pricingType === 'Miễn phí'
+                    ? ' Tặng Miễn Phí 0đ'
+                    : item.price > 0
+                      ? formatCurrency(item.price)
+                      : ' Liên hệ giá'}
                 </Badge>
               </div>
 
@@ -200,6 +204,15 @@ export const MarketplaceDetailPage: React.FC = () => {
               <div className="absolute bottom-3 left-3 z-10 bg-slate-950/80 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-white/10">
                 Tình trạng: {item.condition}
               </div>
+
+              {/* Sold Overlay */}
+              {item.status === 'Đã bán' && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20 rounded-2xl">
+                  <span className="bg-rose-600 text-white text-sm font-black px-6 py-2 rounded-full shadow-xl uppercase tracking-widest border-2 border-white/30">
+                    Đã bán
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Thumbnail Strip (Hình ảnh bổ trợ các góc chụp) */}
@@ -257,14 +270,36 @@ export const MarketplaceDetailPage: React.FC = () => {
 
               {/* Price Row */}
               <div className="flex items-baseline gap-3 pt-1">
-                <span className="text-2xl sm:text-3xl font-black text-[#006d37]">
-                  {item.pricingType === 'Miễn phí' || item.price === 0
+                <span className={`text-2xl sm:text-3xl font-black ${item.status === 'Đã bán' ? 'text-gray-400 line-through' : 'text-[#006d37]'}`}>
+                  {item.pricingType === 'Miễn phí'
                     ? 'Tặng 0đ (Miễn phí)'
-                    : formatCurrency(item.price)}
+                    : item.price > 0
+                      ? formatCurrency(item.price)
+                      : 'Liên hệ giá'}
                 </span>
                 {item.pricingType === 'Miễn phí' && (
                   <span className="text-xs bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded-full">
                     Đồ tặng sinh viên
+                  </span>
+                )}
+                {item.pricingType === 'Giá rẻ' && item.price === 0 && (
+                  <span className="text-xs bg-gray-100 text-gray-600 font-bold px-2 py-0.5 rounded-full">
+                    Chưa nhập giá
+                  </span>
+                )}
+              </div>
+
+              {/* Status: Còn hàng / Đã bán */}
+              <div className="flex items-center gap-2 pt-1">
+                {item.status === 'Đã bán' ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
+                    Đã đóng — Hết hàng
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 bg-emerald-500 rounded-full" />
+                    Còn hàng
                   </span>
                 )}
               </div>
@@ -321,23 +356,29 @@ export const MarketplaceDetailPage: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                {item.userPhone && (
-                  <a href={`tel:${item.userPhone}`}>
-                    <Button variant="outline" size="sm" leftIcon={<Phone className="w-3.5 h-3.5" />}>
-                      Gọi {item.userPhone}
+                {item.status === 'Đã bán' ? (
+                  <span className="text-xs text-gray-400 font-medium italic">Món đồ này đã được bán</span>
+                ) : (
+                  <>
+                    {item.userPhone && (
+                      <a href={`tel:${item.userPhone}`}>
+                        <Button variant="outline" size="sm" leftIcon={<Phone className="w-3.5 h-3.5" />}>
+                          Gọi {item.userPhone}
+                        </Button>
+                      </a>
+                    )}
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      disabled={isChatLoading}
+                      onClick={handleContactSeller}
+                      leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
+                      className="shadow-sm"
+                    >
+                      {isChatLoading ? 'Đang mở...' : 'Nhắn Tin Ngay'}
                     </Button>
-                  </a>
+                  </>
                 )}
-                <Button
-                  variant="primary"
-                  size="sm"
-                  disabled={isChatLoading}
-                  onClick={handleContactSeller}
-                  leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
-                  className="shadow-sm"
-                >
-                  {isChatLoading ? 'Đang mở...' : 'Nhắn Tin Ngay'}
-                </Button>
               </div>
             </div>
 
