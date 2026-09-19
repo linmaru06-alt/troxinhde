@@ -134,7 +134,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
     title TEXT NOT NULL,
     body TEXT NOT NULL,
     action_link TEXT,
-    read BOOLEAN DEFAULT false,
+    is_read BOOLEAN DEFAULT false,
     created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
@@ -163,7 +163,10 @@ CREATE INDEX IF NOT EXISTS idx_rooms_owner_id ON public.rooms(owner_id);
 CREATE INDEX IF NOT EXISTS idx_rooms_status_mod ON public.rooms(status, moderation_status);
 CREATE INDEX IF NOT EXISTS idx_buildings_district ON public.buildings(district);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id);
-CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications(user_id, read);
+
+-- Đảm bảo cột is_read tồn tại trước khi tạo Index
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_transactions_order_code ON public.transactions(order_code);
 
 -- ==============================================================================

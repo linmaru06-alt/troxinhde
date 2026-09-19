@@ -11,5 +11,11 @@ CREATE INDEX IF NOT EXISTS idx_rooms_status ON public.rooms(status);
 CREATE INDEX IF NOT EXISTS idx_rooms_moderation_status ON public.rooms(moderation_status);
 CREATE INDEX IF NOT EXISTS idx_rooms_created_at ON public.rooms(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON public.messages(conversation_id, created_at ASC);
+
+-- Đảm bảo cột is_read tồn tại và tạo Index tối ưu cho notifications
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON public.transactions(user_id, created_at DESC);
+
+

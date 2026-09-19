@@ -11,8 +11,8 @@ export const TermsPage: React.FC = () => {
       />
 
       <div className="max-w-4xl mx-auto px-6 py-10 sm:p-12 bg-white rounded-2xl border border-gray-200/80 shadow-xs text-left">
-        <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-6 text-left">
-          ĐIỀU KHOẢN SỬ DỤNG – TRỌ XINH
+        <h1 className="text-3xl font-bold text-gray-900 mb-6">
+          Điều Khoản Sử Dụng – Trọ Xinh
         </h1>
 
         <p className="text-gray-700 leading-relaxed text-left mb-8">

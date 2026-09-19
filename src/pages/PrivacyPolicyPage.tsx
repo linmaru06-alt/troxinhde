@@ -50,8 +50,8 @@ export const PrivacyPolicyPage: React.FC = () => {
             </Button>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
-            Chính Sách Bảo Mật & Quyền Riêng Tư
+          <h1 className="text-3xl font-bold text-gray-900 mb-6">
+            Chính Sách Bảo Mật &amp; Quyền Riêng Tư
           </h1>
 
           <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500 pt-2 border-t border-gray-100">
