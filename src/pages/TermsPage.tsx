@@ -22,7 +22,7 @@ export const TermsPage: React.FC = () => {
         <div className="space-y-8">
           {/* Điều 1 */}
           <section className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-green-700 text-left">
               Điều 1: Mục Đích &amp; Bản Chất Nền Tảng
             </h2>
             <div className="space-y-2.5 text-gray-700 leading-relaxed text-left">
@@ -37,7 +37,7 @@ export const TermsPage: React.FC = () => {
 
           {/* Điều 2 */}
           <section className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-green-700 text-left">
               Điều 2: Quy Định Về Tài Khoản Người Dùng
             </h2>
             <ul className="list-disc pl-5 space-y-2 text-gray-700 leading-relaxed text-left">
@@ -49,7 +49,7 @@ export const TermsPage: React.FC = () => {
 
           {/* Điều 3 */}
           <section className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-green-700 text-left">
               Điều 3: Quy Định Dành Cho Người Đăng Tin
             </h2>
             <ul className="list-disc pl-5 space-y-2 text-gray-700 leading-relaxed text-left">
@@ -67,7 +67,7 @@ export const TermsPage: React.FC = () => {
 
           {/* Điều 4 */}
           <section className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-green-700 text-left">
               Điều 4: An Toàn Giao Dịch &amp; Khuyến Cáo
             </h2>
             <ul className="list-disc pl-5 space-y-2 text-gray-700 leading-relaxed text-left">
@@ -82,7 +82,7 @@ export const TermsPage: React.FC = () => {
 
           {/* Điều 5 */}
           <section className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-green-700 text-left">
               Điều 5: Quyền Sở Hữu Trí Tuệ
             </h2>
             <p className="text-gray-700 leading-relaxed text-left">
@@ -92,7 +92,7 @@ export const TermsPage: React.FC = () => {
 
           {/* Điều 6 */}
           <section className="space-y-3">
-            <h2 className="text-lg sm:text-xl font-bold text-gray-900 text-left">
+            <h2 className="text-lg sm:text-xl font-bold text-green-700 text-left">
               Điều 6: Giải Quyết Tranh Chấp &amp; Liên Hệ
             </h2>
             <p className="text-gray-700 leading-relaxed text-left">
@@ -101,13 +101,13 @@ export const TermsPage: React.FC = () => {
             <ul className="list-disc pl-5 space-y-2 text-gray-700 leading-relaxed text-left">
               <li>
                 Hotline/Zalo:{' '}
-                <a href="tel:0888110789" className="font-semibold text-[#006d37] hover:underline">
+                <a href="tel:0888110789" className="font-semibold text-green-700 hover:underline">
                   0888 110 789
                 </a>
               </li>
               <li>
                 Email:{' '}
-                <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-semibold text-[#006d37] hover:underline">
+                <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-semibold text-green-700 hover:underline">
                   nguyenvuchinhb1hhb@gmail.com
                 </a>
               </li>

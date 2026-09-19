@@ -62,7 +62,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'owner_application_status') THEN
     ALTER TABLE public.profiles ADD COLUMN owner_application_status TEXT DEFAULT 'none';
   END IF;
+
+  -- Xóa bỏ khóa ngoại phụ thuộc Supabase auth.users nếu tồn tại (vì hệ thống dùng Firebase Auth)
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_id_fkey') THEN
+    ALTER TABLE public.profiles DROP CONSTRAINT profiles_id_fkey;
+  END IF;
 END $$;
+
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- 3. HÀM POSTGRESQL HELPER CHO FIREBASE JWT & PHÂN QUYỀN RLS
 CREATE OR REPLACE FUNCTION public.current_firebase_uid()
@@ -561,6 +568,9 @@ CREATE POLICY "Admins access audit logs"
 -- =================================================================
 -- 15. SEED DỮ LIỆU BAN ĐẦU CHO 3 TÀI KHOẢN DEMO
 -- =================================================================
+-- Xóa bỏ khóa ngoại phụ thuộc auth.users nếu còn tồn tại từ schema cũ (Dự án dùng Firebase Auth)
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
 INSERT INTO public.profiles (
   id,
   firebase_uid,

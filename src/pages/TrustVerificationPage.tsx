@@ -131,15 +131,15 @@ export const TrustVerificationPage: React.FC = () => {
 
       {/* Hero Section */}
       <div className="max-w-5xl mx-auto text-center space-y-4">
-        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 text-[#006d37] border border-emerald-200 text-xs font-bold shadow-2xs">
-          <ShieldCheck className="w-4 h-4 text-[#00a854]" />
-          <span>Cam Kết An Toàn & Minh Bạch 100%</span>
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-emerald-50 text-green-700 border border-emerald-200 text-xs font-bold shadow-2xs">
+          <ShieldCheck className="w-4 h-4 text-green-700" />
+          <span>Cam Kết An Toàn &amp; Minh Bạch 100%</span>
         </div>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-gray-900 tracking-tight">
-          Quy Trình Thẩm Định Phòng 24h & <br className="hidden sm:inline" />
-          <span className="text-[#00a854]">Bộ Biểu Mẫu Pháp Lý Chuẩn</span>
+          Quy Trình Thẩm Định Phòng 24h &amp; <br className="hidden sm:inline" />
+          <span className="text-green-700">Bộ Biểu Mẫu Pháp Lý Chuẩn</span>
         </h1>
-        <p className="text-xs sm:text-base text-gray-600 leading-relaxed max-w-2xl mx-auto">
+        <p className="text-xs sm:text-base text-gray-700 leading-relaxed max-w-2xl mx-auto">
           Xóa bỏ nỗi lo "hình một đằng, phòng một nẻo" hay "lừa đảo bùng cọc". Mọi phòng trọ được xác thực thực tế và bảo vệ bởi biểu mẫu pháp lý chuẩn hóa.
         </p>
       </div>
@@ -147,8 +147,8 @@ export const TrustVerificationPage: React.FC = () => {
       {/* 3 Step Timeline */}
       <div className="max-w-5xl mx-auto space-y-6">
         <div className="text-center space-y-1">
-          <span className="text-xs font-bold text-[#006d37] uppercase tracking-wider">Tiêu Chuẩn 3 Bước</span>
-          <h2 className="text-xl sm:text-2xl font-black text-gray-900">Quy Trình Xác Thực Phòng Trọ 24 Giờ</h2>
+          <span className="text-xs font-bold text-green-700 uppercase tracking-wider">Tiêu Chuẩn 3 Bước</span>
+          <h2 className="text-xl sm:text-2xl font-black text-green-700">Quy Trình Xác Thực Phòng Trọ 24 Giờ</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 relative">
@@ -160,15 +160,15 @@ export const TrustVerificationPage: React.FC = () => {
                 className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-3 relative hover:shadow-md hover:border-emerald-200 transition group"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-3xl font-black text-emerald-300 group-hover:text-[#00a854] transition-colors block">
+                  <span className="text-3xl font-black text-emerald-300 group-hover:text-green-700 transition-colors block">
                     {s.step}
                   </span>
-                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center group-hover:scale-110 transition-transform">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-green-700 flex items-center justify-center group-hover:scale-110 transition-transform">
                     <Icon className="w-5 h-5" />
                   </div>
                 </div>
                 <h3 className="text-base font-bold text-gray-900">{s.title}</h3>
-                <p className="text-xs text-gray-500 leading-relaxed">{s.desc}</p>
+                <p className="text-xs text-gray-700 leading-relaxed">{s.desc}</p>
               </div>
             );
           })}
@@ -181,7 +181,7 @@ export const TrustVerificationPage: React.FC = () => {
               variant="primary"
               size="md"
               leftIcon={<ShieldCheck className="w-4 h-4" />}
-              className="bg-[#00a854] hover:bg-[#008f47] text-white font-bold px-6 py-2.5 rounded-xl shadow-xs transition"
+              className="bg-green-700 hover:bg-green-800 text-white font-bold px-6 py-2.5 rounded-xl shadow-xs transition"
             >
               Xem phòng đã kiểm duyệt
             </Button>
@@ -191,7 +191,7 @@ export const TrustVerificationPage: React.FC = () => {
               variant="outline"
               size="md"
               leftIcon={<Plus className="w-4 h-4" />}
-              className="border-[#00a854] text-[#006d37] hover:bg-emerald-50 hover:border-[#008f47] font-bold px-6 py-2.5 rounded-xl transition"
+              className="border-green-700 text-green-700 hover:bg-emerald-50 hover:border-green-800 font-bold px-6 py-2.5 rounded-xl transition"
             >
               Đăng tin cho thuê ngay
             </Button>
@@ -202,7 +202,7 @@ export const TrustVerificationPage: React.FC = () => {
       {/* 4 Cam Kết Vàng Từ Trọ Xinh */}
       <div className="max-w-5xl mx-auto space-y-4">
         <div className="text-center space-y-1">
-          <h3 className="text-lg sm:text-xl font-black text-gray-900">4 Cam Kết Vàng Từ Trọ Xinh</h3>
+          <h3 className="text-lg sm:text-xl font-black text-green-700">4 Cam Kết Vàng Từ Trọ Xinh</h3>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -210,18 +210,18 @@ export const TrustVerificationPage: React.FC = () => {
             const Icon = badge.icon;
             return (
               <div key={idx} className="bg-white p-5 rounded-2xl border border-gray-200 shadow-2xs space-y-2.5 hover:shadow-xs hover:border-emerald-200 transition">
-                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-[#006d37] flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-emerald-50 text-green-700 flex items-center justify-center">
                   <Icon className="w-5 h-5" />
                 </div>
                 <h4 className="text-sm sm:text-base font-black text-gray-900">{badge.title}</h4>
-                <p className="text-xs text-gray-600 leading-relaxed">{badge.desc}</p>
+                <p className="text-xs text-gray-700 leading-relaxed">{badge.desc}</p>
               </div>
             );
           })}
         </div>
 
         {/* Ghi chú liên kết */}
-        <p className="text-center text-gray-500 text-sm italic max-w-3xl mx-auto pt-2">
+        <p className="text-center text-gray-700 text-sm italic max-w-3xl mx-auto pt-2">
           Đối với tin đăng Chợ đồ cũ sinh viên và Tìm bạn cùng phòng, Trọ Xinh áp dụng hệ thống kiểm duyệt tự động kết hợp báo cáo từ cộng đồng nhằm đảm bảo môi trường giao dịch an toàn.
         </p>
       </div>
@@ -268,10 +268,10 @@ export const TrustVerificationPage: React.FC = () => {
 
                   {/* Title & Description */}
                   <div className="space-y-1.5">
-                    <h3 className="text-lg font-black text-gray-950 group-hover:text-[#006d37] transition-colors">
+                    <h3 className="text-lg font-black text-gray-950 group-hover:text-green-700 transition-colors">
                       {tpl.title}
                     </h3>
-                    <p className="text-xs text-gray-600 leading-relaxed">{tpl.desc}</p>
+                    <p className="text-xs text-gray-700 leading-relaxed">{tpl.desc}</p>
                   </div>
 
                   {/* Features List */}
@@ -279,10 +279,10 @@ export const TrustVerificationPage: React.FC = () => {
                     <p className="text-[11px] font-black uppercase text-gray-700 tracking-wider">
                       Điểm bảo vệ trọng tâm:
                     </p>
-                    <ul className="space-y-1.5 text-xs text-gray-600">
+                    <ul className="space-y-1.5 text-xs text-gray-700">
                       {tpl.features.map((f, idx) => (
                         <li key={idx} className="flex items-start gap-2">
-                          <CheckCircle2 className="w-4 h-4 text-[#00a854] shrink-0 mt-0.5" />
+                          <CheckCircle2 className="w-4 h-4 text-green-700 shrink-0 mt-0.5" />
                           <span>{f}</span>
                         </li>
                       ))}
@@ -296,7 +296,7 @@ export const TrustVerificationPage: React.FC = () => {
                     <Button
                       variant="primary"
                       size="md"
-                      className="w-full justify-center"
+                      className="w-full justify-center bg-green-700 hover:bg-green-800"
                       rightIcon={<ArrowRight className="w-4 h-4" />}
                     >
                       {tpl.actionText}
@@ -306,7 +306,7 @@ export const TrustVerificationPage: React.FC = () => {
                     <Button
                       variant="outline"
                       size="md"
-                      className="w-full justify-center"
+                      className="w-full justify-center border-green-700 text-green-700 hover:bg-emerald-50"
                       leftIcon={<Download className="w-4 h-4" />}
                     >
                       Tải PDF
@@ -321,14 +321,14 @@ export const TrustVerificationPage: React.FC = () => {
         {/* Legal Disclaimer Box */}
         <div className="p-4 bg-emerald-50/70 border border-emerald-200/80 rounded-2xl flex items-center justify-between flex-wrap gap-3 text-xs text-emerald-950">
           <div className="flex items-center gap-2">
-            <ShieldCheck className="w-5 h-5 text-[#00a854] shrink-0" />
+            <ShieldCheck className="w-5 h-5 text-green-700 shrink-0" />
             <span>
               Tất cả các phòng mang huy hiệu <strong>"Đã kiểm duyệt"</strong> trên Trọ Xinh đều được khuyến nghị sử dụng bộ mẫu văn bản này để đảm bảo giữ cọc an toàn.
             </span>
           </div>
           <a
             href="tel:0888110789"
-            className="font-bold text-[#006d37] hover:underline flex items-center gap-1 shrink-0"
+            className="font-bold text-green-700 hover:underline flex items-center gap-1 shrink-0"
           >
             Tư vấn pháp lý: 0888 110 789 →
           </a>
@@ -338,18 +338,18 @@ export const TrustVerificationPage: React.FC = () => {
       {/* FAQ Accordion */}
       <div className="max-w-5xl mx-auto bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 space-y-6">
         <div className="flex items-center gap-2">
-          <HelpCircle className="w-5 h-5 text-[#006d37]" />
-          <h2 className="text-lg font-bold text-gray-900">Câu Hỏi Thường Gặp Về Kiểm Duyệt & Hợp Đồng</h2>
+          <HelpCircle className="w-5 h-5 text-green-700" />
+          <h2 className="text-lg font-bold text-green-700">Câu Hỏi Thường Gặp Về Kiểm Duyệt &amp; Hợp Đồng</h2>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {faqs.map((faq, idx) => (
             <div key={idx} className="p-4 rounded-2xl bg-gray-50 border border-gray-100 space-y-1.5">
               <h4 className="text-xs sm:text-sm font-bold text-gray-900 flex items-start gap-2">
-                <span className="text-[#00a854]">Q.</span>
+                <span className="text-green-700 font-bold">Q.</span>
                 <span>{faq.q}</span>
               </h4>
-              <p className="text-xs text-gray-600 leading-relaxed pl-5">{faq.a}</p>
+              <p className="text-xs text-gray-700 leading-relaxed pl-5">{faq.a}</p>
             </div>
           ))}
         </div>
@@ -359,9 +359,9 @@ export const TrustVerificationPage: React.FC = () => {
       <div className="max-w-5xl mx-auto bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pb-4 border-b border-gray-100 text-center sm:text-left">
           <div>
-            <span className="text-xs font-bold text-[#006d37] uppercase tracking-wider">Đội Ngũ Vận Hành & Thẩm Định</span>
+            <span className="text-xs font-bold text-green-700 uppercase tracking-wider">Đội Ngũ Vận Hành &amp; Thẩm Định</span>
             <h3 className="text-base font-extrabold text-gray-900">Nguyễn Vũ Chính</h3>
-            <p className="text-xs text-gray-500">Người sáng lập & Vận hành Nền tảng Trọ Xinh (TroXinh.vn)</p>
+            <p className="text-xs text-gray-500">Người sáng lập &amp; Vận hành Nền tảng Trọ Xinh (TroXinh.vn)</p>
           </div>
           <div className="text-xs text-gray-500 text-center sm:text-right">
             <p>Trụ sở: 18 Ngõ 167 Tây Sơn, Đống Đa, Hà Nội</p>
@@ -372,11 +372,11 @@ export const TrustVerificationPage: React.FC = () => {
         <div className="pt-2 text-center space-y-2">
           <p className="text-xs font-bold text-gray-900">Có thắc mắc về quy trình kiểm duyệt hoặc tải mẫu PDF? Liên hệ ngay:</p>
           <div className="flex flex-wrap items-center justify-center gap-4 text-xs">
-            <a href="tel:0888110789" className="font-bold text-[#006d37] hover:underline flex items-center gap-1">
+            <a href="tel:0888110789" className="font-bold text-green-700 hover:underline flex items-center gap-1">
               📞 0888 110 789
             </a>
             <span>•</span>
-            <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-medium text-gray-600 hover:underline flex items-center gap-1">
+            <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="font-medium text-gray-700 hover:underline flex items-center gap-1">
               📧 nguyenvuchinhb1hhb@gmail.com
             </a>
             <span>•</span>
@@ -384,9 +384,9 @@ export const TrustVerificationPage: React.FC = () => {
               href="https://zalo.me/0888110789"
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-emerald-800 hover:underline flex items-center gap-1"
+              className="font-semibold text-green-700 hover:underline flex items-center gap-1"
             >
-              💬 Zalo: 0888 110 789 <ExternalLink className="w-3 h-3 text-emerald-600" />
+              💬 Zalo: 0888 110 789 <ExternalLink className="w-3 h-3 text-green-700" />
             </a>
           </div>
         </div>
@@ -394,15 +394,15 @@ export const TrustVerificationPage: React.FC = () => {
 
       {/* Dual CTA */}
       <div className="max-w-5xl mx-auto bg-emerald-50 rounded-3xl p-8 border border-emerald-200 text-center space-y-4">
-        <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Sẵn sàng tìm trọ an tâm hoặc đăng ký kiểm duyệt phòng?</h2>
+        <h2 className="text-xl sm:text-2xl font-bold text-green-700">Sẵn sàng tìm trọ an tâm hoặc đăng ký kiểm duyệt phòng?</h2>
         <div className="flex flex-wrap items-center justify-center gap-3">
           <Link to="/tim-kiem">
-            <Button variant="primary" size="lg" rightIcon={<ArrowRight className="w-4 h-4" />}>
+            <Button variant="primary" size="lg" className="bg-green-700 hover:bg-green-800" rightIcon={<ArrowRight className="w-4 h-4" />}>
               Xem Phòng Đã Kiểm Duyệt
             </Button>
           </Link>
           <Link to="/dang-ky?role=owner">
-            <Button variant="outline" size="lg">
+            <Button variant="outline" size="lg" className="border-green-700 text-green-700 hover:bg-emerald-100/50">
               Đăng Phòng Dành Cho Chủ Trọ
             </Button>
           </Link>

@@ -70,13 +70,13 @@ export const PrivacyPolicyPage: React.FC = () => {
         <div className="bg-white rounded-3xl p-6 sm:p-10 border border-gray-200 shadow-xs space-y-8 text-sm text-gray-700 leading-relaxed print:shadow-none print:border-none print:p-0">
           {/* Section 1 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 1
               </span>
               THÔNG TIN CHÚNG TÔI THU THẬP
             </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
+            <div className="pl-9 space-y-1.5 text-gray-700">
               <p>• Họ tên, email, số điện thoại khi đăng ký tài khoản.</p>
               <p>• Ảnh đại diện (nếu người dùng tự nguyện cung cấp).</p>
               <p>• Lịch sử tìm kiếm và danh sách phòng trọ đã lưu.</p>
@@ -87,13 +87,13 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 2 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 2
               </span>
               MỤC ĐÍCH SỬ DỤNG
             </h2>
-            <div className="pl-9 space-y-2 text-gray-600">
+            <div className="pl-9 space-y-2 text-gray-700">
               <div className="flex items-start gap-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                 <span>Cung cấp và cải thiện dịch vụ tìm phòng trọ, tìm bạn ở ghép và mua bán đồ cũ.</span>
@@ -107,11 +107,11 @@ export const PrivacyPolicyPage: React.FC = () => {
                 <span>Gợi ý phòng phù hợp dựa trên lịch sử xem và khu vực tìm kiếm.</span>
               </div>
               <div className="flex items-start gap-2">
-                <Lock className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <Lock className="w-4 h-4 text-green-700 shrink-0 mt-0.5" />
                 <span><strong>Cam kết:</strong> KHÔNG bán thông tin cho bất kỳ bên thứ ba nào.</span>
               </div>
               <div className="flex items-start gap-2">
-                <Lock className="w-4 h-4 text-emerald-700 shrink-0 mt-0.5" />
+                <Lock className="w-4 h-4 text-green-700 shrink-0 mt-0.5" />
                 <span>KHÔNG dùng số điện thoại của người dùng cho mục đích quảng cáo rác (spam).</span>
               </div>
             </div>
@@ -119,13 +119,13 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 3 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 3
               </span>
               CHIA SẺ THÔNG TIN
             </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
+            <div className="pl-9 space-y-1.5 text-gray-700">
               <p>• Thông tin liên hệ cơ bản chỉ được chia sẻ với chủ trọ khi người thuê chủ động gửi yêu cầu đặt lịch hẹn hoặc nhắn tin.</p>
               <p>• Dữ liệu tổng hợp (đã ẩn danh hoàn toàn) dùng cho báo cáo nội bộ nhằm cải thiện chất lượng dịch vụ.</p>
             </div>
@@ -133,16 +133,16 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 4 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 4
               </span>
               BẢO MẬT DỮ LIỆU
             </h2>
-            <div className="pl-9 space-y-2 text-gray-600">
+            <div className="pl-9 space-y-2 text-gray-700">
               <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-emerald-900 text-xs">
-                  <Database className="w-4 h-4 text-emerald-700" />
+                  <Database className="w-4 h-4 text-green-700" />
                   <span>Hệ thống cơ sở dữ liệu Supabase</span>
                 </div>
                 <p className="text-xs text-emerald-800">
@@ -156,13 +156,13 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 5 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 5
               </span>
               QUYỀN CỦA NGƯỜI DÙNG
             </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
+            <div className="pl-9 space-y-1.5 text-gray-700">
               <p>• Yêu cầu xem, chỉnh sửa hoặc cập nhật dữ liệu cá nhân trong mục Hồ sơ.</p>
               <p>• Rút lại sự đồng ý sử dụng dữ liệu bất cứ lúc nào.</p>
               <p>• Yêu cầu xóa tài khoản và toàn bộ dữ liệu hoàn toàn khỏi hệ thống.</p>
@@ -172,13 +172,13 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 6 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 6
               </span>
               COOKIES & TRACKING
             </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
+            <div className="pl-9 space-y-1.5 text-gray-700">
               <p>• Cookie được dùng để lưu phiên đăng nhập (session) bảo mật.</p>
               <p>• Google Analytics theo dõi lưu lượng truy cập dưới dạng dữ liệu ẩn danh, không định danh cá nhân.</p>
               <p>• Người dùng có thể tùy chỉnh hoặc tắt cookie trong phần cài đặt của trình duyệt bất cứ lúc nào.</p>
@@ -187,13 +187,13 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 7 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 7
               </span>
               THỜI GIAN LƯU TRỮ
             </h2>
-            <div className="pl-9 space-y-1.5 text-gray-600">
+            <div className="pl-9 space-y-1.5 text-gray-700">
               <p>• Dữ liệu tài khoản: Lưu trữ cho đến khi người dùng yêu cầu xóa tài khoản.</p>
               <p>• Lịch sử xem phòng: Tự động lưu tối đa 12 tháng.</p>
               <p>• Nhật ký hệ thống (System logs): Lưu tối đa 90 ngày.</p>
@@ -203,41 +203,41 @@ export const PrivacyPolicyPage: React.FC = () => {
 
           {/* Section 8 */}
           <section className="space-y-3">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 8
               </span>
               THAY ĐỔI CHÍNH SÁCH
             </h2>
-            <p className="pl-9 text-gray-600">
+            <p className="pl-9 text-gray-700">
               Chính sách có thể được cập nhật khi có thay đổi quan trọng về mặt công nghệ hoặc quy định pháp luật. Mọi cập nhật sẽ được thông báo qua email hoặc hiển thị trên trang chủ ít nhất 7 ngày trước ngày có hiệu lực.
             </p>
           </section>
 
           {/* Section 9 */}
           <section className="space-y-3 pt-4 border-t border-gray-100">
-            <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
-              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] flex items-center justify-center font-black text-xs">
+            <h2 className="text-base sm:text-lg font-bold text-green-700 flex items-center gap-2">
+              <span className="w-7 h-7 rounded-xl bg-emerald-100 text-green-700 flex items-center justify-center font-black text-xs">
                 9
               </span>
               LIÊN HỆ VỀ BẢO MẬT
             </h2>
             <div className="pl-9 bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-2.5">
               <div className="flex items-center gap-2">
-                <Phone className="w-4 h-4 text-[#006d37]" />
+                <Phone className="w-4 h-4 text-green-700" />
                 <a href="tel:0888110789" className="hover:text-green-700 hover:underline transition-colors">
                   <strong>0888 110 789</strong>
                 </a>
                 <span className="text-gray-500 text-xs">(08:00 – 21:00)</span>
               </div>
               <div className="flex items-center gap-2">
-                <Mail className="w-4 h-4 text-[#006d37]" />
+                <Mail className="w-4 h-4 text-green-700" />
                 <a href="mailto:nguyenvuchinhb1hhb@gmail.com" className="hover:text-green-700 hover:underline transition-colors">
                   <strong>nguyenvuchinhb1hhb@gmail.com</strong>
                 </a>
               </div>
               <div className="flex items-center gap-2">
-                <MessageCircle className="w-4 h-4 text-[#006d37]" />
+                <MessageCircle className="w-4 h-4 text-green-700" />
                 <a
                   href="https://zalo.me/0888110789"
                   target="_blank"
@@ -253,7 +253,7 @@ export const PrivacyPolicyPage: React.FC = () => {
                 rel="noopener noreferrer"
                 className="flex items-start gap-2 hover:underline hover:text-green-700 cursor-pointer transition-colors"
               >
-                <MapPin className="w-4 h-4 text-[#006d37] shrink-0 mt-0.5" />
+                <MapPin className="w-4 h-4 text-green-700 shrink-0 mt-0.5" />
                 <span>18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội</span>
               </a>
             </div>
