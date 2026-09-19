@@ -565,7 +565,7 @@ INSERT INTO public.profiles (
     'demo_admin_troxinh',
     'Ban Quản Trị Trọ Xinh',
     'admin@troxinh.vn',
-    '0888110789',
+    '0999000001',
     'admin',
     'admin',
     true,
@@ -577,7 +577,7 @@ INSERT INTO public.profiles (
     'demo_owner_troxinh',
     'Trần Quốc Tuấn (Chủ Trọ)',
     'chutro@troxinh.vn',
-    '0912345678',
+    '0999000002',
     'owner',
     'owner',
     true,
@@ -589,16 +589,22 @@ INSERT INTO public.profiles (
     'demo_renter_troxinh',
     'Nguyễn Văn An (Người Thuê)',
     'nguoithue@troxinh.vn',
-    '0988110789',
+    '0999000003',
     'renter',
     'renter',
     true,
     'none',
     '/images/user-avatar.jpg'
   )
-ON CONFLICT (firebase_uid) DO UPDATE
+ON CONFLICT (id) DO UPDATE
 SET
+  firebase_uid = EXCLUDED.firebase_uid,
   app_role = EXCLUDED.app_role,
   role = EXCLUDED.role,
   full_name = EXCLUDED.full_name,
-  is_demo_account = true;
+  email = EXCLUDED.email,
+  phone = EXCLUDED.phone,
+  is_demo_account = true,
+  owner_application_status = EXCLUDED.owner_application_status,
+  avatar_url = EXCLUDED.avatar_url;
+

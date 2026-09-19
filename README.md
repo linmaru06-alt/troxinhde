@@ -113,9 +113,9 @@ Bạn có thể bấm trực tiếp các nút 1-chạm (Người thuê, Chủ tr
 
 | Vai Trò | Tên Hiển Thị | Số Điện Thoại / Email | Chức Năng Chính |
 | :--- | :--- | :--- | :--- |
-| **Người Thuê (Renter)** | Nguyễn Văn An | `0988110789` / `nguoithue@troxinh.vn` | Tìm phòng, đặt lịch xem phòng, xem hợp đồng mẫu, báo cáo tin |
-| **Chủ Trọ (Owner)** | Trần Quốc Tuấn | `0912345678` / `chutro@troxinh.vn` | Quản lý tòa nhà, đăng phòng, đẩy tin VIP, duyệt lịch hẹn |
-| **Ban Quản Trị (Admin)** | Ban Quản Trị Trọ Xinh | `0888110789` / `admin@troxinh.vn` | Kiểm duyệt phòng, thẩm định chủ trọ, xử lý báo cáo vi phạm |
+| **Người Thuê (Renter)** | Nguyễn Văn An | `0999000003` / `nguoithue@troxinh.vn` | Tìm phòng, đặt lịch xem phòng, xem hợp đồng mẫu, báo cáo tin |
+| **Chủ Trọ (Owner)** | Trần Quốc Tuấn | `0999000002` / `chutro@troxinh.vn` | Quản lý tòa nhà, đăng phòng, đẩy tin VIP, duyệt lịch hẹn |
+| **Ban Quản Trị (Admin)** | Ban Quản Trị Trọ Xinh | `0999000001` / `admin@troxinh.vn` | Kiểm duyệt phòng, thẩm định chủ trọ, xử lý báo cáo vi phạm |
 
 ---
 
