@@ -12,8 +12,8 @@ export const DepositContractTemplate: React.FC<DepositContractTemplateProps> = (
   return (
     <div
       id={id}
-      className={`max-w-4xl mx-auto bg-white p-12 shadow-lg my-8 text-gray-900 font-sans leading-loose antialiased print:shadow-none print:m-0 print:p-8 ${className}`}
-      style={{ fontFamily: "'Arial', 'Segoe UI', 'Be Vietnam Pro', sans-serif" }}
+      className={`max-w-4xl mx-auto bg-white p-12 shadow-lg my-8 text-gray-900 font-serif leading-loose antialiased print:shadow-none print:m-0 print:p-8 ${className}`}
+      style={{ fontFamily: "'Times New Roman', Times, 'Be Vietnam Pro', serif" }}
     >
       {/* Tiêu đề: Quốc hiệu & Tiêu ngữ */}
       <div className="text-center mb-8 space-y-1">

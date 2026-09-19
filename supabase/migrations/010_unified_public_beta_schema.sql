@@ -364,6 +364,19 @@ ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS legal_docs_note T
 ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
 ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
 
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'owner_application_status') THEN
+    ALTER TABLE public.profiles ADD COLUMN owner_application_status TEXT DEFAULT 'none';
+  END IF;
+
+  -- Nới rộng ràng buộc profiles_role_check nếu đã tồn tại từ schema cũ
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_role_check') THEN
+    ALTER TABLE public.profiles DROP CONSTRAINT profiles_role_check;
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'renter', 'owner', 'admin'));
+  END IF;
+END $$;
+
 -- =================================================================
 -- 14. THIẾT LẬP TOÀN BỘ ROW LEVEL SECURITY (RLS) POLICIES
 -- =================================================================
@@ -591,7 +604,7 @@ INSERT INTO public.profiles (
     'nguoithue@troxinh.vn',
     '0999000003',
     'renter',
-    'renter',
+    'user',
     true,
     'none',
     '/images/user-avatar.jpg'
