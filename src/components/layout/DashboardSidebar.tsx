@@ -47,6 +47,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
   const adminLinks: NavLinkItem[] = [
     { to: '/admin', label: 'Tổng quan điều hành', icon: LayoutDashboard },
     { to: '/admin/kiem-duyet', label: 'Kiểm duyệt nội dung', icon: ShieldCheck },
+    { to: '/admin/don-chu-tro', label: 'Đơn xin chủ trọ', icon: Building2, badge: pendingOwnerApps },
     { to: '/admin/nguoi-dung', label: 'Quản lý người dùng', icon: Users },
     { to: '/admin/lich-hen', label: 'Theo dõi lịch hẹn', icon: Calendar },
     { to: '/admin/nhat-ky', label: 'Nhật ký Audit Logs', icon: History },

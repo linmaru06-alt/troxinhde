@@ -66,6 +66,7 @@ export const AdminDashboardPage: React.FC = () => {
   const [pendingOwnerAppsList, setPendingOwnerAppsList] = useState<any[]>([]);
   const [reportsList, setReportsList] = useState<any[]>([]);
   const [recentAuditLogs, setRecentAuditLogs] = useState<AuditLog[]>([]);
+  const [totalAuditCount, setTotalAuditCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Split view item đang chọn
@@ -90,11 +91,12 @@ export const AdminDashboardPage: React.FC = () => {
     onConfirm: async () => {},
   });
 
-  const loadDashboardData = async () => {
+  const loadDashboardData = async (filter?: 'today' | '7days' | '30days' | 'all') => {
+    const activeFilter = filter ?? timeFilter;
     setIsLoading(true);
     try {
       const [m, rooms, owners, reports, audits] = await Promise.all([
-        getAdminMetrics(),
+        getAdminMetrics(activeFilter),
         getPendingRooms(),
         getPendingOwnerApplications(),
         getReportsAdmin(),
@@ -104,6 +106,7 @@ export const AdminDashboardPage: React.FC = () => {
       setPendingRoomsList(rooms);
       setPendingOwnerAppsList(owners);
       setReportsList(reports);
+      setTotalAuditCount(audits.length);
       setRecentAuditLogs(audits.slice(0, 15));
 
       // Tự động chọn item đầu tiên nếu chưa chọn
@@ -123,8 +126,9 @@ export const AdminDashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadDashboardData();
-  }, []);
+    loadDashboardData(timeFilter);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [timeFilter]);
 
   // Tính các cảnh báo ưu tiên (SLA Alerts)
   const urgentReports = reportsList.filter((r) => r.status === 'pending');
@@ -271,7 +275,7 @@ export const AdminDashboardPage: React.FC = () => {
               variant="outline"
               size="sm"
               className="text-xs flex items-center gap-1.5"
-              onClick={loadDashboardData}
+              onClick={() => loadDashboardData(timeFilter)}
               disabled={isLoading}
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
@@ -397,7 +401,14 @@ export const AdminDashboardPage: React.FC = () => {
 
         {/* 2. BỘ CHỈ SỐ VẬN HÀNH THẬT (METRICS GRID) */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1">
+          <div
+            className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1 cursor-pointer hover:border-amber-300 hover:shadow-md transition-all"
+            onClick={() => {
+              setWorkQueueFilter('rooms');
+              document.getElementById('work-queue-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            title="Bấm để xem danh sách phòng chờ duyệt"
+          >
             <div className="flex items-center justify-between text-gray-500 text-xs font-semibold">
               <span>Phòng chờ kiểm duyệt</span>
               <Clock className="w-4 h-4 text-amber-500" />
@@ -406,7 +417,11 @@ export const AdminDashboardPage: React.FC = () => {
             <p className="text-[11px] text-gray-500 font-medium">Tổng {metrics.totalRooms} phòng trong hệ thống</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1">
+          <div
+            className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1 cursor-pointer hover:border-emerald-300 hover:shadow-md transition-all"
+            onClick={() => navigate('/admin/don-chu-tro')}
+            title="Bấm để xem danh sách đơn chủ trọ"
+          >
             <div className="flex items-center justify-between text-gray-500 text-xs font-semibold">
               <span>Hồ sơ Chủ trọ chờ duyệt</span>
               <Building2 className="w-4 h-4 text-[#006d37]" />
@@ -415,27 +430,38 @@ export const AdminDashboardPage: React.FC = () => {
             <p className="text-[11px] text-gray-500 font-medium">Hiện có {metrics.totalOwners} chủ trọ đối tác</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1">
+          <div
+            className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1 cursor-pointer hover:border-blue-300 hover:shadow-md transition-all"
+            onClick={() => navigate('/admin/lich-hen')}
+            title="Bấm để xem danh sách lịch hẹn"
+          >
             <div className="flex items-center justify-between text-gray-500 text-xs font-semibold">
               <span>Lịch hẹn xem phòng</span>
               <Calendar className="w-4 h-4 text-blue-500" />
             </div>
-            <div className="text-3xl font-black text-blue-600">{metrics.totalBookings}</div>
-            <p className="text-[11px] text-emerald-600 font-medium">{metrics.pendingBookings} lịch đang chờ hẹn</p>
+            <div className="text-3xl font-black text-blue-600">{metrics.pendingBookings}</div>
+            <p className="text-[11px] text-gray-500 font-medium">Tổng {metrics.totalBookings} lịch hẹn trong kỳ</p>
           </div>
 
-          <div className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1">
+          <div
+            className="bg-white p-5 rounded-2xl border border-gray-200/80 shadow-xs space-y-1 cursor-pointer hover:border-rose-300 hover:shadow-md transition-all"
+            onClick={() => {
+              setWorkQueueFilter('reports');
+              document.getElementById('work-queue-section')?.scrollIntoView({ behavior: 'smooth' });
+            }}
+            title="Bấm để xem danh sách báo cáo vi phạm"
+          >
             <div className="flex items-center justify-between text-gray-500 text-xs font-semibold">
               <span>Báo cáo vi phạm</span>
               <ShieldAlert className="w-4 h-4 text-rose-500" />
             </div>
             <div className="text-3xl font-black text-rose-600">{metrics.pendingReports}</div>
-            <p className="text-[11px] text-gray-500 font-medium">Tỷ lệ an toàn tiêu chuẩn 99%</p>
+            <p className="text-[11px] text-gray-500 font-medium">Tổng {metrics.totalReports} báo cáo nhận được</p>
           </div>
         </div>
 
         {/* 3. HỘP VIỆC HỢP NHẤT (WORK QUEUE - SPLIT VIEW) */}
-        <div className="bg-white rounded-3xl border border-gray-200 shadow-xs overflow-hidden">
+        <div id="work-queue-section" className="bg-white rounded-3xl border border-gray-200 shadow-xs overflow-hidden">
           <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
               <h2 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
@@ -734,7 +760,7 @@ export const AdminDashboardPage: React.FC = () => {
               to="/admin/nhat-ky"
               className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1"
             >
-              Xem toàn bộ ({recentAuditLogs.length}) <ArrowUpRight className="w-3.5 h-3.5" />
+              Xem toàn bộ ({totalAuditCount}) <ArrowUpRight className="w-3.5 h-3.5" />
             </Link>
           </div>
 

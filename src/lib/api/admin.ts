@@ -92,7 +92,9 @@ export async function getAuditLogs(): Promise<AuditLog[]> {
 /**
  * Lấy các chỉ số thống kê thật từ Supabase (Metrics Grid)
  */
-export async function getAdminMetrics(): Promise<AdminMetrics> {
+export async function getAdminMetrics(
+  timeFilter: 'today' | '7days' | '30days' | 'all' = 'all'
+): Promise<AdminMetrics> {
   const fallback: AdminMetrics = {
     totalRooms: 0,
     pendingRooms: 0,
@@ -109,13 +111,43 @@ export async function getAdminMetrics(): Promise<AdminMetrics> {
 
   if (!isSupabaseConfigured) return fallback;
 
+  // Tính mốc thời gian cho bộ lọc
+  const getFromDate = (): string | null => {
+    const now = new Date();
+    if (timeFilter === 'today') {
+      const d = new Date(now); d.setHours(0, 0, 0, 0); return d.toISOString();
+    }
+    if (timeFilter === '7days') {
+      return new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    if (timeFilter === '30days') {
+      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    }
+    return null;
+  };
+  const fromDate = getFromDate();
+
   try {
+    // Rooms: luôn lấy tổng hệ thống (không filter thời gian cho tổng phòng)
+    let roomsQuery = supabase.from('rooms').select('id, moderation_status, status, created_at');
+    let profilesQuery = supabase.from('profiles').select('id, role, created_at');
+    let ownerAppsQuery = supabase.from('owner_applications').select('id, status, created_at');
+    let reportsQuery = supabase.from('reports').select('id, status, created_at');
+    let bookingsQuery = supabase.from('viewing_requests').select('id, status, created_at');
+
+    // Khi có bộ lọc thời gian, chỉ áp dụng cho rooms/reports/bookings mới tạo trong kỳ
+    if (fromDate) {
+      roomsQuery = roomsQuery.gte('created_at', fromDate) as any;
+      reportsQuery = reportsQuery.gte('created_at', fromDate) as any;
+      bookingsQuery = bookingsQuery.gte('created_at', fromDate) as any;
+    }
+
     const [roomsRes, profilesRes, ownerAppsRes, reportsRes, bookingsRes] = await Promise.all([
-      supabase.from('rooms').select('id, moderation_status, status'),
-      supabase.from('profiles').select('id, role'),
-      supabase.from('owner_applications').select('id, status'),
-      supabase.from('reports').select('id, status'),
-      supabase.from('viewing_requests').select('id, status'),
+      roomsQuery,
+      profilesQuery,
+      ownerAppsQuery,
+      bookingsQuery,
+      reportsQuery,
     ]);
 
     const rooms = roomsRes.data || [];
@@ -388,11 +420,14 @@ export async function banUser(userId: string, reason: string, durationDays = 30,
 
   const bannedUntil = new Date(Date.now() + durationDays * 86400000).toISOString();
 
-  const { data: oldUser } = await supabase.from('profiles').select('id, role').eq('id', userId).single();
+  const { data: oldUser } = await supabase.from('profiles').select('id, role, is_banned').eq('id', userId).single();
 
   const { error } = await supabase
     .from('profiles')
     .update({
+      is_banned: true,
+      banned_reason: reason,
+      banned_until: bannedUntil,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId);
@@ -421,6 +456,9 @@ export async function unbanUser(userId: string, admin?: User | null) {
   const { error } = await supabase
     .from('profiles')
     .update({
+      is_banned: false,
+      banned_reason: null,
+      banned_until: null,
       updated_at: new Date().toISOString(),
     })
     .eq('id', userId);
@@ -491,6 +529,7 @@ export async function getPendingOwnerApplications() {
       created_at,
       profiles!user_id(id, full_name, phone, avatar_url)
     `)
+    .eq('status', 'pending')
     .order('created_at', { ascending: false });
 
   if (error) {
