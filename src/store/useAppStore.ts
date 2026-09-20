@@ -672,10 +672,37 @@ export const useAppStore = create<AppState>()(
           verified: false,
           createdAt: new Date().toISOString(),
         };
-        set((state) => ({ rooms: [newRoom, ...state.rooms] }));
+
+        const adminNotif: NotificationItem = {
+          id: `notif_adm_${Date.now()}`,
+          userId: 'user_admin_1',
+          type: 'system',
+          title: 'Phòng trọ mới cần duyệt 🏢',
+          body: `Chủ trọ ${data.ownerName || 'Chủ trọ'} vừa đăng phòng "${data.title}" (${data.roomNumber || ''}). Vui lòng kiểm duyệt.`,
+          read: false,
+          actionLink: '/admin/kiem-duyet',
+          createdAt: new Date().toISOString(),
+        };
+
+        const ownerNotif: NotificationItem = {
+          id: `notif_own_${Date.now() + 1}`,
+          userId: data.ownerId || 'user_owner_1',
+          type: 'system',
+          title: 'Tin đăng phòng trọ đang chờ kiểm duyệt ⏳',
+          body: `Phòng "${data.title}" (${data.roomNumber || ''}) đã được gửi và đang chờ ban quản trị kiểm duyệt.`,
+          read: false,
+          actionLink: '/chu-tro',
+          createdAt: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          rooms: [newRoom, ...state.rooms],
+          notifications: [ownerNotif, adminNotif, ...state.notifications],
+        }));
+
         // Sync lên Supabase Cloud trong background
         syncRoomToSupabase(newRoom).catch(console.warn);
-        get().showToast('Đăng phòng thành công!', 'Tin đăng đang được kiểm duyệt (trong vòng 24h)', 'success');
+        get().showToast('Đăng phòng thành công!', 'Tin đăng đang chờ kiểm duyệt (trong vòng 24h)', 'success');
         return newId;
       },
 

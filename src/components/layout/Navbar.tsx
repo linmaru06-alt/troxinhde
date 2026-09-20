@@ -7,6 +7,7 @@ import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { OptimizedImage } from '../ui/OptimizedImage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AccountDropdownMenu } from './AccountDropdownMenu';
+import { NotificationDropdown } from './NotificationDropdown';
 import {
   Compass,
   MapPin,
@@ -42,7 +43,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, logout, savedRoomIds = [] } = useAppStore();
-  const { openAuthModal } = useUIStore();
+  const { openAuthModal, openFloatingChat } = useUIStore();
   const { unreadCount: unreadNotifs } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -55,16 +56,22 @@ export const Navbar: React.FC = () => {
   // Dropdown states cho thanh Sticky Header (Chợ Tốt Style)
   const [isStickyAvatarOpen, setIsStickyAvatarOpen] = useState(false);
   const [isStickyDistrictOpen, setIsStickyDistrictOpen] = useState(false);
+  const [isStickyNotifOpen, setIsStickyNotifOpen] = useState(false);
   const stickyDropdownRef = useRef<HTMLDivElement>(null);
   const stickyDistrictDropdownRef = useRef<HTMLDivElement>(null);
+  const stickyNotifRef = useRef<HTMLDivElement>(null);
 
   useOutsideClick(stickyDropdownRef, () => setIsStickyAvatarOpen(false), isStickyAvatarOpen);
   useOutsideClick(stickyDistrictDropdownRef, () => setIsStickyDistrictOpen(false), isStickyDistrictOpen);
+  useOutsideClick(stickyNotifRef, () => setIsStickyNotifOpen(false), isStickyNotifOpen);
 
   // Dropdown states cho thanh Header ban đầu ở đỉnh trang (Top Navbar)
   const [isTopAvatarOpen, setIsTopAvatarOpen] = useState(false);
+  const [isTopNotifOpen, setIsTopNotifOpen] = useState(false);
   const topDropdownRef = useRef<HTMLDivElement>(null);
+  const topNotifRef = useRef<HTMLDivElement>(null);
   useOutsideClick(topDropdownRef, () => setIsTopAvatarOpen(false), isTopAvatarOpen);
+  useOutsideClick(topNotifRef, () => setIsTopNotifOpen(false), isTopNotifOpen);
 
   // Lắng nghe sự kiện vuốt/cuộn trang toàn diện (Window, Document, Body)
   useEffect(() => {
@@ -219,26 +226,39 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
-              {/* Notification Bell */}
-              <Link
-                to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
-                aria-label="Thông báo"
-                className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative"
-                title="Thông báo"
-              >
-                <Bell className="w-4 h-4 text-gray-950 stroke-[2.5]" />
-                {unreadNotifs > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
-                    {unreadNotifs}
-                  </span>
-                )}
-              </Link>
+              {/* Notification Bell with FB-Style Dropdown */}
+              <div className="relative" ref={topNotifRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTopNotifOpen(!isTopNotifOpen);
+                    setIsTopAvatarOpen(false);
+                  }}
+                  aria-label="Thông báo"
+                  className="w-9 h-9 rounded-full bg-white/90 hover:bg-white text-gray-950 flex items-center justify-center transition shadow-2xs relative cursor-pointer"
+                  title="Thông báo"
+                >
+                  <Bell className="w-4 h-4 text-gray-950 stroke-[2.5]" />
+                  {unreadNotifs > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
+                      {unreadNotifs}
+                    </span>
+                  )}
+                </button>
 
-              {/* Chat / Liên hệ Pill */}
-              <Link
-                to="/tin-nhan"
+                <NotificationDropdown
+                  isOpen={isTopNotifOpen}
+                  onClose={() => setIsTopNotifOpen(false)}
+                  align="right"
+                />
+              </div>
+
+              {/* Chat / Liên hệ Pill (Mở box chat thu nhỏ FB) */}
+              <button
+                type="button"
+                onClick={() => openFloatingChat()}
                 aria-label="Tin nhắn liên hệ"
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative cursor-pointer"
                 title="Tin nhắn / Liên hệ"
               >
                 <MessageSquare className="w-4 h-4 text-gray-950 stroke-[2.5]" />
@@ -248,7 +268,7 @@ export const Navbar: React.FC = () => {
                     {unreadMessages}
                   </span>
                 )}
-              </Link>
+              </button>
 
               {/* ĐĂNG TIN */}
               <button
@@ -457,26 +477,39 @@ export const Navbar: React.FC = () => {
                 )}
               </Link>
 
-              {/* Icon Chuông thông báo */}
-              <Link
-                to={currentUser?.role === 'owner' ? '/chu-tro/thong-bao' : '/thong-bao'}
-                aria-label="Thông báo"
-                className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 flex items-center justify-center transition relative"
-                title="Thông báo"
-              >
-                <Bell className="w-4 h-4 text-gray-800 stroke-[2.2]" />
-                {unreadNotifs > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
-                    {unreadNotifs}
-                  </span>
-                )}
-              </Link>
+              {/* Icon Chuông thông báo with Dropdown */}
+              <div className="relative" ref={stickyNotifRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsStickyNotifOpen(!isStickyNotifOpen);
+                    setIsStickyAvatarOpen(false);
+                  }}
+                  aria-label="Thông báo"
+                  className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-800 flex items-center justify-center transition relative cursor-pointer"
+                  title="Thông báo"
+                >
+                  <Bell className="w-4 h-4 text-gray-800 stroke-[2.2]" />
+                  {unreadNotifs > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-rose-500 text-white text-[9px] font-black rounded-full flex items-center justify-center ring-2 ring-white animate-pulse">
+                      {unreadNotifs}
+                    </span>
+                  )}
+                </button>
 
-              {/* Nút Liên hệ */}
-              <Link
-                to="/tin-nhan"
+                <NotificationDropdown
+                  isOpen={isStickyNotifOpen}
+                  onClose={() => setIsStickyNotifOpen(false)}
+                  align="right"
+                />
+              </div>
+
+              {/* Nút Liên hệ (Mở Box chat thu nhỏ FB) */}
+              <button
+                type="button"
+                onClick={() => openFloatingChat()}
                 aria-label="Tin nhắn liên hệ"
-                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 text-gray-900 text-xs font-bold transition shadow-2xs relative"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 text-gray-900 text-xs font-bold transition shadow-2xs relative cursor-pointer"
                 title="Tin nhắn / Liên hệ"
               >
                 <MessageSquare className="w-4 h-4 text-gray-800 stroke-[2.2]" />
@@ -486,7 +519,7 @@ export const Navbar: React.FC = () => {
                     {unreadMessages}
                   </span>
                 )}
-              </Link>
+              </button>
 
               {/* Nút ĐĂNG TIN (Màu xanh Trọ Xinh nổi bật) */}
               <button

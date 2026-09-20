@@ -11,6 +11,7 @@ import { Building2, ArrowRight } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
 import { AuthModal } from './components/modals/AuthModal';
+import { FloatingChatWidget } from './components/chat/FloatingChatWidget';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 
@@ -58,6 +59,7 @@ const OwnerBuildingListPage = React.lazy(() => import('./pages/OwnerBuildingList
 const OwnerCreateBuildingPage = React.lazy(() => import('./pages/OwnerCreateBuildingPage').then((m) => ({ default: m.OwnerCreateBuildingPage })));
 const OwnerCreateRoomPage = React.lazy(() => import('./pages/OwnerCreateRoomPage').then((m) => ({ default: m.OwnerCreateRoomPage })));
 const OwnerRoomDetailPage = React.lazy(() => import('./pages/OwnerRoomDetailPage').then((m) => ({ default: m.OwnerRoomDetailPage })));
+const OwnerChatPage = React.lazy(() => import('./pages/OwnerChatPage').then((m) => ({ default: m.OwnerChatPage })));
 const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
 const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
@@ -419,7 +421,22 @@ export const App: React.FC = () => {
                 </OwnerRoute>
               }
             />
-            <Route path="/chu-tro/tin-nhan" element={<Navigate to="/tin-nhan" replace />} />
+            <Route
+              path="/chu-tro/tin-nhan"
+              element={
+                <OwnerRoute>
+                  <OwnerChatPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/tin-nhan/:conversationId"
+              element={
+                <OwnerRoute>
+                  <OwnerChatPage />
+                </OwnerRoute>
+              }
+            />
             <Route path="/chu-tro/lich-hen" element={<Navigate to="/lich-hen" replace />} />
             <Route
               path="/chu-tro/thong-bao"
@@ -552,6 +569,7 @@ export const App: React.FC = () => {
         <OfflineBanner />
         <PushPermissionToast />
         <ToastContainer />
+        <FloatingChatWidget />
         <AuthModal />
       </div>
     </BrowserRouter>

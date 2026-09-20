@@ -17,6 +17,15 @@ export interface UIStore {
   isMapPopupOpen: boolean;
   activeMapRoomId: string | null;
 
+  // === FLOATING DOCKED MESSENGER CHAT (FB Style) ===
+  isFloatingChatOpen: boolean;
+  isFloatingChatMinimized: boolean;
+  floatingChatConversationId: string | null;
+  openFloatingChat: (conversationId?: string) => void;
+  closeFloatingChat: () => void;
+  minimizeFloatingChat: (minimized?: boolean) => void;
+  toggleFloatingChat: () => void;
+
   // === DROPDOWNS ===
   isAvatarDropdownOpen: boolean;
   isSortDropdownOpen: boolean;
@@ -77,6 +86,31 @@ export const useUIStore = create<UIStore>((set, get) => ({
   isFilterSidebarOpen: false,
   isMapPopupOpen: false,
   activeMapRoomId: null,
+
+  // Floating Chat State
+  isFloatingChatOpen: false,
+  isFloatingChatMinimized: false,
+  floatingChatConversationId: null,
+  openFloatingChat: (conversationId) =>
+    set({
+      isFloatingChatOpen: true,
+      isFloatingChatMinimized: false,
+      floatingChatConversationId: conversationId || get().floatingChatConversationId || null,
+    }),
+  closeFloatingChat: () =>
+    set({
+      isFloatingChatOpen: false,
+      isFloatingChatMinimized: false,
+    }),
+  minimizeFloatingChat: (minimized) =>
+    set((state) => ({
+      isFloatingChatMinimized: minimized !== undefined ? minimized : !state.isFloatingChatMinimized,
+    })),
+  toggleFloatingChat: () =>
+    set((state) => ({
+      isFloatingChatOpen: !state.isFloatingChatOpen,
+      isFloatingChatMinimized: false,
+    })),
 
   isAvatarDropdownOpen: false,
   isSortDropdownOpen: false,
