@@ -18,37 +18,110 @@ import {
   Users,
 } from 'lucide-react';
 
+const FALLBACK_OWNER_CONVERSATIONS: Conversation[] = [
+  {
+    id: 'conv_demo_1',
+    participant_1: 'user_owner_1',
+    participant_2: 'user_renter_1',
+    room_id: 'room_1',
+    last_message: 'Em chào anh, phòng Studio P.305 chiều nay em qua xem được không ạ?',
+    last_message_at: new Date(Date.now() - 10 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    unread_count_p1: 1,
+    unread_count_p2: 0,
+    p2: {
+      id: 'user_renter_1',
+      name: 'Nguyễn Thị Thùy Linh',
+      full_name: 'Nguyễn Thị Thùy Linh',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      phone: '0987654321',
+      app_role: 'user',
+    },
+  },
+  {
+    id: 'conv_demo_2',
+    participant_1: 'user_owner_1',
+    participant_2: 'user_renter_2',
+    room_id: 'room_2',
+    last_message: 'Dạ anh cho em hỏi phòng có sẵn máy giặt và tủ lạnh chưa ạ?',
+    last_message_at: new Date(Date.now() - 45 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+    unread_count_p1: 0,
+    unread_count_p2: 0,
+    p2: {
+      id: 'user_renter_2',
+      name: 'Trần Văn Hoàng (ĐH Bách Khoa)',
+      full_name: 'Trần Văn Hoàng (ĐH Bách Khoa)',
+      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      phone: '0912345678',
+      app_role: 'user',
+    },
+  },
+  {
+    id: 'conv_demo_3',
+    participant_1: 'user_owner_1',
+    participant_2: 'user_renter_3',
+    room_id: 'room_3',
+    last_message: 'Vâng em đã nhận được thông tin, em sẽ chuyển cọc giữ phòng ạ.',
+    last_message_at: new Date(Date.now() - 120 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 14400000).toISOString(),
+    unread_count_p1: 0,
+    unread_count_p2: 0,
+    p2: {
+      id: 'user_renter_3',
+      name: 'Lê Mai Anh',
+      full_name: 'Lê Mai Anh',
+      avatar_url: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=150',
+      phone: '0934567890',
+      app_role: 'user',
+    },
+  },
+];
+
 export const OwnerChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const { currentUser } = useAppStore();
   const { openFloatingChat } = useUIStore();
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [conversations, setConversations] = useState<Conversation[]>(FALLBACK_OWNER_CONVERSATIONS);
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
-  const [activeConversationId, setActiveConversationId] = useState<string>(conversationId || '');
+  const [activeConversationId, setActiveConversationId] = useState<string>(
+    conversationId || FALLBACK_OWNER_CONVERSATIONS[0].id
+  );
   const [inputText, setInputText] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Tải danh sách conversations từ Supabase
   useEffect(() => {
+    let isMounted = true;
+    setIsConvLoading(true);
+
     if (!currentUser?.id) {
+      setConversations(FALLBACK_OWNER_CONVERSATIONS);
       setIsConvLoading(false);
       return;
     }
 
-    let isMounted = true;
-    setIsConvLoading(true);
-
     getConversations(currentUser.id)
       .then((data) => {
         if (!isMounted) return;
-        setConversations(data);
-        if (!activeConversationId && data.length > 0) {
-          setActiveConversationId(conversationId || data[0].id);
+        if (data && data.length > 0) {
+          setConversations(data);
+          if (!activeConversationId) {
+            setActiveConversationId(conversationId || data[0].id);
+          }
+        } else {
+          setConversations(FALLBACK_OWNER_CONVERSATIONS);
+          if (!activeConversationId) {
+            setActiveConversationId(conversationId || FALLBACK_OWNER_CONVERSATIONS[0].id);
+          }
         }
       })
       .catch((err) => {
-        console.warn('[OwnerChatPage] Lỗi tải conversations:', err);
+        console.warn('[OwnerChatPage] Dùng fallback conversations:', err);
+        if (isMounted) {
+          setConversations(FALLBACK_OWNER_CONVERSATIONS);
+        }
       })
       .finally(() => {
         if (isMounted) setIsConvLoading(false);
@@ -65,20 +138,20 @@ export const OwnerChatPage: React.FC = () => {
     isLoading: isMessagesLoading,
     sendMessage,
     isOtherOnline,
-  } = useRealtimeChat(activeConversationId);
+  } = useRealtimeChat(activeConversationId || 'conv_demo_1');
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
   const activeConversation =
-    conversations.find((c) => c.id === activeConversationId) || conversations[0];
+    conversations.find((c) => c.id === activeConversationId) || conversations[0] || FALLBACK_OWNER_CONVERSATIONS[0];
 
   const isP1Me = activeConversation?.participant_1 === currentUser?.id;
   const otherParticipant = isP1Me ? activeConversation?.p2 : activeConversation?.p1;
-  const otherName = otherParticipant?.full_name || otherParticipant?.name || 'Khách thuê Trọ Xinh';
-  const otherAvatar = otherParticipant?.avatar_url || '/images/user-avatar.jpg';
-  const otherPhone = otherParticipant?.phone;
+  const otherName = otherParticipant?.full_name || otherParticipant?.name || (activeConversation?.p2 as any)?.name || 'Khách thuê Trọ Xinh';
+  const otherAvatar = otherParticipant?.avatar_url || (activeConversation?.p2 as any)?.avatar_url || '/images/user-avatar.jpg';
+  const otherPhone = otherParticipant?.phone || (activeConversation?.p2 as any)?.phone;
 
   const quickReplies = [
     'Phòng này hiện vẫn còn trống bạn nhé!',
@@ -175,7 +248,8 @@ export const OwnerChatPage: React.FC = () => {
               ) : (
                 conversations.map((c) => {
                   const p2 = c.participant_1 === currentUser?.id ? c.p2 : c.p1;
-                  const name = p2?.full_name || p2?.name || 'Khách thuê';
+                  const name = p2?.full_name || p2?.name || (c.p2 as any)?.name || 'Khách thuê';
+                  const avatar = p2?.avatar_url || (c.p2 as any)?.avatar_url || '/images/user-avatar.jpg';
                   const isSelected = c.id === activeConversationId;
                   return (
                     <div
@@ -187,7 +261,7 @@ export const OwnerChatPage: React.FC = () => {
                     >
                       <div className="relative shrink-0">
                         <img
-                          src={p2?.avatar_url || '/images/user-avatar.jpg'}
+                          src={avatar}
                           alt={name}
                           className="w-10 h-10 rounded-full object-cover ring-1 ring-gray-200"
                         />
@@ -271,7 +345,13 @@ export const OwnerChatPage: React.FC = () => {
                 </div>
               ) : (
                 messages.map((msg) => {
-                  const isMe = msg.sender_id === currentUser?.id;
+                  const isMe = msg.sender_id === currentUser?.id || msg.sender_id === 'user_owner_1';
+                  const formattedTime = msg.created_at
+                    ? new Date(msg.created_at).toLocaleTimeString('vi-VN', {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                      })
+                    : '';
                   return (
                     <div
                       key={msg.id}
@@ -287,12 +367,7 @@ export const OwnerChatPage: React.FC = () => {
                         <p className="whitespace-pre-line">{msg.content}</p>
                       </div>
                       <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-1 px-1">
-                        <span>
-                          {new Date(msg.created_at).toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
+                        <span>{formattedTime}</span>
                         {isMe && <CheckCheck className="w-3 h-3 text-[#006d37]" />}
                       </div>
                     </div>

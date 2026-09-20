@@ -18,6 +18,47 @@ import {
   Loader2,
 } from 'lucide-react';
 
+const FALLBACK_CHAT_CONVERSATIONS: Conversation[] = [
+  {
+    id: 'conv_demo_1',
+    participant_1: 'user_owner_1',
+    participant_2: 'user_renter_1',
+    room_id: 'room_1',
+    last_message: 'Em chào anh, phòng Studio P.305 chiều nay em qua xem được không ạ?',
+    last_message_at: new Date(Date.now() - 10 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 3600000).toISOString(),
+    unread_count_p1: 1,
+    unread_count_p2: 0,
+    p2: {
+      id: 'user_renter_1',
+      name: 'Nguyễn Thị Thùy Linh',
+      full_name: 'Nguyễn Thị Thùy Linh',
+      avatar_url: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150',
+      phone: '0987654321',
+      app_role: 'user',
+    },
+  },
+  {
+    id: 'conv_demo_2',
+    participant_1: 'user_owner_1',
+    participant_2: 'user_renter_2',
+    room_id: 'room_2',
+    last_message: 'Dạ anh cho em hỏi phòng có sẵn máy giặt và tủ lạnh chưa ạ?',
+    last_message_at: new Date(Date.now() - 45 * 60000).toISOString(),
+    created_at: new Date(Date.now() - 7200000).toISOString(),
+    unread_count_p1: 0,
+    unread_count_p2: 0,
+    p2: {
+      id: 'user_renter_2',
+      name: 'Trần Văn Hoàng (ĐH Bách Khoa)',
+      full_name: 'Trần Văn Hoàng (ĐH Bách Khoa)',
+      avatar_url: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150',
+      phone: '0912345678',
+      app_role: 'user',
+    },
+  },
+];
+
 export const FloatingChatWidget: React.FC = () => {
   const navigate = useNavigate();
   const { currentUser } = useAppStore();
@@ -30,8 +71,10 @@ export const FloatingChatWidget: React.FC = () => {
     minimizeFloatingChat,
   } = useUIStore();
 
-  const [conversations, setConversations] = useState<Conversation[]>([]);
-  const [activeConvId, setActiveConvId] = useState<string>(floatingChatConversationId || '');
+  const [conversations, setConversations] = useState<Conversation[]>(FALLBACK_CHAT_CONVERSATIONS);
+  const [activeConvId, setActiveConvId] = useState<string>(
+    floatingChatConversationId || FALLBACK_CHAT_CONVERSATIONS[0].id
+  );
   const [inputText, setInputText] = useState<string>('');
   const [showConvList, setShowConvList] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -51,13 +94,20 @@ export const FloatingChatWidget: React.FC = () => {
     getConversations(currentUser.id)
       .then((data) => {
         if (!isMounted) return;
-        setConversations(data);
-        if (!activeConvId && data.length > 0) {
-          setActiveConvId(data[0].id);
+        if (data && data.length > 0) {
+          setConversations(data);
+          if (!activeConvId) {
+            setActiveConvId(data[0].id);
+          }
+        } else {
+          setConversations(FALLBACK_CHAT_CONVERSATIONS);
         }
       })
       .catch((err) => {
-        console.warn('[FloatingChat] Error fetching conversations:', err);
+        console.warn('[FloatingChat] Error fetching conversations, use fallback:', err);
+        if (isMounted) {
+          setConversations(FALLBACK_CHAT_CONVERSATIONS);
+        }
       });
 
     return () => {

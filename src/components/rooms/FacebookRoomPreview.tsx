@@ -79,7 +79,7 @@ export const FacebookRoomPreview: React.FC<FacebookRoomPreviewProps> = ({ room }
           }`}
         >
           <span className="w-2 h-2 rounded-full bg-[#1877F2]"></span>
-          <span>Bảng tin Meta Facebook</span>
+          <span>Bảng tin</span>
         </button>
         <button
           type="button"
