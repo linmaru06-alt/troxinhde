@@ -12,7 +12,6 @@ import {
   MessageSquare,
   Sparkles,
   ChevronRight,
-  ExternalLink,
   Clock,
 } from 'lucide-react';
 

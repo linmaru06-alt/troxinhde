@@ -14,11 +14,8 @@ import {
   Maximize2,
   ChevronDown,
   Sparkles,
-  Phone,
   CheckCheck,
-  Clock,
   Loader2,
-  Users,
 } from 'lucide-react';
 
 export const FloatingChatWidget: React.FC = () => {

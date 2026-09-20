@@ -20,7 +20,7 @@ import {
 
 export const OwnerChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
-  const { currentUser, showToast } = useAppStore();
+  const { currentUser } = useAppStore();
   const { openFloatingChat } = useUIStore();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);

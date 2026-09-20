@@ -4,11 +4,10 @@ import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { FacebookRoomPreview, getAmenityMiniIcon } from '../components/rooms/FacebookRoomPreview';
 import { Room } from '../types';
-import { PlusCircle, Eye, Upload, ShieldCheck, Home, AlertCircle, Crown, ArrowRight, Plus, X, Tag, Sparkles } from 'lucide-react';
+import { Eye, AlertCircle, Crown, ArrowRight, Plus, X, Tag } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { createRoom } from '../lib/api/rooms';
 
