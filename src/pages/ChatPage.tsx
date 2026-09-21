@@ -109,9 +109,19 @@ export const ChatPage: React.FC = () => {
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) || conversations[0];
 
-  const isP1Me = activeConversation?.participant_1 === currentUser?.id;
-  const otherParticipant = isP1Me ? activeConversation?.p2 : activeConversation?.p1;
-  const otherName = otherParticipant?.full_name || otherParticipant?.name || 'Người dùng Trọ Xinh';
+  const isP1Me =
+    Boolean(currentUser?.id) &&
+    (activeConversation?.participant_1 === currentUser?.id ||
+      activeConversation?.participant_1?.startsWith('00000000-0000-0000-0000-000000000003'));
+
+  const otherParticipant = isP1Me
+    ? (activeConversation?.p2 || activeConversation?.p1)
+    : (activeConversation?.p1 || activeConversation?.p2);
+
+  const otherName =
+    otherParticipant?.full_name ||
+    otherParticipant?.name ||
+    'Người dùng Trọ Xinh';
   const otherAvatar = otherParticipant?.avatar_url || '/images/user-avatar.jpg';
   const otherPhone = otherParticipant?.phone;
 

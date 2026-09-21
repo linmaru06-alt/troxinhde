@@ -360,10 +360,19 @@ export async function loginWithEmailPassword(
   // 1. Kiểm tra tài khoản Demo / Mock Accounts
   const demoFound = initialUsers.find((u) => u.email?.toLowerCase() === cleanEmail);
   if (demoFound) {
+    const demoIdMap: Record<string, string> = {
+      'admin@troxinh.vn': '00000000-0000-0000-0000-000000000001',
+      'chutro@troxinh.vn': '00000000-0000-0000-0000-000000000002',
+      'nguoithue@troxinh.vn': '00000000-0000-0000-0000-000000000003',
+      'user_renter_1': '00000000-0000-0000-0000-000000000003',
+      'user_owner_1': '00000000-0000-0000-0000-000000000002',
+      'usr_admin_quan66934': '00000000-0000-0000-0000-000000000001',
+    };
+    const resolvedId = demoIdMap[cleanEmail] || demoIdMap[demoFound.id] || demoFound.id;
     return {
       success: true,
       user: {
-        id: demoFound.id,
+        id: resolvedId,
         firebaseUid: demoFound.id,
         name: demoFound.name,
         email: demoFound.email,
@@ -393,7 +402,7 @@ export async function loginWithEmailPassword(
       return {
         success: true,
         user: {
-          id: 'usr_admin_quan66934',
+          id: '00000000-0000-0000-0000-000000000001',
           firebaseUid: 'usr_admin_quan66934',
           name: 'Quản Trị Viên (Quân)',
           email: 'quan66934@gmail.com',
@@ -779,7 +788,7 @@ export async function completePhoneOtpAuth(
 export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter'): Promise<AuthActionResult> {
   const DEMO_PROFILES: Record<string, AuthUserProfile> = {
     admin: {
-      id: 'demo_admin_uuid',
+      id: '00000000-0000-0000-0000-000000000001',
       firebaseUid: 'demo_admin_troxinh',
       name: 'Ban Quản Trị Trọ Xinh',
       email: 'admin@troxinh.vn',
@@ -789,7 +798,7 @@ export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter
       isDemoAccount: true,
     },
     owner: {
-      id: 'demo_owner_uuid',
+      id: '00000000-0000-0000-0000-000000000002',
       firebaseUid: 'demo_owner_troxinh',
       name: 'Trần Quốc Tuấn (Chủ Trọ)',
       email: 'chutro@troxinh.vn',
@@ -799,7 +808,7 @@ export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter
       isDemoAccount: true,
     },
     renter: {
-      id: 'demo_renter_uuid',
+      id: '00000000-0000-0000-0000-000000000003',
       firebaseUid: 'demo_renter_troxinh',
       name: 'Nguyễn Văn An (Người Thuê)',
       email: 'nguoithue@troxinh.vn',
@@ -818,8 +827,14 @@ export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter
 
     if (!error && data?.account) {
       const acc = data.account;
+      const demoIdMap: Record<string, string> = {
+        demo_admin_troxinh: '00000000-0000-0000-0000-000000000001',
+        demo_owner_troxinh: '00000000-0000-0000-0000-000000000002',
+        demo_renter_troxinh: '00000000-0000-0000-0000-000000000003',
+      };
+      const validProfileId = demoIdMap[acc.uid] || DEMO_PROFILES[demoType]?.id || acc.uid;
       const profile: AuthUserProfile = {
-        id: acc.uid,
+        id: validProfileId,
         firebaseUid: acc.uid,
         name: acc.name,
         email: acc.email,
