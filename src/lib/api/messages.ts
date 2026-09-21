@@ -1,75 +1,86 @@
-import { supabase, isSupabaseConfigured } from '../supabase';
-import { Conversation, Message } from '../../types';
+import { supabase, isSupabaseConfigured } from "../supabase";
+import { Conversation, Message } from "../../types";
 
-const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const KNOWN_DEMO_UUIDS: Record<string, string> = {
-  demo_admin_uuid: '00000000-0000-0000-0000-000000000001',
-  demo_admin_troxinh: '00000000-0000-0000-0000-000000000001',
-  usr_admin_quan66934: '00000000-0000-0000-0000-000000000001',
-  'admin@troxinh.vn': '00000000-0000-0000-0000-000000000001',
+  demo_admin_uuid: "00000000-0000-0000-0000-000000000001",
+  demo_admin_troxinh: "00000000-0000-0000-0000-000000000001",
+  usr_admin_quan66934: "00000000-0000-0000-0000-000000000001",
+  "admin@troxinh.vn": "00000000-0000-0000-0000-000000000001",
 
-  demo_owner_uuid: '00000000-0000-0000-0000-000000000002',
-  demo_owner_troxinh: '00000000-0000-0000-0000-000000000002',
-  user_owner_1: '00000000-0000-0000-0000-000000000002',
-  'chutro@troxinh.vn': '00000000-0000-0000-0000-000000000002',
+  demo_owner_uuid: "00000000-0000-0000-0000-000000000002",
+  demo_owner_troxinh: "00000000-0000-0000-0000-000000000002",
+  user_owner_1: "00000000-0000-0000-0000-000000000002",
+  "chutro@troxinh.vn": "00000000-0000-0000-0000-000000000002",
 
-  demo_renter_uuid: '00000000-0000-0000-0000-000000000003',
-  demo_renter_troxinh: '00000000-0000-0000-0000-000000000003',
-  user_renter_1: '00000000-0000-0000-0000-000000000003',
-  user_renter_2: '00000000-0000-0000-0000-000000000003',
-  'nguoithue@troxinh.vn': '00000000-0000-0000-0000-000000000003',
+  demo_renter_uuid: "00000000-0000-0000-0000-000000000003",
+  demo_renter_troxinh: "00000000-0000-0000-0000-000000000003",
+  user_renter_1: "00000000-0000-0000-0000-000000000003",
+  user_renter_2: "00000000-0000-0000-0000-000000000003",
+  "nguoithue@troxinh.vn": "00000000-0000-0000-0000-000000000003",
 };
 
-export const KNOWN_USER_NAMES: Record<string, { name: string; avatar: string }> = {
-  '00000000-0000-0000-0000-000000000001': {
-    name: 'Ban Quản Trị Trọ Xinh',
-    avatar: '/images/user-avatar.jpg',
+export const KNOWN_USER_NAMES: Record<
+  string,
+  { name: string; avatar: string }
+> = {
+  "00000000-0000-0000-0000-000000000001": {
+    name: "Ban Quản Trị Trọ Xinh",
+    avatar: "/images/user-avatar.jpg",
   },
-  '00000000-0000-0000-0000-000000000002': {
-    name: 'Trần Quốc Tuấn (Chủ Trọ)',
-    avatar: '/images/user-avatar.jpg',
+  "00000000-0000-0000-0000-000000000002": {
+    name: "Trần Quốc Tuấn (Chủ Trọ)",
+    avatar: "/images/user-avatar.jpg",
   },
-  '00000000-0000-0000-0000-000000000003': {
-    name: 'Nguyễn Văn An (Người Thuê)',
-    avatar: '/images/user-avatar.jpg',
+  "00000000-0000-0000-0000-000000000003": {
+    name: "Nguyễn Văn An (Người Thuê)",
+    avatar: "/images/user-avatar.jpg",
   },
   demo_admin_uuid: {
-    name: 'Ban Quản Trị Trọ Xinh',
-    avatar: '/images/user-avatar.jpg',
+    name: "Ban Quản Trị Trọ Xinh",
+    avatar: "/images/user-avatar.jpg",
   },
   demo_owner_uuid: {
-    name: 'Trần Quốc Tuấn (Chủ Trọ)',
-    avatar: '/images/user-avatar.jpg',
+    name: "Trần Quốc Tuấn (Chủ Trọ)",
+    avatar: "/images/user-avatar.jpg",
   },
   demo_renter_uuid: {
-    name: 'Nguyễn Văn An (Người Thuê)',
-    avatar: '/images/user-avatar.jpg',
+    name: "Nguyễn Văn An (Người Thuê)",
+    avatar: "/images/user-avatar.jpg",
   },
   user_owner_1: {
-    name: 'Trần Quốc Tuấn (Chủ Trọ)',
-    avatar: '/images/user-avatar.jpg',
+    name: "Trần Quốc Tuấn (Chủ Trọ)",
+    avatar: "/images/user-avatar.jpg",
   },
   user_renter_1: {
-    name: 'Nguyễn Văn An (Người Thuê)',
-    avatar: '/images/user-avatar.jpg',
+    name: "Nguyễn Văn An (Người Thuê)",
+    avatar: "/images/user-avatar.jpg",
   },
 };
 
-const LOCAL_CONVS_KEY = 'troxinh_local_conversations';
-const LOCAL_MSGS_KEY = 'troxinh_local_messages';
-const CONV_META_PREFIX = 'troxinh_conv_meta_';
+const LOCAL_CONVS_KEY = "troxinh_local_conversations";
+const LOCAL_MSGS_KEY = "troxinh_local_messages";
+const CONV_META_PREFIX = "troxinh_conv_meta_";
 
-export function getConversationMeta(convId: string): { other_name?: string; other_avatar?: string } | null {
+export function getConversationMeta(
+  convId: string,
+): { other_name?: string; other_avatar?: string } | null {
   try {
-    const raw = localStorage.getItem(`${CONV_META_PREFIX}${convId}`) || sessionStorage.getItem(`${CONV_META_PREFIX}${convId}`);
+    const raw =
+      localStorage.getItem(`${CONV_META_PREFIX}${convId}`) ||
+      sessionStorage.getItem(`${CONV_META_PREFIX}${convId}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
   }
 }
 
-export function saveConversationMeta(convId: string, meta: { other_name?: string; other_avatar?: string }) {
+export function saveConversationMeta(
+  convId: string,
+  meta: { other_name?: string; other_avatar?: string },
+) {
   try {
     const json = JSON.stringify(meta);
     localStorage.setItem(`${CONV_META_PREFIX}${convId}`, json);
@@ -113,7 +124,10 @@ function saveLocalMessage(msg: Message) {
   try {
     const list = getLocalMessages(msg.conversation_id);
     list.push(msg);
-    sessionStorage.setItem(`${LOCAL_MSGS_KEY}_${msg.conversation_id}`, JSON.stringify(list));
+    sessionStorage.setItem(
+      `${LOCAL_MSGS_KEY}_${msg.conversation_id}`,
+      JSON.stringify(list),
+    );
   } catch {}
 }
 
@@ -121,7 +135,10 @@ function saveLocalMessage(msg: Message) {
  * Kiểm tra xem 2 ID người dùng có trỏ về cùng một tài khoản hay không
  * (Bao gồm chuẩn hóa giữa UUID trong database và các ID demo/mock)
  */
-export function isSameUserId(id1?: string | null, id2?: string | null): boolean {
+export function isSameUserId(
+  id1?: string | null,
+  id2?: string | null,
+): boolean {
   if (!id1 || !id2) return false;
   const clean1 = id1.trim();
   const clean2 = id2.trim();
@@ -129,26 +146,26 @@ export function isSameUserId(id1?: string | null, id2?: string | null): boolean 
 
   const DEMO_GROUPS: string[][] = [
     [
-      '00000000-0000-0000-0000-000000000001',
-      'demo_admin_uuid',
-      'demo_admin_troxinh',
-      'usr_admin_quan66934',
-      'admin@troxinh.vn',
+      "00000000-0000-0000-0000-000000000001",
+      "demo_admin_uuid",
+      "demo_admin_troxinh",
+      "usr_admin_quan66934",
+      "admin@troxinh.vn",
     ],
     [
-      '00000000-0000-0000-0000-000000000002',
-      'demo_owner_uuid',
-      'demo_owner_troxinh',
-      'user_owner_1',
-      'chutro@troxinh.vn',
+      "00000000-0000-0000-0000-000000000002",
+      "demo_owner_uuid",
+      "demo_owner_troxinh",
+      "user_owner_1",
+      "chutro@troxinh.vn",
     ],
     [
-      '00000000-0000-0000-0000-000000000003',
-      'demo_renter_uuid',
-      'demo_renter_troxinh',
-      'user_renter_1',
-      'user_renter_2',
-      'nguoithue@troxinh.vn',
+      "00000000-0000-0000-0000-000000000003",
+      "demo_renter_uuid",
+      "demo_renter_troxinh",
+      "user_renter_1",
+      "user_renter_2",
+      "nguoithue@troxinh.vn",
     ],
   ];
 
@@ -165,7 +182,7 @@ export function isSameUserId(id1?: string | null, id2?: string | null): boolean 
  * Chuẩn hóa ID người dùng thành UUID hợp lệ để không gây lỗi SQL syntax trong PostgreSQL
  */
 export async function resolveUserIdToUuid(userId: string): Promise<string> {
-  if (!userId) return '';
+  if (!userId) return "";
   const trimmed = userId.trim();
 
   if (UUID_REGEX.test(trimmed)) {
@@ -179,8 +196,8 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
   if (isSupabaseConfigured) {
     try {
       const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
+        .from("profiles")
+        .select("id")
         .or(`firebase_uid.eq.${trimmed},email.eq.${trimmed}`)
         .maybeSingle();
 
@@ -188,12 +205,16 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
         return profile.id;
       }
     } catch (err) {
-      console.warn('[MessagesAPI] Không thể tra cứu profile UUID cho userId:', trimmed, err);
+      console.warn(
+        "[MessagesAPI] Không thể tra cứu profile UUID cho userId:",
+        trimmed,
+        err,
+      );
     }
   }
 
   // Fallback an toàn về ID demo renter để không làm gãy câu lệnh SQL
-  return '00000000-0000-0000-0000-000000000003';
+  return "00000000-0000-0000-0000-000000000003";
 }
 
 /**
@@ -208,35 +229,36 @@ export async function getOrCreateConversation(
     otherName?: string;
     otherAvatar?: string;
     roomTitle?: string;
-  }
+  },
 ): Promise<string> {
   if (!tenantId || !landlordId) {
-    throw new Error('Thiếu thông tin người tham gia hội thoại.');
+    throw new Error("Thiếu thông tin người tham gia hội thoại.");
   }
 
   const cleanTenantId = await resolveUserIdToUuid(tenantId);
   const cleanLandlordId = await resolveUserIdToUuid(landlordId);
 
   if (cleanTenantId === cleanLandlordId) {
-    throw new Error('Không thể tạo cuộc trò chuyện với chính mình.');
+    throw new Error("Không thể tạo cuộc trò chuyện với chính mình.");
   }
 
   // Chỉ gắn room_id khi có định dạng UUID chuẩn hợp lệ
-  const validRoomId = roomId && UUID_REGEX.test(roomId.trim()) ? roomId.trim() : null;
+  const validRoomId =
+    roomId && UUID_REGEX.test(roomId.trim()) ? roomId.trim() : null;
 
   // 1. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
   let existingId: string | null = null;
   if (isSupabaseConfigured) {
     try {
       let query = supabase
-        .from('conversations')
-        .select('id')
+        .from("conversations")
+        .select("id")
         .or(
-          `and(participant_1.eq.${cleanTenantId},participant_2.eq.${cleanLandlordId}),and(participant_1.eq.${cleanLandlordId},participant_2.eq.${cleanTenantId})`
+          `and(participant_1.eq.${cleanTenantId},participant_2.eq.${cleanLandlordId}),and(participant_1.eq.${cleanLandlordId},participant_2.eq.${cleanTenantId})`,
         );
 
       if (validRoomId) {
-        query = query.eq('room_id', validRoomId);
+        query = query.eq("room_id", validRoomId);
       }
 
       const { data: existing, error: queryErr } = await query.maybeSingle();
@@ -244,7 +266,10 @@ export async function getOrCreateConversation(
         existingId = existing.id;
       }
     } catch (err) {
-      console.warn('[MessagesAPI] Lỗi khi tìm cuộc trò chuyện trên Supabase:', err);
+      console.warn(
+        "[MessagesAPI] Lỗi khi tìm cuộc trò chuyện trên Supabase:",
+        err,
+      );
     }
   }
 
@@ -262,15 +287,15 @@ export async function getOrCreateConversation(
   if (isSupabaseConfigured) {
     try {
       const { data: created, error: insertErr } = await supabase
-        .from('conversations')
+        .from("conversations")
         .insert({
           participant_1: cleanTenantId,
           participant_2: cleanLandlordId,
           room_id: validRoomId,
-          last_message: 'Bắt đầu cuộc trò chuyện...',
+          last_message: "Bắt đầu cuộc trò chuyện...",
           last_message_at: new Date().toISOString(),
         })
-        .select('id')
+        .select("id")
         .maybeSingle();
 
       if (!insertErr && created?.id) {
@@ -283,28 +308,34 @@ export async function getOrCreateConversation(
         return created.id;
       }
       if (insertErr) {
-        console.warn('[MessagesAPI] Không thể insert trực tiếp Supabase (có thể do RLS/Auth):', insertErr.message);
+        console.warn(
+          "[MessagesAPI] Không thể insert trực tiếp Supabase (có thể do RLS/Auth):",
+          insertErr.message,
+        );
       }
     } catch (insertException) {
-      console.warn('[MessagesAPI] Ngoại lệ khi tạo cuộc trò chuyện:', insertException);
+      console.warn(
+        "[MessagesAPI] Ngoại lệ khi tạo cuộc trò chuyện:",
+        insertException,
+      );
     }
   }
 
   // 3. Fallback an toàn: Khởi tạo conversation ID chuẩn UUID
   // Đảm bảo người dùng luôn điều hướng mượt mà vào giao diện tin nhắn
   const fallbackId =
-    typeof crypto !== 'undefined' && crypto.randomUUID
+    typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
-      : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, '0')}`;
+      : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`;
 
   // Tải trước thông tin hồ sơ đối phương để khung chat hiển thị tên và avatar đầy đủ
   let otherProfile: any = null;
   if (isSupabaseConfigured) {
     try {
       const { data: prof } = await supabase
-        .from('profiles')
-        .select('id, full_name, name, avatar_url, app_role, phone')
-        .eq('id', cleanLandlordId)
+        .from("profiles")
+        .select("id, full_name, name, avatar_url, app_role, phone")
+        .eq("id", cleanLandlordId)
         .maybeSingle();
       otherProfile = prof;
     } catch {}
@@ -315,19 +346,39 @@ export async function getOrCreateConversation(
     participant_1: cleanTenantId,
     participant_2: cleanLandlordId,
     room_id: validRoomId || undefined,
-    last_message: 'Bắt đầu cuộc trò chuyện...',
+    last_message: "Bắt đầu cuộc trò chuyện...",
     last_message_at: new Date().toISOString(),
     unread_count_p1: 0,
     unread_count_p2: 0,
     created_at: new Date().toISOString(),
-    other_name: extra?.otherName || otherProfile?.full_name || KNOWN_USER_NAMES[cleanLandlordId]?.name || 'Người dùng Trọ Xinh',
-    other_avatar: extra?.otherAvatar || otherProfile?.avatar_url || KNOWN_USER_NAMES[cleanLandlordId]?.avatar || '/images/user-avatar.jpg',
+    other_name:
+      extra?.otherName ||
+      otherProfile?.full_name ||
+      KNOWN_USER_NAMES[cleanLandlordId]?.name ||
+      "Người dùng Trọ Xinh",
+    other_avatar:
+      extra?.otherAvatar ||
+      otherProfile?.avatar_url ||
+      KNOWN_USER_NAMES[cleanLandlordId]?.avatar ||
+      "/images/user-avatar.jpg",
     p1: undefined,
     p2: {
       id: cleanLandlordId,
-      full_name: extra?.otherName || otherProfile?.full_name || KNOWN_USER_NAMES[cleanLandlordId]?.name || 'Người dùng Trọ Xinh',
-      name: extra?.otherName || otherProfile?.name || KNOWN_USER_NAMES[cleanLandlordId]?.name || 'Người dùng Trọ Xinh',
-      avatar_url: extra?.otherAvatar || otherProfile?.avatar_url || KNOWN_USER_NAMES[cleanLandlordId]?.avatar || '/images/user-avatar.jpg',
+      full_name:
+        extra?.otherName ||
+        otherProfile?.full_name ||
+        KNOWN_USER_NAMES[cleanLandlordId]?.name ||
+        "Người dùng Trọ Xinh",
+      name:
+        extra?.otherName ||
+        otherProfile?.name ||
+        KNOWN_USER_NAMES[cleanLandlordId]?.name ||
+        "Người dùng Trọ Xinh",
+      avatar_url:
+        extra?.otherAvatar ||
+        otherProfile?.avatar_url ||
+        KNOWN_USER_NAMES[cleanLandlordId]?.avatar ||
+        "/images/user-avatar.jpg",
       phone: otherProfile?.phone,
     },
   };
@@ -339,7 +390,9 @@ export async function getOrCreateConversation(
 /**
  * Lấy danh sách các cuộc trò chuyện của người dùng hiện tại
  */
-export async function getConversations(userId: string): Promise<Conversation[]> {
+export async function getConversations(
+  userId: string,
+): Promise<Conversation[]> {
   if (!userId) return [];
   const cleanUserId = await resolveUserIdToUuid(userId);
   let serverList: Conversation[] = [];
@@ -347,8 +400,9 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
   if (isSupabaseConfigured && cleanUserId) {
     try {
       const { data, error } = await supabase
-        .from('conversations')
-        .select(`
+        .from("conversations")
+        .select(
+          `
           id,
           participant_1,
           participant_2,
@@ -361,21 +415,24 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
           rooms(id, name, price),
           p1:profiles!participant_1(id, full_name, name, avatar_url, app_role, phone),
           p2:profiles!participant_2(id, full_name, name, avatar_url, app_role, phone)
-        `)
+        `,
+        )
         .or(`participant_1.eq.${cleanUserId},participant_2.eq.${cleanUserId}`)
-        .order('last_message_at', { ascending: false, nullsFirst: false });
+        .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
         serverList = data as unknown as Conversation[];
       }
     } catch (error) {
-      console.warn('[MessagesAPI] getConversations error:', error);
+      console.warn("[MessagesAPI] getConversations error:", error);
     }
   }
 
   // Kết hợp an toàn với các cuộc trò chuyện cục bộ trong phiên
   const localList = getLocalConversations().filter(
-    (c) => isSameUserId(c.participant_1, cleanUserId) || isSameUserId(c.participant_2, cleanUserId)
+    (c) =>
+      isSameUserId(c.participant_1, cleanUserId) ||
+      isSameUserId(c.participant_2, cleanUserId),
   );
 
   const convMap = new Map<string, Conversation>();
@@ -404,14 +461,14 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
       other?.full_name ||
       other?.name ||
       known?.name ||
-      (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
+      (isMe ? "Chủ trọ / Người đăng" : "Khách liên hệ");
 
     const resolvedAvatar =
       c.other_avatar ||
       savedMeta?.other_avatar ||
       other?.avatar_url ||
       known?.avatar ||
-      '/images/user-avatar.jpg';
+      "/images/user-avatar.jpg";
 
     return {
       ...c,
@@ -423,7 +480,7 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
   return merged.sort(
     (a, b) =>
       new Date(b.last_message_at || b.created_at || 0).getTime() -
-      new Date(a.last_message_at || a.created_at || 0).getTime()
+      new Date(a.last_message_at || a.created_at || 0).getTime(),
   );
 }
 
@@ -437,8 +494,9 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .select(`
+        .from("messages")
+        .select(
+          `
           id,
           conversation_id,
           sender_id,
@@ -446,15 +504,16 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
           is_read,
           created_at,
           sender:profiles!sender_id(id, full_name, name, avatar_url)
-        `)
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true });
+        `,
+        )
+        .eq("conversation_id", conversationId)
+        .order("created_at", { ascending: true });
 
       if (!error && data) {
         serverMessages = data as unknown as Message[];
       }
     } catch (error) {
-      console.warn('[MessagesAPI] getMessages error:', error);
+      console.warn("[MessagesAPI] getMessages error:", error);
     }
   }
 
@@ -464,7 +523,8 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
   serverMessages.forEach((m) => msgMap.set(m.id, m));
 
   return Array.from(msgMap.values()).sort(
-    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    (a, b) =>
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime(),
   );
 }
 
@@ -476,17 +536,17 @@ export async function sendMessage(
   senderId: string,
   content: string,
   senderName?: string,
-  messageId?: string
+  messageId?: string,
 ): Promise<Message> {
   const cleanContent = content.trim();
   if (!cleanContent) {
-    throw new Error('Nội dung tin nhắn không được để trống.');
+    throw new Error("Nội dung tin nhắn không được để trống.");
   }
 
   const cleanSenderId = await resolveUserIdToUuid(senderId);
   const newMsgId =
     messageId ||
-    (typeof crypto !== 'undefined' && crypto.randomUUID
+    (typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `msg_${Date.now()}`);
 
@@ -497,7 +557,7 @@ export async function sendMessage(
     content: cleanContent,
     is_read: false,
     created_at: new Date().toISOString(),
-    status: 'sent',
+    status: "sent",
   };
 
   let savedMessage: Message = msgPayload;
@@ -506,15 +566,19 @@ export async function sendMessage(
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase
-        .from('messages')
-        .upsert({
-          id: newMsgId,
-          conversation_id: conversationId,
-          sender_id: cleanSenderId,
-          content: cleanContent,
-          is_read: false,
-        }, { onConflict: 'id' })
-        .select(`
+        .from("messages")
+        .upsert(
+          {
+            id: newMsgId,
+            conversation_id: conversationId,
+            sender_id: cleanSenderId,
+            content: cleanContent,
+            is_read: false,
+          },
+          { onConflict: "id" },
+        )
+        .select(
+          `
           id,
           conversation_id,
           sender_id,
@@ -522,23 +586,24 @@ export async function sendMessage(
           is_read,
           created_at,
           sender:profiles!sender_id(id, full_name, name, avatar_url)
-        `)
+        `,
+        )
         .maybeSingle();
 
       if (!error && data) {
         savedMessage = data as unknown as Message;
         // Cập nhật tin nhắn gần nhất vào bảng conversations
         supabase
-          .from('conversations')
+          .from("conversations")
           .update({
             last_message: cleanContent,
             last_message_at: new Date().toISOString(),
           })
-          .eq('id', conversationId)
+          .eq("id", conversationId)
           .then();
       }
     } catch (error) {
-      console.warn('[MessagesAPI] sendMessage Supabase error:', error);
+      console.warn("[MessagesAPI] sendMessage Supabase error:", error);
     }
   }
 
@@ -549,31 +614,37 @@ export async function sendMessage(
   try {
     const localConvs = getLocalConversations();
     const conv = localConvs.find((c) => c.id === conversationId);
-    let receiverId = '';
+    let receiverId = "";
     if (conv) {
       receiverId = isSameUserId(conv.participant_1, cleanSenderId)
         ? conv.participant_2
         : conv.participant_1;
     }
 
-    if (isSupabaseConfigured && receiverId && !isSameUserId(receiverId, cleanSenderId)) {
+    if (
+      isSupabaseConfigured &&
+      receiverId &&
+      !isSameUserId(receiverId, cleanSenderId)
+    ) {
       supabase
-        .from('notifications')
+        .from("notifications")
         .insert({
           user_id: receiverId,
-          title: `Tin nhắn từ ${senderName || 'Người dùng'} 💬`,
-          body: cleanContent.length > 80 ? cleanContent.slice(0, 80) + '...' : cleanContent,
-          type: 'chat_message',
+          title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
+          body:
+            cleanContent.length > 80
+              ? cleanContent.slice(0, 80) + "..."
+              : cleanContent,
+          type: "chat_message",
           cta_url: `/tin-nhan/${conversationId}`,
-          cta_label: 'Trả lời ngay',
+          cta_label: "Trả lời ngay",
           is_read: false,
         })
         .then();
     }
   } catch (notifErr) {
-    console.warn('[MessagesAPI] Lỗi gửi thông báo tin nhắn:', notifErr);
+    console.warn("[MessagesAPI] Lỗi gửi thông báo tin nhắn:", notifErr);
   }
 
   return savedMessage;
 }
-
