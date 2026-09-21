@@ -107,9 +107,12 @@ export const ChatPage: React.FC = () => {
     lastSeenText,
   } = useRealtimeChat(activeConversationId);
 
-  // Cuộn xuống tin nhắn mới nhất
+  // Cuộn xuống tin nhắn mới nhất (chỉ cuộn trong container, tránh bị lướt cả trang web)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    const container = messagesEndRef.current?.parentElement;
+    if (container) {
+      container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' });
+    }
   }, [chatMessages.length]);
 
   const activeConversation =
