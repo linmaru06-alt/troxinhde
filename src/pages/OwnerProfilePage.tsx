@@ -21,9 +21,25 @@ export const OwnerProfilePage: React.FC = () => {
               currentUrl={currentUser?.avatarUrl}
               size="lg"
               folder="troxinh/avatars"
-              onComplete={(urls) => {
+              onComplete={async (urls) => {
                 if (urls[0] && currentUser) {
-                  setCurrentUser({ ...currentUser, avatarUrl: urls[0] });
+                  const updatedUser = { ...currentUser, avatarUrl: urls[0] };
+                  setCurrentUser(updatedUser);
+                  
+                  try {
+                    const { syncUserToSupabase } = await import('../lib/supabaseAuthSync');
+                    syncUserToSupabase({
+                      id: currentUser.id,
+                      name: currentUser.name,
+                      email: currentUser.email,
+                      phone: currentUser.phone,
+                      role: currentUser.role as any,
+                      avatar_url: urls[0],
+                      verified: currentUser.verified,
+                    });
+                  } catch (err) {
+                    console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);
+                  }
                 }
               }}
             />
