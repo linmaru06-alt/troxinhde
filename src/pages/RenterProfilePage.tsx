@@ -16,6 +16,7 @@ import {
   MessageSquare,
   LogOut,
   ShieldCheck,
+  ShieldOff,
   Building2,
   ArrowRight,
   Clock,
@@ -26,7 +27,17 @@ import {
 } from 'lucide-react';
 
 export const RenterProfilePage: React.FC = () => {
-  const { currentUser, setCurrentUser, savedRoomIds, bookings, updateBookingStatus, logout } = useAppStore();
+  const {
+    currentUser,
+    setCurrentUser,
+    savedRoomIds,
+    bookings,
+    updateBookingStatus,
+    logout,
+    blockedUserIds,
+    unblockUser,
+    roommates,
+  } = useAppStore();
 
   if (!currentUser) {
     return (
@@ -231,6 +242,53 @@ export const RenterProfilePage: React.FC = () => {
                       </button>
                     )}
                   </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Blocked Contacts Management Section */}
+      <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 space-y-4 shadow-xs">
+        <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div>
+            <h2 className="text-lg font-black text-gray-950 flex items-center gap-2">
+              <ShieldOff className="w-5 h-5 text-amber-600" />
+              Liên Hệ Đang Chặn ({blockedUserIds.length})
+            </h2>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Danh sách tài khoản bạn đã chặn trong tính năng tìm bạn ở ghép và tin nhắn
+            </p>
+          </div>
+        </div>
+
+        {blockedUserIds.length === 0 ? (
+          <p className="text-xs text-gray-400 py-2">Bạn chưa chặn liên hệ nào.</p>
+        ) : (
+          <div className="divide-y divide-gray-100">
+            {blockedUserIds.map((userId) => {
+              const matchedRoommate = roommates.find((r) => r.userId === userId);
+              const displayName = matchedRoommate?.userName || `Người dùng #${userId.slice(0, 8)}`;
+              return (
+                <div key={userId} className="py-3 flex items-center justify-between gap-4">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-xs shrink-0">
+                      {displayName.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate">{displayName}</h4>
+                      <p className="text-[11px] text-gray-400 truncate">ID: {userId.slice(0, 12)}...</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => unblockUser(userId)}
+                    leftIcon={<ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
+                  >
+                    Bỏ chặn
+                  </Button>
                 </div>
               );
             })}
