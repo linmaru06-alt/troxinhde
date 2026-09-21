@@ -77,6 +77,7 @@ export const Footer: React.FC = () => {
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Pháp Lý & Điều Khoản</h4>
             <ul className="space-y-2 text-xs">
               {[
+                { to: '/help', label: 'Trung tâm trợ giúp & FAQ' },
                 { to: '/terms', label: 'Điều khoản sử dụng' },
                 { to: '/privacy', label: 'Chính sách bảo mật & quyền riêng tư' },
                 { to: '/ve-chung-toi/kiem-duyet', label: 'Quy trình kiểm duyệt phòng 24h' },
