@@ -886,9 +886,39 @@ export const AdminModerationPage: React.FC = () => {
                             : 'Đang chờ'}
                         </span>
                       </div>
-                      <p className="text-xs text-gray-600">
-                        Đối tượng bị báo cáo: <strong>{rep.target_type}</strong> (Mã: {rep.target_id})
-                      </p>
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-gray-600">
+                        <span>Đối tượng: <strong className="uppercase">{rep.target_type}</strong> (Mã: {rep.target_id})</span>
+                        {rep.target_type === 'room' && (
+                          <a
+                            href={`/phong/${rep.target_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[#006d37] font-bold hover:underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Xem phòng
+                          </a>
+                        )}
+                        {rep.target_type === 'roommate' && (
+                          <a
+                            href={`/roommate/${rep.target_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[#006d37] font-bold hover:underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Xem bài tìm bạn
+                          </a>
+                        )}
+                        {rep.target_type === 'marketplace' && (
+                          <a
+                            href={`/cho-do-cu/${rep.target_id}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 text-[#006d37] font-bold hover:underline"
+                          >
+                            <ExternalLink className="w-3.5 h-3.5" /> Xem món đồ
+                          </a>
+                        )}
+                      </div>
                       <p className="text-xs text-gray-800 bg-rose-50/50 p-2.5 rounded-xl border border-rose-100">
                         {rep.description || 'Không có mô tả chi tiết'}
                       </p>

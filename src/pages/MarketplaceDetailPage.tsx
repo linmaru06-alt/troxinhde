@@ -792,6 +792,7 @@ export const MarketplaceDetailPage: React.FC = () => {
         onClose={() => setShowReport(false)}
         targetTitle={`Món đồ: ${item.name}`}
         targetId={item.id}
+        targetType="marketplace"
       />
 
       {/* 6. Edit Marketplace Item Modal */}

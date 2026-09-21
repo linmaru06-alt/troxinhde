@@ -15,7 +15,9 @@ import {
   Phone,
   AlertCircle,
   Loader2,
+  AlertTriangle,
 } from 'lucide-react';
+import { ReportModal } from '../components/modals/ReportModal';
 
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
@@ -26,6 +28,7 @@ export const ChatPage: React.FC = () => {
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
   const [activeConversationId, setActiveConversationId] = useState<string>(conversationId || '');
   const [inputText, setInputText] = useState<string>('');
+  const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -336,6 +339,15 @@ export const ChatPage: React.FC = () => {
                       <Home className="w-3.5 h-3.5" /> Xem phòng
                     </Link>
                   )}
+
+                  <button
+                    type="button"
+                    onClick={() => setShowReportModal(true)}
+                    className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+                    title="Báo cáo người dùng này"
+                  >
+                    <AlertTriangle className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
@@ -485,6 +497,15 @@ export const ChatPage: React.FC = () => {
           )}
         </main>
       </div>
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        targetTitle={`Người dùng: ${otherName}`}
+        targetId={otherId || ''}
+        targetType="user"
+      />
     </div>
   );
 };

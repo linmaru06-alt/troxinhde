@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { useAppStore } from '../../store/useAppStore';
@@ -10,22 +10,33 @@ export interface ReportModalProps {
   onClose: () => void;
   targetTitle?: string;
   targetId?: string;
+  targetType?: 'room' | 'roommate' | 'user' | 'marketplace';
 }
 
-export const ReportModal: React.FC<ReportModalProps> = ({
-  isOpen,
-  onClose,
-  targetTitle = 'Tin đăng này',
-  targetId,
-}) => {
-  const { currentUser, addReport, showToast } = useAppStore();
-  const [reason, setReason] = useState<string>('Phòng không giống thực tế / Tin ảo');
-  const [detail, setDetail] = useState<string>('');
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [isSuccess, setIsSuccess] = useState<boolean>(false);
-  const [errorMessage, setErrorMessage] = useState<string>('');
-
-  const reasons = [
+const REPORT_REASONS_BY_TYPE: Record<string, string[]> = {
+  roommate: [
+    'Dấu hiệu lừa đảo / yêu cầu chuyển cọc mờ ám',
+    'Quấy rối / gạ gẫm / thái độ thiếu văn hóa',
+    'Thông tin cá nhân / trường học không đúng sự thật',
+    'Tin đăng ảo / số điện thoại hoặc ảnh mạo danh',
+    'Tin quảng cáo rác / dịch vụ môi giới',
+    'Lý do khác',
+  ],
+  user: [
+    'Hành vi quấy rối / gạ gẫm / xúc phạm',
+    'Dấu hiệu lừa đảo cọc / gian lận tài chính',
+    'Tài khoản giả mạo / spam tin nhắn',
+    'Thái độ giao tiếp không chuẩn mực',
+    'Lý do khác',
+  ],
+  marketplace: [
+    'Đồ dùng không đúng mô tả / hàng giả mạo',
+    'Ép giá / lừa đảo chuyển khoản',
+    'Người bán không phản hồi / tin ảo',
+    'Hàng cấm / vi phạm quy định',
+    'Lý do khác',
+  ],
+  room: [
     'Phòng không giống thực tế / Tin ảo',
     'Chủ nhà thu phụ phí trái quy định',
     'Địa chỉ hoặc hình ảnh không chính xác',
@@ -33,7 +44,32 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     'Dấu hiệu lừa đảo / yêu cầu cọc mờ ám',
     'Thái độ giao tiếp không chuẩn mực',
     'Lý do khác',
-  ];
+  ],
+};
+
+export const ReportModal: React.FC<ReportModalProps> = ({
+  isOpen,
+  onClose,
+  targetTitle = 'Nội dung này',
+  targetId,
+  targetType = 'room',
+}) => {
+  const { currentUser, addReport, showToast } = useAppStore();
+  const reasons = REPORT_REASONS_BY_TYPE[targetType] || REPORT_REASONS_BY_TYPE.room;
+  const [reason, setReason] = useState<string>(reasons[0]);
+  const [detail, setDetail] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isSuccess, setIsSuccess] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>('');
+
+  useEffect(() => {
+    if (isOpen) {
+      setReason(reasons[0]);
+      setDetail('');
+      setErrorMessage('');
+      setIsSuccess(false);
+    }
+  }, [isOpen, targetType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +79,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     try {
       await createReport({
         reporter_id: currentUser?.id,
-        target_type: 'room',
+        target_type: targetType,
         target_id: targetId || 'target_item',
         reason,
         description: detail.trim(),
@@ -54,7 +90,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       addReport({
         targetId: targetId || 'target_item',
         targetTitle,
-        targetType: 'room',
+        targetType,
         reporterName: currentUser?.name || 'Người dùng ẩn danh',
         reporterPhone: currentUser?.phone,
         reason,

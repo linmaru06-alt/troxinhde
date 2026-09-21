@@ -673,9 +673,15 @@ export async function resolveReport(
 
   if (error) throw error;
 
-  // Nếu hành động là hạ tin phòng bị báo cáo
-  if (action === 'hide_listing' && report?.target_type === 'room' && report?.target_id) {
-    await hideRoom(report.target_id, `Hạ tin do vi phạm: ${report.reason}. Ghi chú: ${adminNotes}`, admin);
+  // Nếu hành động là hạ tin vi phạm bị báo cáo
+  if (action === 'hide_listing' && report?.target_id) {
+    if (report.target_type === 'room') {
+      await hideRoom(report.target_id, `Hạ tin do vi phạm: ${report.reason}. Ghi chú: ${adminNotes}`, admin);
+    } else if (report.target_type === 'roommate') {
+      await hideRoommatePost(report.target_id, `Hạ bài tìm bạn do vi phạm: ${report.reason}. Ghi chú: ${adminNotes}`, admin);
+    } else if (report.target_type === 'marketplace') {
+      await rejectMarketplaceItem(report.target_id, `Hạ tin thanh lý do vi phạm: ${report.reason}. Ghi chú: ${adminNotes}`, admin);
+    }
   }
 
   await logAdminAudit({
@@ -683,6 +689,39 @@ export async function resolveReport(
     entity_type: 'report',
     entity_id: reportId,
     reason: adminNotes,
+    admin,
+  });
+
+  return true;
+}
+
+/**
+ * Hạ bài đăng tìm bạn ở ghép (chuyển sang trạng thái closed/ẩn)
+ */
+export async function hideRoommatePost(postId: string, reason: string, admin?: User | null) {
+  if (!isSupabaseConfigured) return true;
+
+  const { data: oldPost } = await supabase.from('roommate_posts').select('*').eq('id', postId).maybeSingle();
+
+  const { error } = await supabase
+    .from('roommate_posts')
+    .update({
+      status: 'closed',
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', postId);
+
+  if (error) {
+    console.warn('[Admin API] Lỗi hideRoommatePost:', error);
+  }
+
+  await logAdminAudit({
+    action: 'hide_roommate_post',
+    entity_type: 'roommate',
+    entity_id: postId,
+    data_before: oldPost ? { status: oldPost.status } : null,
+    data_after: { status: 'closed', reason },
+    reason,
     admin,
   });
 

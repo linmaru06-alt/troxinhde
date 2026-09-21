@@ -295,6 +295,7 @@ export const RoommateDetailPage: React.FC = () => {
         onClose={() => setShowReport(false)}
         targetTitle={`Bài tìm bạn: ${post.userName}`}
         targetId={post.id}
+        targetType="roommate"
       />
     </div>
   );

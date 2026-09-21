@@ -995,18 +995,38 @@ export const useAppStore = create<AppState>()(
       resolveReport: (reportId, action) => {
         set((state) => {
           const report = state.reports.find((r) => r.id === reportId);
-          if (action === 'hide_listing' && report && report.targetType === 'room') {
+          if (action === 'hide_listing' && report) {
+            let nextRooms = state.rooms;
+            let nextRoommates = state.roommates;
+            let nextMarketplace = state.marketplaceItems;
+
+            if (report.targetType === 'room') {
+              nextRooms = state.rooms.map((room) =>
+                room.id === report.targetId ? { ...room, status: 'Bị từ chối' as const } : room
+              );
+            } else if (report.targetType === 'roommate') {
+              nextRoommates = state.roommates.filter((rm) => rm.id !== report.targetId);
+            } else if (report.targetType === 'marketplace') {
+              nextMarketplace = state.marketplaceItems.map((item) =>
+                item.id === report.targetId ? { ...item, status: 'Bị từ chối' as const } : item
+              );
+            }
+
             return {
               reports: state.reports.map((r) => (r.id === reportId ? { ...r, status: 'resolved' as const } : r)),
-              rooms: state.rooms.map((room) => (room.id === report.targetId ? { ...room, status: 'Bị từ chối' as const } : room)),
+              rooms: nextRooms,
+              roommates: nextRoommates,
+              marketplaceItems: nextMarketplace,
             };
           }
           return {
-            reports: state.reports.map((r) => (r.id === reportId ? { ...r, status: action === 'hide_listing' ? 'resolved' as const : 'dismissed' as const } : r)),
+            reports: state.reports.map((r) =>
+              r.id === reportId ? { ...r, status: action === 'hide_listing' ? 'resolved' as const : 'dismissed' as const } : r
+            ),
           };
         });
         get().showToast(
-          action === 'hide_listing' ? 'Đã hạ tin đăng vi phạm!' : 'Đã bỏ qua báo cáo',
+          action === 'hide_listing' ? 'Đã hạ nội dung vi phạm!' : 'Đã bỏ qua báo cáo',
           '',
           action === 'hide_listing' ? 'warning' : 'info'
         );
