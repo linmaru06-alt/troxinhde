@@ -147,6 +147,12 @@ interface AppState {
   registerUser: (data: { name: string; phone: string; email?: string; id?: string; role?: UserRole }) => User;
   logout: () => void;
 
+  // Local persistence for newly created items (to survive reloads before cloud sync)
+  localCreatedRooms: Room[];
+  localCreatedBuildings: Building[];
+  localCreatedRoommates: RoommatePost[];
+  localCreatedItems: MarketplaceItem[];
+
   // Owner Upgrade Applications
   submitOwnerApplication: (data: {
     buildingName: string;
@@ -227,6 +233,10 @@ export const useAppStore = create<AppState>()(
       savedItemIds: [],
       blockedUserIds: [],
       bookings: [],
+      localCreatedRooms: [],
+      localCreatedBuildings: [],
+      localCreatedRoommates: [],
+      localCreatedItems: [],
       reports: [
         {
           id: 'rep_1',
@@ -727,7 +737,7 @@ export const useAppStore = create<AppState>()(
           verifiedBadge: false,
           geo: data.geo || { lat: 10.8, lng: 106.7 },
         };
-        set((state) => ({ buildings: [newBuilding, ...state.buildings] }));
+        set((state) => ({ buildings: [newBuilding, ...state.buildings], localCreatedBuildings: [newBuilding, ...state.localCreatedBuildings] }));
         get().showToast('Tạo hồ sơ tòa nhà thành công!', 'Hồ sơ đã được gửi để kiểm duyệt', 'success');
         return newId;
       },
@@ -743,7 +753,7 @@ export const useAppStore = create<AppState>()(
           verified: false,
           createdAt: new Date().toISOString(),
         };
-        set((state) => ({ rooms: [newRoom, ...state.rooms] }));
+        set((state) => ({ rooms: [newRoom, ...state.rooms], localCreatedRooms: [newRoom, ...state.localCreatedRooms] }));
         // Sync lên Supabase Cloud trong background
         syncRoomToSupabase(newRoom).catch(console.warn);
         get().showToast('Đăng phòng thành công!', 'Tin đăng đang được kiểm duyệt (trong vòng 24h)', 'success');
@@ -817,6 +827,7 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           roommates: [newPost, ...state.roommates.filter((r) => r.id !== newId)],
+          localCreatedRoommates: [newPost, ...state.localCreatedRoommates.filter((r) => r.id !== newId)],
         }));
         // Sync lên Supabase Cloud
         syncRoommatePostToSupabase(newPost).catch(console.warn);
@@ -834,6 +845,7 @@ export const useAppStore = create<AppState>()(
         };
         set((state) => ({
           marketplaceItems: [newItem, ...state.marketplaceItems],
+          localCreatedItems: [newItem, ...state.localCreatedItems],
           notifications: [
             {
               id: `notif_${Date.now()}`,
@@ -1137,11 +1149,38 @@ export const useAppStore = create<AppState>()(
                 !cloudRoommates.some((cr) => cr.id === r.id) &&
                 (r.id.startsWith('rm_') || (state.currentUser?.id && r.userId === state.currentUser.id))
             );
+
+            // Gộp dữ liệu cloud với dữ liệu được tạo tại client nhưng chưa/không tải được từ cloud (vd: lỗi RLS demo user)
+            const localRooms = state.localCreatedRooms || [];
+            const mergedRooms = [
+              ...localRooms.filter((lr) => !cloudRooms.some((cr) => cr.id === lr.id)),
+              ...cloudRooms,
+            ];
+
+            const localBuildings = state.localCreatedBuildings || [];
+            const mergedBuildings = [
+              ...localBuildings.filter((lb) => !cloudBuildings.some((cb) => cb.id === lb.id)),
+              ...cloudBuildings,
+            ];
+
+            const localRoommates = state.localCreatedRoommates || [];
+            const mergedRoommates = [
+              ...existingUserPosts,
+              ...localRoommates.filter((lr) => !cloudRoommates.some((cr) => cr.id === lr.id) && !existingUserPosts.some((er) => er.id === lr.id)),
+              ...cloudRoommates,
+            ];
+
+            const localItems = state.localCreatedItems || [];
+            const mergedItems = [
+              ...localItems.filter((li) => !cloudItems.some((ci) => ci.id === li.id)),
+              ...cloudItems,
+            ];
+
             return {
-              rooms: cloudRooms.length > 0 ? cloudRooms : (isDev ? state.rooms : []),
-              buildings: cloudBuildings.length > 0 ? cloudBuildings : (isDev ? state.buildings : []),
-              roommates: [...existingUserPosts, ...cloudRoommates],
-              marketplaceItems: cloudItems.length > 0 ? cloudItems : (isDev ? state.marketplaceItems : []),
+              rooms: mergedRooms.length > 0 ? mergedRooms : (isDev ? state.rooms : []),
+              buildings: mergedBuildings.length > 0 ? mergedBuildings : (isDev ? state.buildings : []),
+              roommates: mergedRoommates,
+              marketplaceItems: mergedItems.length > 0 ? mergedItems : (isDev ? state.marketplaceItems : []),
             };
           });
         } catch (err) {
@@ -1194,6 +1233,10 @@ export const useAppStore = create<AppState>()(
         blockedUserIds: state.blockedUserIds,
         bookings: state.bookings,
         ownerSubscription: state.ownerSubscription,
+        localCreatedRooms: state.localCreatedRooms,
+        localCreatedBuildings: state.localCreatedBuildings,
+        localCreatedRoommates: state.localCreatedRoommates,
+        localCreatedItems: state.localCreatedItems,
       }),
     }
   )
