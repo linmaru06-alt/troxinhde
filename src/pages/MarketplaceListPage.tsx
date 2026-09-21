@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { MarketplaceCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Pagination } from '../components/ui/Pagination';
 import {
   PlusCircle,
   Sparkles,
@@ -32,6 +33,16 @@ import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { createMarketplaceItem } from '../lib/api/marketplace';
+import {
+  filterMarketplaceItems,
+  validatePriceRange,
+  countActiveFilters,
+  parseMarketplaceUrlParams,
+  buildMarketplaceUrlParams,
+  MarketplaceSortOption,
+  ParsedMarketplaceFilterState,
+} from '../lib/marketplaceFilter';
+import { MarketplaceFilterDrawer } from '../components/marketplace/MarketplaceFilterDrawer';
 
 const DISTRICTS = [
   'Quận Cầu Giấy',
@@ -78,14 +89,64 @@ const CATEGORY_SHOWCASE = [
 
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { marketplaceItems, currentUser, addMarketplaceItem, resubmitMarketplaceItem, showToast } = useAppStore();
 
   const [viewMode, setViewMode] = useState<'public' | 'my_items'>('public');
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
-  const [selectedPricing, setSelectedPricing] = useState<string>('Tất cả');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedSort, setSelectedSort] = useState<string>('newest');
+
+  // Đọc và validate URL query params
+  const urlState = useMemo(() => {
+    return parseMarketplaceUrlParams(searchParams);
+  }, [searchParams]);
+
+  // Input tức thời cho ô tìm kiếm
+  const [searchInput, setSearchInput] = useState<string>(urlState.keyword);
+
+  // Khi URL query thay đổi từ bên ngoài (Back / Forward / Reset), đồng bộ lại ô input
+  useEffect(() => {
+    setSearchInput(urlState.keyword);
+  }, [urlState.keyword]);
+
+  // Input tức thời cho ô nhập giá
+  const [minPriceInput, setMinPriceInput] = useState<string>(
+    urlState.minPrice !== undefined ? String(urlState.minPrice) : ''
+  );
+  const [maxPriceInput, setMaxPriceInput] = useState<string>(
+    urlState.maxPrice !== undefined ? String(urlState.maxPrice) : ''
+  );
+
+  useEffect(() => {
+    setMinPriceInput(urlState.minPrice !== undefined ? String(urlState.minPrice) : '');
+    setMaxPriceInput(urlState.maxPrice !== undefined ? String(urlState.maxPrice) : '');
+  }, [urlState.minPrice, urlState.maxPrice]);
+
+  // Hàm cập nhật URL State (chỉ đưa các tham số không mặc định vào URL)
+  const updateUrlFilters = (
+    updates: Partial<ParsedMarketplaceFilterState>,
+    resetPage = true,
+    isReplace = false
+  ) => {
+    const nextState: ParsedMarketplaceFilterState = {
+      ...urlState,
+      ...updates,
+      page: resetPage ? 1 : (updates.page ?? urlState.page),
+    };
+    const nextParams = buildMarketplaceUrlParams(nextState);
+    setSearchParams(nextParams, { replace: isReplace });
+  };
+
+  // Debounce 350ms cho ô tìm kiếm: sử dụng replaceState (isReplace: true) để không spam lịch sử trình duyệt
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput.trim() !== urlState.keyword) {
+        updateUrlFilters({ keyword: searchInput.trim() }, true, true);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Mobile Drawer State
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState<boolean>(false);
 
   // Create Item Modal State & Draft Management
   const DRAFT_KEY = 'troxinh_draft_marketplace';
@@ -231,6 +292,78 @@ export const MarketplaceListPage: React.FC = () => {
 
   const categories = ['Tất cả', 'Nội thất', 'Đồ điện tử', 'Sách vở', 'Đồ gia dụng'];
 
+  const handleToggleCategory = (cat: string) => {
+    if (cat === 'Tất cả') {
+      updateUrlFilters({ categories: [] }, true, false);
+      return;
+    }
+    const nextCategories = urlState.categories.includes(cat)
+      ? urlState.categories.filter((c) => c !== cat)
+      : [...urlState.categories, cat];
+    updateUrlFilters({ categories: nextCategories }, true, false);
+  };
+
+  const handleSelectDistrict = (dist: string) => {
+    updateUrlFilters({ district: dist }, true, false);
+  };
+
+  const handleSelectSort = (sort: MarketplaceSortOption) => {
+    updateUrlFilters({ sortBy: sort }, true, false);
+  };
+
+  const handleToggleFreeOnly = () => {
+    const nextFree = !urlState.isFreeOnly;
+    if (nextFree) {
+      setMinPriceInput('');
+      setMaxPriceInput('');
+      updateUrlFilters({ isFreeOnly: true, minPrice: undefined, maxPrice: undefined }, true, false);
+    } else {
+      updateUrlFilters({ isFreeOnly: false }, true, false);
+    }
+  };
+
+  const handleSelectPresetPrice = (min?: number, max?: number) => {
+    setMinPriceInput(min !== undefined ? String(min) : '');
+    setMaxPriceInput(max !== undefined ? String(max) : '');
+    updateUrlFilters({ minPrice: min, maxPrice: max, isFreeOnly: false }, true, false);
+  };
+
+  const handleResetAllFilters = () => {
+    setSearchInput('');
+    setMinPriceInput('');
+    setMaxPriceInput('');
+    setSearchParams({}, { replace: false });
+  };
+
+  const minPriceNum = minPriceInput.trim() ? Number(minPriceInput) : undefined;
+  const maxPriceNum = maxPriceInput.trim() ? Number(maxPriceInput) : undefined;
+  const priceValidation = validatePriceRange(minPriceNum, maxPriceNum);
+  const priceError = !priceValidation.isValid ? priceValidation.error : undefined;
+
+  // Debounce 400ms cho ô nhập khoảng giá tự do
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (minPriceNum !== undefined && maxPriceNum !== undefined && minPriceNum > maxPriceNum) {
+        return;
+      }
+      if (minPriceNum !== urlState.minPrice || maxPriceNum !== urlState.maxPrice) {
+        updateUrlFilters({ minPrice: minPriceNum, maxPrice: maxPriceNum }, true, false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [minPriceInput, maxPriceInput]);
+
+  const activeFilterCount = useMemo(() => {
+    return countActiveFilters({
+      keyword: urlState.keyword,
+      categories: urlState.categories,
+      district: urlState.district,
+      minPrice: urlState.minPrice,
+      maxPrice: urlState.maxPrice,
+      isFreeOnly: urlState.isFreeOnly,
+    });
+  }, [urlState]);
+
   // Lấy danh sách tin của người dùng hiện tại
   const myItems = useMemo(() => {
     if (!currentUser) return [];
@@ -246,45 +379,46 @@ export const MarketplaceListPage: React.FC = () => {
   }, [myItems]);
 
   const filteredItems = useMemo(() => {
-    return marketplaceItems
-      .filter((item) => {
-        // 1. Quy tắc hiển thị:
-        // - 'public': CHỈ CÔNG KHAI TIN ĐỦ ĐIỀU KIỆN (không chờ duyệt, không bị từ chối)
-        if (viewMode === 'public') {
-          const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
-          const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
-          if (isPending || isRejected) return false;
-        } else {
-          // - 'my_items': Chỉ hiển thị tin do chính người dùng hiện tại đăng
-          if (!currentUser || item.userId !== currentUser.id) return false;
-        }
+    return filterMarketplaceItems(marketplaceItems, {
+      keyword: urlState.keyword,
+      categories: urlState.categories,
+      district: urlState.district,
+      minPrice: urlState.minPrice,
+      maxPrice: urlState.maxPrice,
+      isFreeOnly: urlState.isFreeOnly,
+      sortBy: urlState.sortBy,
+      viewMode,
+      currentUserId: currentUser?.id,
+    });
+  }, [
+    marketplaceItems,
+    urlState.keyword,
+    urlState.categories,
+    urlState.district,
+    urlState.minPrice,
+    urlState.maxPrice,
+    urlState.isFreeOnly,
+    urlState.sortBy,
+    viewMode,
+    currentUser,
+  ]);
 
-        if (selectedCategory !== 'Tất cả' && item.category !== selectedCategory) return false;
-        if (selectedPricing === 'Miễn phí' && item.pricingType !== 'Miễn phí') return false;
-        if (selectedPricing === 'Giá rẻ' && item.pricingType !== 'Giá rẻ') return false;
-        if (selectedDistrict && item.district !== selectedDistrict) return false;
+  // Phân trang: 12 sản phẩm/trang
+  const PAGE_SIZE = 12;
+  const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE) || 1;
+  const isPageOutOfRange = filteredItems.length > 0 && urlState.page > totalPages;
+  const safePage = Math.min(Math.max(1, urlState.page), totalPages);
 
-        if (searchKeyword.trim()) {
-          const q = searchKeyword.toLowerCase();
-          const matchName = item.name.toLowerCase().includes(q);
-          const matchDesc = item.description.toLowerCase().includes(q);
-          const matchLoc = item.location.toLowerCase().includes(q);
-          const matchDist = item.district.toLowerCase().includes(q);
-          if (!matchName && !matchDesc && !matchLoc && !matchDist) return false;
-        }
+  const paginatedItems = useMemo(() => {
+    if (isPageOutOfRange) return [];
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    return filteredItems.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredItems, safePage, isPageOutOfRange]);
 
-        return true;
-      })
-      .sort((a, b) => {
-        if (selectedSort === 'price_asc') return a.price - b.price;
-        if (selectedSort === 'price_desc') return b.price - a.price;
-        if (selectedSort === 'free_first') {
-          if (a.pricingType === 'Miễn phí' && b.pricingType !== 'Miễn phí') return -1;
-          if (a.pricingType !== 'Miễn phí' && b.pricingType === 'Miễn phí') return 1;
-        }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-  }, [marketplaceItems, viewMode, currentUser, selectedCategory, selectedPricing, selectedDistrict, searchKeyword, selectedSort]);
+  const handlePageChange = (newPage: number) => {
+    updateUrlFilters({ page: newPage }, false, false);
+    window.scrollTo({ top: 350, behavior: 'smooth' });
+  };
 
   const handlePostItem = () => {
     if (!currentUser) {
@@ -538,14 +672,14 @@ export const MarketplaceListPage: React.FC = () => {
       {/* Visual Category Showcase Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
         {CATEGORY_SHOWCASE.map((cat) => {
-          const isSelected = selectedCategory === cat.name;
+          const isSelected = urlState.categories.includes(cat.name);
           const count = marketplaceItems.filter((i) => i.category === cat.name).length;
 
           return (
             <button
               key={cat.name}
               type="button"
-              onClick={() => setSelectedCategory(isSelected ? 'Tất cả' : cat.name)}
+              onClick={() => handleToggleCategory(cat.name)}
               className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 p-3.5 sm:p-4 flex flex-col justify-between h-32 sm:h-36 cursor-pointer shadow-xs hover:shadow-md ${
                 isSelected
                   ? 'border-[#006d37] ring-2 ring-[#006d37]/30 shadow-emerald-900/10 -translate-y-0.5'
@@ -601,99 +735,317 @@ export const MarketplaceListPage: React.FC = () => {
 
       {/* Filter Bar & Search */}
       <div className="space-y-3 bg-white p-4 sm:p-5 rounded-3xl border border-gray-200 shadow-xs">
-        {/* Search & Sort Row */}
+        {/* Row 1: Search, Mobile Filter Toggle, District & Sort */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Search Input with Debounce */}
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="Tìm theo tên món đồ (vd: tủ lạnh, bàn học, quạt máy, giáo trình...)"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm món đồ không dấu (vd: tu lanh, ban hoc, quat, sach...)"
               className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
             />
-            {searchKeyword && (
-              <button onClick={() => setSearchKeyword('')} className="absolute right-3 top-2.5 text-gray-400">
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput('');
+                  updateUrlFilters({ keyword: '' }, true, true);
+                }}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                aria-label="Xóa từ khóa"
+              >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Mobile Filter Drawer Button */}
+          <button
+            type="button"
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className="sm:hidden w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-[#006d37]" />
+            <span>Bộ lọc chi tiết</span>
+            {activeFilterCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-[#006d37] text-white text-[10px] font-black flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* Desktop District & Sort */}
+          <div className="hidden sm:flex items-center gap-2 w-auto shrink-0">
             {/* District Filter */}
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] w-full sm:w-auto"
-            >
-              <option value="">Tất cả khu vực</option>
-              {DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
+              <select
+                value={urlState.district}
+                onChange={(e) => handleSelectDistrict(e.target.value)}
+                className="bg-transparent focus:outline-none cursor-pointer"
+              >
+                <option value="">Tất cả khu vực</option>
+                {DISTRICTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Sorting */}
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800 shrink-0">
+            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
               <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
               <select
-                value={selectedSort}
-                onChange={(e) => setSelectedSort(e.target.value)}
+                value={urlState.sortBy}
+                onChange={(e) => handleSelectSort(e.target.value as MarketplaceSortOption)}
                 className="bg-transparent focus:outline-none cursor-pointer"
               >
                 <option value="newest">Mới nhất</option>
                 <option value="price_asc">Giá: Thấp → Cao</option>
                 <option value="price_desc">Giá: Cao → Thấp</option>
-                <option value="free_first">Đồ tặng 0đ trước</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Category Pills & Pricing Filter */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
+        {/* Row 2 (Desktop): Multi-Category Pills & Free-only Toggle & Price Range */}
+        <div className="hidden sm:flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-gray-100">
+          {/* Multi-category Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer ${
-                  selectedCategory === cat
-                    ? 'bg-[#006d37] text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+            <span className="text-xs font-bold text-gray-600 mr-1 flex items-center gap-1">
+              <Tag className="w-3.5 h-3.5 text-[#006d37]" />
+              Danh mục:
+            </span>
+
+            <button
+              type="button"
+              onClick={() => handleToggleCategory('Tất cả')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer ${
+                urlState.categories.length === 0
+                  ? 'bg-[#006d37] text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tất cả
+            </button>
+
+            {categories.filter(c => c !== 'Tất cả').map((cat) => {
+              const isSelected = urlState.categories.includes(cat);
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => handleToggleCategory(cat)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer flex items-center gap-1 ${
+                    isSelected
+                      ? 'bg-[#006d37] text-white shadow-xs'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />}
+                  <span>{cat}</span>
+                </button>
+              );
+            })}
           </div>
 
+          {/* Toggle Free-only button */}
           <div className="flex items-center gap-2">
             <button
-              onClick={() => setSelectedPricing(selectedPricing === 'Miễn phí' ? 'Tất cả' : 'Miễn phí')}
+              type="button"
+              onClick={handleToggleFreeOnly}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
-                selectedPricing === 'Miễn phí'
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
+                urlState.isFreeOnly
+                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs ring-2 ring-emerald-500/30'
                   : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
               }`}
             >
               <Gift className="w-3.5 h-3.5" />
               <span>Chỉ đồ tặng 0đ</span>
             </button>
+          </div>
+        </div>
 
-            {(selectedCategory !== 'Tất cả' || selectedPricing !== 'Tất cả' || selectedDistrict || searchKeyword) && (
-              <button
-                onClick={() => {
-                  setSelectedCategory('Tất cả');
-                  setSelectedPricing('Tất cả');
-                  setSelectedDistrict('');
-                  setSearchKeyword('');
-                }}
-                className="text-xs text-rose-600 hover:underline font-bold flex items-center gap-0.5 ml-1"
+        {/* Row 3 (Desktop): Quick Price Presets & Free Form Min/Max Input */}
+        <div className={`hidden sm:flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-gray-100 transition-opacity ${
+          urlState.isFreeOnly ? 'opacity-40 pointer-events-none' : 'opacity-100'
+        }`}>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-bold text-gray-600 mr-1">Khoảng giá:</span>
+            <button
+              type="button"
+              onClick={() => handleSelectPresetPrice(0, 50000)}
+              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
+            >
+              &lt; 50k
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectPresetPrice(50000, 200000)}
+              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
+            >
+              50k – 200k
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectPresetPrice(200000, 500000)}
+              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
+            >
+              200k – 500k
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSelectPresetPrice(500000, undefined)}
+              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
+            >
+              &gt; 500k
+            </button>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5">
+              <input
+                type="number"
+                value={minPriceInput}
+                onChange={(e) => setMinPriceInput(e.target.value)}
+                placeholder="Từ (đ)"
+                className={`w-24 px-2.5 py-1 text-xs font-medium rounded-xl border ${
+                  priceError ? 'border-rose-400 bg-rose-50' : 'border-gray-200 bg-gray-50'
+                } focus:outline-none focus:ring-1 focus:ring-[#006d37]`}
+              />
+              <span className="text-gray-400 text-xs">–</span>
+              <input
+                type="number"
+                value={maxPriceInput}
+                onChange={(e) => setMaxPriceInput(e.target.value)}
+                placeholder="Đến (đ)"
+                className={`w-24 px-2.5 py-1 text-xs font-medium rounded-xl border ${
+                  priceError ? 'border-rose-400 bg-rose-50' : 'border-gray-200 bg-gray-50'
+                } focus:outline-none focus:ring-1 focus:ring-[#006d37]`}
+              />
+            </div>
+            {priceError && (
+              <span className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {priceError}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Row 4: Active Filter Chips & Results Count */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Đếm số lượng sản phẩm tìm thấy */}
+            <span className="text-xs font-bold text-gray-700 mr-1">
+              Tìm thấy <span className="font-extrabold text-[#006d37]">{filteredItems.length}</span> sản phẩm
+              {totalPages > 1 && (
+                <span className="text-gray-400 font-normal"> (Trang {safePage}/{totalPages})</span>
+              )}
+            </span>
+
+            {/* Chip từ khóa */}
+            {urlState.keyword && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-full border border-gray-200 shadow-2xs">
+                <span>Từ khóa: "{urlState.keyword}"</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    updateUrlFilters({ keyword: '' }, true, true);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Xóa từ khóa lọc"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chips danh mục đã chọn */}
+            {urlState.categories.map((cat) => (
+              <span
+                key={cat}
+                className="inline-flex items-center gap-1 bg-emerald-50 text-[#006d37] text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 shadow-2xs"
               >
-                <X className="w-3.5 h-3.5" />
-                Xóa lọc
+                <span>{cat}</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleCategory(cat)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label={`Bỏ chọn danh mục ${cat}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip chỉ đồ miễn phí */}
+            {urlState.isFreeOnly && (
+              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-300 shadow-2xs">
+                <Gift className="w-3 h-3 text-[#006d37]" />
+                <span>Chỉ đồ tặng 0đ</span>
+                <button
+                  type="button"
+                  onClick={handleToggleFreeOnly}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc đồ tặng 0đ"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip khoảng giá */}
+            {!urlState.isFreeOnly && (urlState.minPrice !== undefined || urlState.maxPrice !== undefined) && (
+              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 text-xs font-medium px-2.5 py-1 rounded-full border border-amber-200 shadow-2xs">
+                <span>
+                  Giá: {urlState.minPrice !== undefined ? `${urlState.minPrice.toLocaleString('vi-VN')}đ` : '0đ'} – {urlState.maxPrice !== undefined ? `${urlState.maxPrice.toLocaleString('vi-VN')}đ` : '∞'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMinPriceInput('');
+                    setMaxPriceInput('');
+                    updateUrlFilters({ minPrice: undefined, maxPrice: undefined }, true, false);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Xóa bộ lọc giá"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip khu vực */}
+            {urlState.district && (
+              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 text-xs font-medium px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
+                <MapPin className="w-3 h-3 text-blue-600" />
+                <span>{urlState.district}</span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectDistrict('')}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc khu vực"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Nút Xóa tất cả bộ lọc */}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={handleResetAllFilters}
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 ml-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Xóa tất cả ({activeFilterCount})</span>
               </button>
             )}
           </div>
@@ -704,84 +1056,103 @@ export const MarketplaceListPage: React.FC = () => {
       {filteredItems.length === 0 ? (
         <EmptyState
           icon="market"
-          title={viewMode === 'my_items' ? "Bạn chưa có tin đăng thanh lý nào" : "Chưa có món đồ nào trong danh mục này"}
-          description={viewMode === 'my_items' ? "Hãy đăng món đồ đầu tiên để pass lại cho các bạn sinh viên nhé!" : "Hãy thử chọn lại danh mục hoặc đăng thanh lý món đồ đầu tiên của bạn nhé!"}
-          actionText="Đăng đồ thanh lý ngay"
-          onAction={handlePostItem}
+          title={viewMode === 'my_items' ? "Bạn chưa có tin đăng thanh lý nào" : "Chưa có món đồ nào phù hợp"}
+          description={viewMode === 'my_items' ? "Hãy đăng món đồ đầu tiên để pass lại cho các bạn sinh viên nhé!" : "Hãy thử thay đổi từ khóa, khoảng giá hoặc bộ lọc danh mục để tìm thấy nhiều đồ hơn nhé!"}
+          actionText={viewMode === 'my_items' ? "Đăng đồ thanh lý ngay" : "Xóa tất cả bộ lọc"}
+          onAction={viewMode === 'my_items' ? handlePostItem : handleResetAllFilters}
+        />
+      ) : isPageOutOfRange ? (
+        <EmptyState
+          icon="search"
+          title={`Không tìm thấy sản phẩm ở trang ${urlState.page}`}
+          description={`Hiện chỉ có ${totalPages} trang cho kết quả lọc này. Vui lòng quay về trang đầu tiên.`}
+          actionText="Về trang 1"
+          onAction={() => handlePageChange(1)}
         />
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-          {filteredItems.map((item) => {
-            const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
-            const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {paginatedItems.map((item) => {
+              const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
+              const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
 
-            return (
-              <div key={item.id} className="flex flex-col h-full space-y-2">
-                <div className="flex-1">
-                  <MarketplaceCard item={item} />
-                </div>
-
-                {/* Khung hành động kiểm duyệt cho chính người đăng (Tin của tôi) */}
-                {viewMode === 'my_items' && (
-                  <div className="space-y-1.5 pt-1">
-                    {isRejected && (
-                      <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl space-y-2 text-xs shadow-xs">
-                        <div className="flex items-start gap-1.5 text-rose-900">
-                          <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-bold text-rose-900">Admin từ chối duyệt:</p>
-                            <p className="text-rose-700 italic mt-0.5 leading-snug">
-                              "{item.rejectionReason || 'Ảnh mờ hoặc thông tin chưa đạt chuẩn quy định chợ đồ cũ sinh viên.'}"
-                            </p>
-                          </div>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenResubmitModal(item)}
-                          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition shadow-xs cursor-pointer text-xs"
-                        >
-                          <Edit3 className="w-3.5 h-3.5" />
-                          <span>Sửa & Gửi Lại Duyệt</span>
-                        </button>
-                      </div>
-                    )}
-
-                    {isPending && (
-                      <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-900 shadow-xs">
-                        <span className="flex items-center gap-1.5 font-medium">
-                          <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-pulse" />
-                          Đang chờ Admin duyệt
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleOpenResubmitModal(item)}
-                          className="text-amber-800 font-bold hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
-                        >
-                          <Edit3 className="w-3 h-3" />
-                          Sửa tin
-                        </button>
-                      </div>
-                    )}
-
-                    {!isRejected && !isPending && item.status !== 'Đã bán' && (
-                      <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-[11px] text-emerald-800">
-                        <span className="flex items-center gap-1 font-semibold">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-[#006d37]" />
-                          Đã duyệt • Đang công khai
-                        </span>
-                        <Link
-                          to={`/cho-do-cu/${item.id}`}
-                          className="text-[#006d37] font-bold hover:underline"
-                        >
-                          Xem tin →
-                        </Link>
-                      </div>
-                    )}
+              return (
+                <div key={item.id} className="flex flex-col h-full space-y-2">
+                  <div className="flex-1">
+                    <MarketplaceCard item={item} />
                   </div>
-                )}
-              </div>
-            );
-          })}
+
+                  {/* Khung hành động kiểm duyệt cho chính người đăng (Tin của tôi) */}
+                  {viewMode === 'my_items' && (
+                    <div className="space-y-1.5 pt-1">
+                      {isRejected && (
+                        <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl space-y-2 text-xs shadow-xs">
+                          <div className="flex items-start gap-1.5 text-rose-900">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-bold text-rose-900">Admin từ chối duyệt:</p>
+                              <p className="text-rose-700 italic mt-0.5 leading-snug">
+                                "{item.rejectionReason || 'Ảnh mờ hoặc thông tin chưa đạt chuẩn quy định chợ đồ cũ sinh viên.'}"
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResubmitModal(item)}
+                            className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition shadow-xs cursor-pointer text-xs"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Sửa & Gửi Lại Duyệt</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {isPending && (
+                        <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-900 shadow-xs">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-pulse" />
+                            Đang chờ Admin duyệt
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResubmitModal(item)}
+                            className="text-amber-800 font-bold hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            Sửa tin
+                          </button>
+                        </div>
+                      )}
+
+                      {!isRejected && !isPending && item.status !== 'Đã bán' && (
+                        <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-[11px] text-emerald-800">
+                          <span className="flex items-center gap-1 font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#006d37]" />
+                            Đã duyệt • Đang công khai
+                          </span>
+                          <Link
+                            to={`/cho-do-cu/${item.id}`}
+                            className="text-[#006d37] font-bold hover:underline"
+                          >
+                            Xem tin →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Phân trang */}
+          <div className="pt-2 pb-4">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
       )}
 
@@ -1126,6 +1497,30 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
         </form>
       </Modal>
+
+      {/* Mobile Filter Drawer */}
+      <MarketplaceFilterDrawer
+        isOpen={isFilterDrawerOpen}
+        onClose={() => setIsFilterDrawerOpen(false)}
+        allCategories={categories.filter((c) => c !== 'Tất cả')}
+        selectedCategories={urlState.categories}
+        onToggleCategory={handleToggleCategory}
+        districts={DISTRICTS}
+        selectedDistrict={urlState.district}
+        onSelectDistrict={handleSelectDistrict}
+        minPriceInput={minPriceInput}
+        maxPriceInput={maxPriceInput}
+        onChangeMinPrice={setMinPriceInput}
+        onChangeMaxPrice={setMaxPriceInput}
+        onSelectPresetPrice={handleSelectPresetPrice}
+        isFreeOnly={urlState.isFreeOnly}
+        onToggleFreeOnly={handleToggleFreeOnly}
+        priceError={priceError}
+        selectedSort={urlState.sortBy}
+        onChangeSort={handleSelectSort}
+        onResetAll={handleResetAllFilters}
+        totalResults={filteredItems.length}
+      />
     </div>
   );
 };
