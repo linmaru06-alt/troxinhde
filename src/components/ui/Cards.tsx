@@ -304,11 +304,26 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           {item.condition}
         </div>
 
-        {/* 3b. Trạng thái Đã bán / Đã đóng (overlay mờ toàn ảnh) */}
+        {/* 3b. Trạng thái Đã bán / Chờ duyệt / Bị từ chối */}
         {item.status === 'Đã bán' && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
             <span className="bg-rose-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider border-2 border-white/30">
               Đã bán
+            </span>
+          </div>
+        )}
+        {(item.status === 'Chờ duyệt' || item.moderationStatus === 'pending') && (
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <span className="bg-amber-500 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 border border-white/30">
+              <span className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
+              Chờ duyệt
+            </span>
+          </div>
+        )}
+        {(item.status === 'Bị từ chối' || item.moderationStatus === 'rejected') && (
+          <div className="absolute top-2.5 right-2.5 z-10">
+            <span className="bg-rose-600 text-white text-[10px] font-black px-2.5 py-1 rounded-full shadow-md flex items-center gap-1 border border-white/30">
+              ⚠️ Bị từ chối
             </span>
           </div>
         )}
@@ -331,13 +346,22 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           </h3>
         </div>
 
-
-        {/* 5b. Trạng thái còn hàng / đã bán */}
+        {/* 5b. Trạng thái còn hàng / đã bán / chờ duyệt / bị từ chối */}
         <div className="flex items-center gap-1.5 mt-1">
           {item.status === 'Đã bán' ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
               <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
               Đã đóng
+            </span>
+          ) : item.status === 'Chờ duyệt' || item.moderationStatus === 'pending' ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+              Chờ Admin duyệt
+            </span>
+          ) : item.status === 'Bị từ chối' || item.moderationStatus === 'rejected' ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+              Bị từ chối
             </span>
           ) : (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">

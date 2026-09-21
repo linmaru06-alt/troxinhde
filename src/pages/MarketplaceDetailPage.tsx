@@ -8,6 +8,7 @@ import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { MarketplaceCard, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
+import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
 import {
   ShoppingBag,
   MapPin,
@@ -27,6 +28,7 @@ import {
   Edit,
   Save,
   Check,
+  RefreshCw,
 } from 'lucide-react';
 import { getOrCreateConversation } from '../lib/api/messages';
 
@@ -40,14 +42,31 @@ const CATEGORY_ICONS: Record<string, string> = {
 export const MarketplaceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { marketplaceItems, currentUser, updateMarketplaceItem, showToast } = useAppStore();
+  const {
+    marketplaceItems,
+    currentUser,
+    updateMarketplaceItem,
+    resubmitMarketplaceItem,
+    approveMarketplaceItem,
+    rejectMarketplaceItem,
+    showToast,
+  } = useAppStore();
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
   const [showReport, setShowReport] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
-  const item = marketplaceItems.find((i) => i.id === id) || marketplaceItems[0];
+  const item = marketplaceItems.find((i) => i.id === id);
+
+  // Phân quyền và trạng thái kiểm duyệt
+  const isOwner = currentUser && item && currentUser.id === item.userId;
+  const isAdmin = currentUser && (currentUser.role === 'admin' || (currentUser as any).app_role === 'admin');
+  const isPending = item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending');
+  const isRejected = item && (item.status === 'Bị từ chối' || item.moderationStatus === 'rejected');
+
+  // Admin moderation modal
+  const [adminConfirmOpen, setAdminConfirmOpen] = useState<boolean>(false);
 
   // Edit Item Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -85,6 +104,8 @@ export const MarketplaceDetailPage: React.FC = () => {
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (!item) return;
+
     if (!editTitle.trim()) {
       showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ', 'warning');
       return;
@@ -96,26 +117,55 @@ export const MarketplaceDetailPage: React.FC = () => {
 
     setIsSavingEdit(true);
     try {
-      updateMarketplaceItem(item.id, {
-        name: editTitle.trim(),
-        price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
-        pricingType: editPricingType,
-        category: editCategory,
-        condition: editCondition,
-        location: editLocation,
-        district: editDistrict,
-        description: editDescription.trim(),
-        images: editImages,
-        status: editStatus,
-      });
+      if (isRejected || isPending) {
+        // Gửi lại cho Admin duyệt lại
+        resubmitMarketplaceItem(item.id, {
+          name: editTitle.trim(),
+          price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
+          pricingType: editPricingType,
+          category: editCategory,
+          condition: editCondition,
+          location: editLocation,
+          district: editDistrict,
+          description: editDescription.trim(),
+          images: editImages,
+        });
+        showToast('Đã gửi lại duyệt thành công! 🚀', 'Tin đăng của bạn đã được cập nhật và chuyển sang chờ Admin duyệt.', 'success');
+      } else {
+        updateMarketplaceItem(item.id, {
+          name: editTitle.trim(),
+          price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
+          pricingType: editPricingType,
+          category: editCategory,
+          condition: editCondition,
+          location: editLocation,
+          district: editDistrict,
+          description: editDescription.trim(),
+          images: editImages,
+          status: editStatus,
+        });
+        showToast('Cập nhật tin thành công!', 'Các thay đổi đã được áp dụng ngay lập tức', 'success');
+      }
 
       setIsEditModalOpen(false);
-      showToast('Cập nhật tin thành công!', 'Các thay đổi đã được áp dụng ngay lập tức', 'success');
     } catch (err: any) {
       showToast('Lỗi cập nhật', err?.message || 'Không thể lưu thay đổi. Dữ liệu đã được giữ nguyên.', 'error');
     } finally {
       setIsSavingEdit(false);
     }
+  };
+
+  const handleAdminApprove = () => {
+    if (!item) return;
+    approveMarketplaceItem(item.id, currentUser?.name || 'Admin');
+    showToast('Đã phê duyệt tin! 🎉', 'Tin đăng đồ thanh lý đã được công khai trên chợ sinh viên.', 'success');
+  };
+
+  const handleAdminRejectSubmit = (reason: string) => {
+    if (!item) return;
+    rejectMarketplaceItem(item.id, reason, currentUser?.name || 'Admin');
+    setAdminConfirmOpen(false);
+    showToast('Đã từ chối tin', `Đã gửi lý do từ chối "${reason}" đến người đăng tin.`, 'info');
   };
 
   if (!item) {
@@ -131,6 +181,36 @@ export const MarketplaceDetailPage: React.FC = () => {
             ← Về Chợ Đồ Cũ Sinh Viên
           </Button>
         </Link>
+      </div>
+    );
+  }
+
+  // Quy tắc kiểm duyệt: Chỉ công khai tin đủ điều kiện. Khách thường không được xem tin chờ duyệt hoặc bị từ chối
+  if ((isPending || isRejected) && !isOwner && !isAdmin) {
+    return (
+      <div className="max-w-xl mx-auto px-4 py-20 text-center space-y-4">
+        <div
+          className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto ${
+            isPending ? 'bg-amber-100 text-amber-600' : 'bg-rose-100 text-rose-600'
+          }`}
+        >
+          {isPending ? <Clock className="w-8 h-8 animate-pulse" /> : <AlertTriangle className="w-8 h-8" />}
+        </div>
+        <h2 className="text-xl font-bold text-gray-900">
+          {isPending ? 'Tin đăng đang chờ Admin kiểm duyệt' : 'Tin đăng hiện không khả dụng'}
+        </h2>
+        <p className="text-sm text-gray-600 leading-relaxed">
+          {isPending
+            ? 'Món đồ này hiện đang trong quá trình được quản trị viên kiểm tra nội dung và chưa được công khai trên chợ.'
+            : 'Món đồ này chưa đủ điều kiện công khai hoặc đã bị từ chối phê duyệt.'}
+        </p>
+        <div className="pt-3">
+          <Link to="/cho-do-cu">
+            <Button variant="primary" size="md">
+              ← Về Chợ Đồ Cũ Sinh Viên
+            </Button>
+          </Link>
+        </div>
       </div>
     );
   }
@@ -215,15 +295,17 @@ export const MarketplaceDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditModalOpen(true)}
-            leftIcon={<Edit className="w-3.5 h-3.5 text-[#006d37]" />}
-            className="text-xs border-[#006d37]/40 text-[#006d37] hover:bg-emerald-50"
-          >
-            Sửa Tin Này
-          </Button>
+          {(isOwner || isAdmin) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditModalOpen(true)}
+              leftIcon={<Edit className="w-3.5 h-3.5 text-[#006d37]" />}
+              className="text-xs border-[#006d37]/40 text-[#006d37] hover:bg-emerald-50"
+            >
+              {isRejected ? 'Sửa & Gửi Lại Duyệt' : 'Sửa Tin Này'}
+            </Button>
+          )}
 
           <button
             onClick={handleShare}
@@ -234,6 +316,109 @@ export const MarketplaceDetailPage: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Moderation Alert Banner if Rejected */}
+      {isRejected && (
+        <div className="p-4 sm:p-5 bg-rose-50 border-2 border-rose-300 rounded-3xl space-y-3 shadow-xs">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-rose-100 rounded-2xl text-rose-600 shrink-0">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-black text-rose-950">
+                  Tin đăng đã bị ban quản trị từ chối phê duyệt
+                </h3>
+                <p className="text-xs text-rose-800 leading-relaxed">
+                  Lý do từ chối: <span className="font-bold underline decoration-rose-400">"{item.rejectionReason || 'Thông tin hoặc hình ảnh chưa đạt tiêu chuẩn cộng đồng.'}"</span>
+                </p>
+                <p className="text-[11px] text-rose-700">
+                  💡 Bạn vui lòng sửa lại thông tin, giá bán hoặc chụp lại ảnh thực tế theo lý do trên và bấm "Sửa & Gửi lại duyệt".
+                </p>
+              </div>
+            </div>
+
+            {isOwner && (
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={() => setIsEditModalOpen(true)}
+                leftIcon={<Edit className="w-4 h-4" />}
+                className="bg-rose-600 hover:bg-rose-700 border-none shrink-0 shadow-sm"
+              >
+                Sửa & Gửi Lại Duyệt
+              </Button>
+            )}
+          </div>
+          {isAdmin && (
+            <div className="pt-2 border-t border-rose-200 flex justify-end">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleAdminApprove}
+                className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs"
+              >
+                ✓ Quản trị viên: Duyệt lại tin này
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Moderation Alert Banner if Pending */}
+      {isPending && (
+        <div className="p-4 sm:p-5 bg-amber-50 border-2 border-amber-300 rounded-3xl space-y-3 shadow-xs">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2.5 bg-amber-100 rounded-2xl text-amber-700 shrink-0">
+                <Clock className="w-6 h-6 animate-pulse" />
+              </div>
+              <div className="space-y-0.5">
+                <h3 className="text-base font-black text-amber-950">
+                  Tin đăng đang chờ Admin kiểm duyệt
+                </h3>
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  Tin này hiện chưa hiển thị công khai trên Chợ đồ cũ. Khi được Admin duyệt, tin sẽ tự động xuất hiện.
+                </p>
+              </div>
+            </div>
+
+            {isOwner && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditModalOpen(true)}
+                leftIcon={<Edit className="w-3.5 h-3.5" />}
+                className="border-amber-400 text-amber-900 hover:bg-amber-100 text-xs shrink-0 font-bold"
+              >
+                Sửa nội dung
+              </Button>
+            )}
+          </div>
+
+          {isAdmin && (
+            <div className="pt-2 border-t border-amber-200 flex items-center justify-end gap-2">
+              <span className="text-xs font-bold text-amber-900 mr-2">Quyền Quản trị viên:</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setAdminConfirmOpen(true)}
+                className="border-rose-300 text-rose-700 hover:bg-rose-50 text-xs"
+              >
+                ✕ Từ chối kèm lý do
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleAdminApprove}
+                className="bg-[#006d37] hover:bg-emerald-700 text-xs"
+              >
+                ✓ Phê duyệt ngay
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 2. Main Product Card */}
       <div className="bg-white rounded-3xl p-5 sm:p-8 border border-gray-200 shadow-md space-y-6">
@@ -611,10 +796,24 @@ export const MarketplaceDetailPage: React.FC = () => {
       <Modal
         isOpen={isEditModalOpen}
         onClose={() => setIsEditModalOpen(false)}
-        title={`Chỉnh Sửa Tin: ${item.name}`}
+        title={isRejected ? `Chỉnh Sửa & Gửi Lại Duyệt: ${item.name}` : `Chỉnh Sửa Tin: ${item.name}`}
         maxWidth="lg"
       >
         <form onSubmit={handleSaveEdit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1 text-left">
+          {/* Banner lý do từ chối nếu có */}
+          {isRejected && item.rejectionReason && (
+            <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-300 flex items-start gap-2.5 text-xs text-rose-900 shadow-xs">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-900">Lý do từ chối từ Ban Quản Trị:</p>
+                <p className="text-rose-700 italic mt-0.5">"{item.rejectionReason}"</p>
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">
+                  💡 Bạn hãy điều chỉnh thông tin hoặc chụp lại ảnh theo góp ý trên rồi nhấn nút "Gửi Lại Cho Admin Duyệt".
+                </p>
+              </div>
+            </div>
+          )}
+
           <Input
             label="Tên món đồ / Sản phẩm"
             required
@@ -733,12 +932,30 @@ export const MarketplaceDetailPage: React.FC = () => {
             <Button variant="outline" size="md" type="button" onClick={() => setIsEditModalOpen(false)}>
               Hủy
             </Button>
-            <Button variant="primary" size="md" type="submit" disabled={isSavingEdit}>
-              {isSavingEdit ? 'Đang Lưu...' : 'Lưu Thay Đổi'}
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              disabled={isSavingEdit}
+              leftIcon={isRejected || isPending ? <RefreshCw className={`w-4 h-4 ${isSavingEdit ? 'animate-spin' : ''}`} /> : undefined}
+            >
+              {isSavingEdit
+                ? (isRejected || isPending ? 'Đang Gửi Lại...' : 'Đang Lưu...')
+                : (isRejected || isPending ? 'Gửi Lại Cho Admin Duyệt' : 'Lưu Thay Đổi')}
             </Button>
           </div>
         </form>
       </Modal>
+
+      {/* Admin Confirm Reject Modal */}
+      <AdminConfirmModal
+        isOpen={adminConfirmOpen}
+        onClose={() => setAdminConfirmOpen(false)}
+        onConfirm={handleAdminRejectSubmit}
+        type="marketplace"
+        title={`Từ chối duyệt tin: ${item.name}`}
+        entityName={item.name}
+      />
     </div>
   );
 };

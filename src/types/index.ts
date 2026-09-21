@@ -154,8 +154,11 @@ export interface MarketplaceItem {
   district: string;
   images: string[];
   description: string;
-  status?: 'Còn hàng' | 'Đã bán';
+  status?: 'Còn hàng' | 'Đã bán' | 'Chờ duyệt' | 'Bị từ chối' | 'Đã duyệt';
+  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  rejectionReason?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Message {
@@ -224,6 +227,9 @@ export interface NotificationItem {
     | 'action_required'
     | 'owner_approved'
     | 'owner_rejected'
+    | 'room_approved'
+    | 'marketplace_approved'
+    | 'marketplace_rejected'
     | 'new_owner_application';
   read: boolean;
   ctaUrl?: string;
@@ -272,7 +278,7 @@ export interface AuditLog {
   admin_email?: string;
   admin_role?: string;
   action: string;
-  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system';
+  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system' | 'marketplace_item';
   entity_id?: string;
   data_before?: Record<string, any> | null;
   data_after?: Record<string, any> | null;

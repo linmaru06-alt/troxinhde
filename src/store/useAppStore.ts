@@ -7,6 +7,7 @@ import {
   Building,
   Room,
   RoommatePost,
+  
   MarketplaceItem,
   NotificationItem,
   BookingRequest,
@@ -172,6 +173,9 @@ interface AppState {
   addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
   addMarketplaceItem: (item: Omit<MarketplaceItem, 'id' | 'createdAt'>) => string;
   updateMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
+  approveMarketplaceItem: (itemId: string) => void;
+  rejectMarketplaceItem: (itemId: string, reason: string) => void;
+  resubmitMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
 
   // Bookings
   createBooking: (booking: Omit<BookingRequest, 'id' | 'createdAt' | 'status'>) => string;
@@ -772,12 +776,30 @@ export const useAppStore = create<AppState>()(
         const newItem: MarketplaceItem = {
           ...data,
           id: newId,
+          status: 'Chờ duyệt',
+          moderationStatus: 'pending',
           createdAt: new Date().toISOString(),
         };
-        set((state) => ({ marketplaceItems: [newItem, ...state.marketplaceItems] }));
+        set((state) => ({
+          marketplaceItems: [newItem, ...state.marketplaceItems],
+          notifications: [
+            {
+              id: `notif_${Date.now()}`,
+              userId: data.userId,
+              type: 'system',
+              title: 'Tin đăng thanh lý đang chờ duyệt ⏳',
+              body: `Món đồ "${data.name}" đã được gửi và đang chờ Ban Quản Trị kiểm duyệt trước khi hiển thị công khai.`,
+              createdAt: new Date().toISOString(),
+              read: false,
+              ctaUrl: '/cho-do-cu',
+              ctaLabel: 'Xem tin đăng',
+            },
+            ...state.notifications,
+          ],
+        }));
         // Sync lên Supabase Cloud
         syncMarketplaceItemToSupabase(newItem).catch(console.warn);
-        get().showToast('Đăng món đồ thành công!', 'Sản phẩm đã xuất hiện trên chợ đồ cũ', 'success');
+        get().showToast('Đã gửi tin chờ duyệt! ⏳', 'Tin đăng sẽ được Ban Quản Trị kiểm duyệt trước khi hiển thị công khai', 'info');
         return newId;
       },
 
@@ -788,6 +810,116 @@ export const useAppStore = create<AppState>()(
           ),
         }));
         get().showToast('Cập nhật món đồ thành công!', 'Thông tin sản phẩm đã được lưu lại', 'success');
+      },
+
+      approveMarketplaceItem: (itemId) => {
+        set((state) => {
+          const item = state.marketplaceItems.find((m) => m.id === itemId);
+          return {
+            marketplaceItems: state.marketplaceItems.map((m) =>
+              m.id === itemId
+                ? {
+                    ...m,
+                    status: 'Còn hàng',
+                    moderationStatus: 'approved',
+                    rejectionReason: undefined,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            notifications: item
+              ? [
+                  {
+                    id: `notif_${Date.now()}`,
+                    userId: item.userId,
+                    type: 'approval',
+                    title: 'Tin đăng thanh lý đã được duyệt! 🎉',
+                    body: `Món đồ "${item.name}" đã được kiểm duyệt và hiển thị công khai trên Chợ đồ cũ sinh viên.`,
+                    createdAt: new Date().toISOString(),
+                    read: false,
+                    ctaUrl: `/cho-do-cu/${itemId}`,
+                    ctaLabel: 'Xem tin đăng',
+                  },
+                  ...state.notifications,
+                ]
+              : state.notifications,
+          };
+        });
+        get().showToast('Đã duyệt tin đăng thanh lý!', 'Sản phẩm đã hiển thị công khai trên Chợ đồ cũ', 'success');
+      },
+
+      rejectMarketplaceItem: (itemId, reason) => {
+        set((state) => {
+          const item = state.marketplaceItems.find((m) => m.id === itemId);
+          return {
+            marketplaceItems: state.marketplaceItems.map((m) =>
+              m.id === itemId
+                ? {
+                    ...m,
+                    status: 'Bị từ chối',
+                    moderationStatus: 'rejected',
+                    rejectionReason: reason,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            notifications: item
+              ? [
+                  {
+                    id: `notif_${Date.now()}`,
+                    userId: item.userId,
+                    type: 'rejected',
+                    title: 'Tin đăng thanh lý bị từ chối ⚠️',
+                    body: `Lý do: ${reason}. Vui lòng sửa lại thông tin và gửi duyệt lại.`,
+                    createdAt: new Date().toISOString(),
+                    read: false,
+                    ctaUrl: '/cho-do-cu',
+                    ctaLabel: 'Sửa tin đăng',
+                  },
+                  ...state.notifications,
+                ]
+              : state.notifications,
+          };
+        });
+        get().showToast('Đã từ chối tin đăng!', `Lý do: ${reason}`, 'info');
+      },
+
+      resubmitMarketplaceItem: (itemId, updates) => {
+        set((state) => {
+          const item = state.marketplaceItems.find((m) => m.id === itemId);
+          const updatedName = updates.name || item?.name || 'Món đồ';
+          return {
+            marketplaceItems: state.marketplaceItems.map((m) =>
+              m.id === itemId
+                ? {
+                    ...m,
+                    ...updates,
+                    status: 'Chờ duyệt',
+                    moderationStatus: 'pending',
+                    rejectionReason: undefined,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            notifications: item
+              ? [
+                  {
+                    id: `notif_${Date.now()}`,
+                    userId: item.userId,
+                    type: 'system',
+                    title: 'Đã gửi lại tin đăng thanh lý ⏳',
+                    body: `Món đồ "${updatedName}" đã được cập nhật và gửi lại để Ban Quản Trị kiểm duyệt.`,
+                    createdAt: new Date().toISOString(),
+                    read: false,
+                    ctaUrl: '/cho-do-cu',
+                    ctaLabel: 'Xem tin đăng',
+                  },
+                  ...state.notifications,
+                ]
+              : state.notifications,
+          };
+        });
+        get().showToast('Đã gửi lại tin chờ duyệt! ⏳', 'Ban Quản Trị sẽ xem xét lại tin đăng của bạn', 'info');
       },
 
       createBooking: (data) => {

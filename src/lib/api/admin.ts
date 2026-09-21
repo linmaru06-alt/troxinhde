@@ -720,3 +720,142 @@ export async function getViewingRequestsAdmin() {
   }
   return data || [];
 }
+
+/**
+ * Lấy danh sách toàn bộ tin đồ cũ cho Admin kiểm duyệt
+ */
+export async function getAllMarketplaceItemsAdmin() {
+  if (!isSupabaseConfigured) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('marketplace_items')
+      .select(`
+        *,
+        seller:profiles!seller_id(id, full_name, avatar_url, phone)
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.warn('[Admin API] Lỗi getAllMarketplaceItemsAdmin:', error);
+      return [];
+    }
+    return data || [];
+  } catch (err) {
+    console.warn('[Admin API] Exception getAllMarketplaceItemsAdmin:', err);
+    return [];
+  }
+}
+
+/**
+ * Phê duyệt tin đăng đồ cũ
+ */
+export async function approveMarketplaceItem(itemId: string, admin?: User | null) {
+  if (!isSupabaseConfigured) return true;
+
+  try {
+    const { data: oldItem } = await supabase
+      .from('marketplace_items')
+      .select('*')
+      .eq('id', itemId)
+      .maybeSingle();
+
+    const { error } = await supabase
+      .from('marketplace_items')
+      .update({
+        status: 'available',
+        moderation_status: 'approved',
+        rejection_reason: null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', itemId);
+
+    if (error) throw error;
+
+    await logAdminAudit({
+      action: 'approve_marketplace_item',
+      entity_type: 'marketplace_item',
+      entity_id: itemId,
+      data_before: oldItem,
+      data_after: { status: 'available', moderation_status: 'approved' },
+      admin,
+    });
+
+    if (oldItem?.seller_id) {
+      try {
+        await supabase.from('notifications').insert({
+          user_id: oldItem.seller_id,
+          type: 'approval',
+          title: 'Tin đăng thanh lý đã được duyệt! 🎉',
+          body: `Món đồ "${oldItem.title || 'của bạn'}" đã được kiểm duyệt và hiển thị công khai trên Chợ đồ cũ sinh viên.`,
+          cta_url: `/cho-do-cu/${itemId}`,
+          cta_label: 'Xem tin đăng',
+          is_read: false,
+        });
+      } catch (notifErr) {
+        console.warn('[Admin] Lỗi gửi thông báo duyệt đồ cũ:', notifErr);
+      }
+    }
+  } catch (err) {
+    console.warn('[Admin API] approveMarketplaceItem error:', err);
+  }
+
+  return true;
+}
+
+/**
+ * Từ chối tin đăng đồ cũ kèm lý do
+ */
+export async function rejectMarketplaceItem(itemId: string, reason: string, admin?: User | null) {
+  if (!isSupabaseConfigured) return true;
+
+  try {
+    const { data: oldItem } = await supabase
+      .from('marketplace_items')
+      .select('*')
+      .eq('id', itemId)
+      .maybeSingle();
+
+    const { error } = await supabase
+      .from('marketplace_items')
+      .update({
+        status: 'rejected',
+        moderation_status: 'rejected',
+        rejection_reason: reason,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', itemId);
+
+    if (error) throw error;
+
+    await logAdminAudit({
+      action: 'reject_marketplace_item',
+      entity_type: 'marketplace_item',
+      entity_id: itemId,
+      data_before: oldItem,
+      data_after: { status: 'rejected', moderation_status: 'rejected', rejection_reason: reason },
+      reason,
+      admin,
+    });
+
+    if (oldItem?.seller_id) {
+      try {
+        await supabase.from('notifications').insert({
+          user_id: oldItem.seller_id,
+          type: 'rejected',
+          title: 'Tin đăng thanh lý bị từ chối ⚠️',
+          body: `Lý do: ${reason}. Vui lòng chỉnh sửa lại thông tin món đồ để gửi duyệt lại.`,
+          cta_url: `/cho-do-cu`,
+          cta_label: 'Sửa & Gửi lại',
+          is_read: false,
+        });
+      } catch (notifErr) {
+        console.warn('[Admin] Lỗi gửi thông báo từ chối đồ cũ:', notifErr);
+      }
+    }
+  } catch (err) {
+    console.warn('[Admin API] rejectMarketplaceItem error:', err);
+  }
+
+  return true;
+}

@@ -15,6 +15,9 @@ import {
   approveOwnerApplication as approveOwnerAppApi,
   rejectOwnerApplication as rejectOwnerAppApi,
   resolveReport as resolveReportApi,
+  getAllMarketplaceItemsAdmin,
+  approveMarketplaceItem as approveMarketplaceItemApi,
+  rejectMarketplaceItem as rejectMarketplaceItemApi,
 } from '../lib/api/admin';
 import {
   ShieldCheck,
@@ -31,6 +34,9 @@ import {
   CheckSquare,
   Square,
   ZoomIn,
+  ShoppingBag,
+  Tag,
+  ExternalLink,
 } from 'lucide-react';
 
 const MODERATION_CHECKLIST = [
@@ -42,14 +48,22 @@ const MODERATION_CHECKLIST = [
 ];
 
 export const AdminModerationPage: React.FC = () => {
-  const { currentUser, showToast } = useAppStore();
+  const {
+    currentUser,
+    showToast,
+    marketplaceItems,
+    approveMarketplaceItem,
+    rejectMarketplaceItem,
+  } = useAppStore();
 
-  const [mainSection, setMainSection] = useState<'rooms' | 'owner_upgrades' | 'reports'>('rooms');
+  const [mainSection, setMainSection] = useState<'rooms' | 'marketplace' | 'owner_upgrades' | 'reports'>('rooms');
   const [activeRoomTab, setActiveRoomTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [activeMarketplaceTab, setActiveMarketplaceTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
   const [rooms, setRooms] = useState<any[]>([]);
   const [ownerApps, setOwnerApps] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [adminMarketplaceItems, setAdminMarketplaceItems] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Xem chi tiết phòng & checklist kiểm duyệt
@@ -60,7 +74,7 @@ export const AdminModerationPage: React.FC = () => {
   // Modal xác nhận 2 bước
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
-    type: 'room' | 'owner' | 'user' | 'custom';
+    type: 'room' | 'owner' | 'user' | 'marketplace' | 'custom';
     title: string;
     description: string;
     entityName?: string;
@@ -76,14 +90,18 @@ export const AdminModerationPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [r, o, rep] = await Promise.all([
+      const [r, o, rep, m] = await Promise.all([
         getAllRoomsAdmin(),
         getPendingOwnerApplications(),
         getReportsAdmin(),
+        getAllMarketplaceItemsAdmin(),
       ]);
       setRooms(r);
       setOwnerApps(o);
       setReports(rep);
+      if (m && m.length > 0) {
+        setAdminMarketplaceItems(m);
+      }
     } catch (err) {
       console.warn('[Moderation Page] Lỗi tải dữ liệu:', err);
     } finally {
@@ -193,6 +211,78 @@ export const AdminModerationPage: React.FC = () => {
     });
   };
 
+  // Xử lý kiểm duyệt Chợ Đồ Cũ
+  const handleApproveMarketplace = async (item: any) => {
+    try {
+      approveMarketplaceItem(item.id);
+      await approveMarketplaceItemApi(item.id, currentUser);
+      showToast('Đã phê duyệt tin đăng thanh lý! 🎉', 'Tin đăng đã được công khai trên chợ.', 'success');
+      fetchData();
+    } catch (err: any) {
+      showToast(`Lỗi khi duyệt tin: ${err?.message || 'Thất bại'}`, 'error');
+    }
+  };
+
+  const handleOpenRejectMarketplaceModal = (item: any) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'marketplace',
+      title: 'Từ chối duyệt tin đăng thanh lý',
+      description: 'Tin đăng này sẽ chuyển sang trạng thái "Bị từ chối". Người đăng sẽ nhận được thông báo kèm lý do cụ thể để chỉnh sửa và gửi lại.',
+      entityName: item.name || item.title,
+      onConfirm: async (reason: string) => {
+        try {
+          rejectMarketplaceItem(item.id, reason);
+          await rejectMarketplaceItemApi(item.id, reason, currentUser);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          showToast('Đã từ chối tin đăng và gửi lý do cho người đăng!', 'info');
+          fetchData();
+        } catch (err: any) {
+          showToast(`Lỗi: ${err?.message}`, 'error');
+        }
+      },
+    });
+  };
+
+  // Kết hợp danh sách đồ cũ từ store và Supabase
+  const allMergedMarketplaceItems = React.useMemo(() => {
+    const map = new Map<string, any>();
+    adminMarketplaceItems.forEach((item) => map.set(item.id, item));
+    marketplaceItems.forEach((item) => {
+      const existing = map.get(item.id);
+      map.set(item.id, { ...existing, ...item });
+    });
+    return Array.from(map.values()).sort(
+      (a, b) =>
+        new Date(b.createdAt || b.created_at || 0).getTime() -
+        new Date(a.createdAt || a.created_at || 0).getTime()
+    );
+  }, [marketplaceItems, adminMarketplaceItems]);
+
+  const filteredMarketplaceItems = allMergedMarketplaceItems.filter((item) => {
+    const isPending =
+      item.moderationStatus === 'pending' ||
+      item.status === 'Chờ duyệt' ||
+      item.moderation_status === 'pending';
+    const isRejected =
+      item.moderationStatus === 'rejected' ||
+      item.status === 'Bị từ chối' ||
+      item.moderation_status === 'rejected';
+    const isApproved = !isPending && !isRejected;
+
+    if (activeMarketplaceTab === 'pending') return isPending;
+    if (activeMarketplaceTab === 'approved') return isApproved;
+    if (activeMarketplaceTab === 'rejected') return isRejected;
+    return true;
+  });
+
+  const pendingMarketplaceCount = allMergedMarketplaceItems.filter(
+    (i) =>
+      i.moderationStatus === 'pending' ||
+      i.status === 'Chờ duyệt' ||
+      i.moderation_status === 'pending'
+  ).length;
+
   // Lọc phòng theo tab
   const filteredRooms = rooms.filter((r) => {
     const mod = r.moderation_status || 'approved';
@@ -229,11 +319,11 @@ export const AdminModerationPage: React.FC = () => {
           </Button>
         </div>
 
-        {/* Chuyển đổi 3 phân hệ: Tin đăng | Hồ sơ chủ trọ | Báo cáo */}
-        <div className="flex bg-white p-1.5 rounded-2xl border border-gray-200 shadow-xs max-w-xl">
+        {/* Chuyển đổi 4 phân hệ: Tin đăng phòng | Chợ đồ cũ | Hồ sơ chủ trọ | Báo cáo */}
+        <div className="flex bg-white p-1.5 rounded-2xl border border-gray-200 shadow-xs max-w-2xl overflow-x-auto">
           <button
             onClick={() => setMainSection('rooms')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
               mainSection === 'rooms' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -248,8 +338,31 @@ export const AdminModerationPage: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setMainSection('marketplace')}
+            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
+              mainSection === 'marketplace'
+                ? 'bg-[#006d37] text-white shadow-xs'
+                : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <ShoppingBag className="w-3.5 h-3.5" />
+            <span>Chợ Đồ Cũ</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
+                mainSection === 'marketplace'
+                  ? 'bg-white/20 text-white'
+                  : pendingMarketplaceCount > 0
+                  ? 'bg-amber-100 text-amber-900 animate-pulse'
+                  : 'bg-gray-100 text-gray-600'
+              }`}
+            >
+              {pendingMarketplaceCount}
+            </span>
+          </button>
+
+          <button
             onClick={() => setMainSection('owner_upgrades')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
               mainSection === 'owner_upgrades'
                 ? 'bg-[#006d37] text-white shadow-xs'
                 : 'text-gray-600 hover:text-gray-900'
@@ -267,7 +380,7 @@ export const AdminModerationPage: React.FC = () => {
 
           <button
             onClick={() => setMainSection('reports')}
-            className={`flex-1 py-2 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 ${
+            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
               mainSection === 'reports' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
             }`}
           >
@@ -401,6 +514,254 @@ export const AdminModerationPage: React.FC = () => {
                             >
                               Xem lại
                             </Button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTION: DUYỆT TIN ĐĂNG CHỢ ĐỒ CŨ SINH VIÊN */}
+        {mainSection === 'marketplace' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+              {[
+                {
+                  id: 'pending',
+                  label: 'Chờ duyệt',
+                  count: allMergedMarketplaceItems.filter(
+                    (i) =>
+                      i.moderationStatus === 'pending' ||
+                      i.status === 'Chờ duyệt' ||
+                      i.moderation_status === 'pending'
+                  ).length,
+                },
+                {
+                  id: 'approved',
+                  label: 'Đang công khai',
+                  count: allMergedMarketplaceItems.filter(
+                    (i) =>
+                      (i.moderationStatus === 'approved' ||
+                        i.status === 'Còn hàng' ||
+                        i.status === 'Đã bán') &&
+                      i.status !== 'Chờ duyệt' &&
+                      i.status !== 'Bị từ chối' &&
+                      i.moderation_status !== 'pending' &&
+                      i.moderation_status !== 'rejected'
+                  ).length,
+                },
+                {
+                  id: 'rejected',
+                  label: 'Bị từ chối / Đã ẩn',
+                  count: allMergedMarketplaceItems.filter(
+                    (i) =>
+                      i.moderationStatus === 'rejected' ||
+                      i.status === 'Bị từ chối' ||
+                      i.moderation_status === 'rejected'
+                  ).length,
+                },
+                { id: 'all', label: 'Tất cả', count: allMergedMarketplaceItems.length },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveMarketplaceTab(tab.id as any)}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 ${
+                    activeMarketplaceTab === tab.id
+                      ? 'bg-[#006d37] text-white shadow-xs'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                      activeMarketplaceTab === tab.id
+                        ? 'bg-white/20 text-white'
+                        : 'bg-gray-100 text-gray-600'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {filteredMarketplaceItems.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-3xl border border-gray-200 text-gray-400 text-xs">
+                Không có món đồ thanh lý nào trong danh mục này.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredMarketplaceItems.map((item) => {
+                  const isPending =
+                    item.moderationStatus === 'pending' ||
+                    item.status === 'Chờ duyệt' ||
+                    item.moderation_status === 'pending';
+                  const isRejected =
+                    item.moderationStatus === 'rejected' ||
+                    item.status === 'Bị từ chối' ||
+                    item.moderation_status === 'rejected';
+                  const images =
+                    Array.isArray(item.images) && item.images.length > 0
+                      ? item.images
+                      : Array.isArray(item.image_urls) && item.image_urls.length > 0
+                      ? item.image_urls
+                      : ['/images/marketplace-banner.webp'];
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="bg-white rounded-3xl border border-gray-200/80 shadow-xs p-4 flex flex-col justify-between space-y-3.5 hover:shadow-md transition-all"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold flex items-center gap-1 ${
+                              isPending
+                                ? 'bg-amber-100 text-amber-800'
+                                : isRejected
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isPending
+                                  ? 'bg-amber-500 animate-pulse'
+                                  : isRejected
+                                  ? 'bg-rose-500'
+                                  : 'bg-emerald-500'
+                              }`}
+                            />
+                            {isPending
+                              ? 'Chờ duyệt'
+                              : isRejected
+                              ? 'Bị từ chối'
+                              : 'Đã duyệt công khai'}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(
+                              item.createdAt || item.created_at || Date.now()
+                            ).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+
+                        {/* Ảnh sản phẩm */}
+                        <div className="relative aspect-video w-full rounded-2xl overflow-hidden bg-gray-100 border border-gray-100">
+                          <img
+                            src={images[0]}
+                            alt={item.name || item.title}
+                            className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                            onClick={() => setZoomedImage(images[0])}
+                          />
+                          <div className="absolute top-2 left-2 bg-slate-900/80 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-lg">
+                            {item.pricingType === 'Miễn phí' || item.price === 0
+                              ? 'Tặng 0đ'
+                              : `${Number(item.price).toLocaleString('vi-VN')}đ`}
+                          </div>
+                          <div className="absolute bottom-2 right-2 bg-white/90 text-gray-800 text-[10px] font-semibold px-2 py-0.5 rounded-md shadow-xs">
+                            {item.condition || 'Còn dùng tốt'}
+                          </div>
+                        </div>
+
+                        <div>
+                          <span className="text-[10px] font-bold uppercase text-gray-400 tracking-wider">
+                            {item.category || 'Đồ thanh lý'}
+                          </span>
+                          <h3 className="font-extrabold text-sm text-gray-900 line-clamp-2 leading-snug mt-0.5">
+                            {item.name || item.title}
+                          </h3>
+                        </div>
+
+                        <p className="text-xs text-gray-600 line-clamp-2 bg-gray-50 p-2.5 rounded-xl">
+                          {item.description || 'Chưa có mô tả chi tiết.'}
+                        </p>
+
+                        <div className="flex items-center justify-between text-xs text-gray-500 pt-1 border-t border-gray-100">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="font-semibold text-gray-800 truncate">
+                              {item.userName || item.seller?.full_name || 'Người bán'}
+                            </span>
+                            {item.userPhone && (
+                              <span className="text-[11px] text-gray-400">
+                                ({item.userPhone})
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-gray-400 shrink-0">
+                            {item.district || 'Hà Nội'}
+                          </span>
+                        </div>
+
+                        {/* Banner hiển thị lý do nếu bị từ chối */}
+                        {isRejected && (item.rejectionReason || item.rejection_reason) && (
+                          <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 space-y-1">
+                            <span className="font-bold flex items-center gap-1 text-[11px] text-rose-900">
+                              <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                              Lý do từ chối:
+                            </span>
+                            <p className="text-[11px] leading-relaxed text-rose-700">
+                              {item.rejectionReason || item.rejection_reason}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Các nút hành động */}
+                      <div className="pt-2 border-t border-gray-100 flex gap-2">
+                        {isPending ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer"
+                              onClick={() => handleOpenRejectMarketplaceModal(item)}
+                            >
+                              <X className="w-3.5 h-3.5 mr-1" />
+                              Từ chối
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="flex-1 text-xs cursor-pointer"
+                              onClick={() => handleApproveMarketplace(item)}
+                            >
+                              <Check className="w-3.5 h-3.5 mr-1" />
+                              Duyệt tin
+                            </Button>
+                          </>
+                        ) : isRejected ? (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs text-emerald-700 border-emerald-300 hover:bg-emerald-50 cursor-pointer"
+                            onClick={() => handleApproveMarketplace(item)}
+                          >
+                            <Check className="w-3.5 h-3.5 mr-1" />
+                            Duyệt lại tin này
+                          </Button>
+                        ) : (
+                          <div className="flex gap-2 w-full">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs text-rose-600 border-rose-200 hover:bg-rose-50 cursor-pointer"
+                              onClick={() => handleOpenRejectMarketplaceModal(item)}
+                            >
+                              Hạ tin
+                            </Button>
+                            <a
+                              href={`/cho-do-cu/${item.id}`}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="flex-1 inline-flex items-center justify-center gap-1 text-xs font-bold text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-xl px-3 py-1.5 transition"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                              Xem tin
+                            </a>
                           </div>
                         )}
                       </div>

@@ -11,7 +11,7 @@ export interface AdminConfirmModalProps {
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'primary';
-  type: 'room' | 'owner' | 'user' | 'custom';
+  type: 'room' | 'owner' | 'user' | 'marketplace' | 'custom';
   entityName?: string;
   isLoading?: boolean;
 }
@@ -40,6 +40,15 @@ const USER_REASONS = [
   'Sử dụng ngôn từ quấy rối hoặc xúc phạm người khác',
 ];
 
+const MARKETPLACE_REASONS = [
+  'Ảnh chụp không rõ ràng hoặc không phải ảnh thực tế',
+  'Mức giá không hợp lý hoặc khai báo sai hình thức tặng/bán',
+  'Món đồ không thuộc danh mục cho phép (hàng cấm, nguy hiểm)',
+  'Mô tả sơ sài hoặc cố ý chèn link quảng cáo, cờ bạc',
+  'Số điện thoại hoặc thông tin người bán nghi vấn lừa đảo',
+  'Đồ dùng đã quá cũ/hỏng nặng không còn khả năng sử dụng',
+];
+
 export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
   isOpen,
   onClose,
@@ -66,6 +75,8 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
       ? OWNER_REASONS
       : type === 'user'
       ? USER_REASONS
+      : type === 'marketplace'
+      ? MARKETPLACE_REASONS
       : [];
 
   const handleToggleReason = (reason: string) => {
