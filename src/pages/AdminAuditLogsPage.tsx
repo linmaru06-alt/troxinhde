@@ -94,7 +94,7 @@ export const AdminAuditLogsPage: React.FC = () => {
 
           <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
             <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">Lọc đối tượng:</span>
-            {['all', 'room', 'owner_application', 'user', 'report'].map((cat) => (
+            {['all', 'room', 'roommate', 'marketplace_item', 'owner_application', 'user', 'report'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setEntityFilter(cat)}
@@ -108,6 +108,10 @@ export const AdminAuditLogsPage: React.FC = () => {
                   ? 'Tất cả'
                   : cat === 'room'
                   ? 'Phòng'
+                  : cat === 'roommate'
+                  ? 'Ở ghép'
+                  : cat === 'marketplace_item'
+                  ? 'Đồ cũ'
                   : cat === 'owner_application'
                   ? 'Chủ trọ'
                   : cat === 'user'

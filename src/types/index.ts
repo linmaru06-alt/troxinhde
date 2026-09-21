@@ -278,7 +278,7 @@ export interface AuditLog {
   admin_email?: string;
   admin_role?: string;
   action: string;
-  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system' | 'marketplace_item';
+  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system' | 'marketplace_item' | 'roommate';
   entity_id?: string;
   data_before?: Record<string, any> | null;
   data_after?: Record<string, any> | null;
