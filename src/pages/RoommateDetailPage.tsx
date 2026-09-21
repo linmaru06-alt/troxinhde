@@ -13,6 +13,7 @@ import {
   AlertTriangle,
   ShieldCheck,
   ShieldOff,
+  Trash2,
 } from 'lucide-react';
 
 import { getOrCreateConversation } from '../lib/api/messages';
@@ -47,6 +48,7 @@ export const RoommateDetailPage: React.FC = () => {
     blockedUserIds,
     blockUser,
     unblockUser,
+    removeRoommatePost,
   } = useAppStore();
   const [showReport, setShowReport] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
@@ -121,6 +123,14 @@ export const RoommateDetailPage: React.FC = () => {
   const linkedRoom = rooms.find((r) => r.id === post.linkedRoomId);
   const isSaved = savedRoommateIds.includes(post.id);
   const isBlocked = Boolean(post && blockedUserIds.includes(post.userId));
+  const isOwner = currentUser?.id === post.userId;
+
+  const handleDelete = () => {
+    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết tìm bạn ở ghép này không?')) {
+      removeRoommatePost(post.id);
+      navigate('/roommate');
+    }
+  };
 
   const handleContactChat = async () => {
     if (!currentUser) {
@@ -190,6 +200,15 @@ export const RoommateDetailPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-2">
+            {isOwner && (
+              <button
+                onClick={handleDelete}
+                className="p-3 rounded-2xl border transition cursor-pointer bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
+                title="Xóa bài viết"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
             <button
               onClick={() => toggleSaveRoommate(post.id)}
               className={`p-3 rounded-2xl border transition cursor-pointer ${
