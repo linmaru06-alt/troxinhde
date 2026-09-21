@@ -129,16 +129,19 @@ export const SearchPage: React.FC = () => {
   const universities = [
     'Đại học Quốc Gia Hà Nội',
     'Đại học Bách Khoa Hà Nội',
-    'Đại học Ngoại Thương',
     'Đại học Kinh Tế Quốc Dân',
     'Đại học Sư Phạm Hà Nội',
-    'Đại học Hà Nội',
+    'Đại học Ngoại Thương',
     'Học viện Ngoại Giao',
     'Học viện Bưu Chính Viễn Thông',
-    'Đại học Y Hà Nội',
+    'Học viện Báo chí & Tuyên truyền',
+    'Đại học Thương Mại',
+    'Đại học Kiến Trúc Hà Nội',
+    'Đại học Hà Nội',
+    'Đại học Luật Hà Nội',
     'Đại học Xây Dựng Hà Nội',
     'Đại học Giao Thông Vận Tải',
-    'Đại học Thương Mại',
+    'Đại học Y Hà Nội',
   ];
 
   const roomTypes = ['Phòng đơn', 'Studio', 'Phòng ghép', 'Căn hộ mini'];
@@ -154,6 +157,34 @@ export const SearchPage: React.FC = () => {
       .toLowerCase();
   }
 
+  // Normalize university names for fuzzy matching between full names, acronyms, and room data
+  function normalizeSchoolName(str: string): string {
+    if (!str) return '';
+    return removeVietnameseTones(str)
+      .replace(/\(.*?\)/g, '')
+      .replace(/\bdhqg\b/g, 'dai hoc quoc gia')
+      .replace(/\bđhqg\b/g, 'dai hoc quoc gia')
+      .replace(/\bđh\b/g, 'dai hoc')
+      .replace(/\bdh\b/g, 'dai hoc')
+      .replace(/\bhv\b/g, 'hoc vien')
+      .replace(/[^\w\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function isSchoolMatch(selected: string, roomSchool: string): boolean {
+    if (!selected || !roomSchool) return false;
+    const normSel = normalizeSchoolName(selected);
+    const normRoom = normalizeSchoolName(roomSchool);
+    if (!normRoom || !normSel) return false;
+    if (normRoom.includes(normSel) || normSel.includes(normRoom)) return true;
+
+    // Keyword core tokens check (excluding common stop words like "dai", "hoc", "vien", "ha", "noi", "truong")
+    const stopWords = new Set(['dai', 'hoc', 'vien', 'ha', 'noi', 'truong']);
+    const tokens = normSel.split(' ').filter((w) => !stopWords.has(w) && w.length > 1);
+    return tokens.length > 0 && tokens.every((t) => normRoom.includes(t));
+  }
+
   // Parse & validate price range string "min-max" – returns null if invalid
   function parsePriceRange(raw: string): [number, number] | null {
     if (!raw) return null;
@@ -165,6 +196,11 @@ export const SearchPage: React.FC = () => {
     return [min, max];
   }
 
+  const matchedUniversityOption = useMemo(() => {
+    if (!selectedSchool) return '';
+    return universities.find((u) => isSchoolMatch(selectedSchool, u)) || selectedSchool;
+  }, [selectedSchool]);
+
   // Filtered & Sorted Rooms
   const filteredRooms = useMemo(() => {
     const priceRange = parsePriceRange(selectedPrice);
@@ -175,8 +211,7 @@ export const SearchPage: React.FC = () => {
 
       // School filter
       if (selectedSchool) {
-        const normSchool = removeVietnameseTones(selectedSchool);
-        const matchRoomSchool = r.nearestSchool && removeVietnameseTones(r.nearestSchool).includes(normSchool);
+        const matchRoomSchool = r.nearestSchool && isSchoolMatch(selectedSchool, r.nearestSchool);
         if (!matchRoomSchool) return false;
       }
 
@@ -187,7 +222,10 @@ export const SearchPage: React.FC = () => {
         const matchAddress = removeVietnameseTones(r.address).includes(normQ);
         const matchDistrict = removeVietnameseTones(r.district).includes(normQ);
         const matchDesc = removeVietnameseTones(r.description).includes(normQ);
-        const matchSchool = r.nearestSchool && removeVietnameseTones(r.nearestSchool).includes(normQ);
+        const matchSchool = r.nearestSchool && (
+          removeVietnameseTones(r.nearestSchool).includes(normQ) ||
+          isSchoolMatch(searchQuery.trim(), r.nearestSchool)
+        );
         if (!matchTitle && !matchAddress && !matchDistrict && !matchDesc && !matchSchool) {
           return false;
         }
@@ -338,7 +376,7 @@ export const SearchPage: React.FC = () => {
           )}
           {selectedSchool && (
             <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
-              🎓 {selectedSchool}
+              🎓 {matchedUniversityOption || selectedSchool}
               <button onClick={() => updateParam('truong', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
             </span>
           )}
@@ -414,9 +452,9 @@ export const SearchPage: React.FC = () => {
           2.5 - 4 triệu
         </button>
         <button
-          onClick={() => updateParam('truong', selectedSchool === 'ĐH Bách Khoa Hà Nội' ? '' : 'ĐH Bách Khoa Hà Nội')}
+          onClick={() => updateParam('truong', isSchoolMatch('Bách Khoa', selectedSchool) ? '' : 'Đại học Bách Khoa Hà Nội')}
           className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedSchool === 'ĐH Bách Khoa Hà Nội'
+            isSchoolMatch('Bách Khoa', selectedSchool)
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
@@ -498,7 +536,7 @@ export const SearchPage: React.FC = () => {
               <GraduationCap className="w-3.5 h-3.5 text-[#00a854]" /> Trường Đại học lân cận
             </label>
             <select
-              value={selectedSchool}
+              value={matchedUniversityOption}
               onChange={(e) => updateParam('truong', e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-2.5 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854]"
             >
@@ -738,7 +776,7 @@ export const SearchPage: React.FC = () => {
                     <GraduationCap className="w-3.5 h-3.5 text-[#00a854]" /> Trường ĐH
                   </label>
                   <select
-                    value={mobileDraft.school}
+                    value={mobileDraft.school ? (universities.find((u) => isSchoolMatch(mobileDraft.school, u)) || mobileDraft.school) : ''}
                     onChange={(e) => setMobileDraft((d) => ({ ...d, school: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-900"
                   >
