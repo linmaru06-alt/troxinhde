@@ -1,4 +1,5 @@
 import { MarketplaceItem, MarketplaceConditionCode, MarketplaceDeliveryMethodCode } from '../types';
+export type { MarketplaceConditionCode, MarketplaceDeliveryMethodCode };
 
 /**
  * Danh sách danh mục hợp lệ
@@ -58,13 +59,13 @@ export const VALID_DELIVERY_METHODS = [
 /**
  * Bảng ánh xạ mã -> nhãn tiếng Việt dùng chung cho Form, Filter và Chip
  */
-export const CONDITION_LABELS: Record<MarketplaceConditionCode, string> = {
+export const CONDITION_LABELS: Record<string, string> = {
   nhu_moi: 'Như mới',
   con_tot: 'Còn tốt',
   da_cu: 'Đã cũ',
 };
 
-export const DELIVERY_METHOD_LABELS: Record<MarketplaceDeliveryMethodCode, string> = {
+export const DELIVERY_METHOD_LABELS: Record<string, string> = {
   tai_truong: 'Gặp tại trường/KTX',
   giao_tan_noi: 'Giao tận nơi',
   tu_den_lay: 'Tự đến lấy',
