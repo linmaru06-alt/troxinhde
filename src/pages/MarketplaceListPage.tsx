@@ -191,8 +191,24 @@ export const MarketplaceListPage: React.FC = () => {
   const [district, setDistrict] = useState<string>(initialMarketDraft?.district || 'Quận Cầu Giấy');
   const [description, setDescription] = useState<string>(initialMarketDraft?.description || '');
   const [images, setImages] = useState<string[]>(initialMarketDraft?.images || []);
-  const [deliveryMethods, setDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(['tai_truong']);
-  const [isNegotiable, setIsNegotiable] = useState<boolean>(false);
+  const [deliveryMethods, setDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(() => {
+    if (Array.isArray(initialMarketDraft?.deliveryMethods) && initialMarketDraft.deliveryMethods.length > 0) {
+      return initialMarketDraft.deliveryMethods
+        .map((m: string) => {
+          if (m === 'tai_truong' || m === 'giao_tan_noi' || m === 'tu_den_lay') return m as MarketplaceDeliveryMethodCode;
+          if (m === 'Gặp tại trường/KTX') return 'tai_truong';
+          if (m === 'Giao tận nơi') return 'giao_tan_noi';
+          if (m === 'Tự đến lấy') return 'tu_den_lay';
+          return null;
+        })
+        .filter((m): m is MarketplaceDeliveryMethodCode => m !== null);
+    }
+    return ['tai_truong'];
+  });
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [isNegotiable, setIsNegotiable] = useState<boolean>(
+    Boolean(initialMarketDraft?.isNegotiable)
+  );
 
   // Resubmit / Edit Modal State (Nhận lý do từ chối và sửa gửi lại)
   const [resubmitModalOpen, setResubmitModalOpen] = useState<boolean>(false);
@@ -207,6 +223,7 @@ export const MarketplaceListPage: React.FC = () => {
   const [resubmitDescription, setResubmitDescription] = useState<string>('');
   const [resubmitImages, setResubmitImages] = useState<string[]>([]);
   const [resubmitDeliveryMethods, setResubmitDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(['tai_truong']);
+  const [resubmitDeliveryError, setResubmitDeliveryError] = useState<string | null>(null);
   const [resubmitIsNegotiable, setResubmitIsNegotiable] = useState<boolean>(false);
   const [isResubmitting, setIsResubmitting] = useState<boolean>(false);
 
@@ -226,6 +243,7 @@ export const MarketplaceListPage: React.FC = () => {
         ? itemToEdit.deliveryMethods
         : ['tai_truong']
     );
+    setResubmitDeliveryError(null);
     setResubmitIsNegotiable(Boolean(itemToEdit.isNegotiable));
     setResubmitModalOpen(true);
   };
@@ -480,6 +498,11 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
+    if (deliveryMethods.length === 0) {
+      setDeliveryError('Vui lòng chọn ít nhất một cách nhận đồ');
+      return;
+    }
+
     const sellerId =
       currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
         ? currentUser.id
@@ -560,6 +583,11 @@ export const MarketplaceListPage: React.FC = () => {
 
     if (resubmitImages.length === 0) {
       showToast('Thiếu ảnh sản phẩm', 'Vui lòng tải lên ít nhất 1 ảnh thực tế của món đồ', 'warning');
+      return;
+    }
+
+    if (resubmitDeliveryMethods.length === 0) {
+      setResubmitDeliveryError('Vui lòng chọn ít nhất một cách nhận đồ');
       return;
     }
 
@@ -1419,7 +1447,32 @@ export const MarketplaceListPage: React.FC = () => {
                 );
               })}
             </div>
+            {deliveryError && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1 pt-0.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{deliveryError}</span>
+              </p>
+            )}
           </div>
+
+          {/* Toggle Cho phép trả giá */}
+          {pricingType === 'Giá rẻ' && (
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Cho phép thương lượng / trả giá</p>
+                  <p className="text-[11px] text-gray-500">Người mua có thể nhắn tin thương lượng giá cả</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={isNegotiable}
+                onChange={(e) => setIsNegotiable(e.target.checked)}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+          )}
 
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
@@ -1628,7 +1681,32 @@ export const MarketplaceListPage: React.FC = () => {
                 );
               })}
             </div>
+            {resubmitDeliveryError && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1 pt-0.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{resubmitDeliveryError}</span>
+              </p>
+            )}
           </div>
+
+          {/* Toggle Cho phép trả giá */}
+          {resubmitPricingType === 'Giá rẻ' && (
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Cho phép thương lượng / trả giá</p>
+                  <p className="text-[11px] text-gray-500">Người mua có thể nhắn tin thương lượng giá cả</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={resubmitIsNegotiable}
+                onChange={(e) => setResubmitIsNegotiable(e.target.checked)}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+          )}
 
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
