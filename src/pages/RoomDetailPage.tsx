@@ -128,7 +128,7 @@ export const RoomDetailPage: React.FC = () => {
         {
           otherName: room.ownerName || 'Chủ trọ',
           otherAvatar: room.ownerAvatar,
-          roomTitle: room.name,
+          roomTitle: room.title,
         }
       );
       navigate(`/tin-nhan/${convId}`);

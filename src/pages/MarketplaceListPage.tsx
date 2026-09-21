@@ -348,7 +348,7 @@ export const MarketplaceListPage: React.FC = () => {
                 className="w-full md:w-auto flex items-center justify-center gap-3 px-5 sm:px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
               >
                 <span className="p-1 bg-white/25 rounded-lg flex items-center justify-center shadow-inner">
-                  <PlusCircle className="w-5 h-5 text-white shrink-0 stroke-[2.5]" />
+                  <PlusCircle className="w-5 h-5 text-white shrink-0" strokeWidth={2.5} />
                 </span>
                 <span>Đăng Món Đồ Muốn Thanh Lý</span>
                 <Sparkles className="w-4 h-4 text-amber-200 shrink-0" />

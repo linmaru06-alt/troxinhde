@@ -215,6 +215,7 @@ export interface NotificationItem {
   type:
     | 'approval'
     | 'message'
+    | 'chat_message'
     | 'booking'
     | 'system'
     | 'rejected'

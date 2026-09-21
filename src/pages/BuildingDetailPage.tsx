@@ -54,7 +54,7 @@ export const BuildingDetailPage: React.FC = () => {
         undefined,
         {
           otherName: `Chủ tòa nhà ${building.name}`,
-          otherAvatar: building.coverImageUrl,
+          otherAvatar: building.ownerAvatar || building.images?.[0] || '/images/user-avatar.jpg',
         }
       );
       navigate(`/tin-nhan/${convId}`);
