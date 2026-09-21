@@ -53,6 +53,7 @@ export const RoomDetailPage: React.FC = () => {
     buildings = [],
     currentUser,
     savedRoomIds = [],
+    bookings = [],
     toggleSaveRoom,
     showToast,
   } = useAppStore();
@@ -822,11 +823,11 @@ export const RoomDetailPage: React.FC = () => {
                       // Check local first
                       if (
                         bookings.some(
-                          (b) =>
+                          (b: BookingRequest) =>
                             b.roomId === room.id &&
                             b.renterId === currentUser.id &&
                             (b.status === "completed" ||
-                              b.status === ("Đã xem phòng" as any)),
+                              b.status === "Đã xem phòng"),
                         )
                       ) {
                         hasCompletedBooking = true;

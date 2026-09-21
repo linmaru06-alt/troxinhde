@@ -255,7 +255,7 @@ export interface BookingRequest {
   date: string;
   timeSlot: string;
   note?: string;
-  status: "Chờ chủ trọ xác nhận" | "Đã xác nhận" | "Đã hủy";
+  status: "Chờ chủ trọ xác nhận" | "Đã xác nhận" | "Đã hủy" | "Đổi giờ" | "completed" | "Đã xem phòng";
   createdAt: string;
 }
 
