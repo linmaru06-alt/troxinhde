@@ -201,7 +201,7 @@ export const MarketplaceListPage: React.FC = () => {
           if (m === 'Tự đến lấy') return 'tu_den_lay';
           return null;
         })
-        .filter((m): m is MarketplaceDeliveryMethodCode => m !== null);
+        .filter((m: string | null): m is MarketplaceDeliveryMethodCode => m !== null);
     }
     return ['tai_truong'];
   });
@@ -303,10 +303,10 @@ export const MarketplaceListPage: React.FC = () => {
       setPrice(150000);
       setPricingType('Giá rẻ');
       setCategory('Nội thất');
-      setCondition('Còn dùng tốt');
+      setCondition('con_tot');
       setDescription('');
       setImages([]);
-      setDeliveryMethods(['Tự đến lấy']);
+      setDeliveryMethods(['tai_truong']);
       setIsNegotiable(false);
       setHasDraftRestored(false);
       showToast('Đã xóa bản nháp', 'Form đăng đồ đã được làm mới', 'info');
