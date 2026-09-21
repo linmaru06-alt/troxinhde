@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../types';
+import { normalizeCondition } from './marketplaceFilter';
 
 /**
  * ==============================================================================
@@ -268,7 +269,7 @@ export async function fetchMarketplaceItemsFromSupabase(): Promise<MarketplaceIt
         price: Number(m.price) || 0,
         pricingType: (m.is_free || m.price === 0 ? 'Miễn phí' : 'Giá rẻ') as any,
         category: (categoryMap[m.category] || m.category || 'Nội thất') as any,
-        condition: (conditionMap[m.condition] || m.condition || 'Còn dùng tốt') as any,
+        condition: normalizeCondition(conditionMap[m.condition] || m.condition) || 'con_tot',
         images,
         location: m.location || m.district || 'Hà Nội',
         district: m.district || 'Quận Cầu Giấy',
@@ -366,7 +367,7 @@ export async function syncMarketplaceItemToSupabase(item: MarketplaceItem): Prom
       price: item.price,
       is_free: item.pricingType === 'Miễn phí',
       category: item.category === 'Đồ điện tử' ? 'electronics' : item.category === 'Sách vở' ? 'books' : 'furniture',
-      condition: item.condition === 'Mới 99%' ? 'new90' : 'used',
+      condition: item.condition === 'nhu_moi' ? 'new90' : item.condition === 'da_cu' ? 'needs_repair' : 'used',
       district: item.district,
       description: item.description,
       image_urls: item.images,

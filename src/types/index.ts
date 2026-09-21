@@ -139,6 +139,9 @@ export interface RoommatePost {
   createdAt: string;
 }
 
+export type MarketplaceConditionCode = 'nhu_moi' | 'con_tot' | 'da_cu';
+export type MarketplaceDeliveryMethodCode = 'tai_truong' | 'giao_tan_noi' | 'tu_den_lay';
+
 export interface MarketplaceItem {
   id: string;
   userId: string;
@@ -149,16 +152,13 @@ export interface MarketplaceItem {
   category: "Nội thất" | "Đồ điện tử" | "Sách vở" | "Đồ gia dụng";
   price: number;
   pricingType: "Miễn phí" | "Giá rẻ";
-  condition:
-    | "Mới 99%"
-    | "Còn dùng tốt"
-    | "Đã qua sử dụng"
-    | "Dùng tốt"
-    | "Tặng miễn phí";
+  condition: MarketplaceConditionCode;
   location: string;
   district: string;
   images: string[];
   description: string;
+  deliveryMethods?: MarketplaceDeliveryMethodCode[];
+  isNegotiable?: boolean;
   status?: "Còn hàng" | "Đã bán" | "Chờ duyệt" | "Bị từ chối" | "Đã duyệt";
   moderationStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
