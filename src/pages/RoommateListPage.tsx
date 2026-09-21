@@ -1,8 +1,7 @@
-import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { RoommateCard } from '../components/ui/Cards';
-import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { CreateRoommateModal } from '../components/modals/CreateRoommateModal';
 import {
@@ -12,28 +11,139 @@ import {
   Sparkles,
   X,
   SlidersHorizontal,
+  RotateCcw,
 } from 'lucide-react';
+
+const HANOI_DISTRICTS = [
+  'Quận Cầu Giấy',
+  'Quận Đống Đa',
+  'Quận Hai Bà Trưng',
+  'Quận Thanh Xuân',
+  'Quận Nam Từ Liêm',
+  'Quận Hà Đông',
+  'Quận Ba Đình',
+  'Quận Hoàng Mai',
+  'Quận Bắc Từ Liêm',
+  'Quận Tây Hồ',
+  'Quận Long Biên',
+];
+
+const POPULAR_UNIVERSITIES = [
+  'Đại học Quốc Gia Hà Nội',
+  'Đại học Bách Khoa Hà Nội',
+  'Đại học Ngoại Thương',
+  'Đại học Kinh Tế Quốc Dân',
+  'Đại học Sư Phạm Hà Nội',
+  'Đại học Hà Nội',
+  'Học viện Ngoại Giao',
+  'Học viện Bưu Chính Viễn Thông',
+  'Đại học Y Hà Nội',
+  'Đại học Xây Dựng Hà Nội',
+  'Đại học Giao Thông Vận Tải',
+  'Đại học Thương Mại',
+  'Đại học Luật Hà Nội',
+  'Học viện Ngân Hàng',
+  'Học viện Tài Chính',
+  'Học viện Báo chí và Tuyên truyền',
+];
+
+function removeVietnameseTones(str: string): string {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase();
+}
+
+function normalizeSchoolName(name: string): string {
+  return removeVietnameseTones(name)
+    .replace(/\bđh\b/g, 'dai hoc')
+    .replace(/\bdh\b/g, 'dai hoc')
+    .replace(/\bhv\b/g, 'hoc vien')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
 
 export const RoommateListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { roommates, currentUser, showToast } = useAppStore();
 
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
-  const [selectedGender, setSelectedGender] = useState<string>('');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedBudget, setSelectedBudget] = useState<string>('');
+
+  // Filters read from URL searchParams
+  const searchKeyword = searchParams.get('q') || '';
+  const selectedGender = searchParams.get('gioiTinh') || '';
+  const selectedDistrict = searchParams.get('khuVuc') || '';
+  const selectedSchool = searchParams.get('truong') || '';
+  const selectedBudget = searchParams.get('gia') || '';
+
+  const [searchInput, setSearchInput] = useState<string>(searchKeyword);
+
+  // Sync search input when URL changes externally (e.g. back/forward navigation)
+  useEffect(() => {
+    setSearchInput(searchKeyword);
+  }, [searchKeyword]);
+
+  const updateParam = (key: string, value: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value && value.trim()) {
+      next.set(key, value.trim());
+    } else {
+      next.delete(key);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
+  // Debounce search input to avoid lag and history spam
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput.trim() !== searchKeyword) {
+        updateParam('q', searchInput.trim());
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const clearAllFilters = () => {
+    setSearchInput('');
+    setSearchParams(new URLSearchParams(), { replace: true });
+  };
+
+  const hasActiveFilter = Boolean(
+    searchKeyword || selectedGender || selectedDistrict || selectedSchool || selectedBudget
+  );
 
   const filteredRoommates = useMemo(() => {
     return roommates.filter((r) => {
       // Gender filter
-      if (selectedGender && r.genderPreference !== selectedGender && r.genderPreference !== 'Tất cả') {
-        return false;
+      if (selectedGender) {
+        if (selectedGender === 'Chỉ tìm Nữ' || selectedGender === 'nu') {
+          if (r.genderPreference !== 'Chỉ tìm Nữ' && r.genderPreference !== 'Tất cả') return false;
+        } else if (selectedGender === 'Chỉ tìm Nam' || selectedGender === 'nam') {
+          if (r.genderPreference !== 'Chỉ tìm Nam' && r.genderPreference !== 'Tất cả') return false;
+        } else if (r.genderPreference !== selectedGender && r.genderPreference !== 'Tất cả') {
+          return false;
+        }
       }
 
       // District filter
-      if (selectedDistrict && r.district !== selectedDistrict) {
-        return false;
+      if (selectedDistrict) {
+        const normSelectedDist = removeVietnameseTones(selectedDistrict).replace(/quan\s*/g, '').trim();
+        const normPostDist = removeVietnameseTones(r.district || '').replace(/quan\s*/g, '').trim();
+        if (normSelectedDist && !normPostDist.includes(normSelectedDist)) {
+          return false;
+        }
+      }
+
+      // University / School filter
+      if (selectedSchool) {
+        const normSelectedSchool = normalizeSchoolName(selectedSchool);
+        const normPostSchool = normalizeSchoolName(r.userSchool || '');
+        if (!normPostSchool || (!normPostSchool.includes(normSelectedSchool) && !normSelectedSchool.includes(normPostSchool))) {
+          return false;
+        }
       }
 
       // Budget filter
@@ -43,17 +153,17 @@ export const RoommateListPage: React.FC = () => {
 
       // Search keyword filter (Name, school, bio, district)
       if (searchKeyword.trim()) {
-        const q = searchKeyword.toLowerCase();
-        const matchName = (r.userName || '').toLowerCase().includes(q);
-        const matchSchool = (r.userSchool || '').toLowerCase().includes(q);
-        const matchIntro = (r.intro || '').toLowerCase().includes(q);
-        const matchDistrict = (r.district || '').toLowerCase().includes(q);
+        const q = removeVietnameseTones(searchKeyword.trim());
+        const matchName = removeVietnameseTones(r.userName || '').includes(q);
+        const matchSchool = removeVietnameseTones(r.userSchool || '').includes(q);
+        const matchIntro = removeVietnameseTones(r.intro || '').includes(q);
+        const matchDistrict = removeVietnameseTones(r.district || '').includes(q);
         if (!matchName && !matchSchool && !matchIntro && !matchDistrict) return false;
       }
 
       return true;
     });
-  }, [roommates, selectedGender, selectedDistrict, selectedBudget, searchKeyword]);
+  }, [roommates, selectedGender, selectedDistrict, selectedSchool, selectedBudget, searchKeyword]);
 
   const handlePostClick = () => {
     if (!currentUser) {
@@ -127,15 +237,24 @@ export const RoommateListPage: React.FC = () => {
           <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
           <input
             type="text"
-            value={searchKeyword}
-            onChange={(e) => setSearchKeyword(e.target.value)}
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                updateParam('q', searchInput.trim());
+              }
+            }}
             placeholder="Tìm theo tên bạn, trường đại học hoặc từ khóa (vd: Bách Khoa, Ngoại Thương, Yên tĩnh...)"
             className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
           />
-          {searchKeyword && (
+          {searchInput && (
             <button
-              onClick={() => setSearchKeyword('')}
-              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
+              type="button"
+              onClick={() => {
+                setSearchInput('');
+                updateParam('q', '');
+              }}
+              className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
@@ -153,8 +272,8 @@ export const RoommateListPage: React.FC = () => {
             {/* Gender Filter */}
             <select
               value={selectedGender}
-              onChange={(e) => setSelectedGender(e.target.value)}
-              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37]"
+              onChange={(e) => updateParam('gioiTinh', e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] cursor-pointer"
             >
               <option value="">Tất cả giới tính</option>
               <option value="Chỉ tìm Nữ">Chỉ tìm bạn Nữ</option>
@@ -164,24 +283,32 @@ export const RoommateListPage: React.FC = () => {
             {/* District Filter */}
             <select
               value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37]"
+              onChange={(e) => updateParam('khuVuc', e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] cursor-pointer"
             >
               <option value="">Tất cả khu vực</option>
-              <option value="Quận Cầu Giấy">Quận Cầu Giấy</option>
-              <option value="Quận Đống Đa">Quận Đống Đa</option>
-              <option value="Quận Hai Bà Trưng">Quận Hai Bà Trưng</option>
-              <option value="Quận Thanh Xuân">Quận Thanh Xuân</option>
-              <option value="Quận Nam Từ Liêm">Quận Nam Từ Liêm</option>
-              <option value="Quận Hà Đông">Quận Hà Đông</option>
-              <option value="Quận Ba Đình">Quận Ba Đình</option>
+              {HANOI_DISTRICTS.map((d) => (
+                <option key={d} value={d}>{d}</option>
+              ))}
+            </select>
+
+            {/* University Filter */}
+            <select
+              value={selectedSchool}
+              onChange={(e) => updateParam('truong', e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] cursor-pointer"
+            >
+              <option value="">Tất cả trường ĐH</option>
+              {POPULAR_UNIVERSITIES.map((u) => (
+                <option key={u} value={u}>{u}</option>
+              ))}
             </select>
 
             {/* Budget Filter */}
             <select
               value={selectedBudget}
-              onChange={(e) => setSelectedBudget(e.target.value)}
-              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37]"
+              onChange={(e) => updateParam('gia', e.target.value)}
+              className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] cursor-pointer"
             >
               <option value="">Tất cả ngân sách share</option>
               <option value="under_2m">&lt; 2 Triệu / người</option>
@@ -189,17 +316,13 @@ export const RoommateListPage: React.FC = () => {
               <option value="over_3m">&gt; 3 Triệu / người</option>
             </select>
 
-            {(selectedGender || selectedDistrict || selectedBudget || searchKeyword) && (
+            {hasActiveFilter && (
               <button
-                onClick={() => {
-                  setSelectedGender('');
-                  setSelectedDistrict('');
-                  setSelectedBudget('');
-                  setSearchKeyword('');
-                }}
-                className="text-xs text-rose-600 hover:underline font-bold flex items-center gap-0.5 ml-1"
+                type="button"
+                onClick={clearAllFilters}
+                className="text-xs text-rose-600 hover:text-rose-700 hover:underline font-bold flex items-center gap-1 ml-1 cursor-pointer"
               >
-                <X className="w-3.5 h-3.5" />
+                <RotateCcw className="w-3.5 h-3.5" />
                 Xóa lọc
               </button>
             )}
@@ -211,15 +334,32 @@ export const RoommateListPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Roommate Grid */}
+      {/* Roommate Grid or Empty State */}
       {filteredRoommates.length === 0 ? (
-        <EmptyState
-          icon="inbox"
-          title="Chưa có bài đăng phù hợp"
-          description="Hãy thử chọn lại bộ lọc hoặc là người đầu tiên đăng tin tìm bạn cùng phòng nhé!"
-          actionText="Đăng tin tìm bạn ngay"
-          onAction={handlePostClick}
-        />
+        <div className="space-y-4">
+          <EmptyState
+            icon={hasActiveFilter ? 'search' : 'inbox'}
+            title={hasActiveFilter ? 'Không tìm thấy hồ sơ phù hợp' : 'Chưa có bài đăng phù hợp'}
+            description={
+              hasActiveFilter
+                ? 'Không có bạn ghép nào thỏa mãn tất cả tiêu chí lọc đã chọn. Hãy thử nới lỏng bộ lọc hoặc xóa lọc để xem thêm nhé!'
+                : 'Hãy thử chọn lại bộ lọc hoặc là người đầu tiên đăng tin tìm bạn cùng phòng nhé!'
+            }
+            actionText={hasActiveFilter ? 'Xóa toàn bộ bộ lọc' : 'Đăng tin tìm bạn ngay'}
+            onAction={hasActiveFilter ? clearAllFilters : handlePostClick}
+          />
+          {hasActiveFilter && (
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={handlePostClick}
+                className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer"
+              >
+                Hoặc bạn muốn đăng tin tìm bạn ghép theo tiêu chí này?
+              </button>
+            </div>
+          )}
+        </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredRoommates.map((post) => (
