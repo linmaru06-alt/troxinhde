@@ -340,17 +340,19 @@ export async function handleUnifiedAuth(params: {
     if (cleanPhone) {
       const demoPhoneFound = initialUsers.find((u) => u.phone?.replace(/\D/g, '') === cleanPhone);
       if (demoPhoneFound) {
+        // Lấy dữ liệu mới nhất từ DB để không mất avatar
+        const { data: latestProfile } = await supabase.from('profiles').select('*').eq('id', demoPhoneFound.id).maybeSingle();
         return {
           success: true,
           isNewUser: false,
           user: {
             id: demoPhoneFound.id,
             firebaseUid: demoPhoneFound.id,
-            name: demoPhoneFound.name,
+            name: latestProfile?.name || demoPhoneFound.name,
             email: demoPhoneFound.email,
             phone: demoPhoneFound.phone,
             role: demoPhoneFound.role as any,
-            avatarUrl: demoPhoneFound.avatarUrl || '/images/user-avatar.jpg',
+            avatarUrl: latestProfile?.avatar_url || demoPhoneFound.avatarUrl || '/images/user-avatar.jpg',
             ownerApplicationStatus: demoPhoneFound.ownerApplicationStatus,
             createdAt: demoPhoneFound.createdAt,
           },
@@ -361,17 +363,19 @@ export async function handleUnifiedAuth(params: {
     if (cleanEmail) {
       const demoEmailFound = initialUsers.find((u) => u.email?.toLowerCase() === cleanEmail);
       if (demoEmailFound) {
+        // Lấy dữ liệu mới nhất từ DB để không mất avatar
+        const { data: latestProfile } = await supabase.from('profiles').select('*').eq('id', demoEmailFound.id).maybeSingle();
         return {
           success: true,
           isNewUser: false,
           user: {
             id: demoEmailFound.id,
             firebaseUid: demoEmailFound.id,
-            name: demoEmailFound.name,
+            name: latestProfile?.name || demoEmailFound.name,
             email: demoEmailFound.email,
             phone: demoEmailFound.phone,
             role: demoEmailFound.role as any,
-            avatarUrl: demoEmailFound.avatarUrl || '/images/user-avatar.jpg',
+            avatarUrl: latestProfile?.avatar_url || demoEmailFound.avatarUrl || '/images/user-avatar.jpg',
             ownerApplicationStatus: demoEmailFound.ownerApplicationStatus,
             createdAt: demoEmailFound.createdAt,
           },

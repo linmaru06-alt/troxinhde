@@ -369,16 +369,20 @@ export async function loginWithEmailPassword(
       'usr_admin_quan66934': '00000000-0000-0000-0000-000000000001',
     };
     const resolvedId = demoIdMap[cleanEmail] || demoIdMap[demoFound.id] || demoFound.id;
+
+    // FETCH LATEST FROM SUPABASE TO PREVENT AVATAR LOSS
+    const latestProfile = (await getSupabaseUserByEmail(cleanEmail)) || (await getProfileByFirebaseUid(demoFound.id));
+
     return {
       success: true,
       user: {
         id: resolvedId,
         firebaseUid: demoFound.id,
-        name: demoFound.name,
+        name: latestProfile?.name || demoFound.name,
         email: demoFound.email,
         phone: demoFound.phone,
         role: (demoFound.role === 'user' ? 'renter' : demoFound.role) as AppUserRole,
-        avatarUrl: demoFound.avatarUrl || '/images/user-avatar.jpg',
+        avatarUrl: (latestProfile as any)?.avatar_url || (latestProfile as any)?.avatarUrl || demoFound.avatarUrl || '/images/user-avatar.jpg',
         isDemoAccount: true,
         createdAt: demoFound.createdAt,
       },
@@ -850,10 +854,18 @@ export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter
   }
 
   // 2. Safe Fallback
-  const profile = DEMO_PROFILES[demoType];
+  const demoUser = DEMO_PROFILES[demoType];
+
+  // Lấy dữ liệu mới nhất từ DB để không bị mất avatar khi reload
+  const latestProfile = (await getProfileByFirebaseUid(demoUser.firebaseUid)) || (await getSupabaseUserByEmail(demoUser.email || ''));
+  if (latestProfile) {
+    demoUser.name = latestProfile.name;
+    demoUser.avatarUrl = (latestProfile as any).avatarUrl || (latestProfile as any).avatar_url || demoUser.avatarUrl;
+  }
+
   return {
     success: true,
-    user: profile,
+    user: demoUser,
   };
 }
 

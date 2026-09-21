@@ -69,8 +69,7 @@ export function getConversationMeta(
 ): { other_name?: string; other_avatar?: string } | null {
   try {
     const raw =
-      localStorage.getItem(`${CONV_META_PREFIX}${convId}`) ||
-      sessionStorage.getItem(`${CONV_META_PREFIX}${convId}`);
+      localStorage.getItem(`${CONV_META_PREFIX}${convId}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -84,13 +83,12 @@ export function saveConversationMeta(
   try {
     const json = JSON.stringify(meta);
     localStorage.setItem(`${CONV_META_PREFIX}${convId}`, json);
-    sessionStorage.setItem(`${CONV_META_PREFIX}${convId}`, json);
   } catch {}
 }
 
 function getLocalConversations(): Conversation[] {
   try {
-    const raw = sessionStorage.getItem(LOCAL_CONVS_KEY);
+    const raw = localStorage.getItem(LOCAL_CONVS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -101,7 +99,7 @@ function saveLocalConversation(conv: Conversation) {
   try {
     const list = getLocalConversations().filter((c) => c.id !== conv.id);
     list.unshift(conv);
-    sessionStorage.setItem(LOCAL_CONVS_KEY, JSON.stringify(list));
+    localStorage.setItem(LOCAL_CONVS_KEY, JSON.stringify(list));
     if (conv.other_name || conv.other_avatar) {
       saveConversationMeta(conv.id, {
         other_name: conv.other_name,
@@ -113,7 +111,7 @@ function saveLocalConversation(conv: Conversation) {
 
 function getLocalMessages(conversationId: string): Message[] {
   try {
-    const raw = sessionStorage.getItem(`${LOCAL_MSGS_KEY}_${conversationId}`);
+    const raw = localStorage.getItem(`${LOCAL_MSGS_KEY}_${conversationId}`);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -124,7 +122,7 @@ function saveLocalMessage(msg: Message) {
   try {
     const list = getLocalMessages(msg.conversation_id);
     list.push(msg);
-    sessionStorage.setItem(
+    localStorage.setItem(
       `${LOCAL_MSGS_KEY}_${msg.conversation_id}`,
       JSON.stringify(list),
     );
