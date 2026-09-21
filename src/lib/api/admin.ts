@@ -434,6 +434,19 @@ export async function banUser(userId: string, reason: string, durationDays = 30,
 
   if (error) throw error;
 
+  // Tự động đóng/ẩn các bài đăng tìm bạn của user bị khóa
+  try {
+    await supabase
+      .from('roommate_posts')
+      .update({
+        status: 'closed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('poster_id', userId);
+  } catch (postErr) {
+    console.warn('[Admin API] Lỗi đóng roommate_posts của user bị khóa:', postErr);
+  }
+
   await logAdminAudit({
     action: 'ban_user',
     entity_type: 'user',

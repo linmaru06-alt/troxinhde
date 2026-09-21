@@ -16,13 +16,16 @@ import {
   AlertCircle,
   Loader2,
   AlertTriangle,
+  ShieldOff,
+  ShieldCheck,
+  ShieldAlert,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
 
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
-  const { currentUser, showToast } = useAppStore();
+  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser } = useAppStore();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
@@ -122,6 +125,8 @@ export const ChatPage: React.FC = () => {
     ? activeConversation?.participant_2
     : activeConversation?.participant_1;
 
+  const isBlocked = Boolean(otherId && blockedUserIds.includes(otherId));
+
   const knownOther = otherId ? KNOWN_USER_NAMES[otherId] : null;
 
   const otherName =
@@ -145,6 +150,10 @@ export const ChatPage: React.FC = () => {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isBlocked) {
+      showToast('Không thể gửi tin nhắn', 'Bạn đã chặn người dùng này.', 'warning');
+      return;
+    }
     const content = inputText.trim();
     if (!content || !activeConversationId) return;
 
@@ -162,6 +171,10 @@ export const ChatPage: React.FC = () => {
   };
 
   const handleQuickReply = async (text: string) => {
+    if (isBlocked) {
+      showToast('Không thể gửi tin nhắn', 'Bạn đã chặn người dùng này.', 'warning');
+      return;
+    }
     if (!activeConversationId) return;
     await realtimeSendMessage(text);
     setConversations((prev) =>
@@ -340,6 +353,35 @@ export const ChatPage: React.FC = () => {
                     </Link>
                   )}
 
+                  {isBlocked ? (
+                    <button
+                      type="button"
+                      onClick={() => otherId && unblockUser(otherId)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-[#006d37] hover:bg-emerald-100 text-xs font-bold transition cursor-pointer"
+                      title="Bỏ chặn người này"
+                    >
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                      <span>Bỏ chặn</span>
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!currentUser) {
+                          showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để thực hiện chặn liên hệ', 'warning');
+                          return;
+                        }
+                        if (otherId && window.confirm(`Bạn có chắc muốn chặn liên hệ với ${otherName}? Sau khi chặn, hai bạn sẽ không thể gửi tin nhắn cho nhau.`)) {
+                          blockUser(otherId, otherName);
+                        }
+                      }}
+                      className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+                      title="Chặn liên hệ người này"
+                    >
+                      <ShieldOff className="w-4 h-4" />
+                    </button>
+                  )}
+
                   <button
                     type="button"
                     onClick={() => setShowReportModal(true)}
@@ -350,6 +392,23 @@ export const ChatPage: React.FC = () => {
                   </button>
                 </div>
               </div>
+
+              {/* Banner cảnh báo khi đã chặn */}
+              {isBlocked && (
+                <div className="bg-amber-50 border-b border-amber-200 px-4 py-2.5 flex items-center justify-between gap-3 text-xs text-amber-900">
+                  <div className="flex items-center gap-2">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>Bạn đã chặn người dùng này. Hai bên không thể gửi tin nhắn cho nhau.</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => otherId && unblockUser(otherId)}
+                    className="font-bold text-[#006d37] hover:underline cursor-pointer shrink-0"
+                  >
+                    Bỏ chặn
+                  </button>
+                </div>
+              )}
 
               {/* Vùng hiển thị tin nhắn (Scroll Area) */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -445,44 +504,65 @@ export const ChatPage: React.FC = () => {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Gợi ý tin nhắn phản hồi nhanh */}
-              <div className="px-3 py-2 bg-white border-t border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                <span className="text-[10px] font-bold text-gray-400 uppercase shrink-0">Gợi ý:</span>
-                {quickReplies.map((r, i) => (
-                  <button
-                    key={i}
-                    onClick={() => handleQuickReply(r)}
-                    className="text-xs px-3 py-1.5 min-h-[32px] bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-xl transition shrink-0 font-medium tap-bounce cursor-pointer"
-                  >
-                    {r}
-                  </button>
-                ))}
-              </div>
-
-              {/* Hộp nhập tin nhắn */}
-              <form
-                onSubmit={handleSend}
-                className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-2"
-                style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
-              >
-                <input
-                  type="text"
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                  placeholder="Nhập tin nhắn của bạn..."
-                  className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  size="md"
-                  disabled={!inputText.trim()}
-                  aria-label="Gửi tin nhắn"
-                  className="shrink-0 min-h-[44px] min-w-[44px] rounded-2xl cursor-pointer disabled:opacity-50"
+              {/* Form gửi tin nhắn hoặc thông báo chặn */}
+              {isBlocked ? (
+                <div
+                  className="p-4 bg-gray-50 border-t border-gray-200 text-center space-y-1.5"
+                  style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
                 >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </form>
+                  <p className="text-xs text-gray-600 font-medium">
+                    Bạn đã chặn liên hệ với người dùng này nên không thể gửi hoặc nhận tin nhắn mới.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => otherId && unblockUser(otherId)}
+                    className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer"
+                  >
+                    Bấm vào đây để bỏ chặn và tiếp tục trò chuyện
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {/* Gợi ý tin nhắn phản hồi nhanh */}
+                  <div className="px-3 py-2 bg-white border-t border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase shrink-0">Gợi ý:</span>
+                    {quickReplies.map((r, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleQuickReply(r)}
+                        className="text-xs px-3 py-1.5 min-h-[32px] bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-xl transition shrink-0 font-medium tap-bounce cursor-pointer"
+                      >
+                        {r}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Hộp nhập tin nhắn */}
+                  <form
+                    onSubmit={handleSend}
+                    className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-2"
+                    style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
+                  >
+                    <input
+                      type="text"
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                      placeholder="Nhập tin nhắn của bạn..."
+                      className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
+                    />
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="md"
+                      disabled={!inputText.trim()}
+                      aria-label="Gửi tin nhắn"
+                      className="shrink-0 min-h-[44px] min-w-[44px] rounded-2xl cursor-pointer disabled:opacity-50"
+                    >
+                      <Send className="w-4 h-4" />
+                    </Button>
+                  </form>
+                </>
+              )}
             </>
           ) : (
             <div className="flex-1 flex items-center justify-center text-center p-8 text-gray-400">

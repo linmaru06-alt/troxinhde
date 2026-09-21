@@ -161,6 +161,12 @@ interface AppState {
   toggleSaveRoommate: (id: string) => boolean;
   toggleSaveItem: (id: string) => boolean;
 
+  // User Blocking
+  blockedUserIds: string[];
+  blockUser: (targetUserId: string, targetUserName?: string) => void;
+  unblockUser: (targetUserId: string) => void;
+  isUserBlocked: (targetUserId: string) => boolean;
+
   // Room & Building management
   addBuilding: (building: Omit<Building, 'id'>) => string;
   addRoom: (room: Omit<Room, 'id' | 'views' | 'savedCount' | 'createdAt'>) => string;
@@ -215,6 +221,7 @@ export const useAppStore = create<AppState>()(
       savedRoomIds: [],
       savedRoommateIds: [],
       savedItemIds: [],
+      blockedUserIds: [],
       bookings: [],
       reports: [
         {
@@ -663,6 +670,32 @@ export const useAppStore = create<AppState>()(
         set({ savedItemIds: next });
         showToast(isSaved ? 'Đã bỏ lưu món đồ' : 'Đã lưu món đồ thanh lý ❤️', '', 'success');
         return !isSaved;
+      },
+
+      blockUser: (targetUserId, targetUserName) => {
+        const { blockedUserIds, showToast } = get();
+        if (!targetUserId) return;
+        if (blockedUserIds.includes(targetUserId)) {
+          showToast('Người dùng này đã nằm trong danh sách chặn', '', 'info');
+          return;
+        }
+        set({ blockedUserIds: [...blockedUserIds, targetUserId] });
+        showToast(
+          'Đã chặn liên hệ thành công',
+          `Bạn và ${targetUserName || 'người dùng này'} sẽ không thể gửi tin nhắn cho nhau.`,
+          'warning'
+        );
+      },
+
+      unblockUser: (targetUserId) => {
+        const { blockedUserIds, showToast } = get();
+        set({ blockedUserIds: blockedUserIds.filter((id) => id !== targetUserId) });
+        showToast('Đã bỏ chặn người dùng', 'Bạn có thể tiếp tục liên hệ bình thường.', 'success');
+      },
+
+      isUserBlocked: (targetUserId) => {
+        if (!targetUserId) return false;
+        return get().blockedUserIds.includes(targetUserId);
       },
 
       addBuilding: (data) => {
@@ -1130,6 +1163,7 @@ export const useAppStore = create<AppState>()(
         savedRoomIds: state.savedRoomIds,
         savedRoommateIds: state.savedRoommateIds,
         savedItemIds: state.savedItemIds,
+        blockedUserIds: state.blockedUserIds,
         bookings: state.bookings,
         ownerSubscription: state.ownerSubscription,
       }),

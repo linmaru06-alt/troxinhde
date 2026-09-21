@@ -285,6 +285,15 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     e.preventDefault();
     setSubmitError(null);
 
+    if (currentUser?.isBanned) {
+      showToast(
+        'Tài khoản đang bị khóa',
+        currentUser.bannedReason || 'Tài khoản của bạn đang bị khóa chức năng đăng tin.',
+        'error'
+      );
+      return;
+    }
+
     if (!userName.trim()) {
       showToast('Vui lòng nhập họ tên', '', 'warning');
       return;

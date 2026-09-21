@@ -112,6 +112,9 @@ export const AdminUsersPage: React.FC = () => {
       onConfirm: async (reason: string) => {
         try {
           await banUserApi(user.id, reason, 30, currentUser);
+          useAppStore.setState((state) => ({
+            roommates: state.roommates.filter((r) => r.userId !== user.id),
+          }));
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast(`Đã khóa tài khoản ${user.name}`, 'warning');
           fetchUsersList();

@@ -55,7 +55,7 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
       .from('roommate_posts')
       .select(`
         *,
-        poster:profiles!poster_id(id, full_name, avatar_url),
+        poster:profiles!poster_id(id, full_name, avatar_url, is_banned),
         room:rooms(id, name, price, area, room_images(url))
       `)
       .eq('status', 'active');
@@ -66,7 +66,9 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
 
     const { data, error } = await query.order('created_at', { ascending: false });
     if (!error && data) {
-      directPosts = data.map(formatRoommatePost);
+      directPosts = data
+        .filter((r: any) => !r.poster?.is_banned)
+        .map(formatRoommatePost);
     }
   } catch (err) {
     console.warn('[Roommates API] Lỗi truy vấn roommate_posts:', err);
@@ -116,13 +118,14 @@ export async function getRoommatePostById(id: string): Promise<RoommatePost | nu
       .from('roommate_posts')
       .select(`
         *,
-        poster:profiles!poster_id(id, full_name, avatar_url),
+        poster:profiles!poster_id(id, full_name, avatar_url, is_banned),
         room:rooms(id, name, price, area, room_images(url))
       `)
       .eq('id', id)
       .maybeSingle();
 
     if (!error && data) {
+      if (data.poster?.is_banned) return null;
       return formatRoommatePost(data);
     }
   } catch (err) {

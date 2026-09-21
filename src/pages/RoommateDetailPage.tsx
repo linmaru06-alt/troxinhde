@@ -12,6 +12,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ShieldCheck,
+  ShieldOff,
 } from 'lucide-react';
 
 import { getOrCreateConversation } from '../lib/api/messages';
@@ -36,7 +37,17 @@ function maskContactInfo(text: string): string {
 export const RoommateDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { roommates, rooms, currentUser, savedRoommateIds, toggleSaveRoommate, showToast } = useAppStore();
+  const {
+    roommates,
+    rooms,
+    currentUser,
+    savedRoommateIds,
+    toggleSaveRoommate,
+    showToast,
+    blockedUserIds,
+    blockUser,
+    unblockUser,
+  } = useAppStore();
   const [showReport, setShowReport] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
@@ -109,6 +120,7 @@ export const RoommateDetailPage: React.FC = () => {
 
   const linkedRoom = rooms.find((r) => r.id === post.linkedRoomId);
   const isSaved = savedRoommateIds.includes(post.id);
+  const isBlocked = Boolean(post && blockedUserIds.includes(post.userId));
 
   const handleContactChat = async () => {
     if (!currentUser) {
@@ -118,6 +130,10 @@ export const RoommateDetailPage: React.FC = () => {
     }
     if (currentUser.id === post.userId) {
       showToast('Đây là bài đăng của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
+      return;
+    }
+    if (isBlocked) {
+      showToast('Không thể nhắn tin', 'Bạn đã chặn người dùng này. Vui lòng bỏ chặn trước khi nhắn tin.', 'warning');
       return;
     }
 
@@ -278,15 +294,45 @@ export const RoommateDetailPage: React.FC = () => {
           </div>
         )}
 
-        {/* Report Button */}
-        <div className="pt-4 text-center">
+        {/* Report & Block Buttons */}
+        <div className="pt-4 text-center flex flex-wrap items-center justify-center gap-3">
           <button
             onClick={() => setShowReport(true)}
-            className="text-xs text-gray-400 hover:text-rose-600 transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
+            className="text-xs text-gray-400 hover:text-rose-600 transition flex items-center justify-center gap-1 cursor-pointer"
           >
             <AlertTriangle className="w-3.5 h-3.5" />
-            Báo cáo tin tìm bạn không đúng sự thật
+            Báo cáo tin vi phạm
           </button>
+          <span className="text-gray-300">•</span>
+          {isBlocked ? (
+            <button
+              onClick={() => unblockUser(post.userId)}
+              className="text-xs text-[#006d37] hover:underline font-bold transition flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              Đã chặn (Bấm để Bỏ chặn)
+            </button>
+          ) : (
+            <button
+              onClick={() => {
+                if (!currentUser) {
+                  showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để thực hiện chặn liên hệ', 'warning');
+                  return;
+                }
+                if (currentUser.id === post.userId) {
+                  showToast('Đây là bài đăng của bạn', 'Không thể tự chặn chính mình', 'info');
+                  return;
+                }
+                if (window.confirm(`Bạn có chắc muốn chặn liên hệ với ${post.userName}? Hai bạn sẽ không thể nhắn tin cho nhau.`)) {
+                  blockUser(post.userId, post.userName);
+                }
+              }}
+              className="text-xs text-gray-400 hover:text-amber-600 transition flex items-center justify-center gap-1 cursor-pointer"
+            >
+              <ShieldOff className="w-3.5 h-3.5" />
+              Chặn người này
+            </button>
+          )}
         </div>
       </div>
 

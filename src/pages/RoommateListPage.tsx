@@ -68,7 +68,7 @@ function normalizeSchoolName(name: string): string {
 export const RoommateListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { roommates, currentUser, showToast } = useAppStore();
+  const { roommates, currentUser, showToast, blockedUserIds } = useAppStore();
 
   const [isCreateOpen, setIsCreateOpen] = useState<boolean>(false);
 
@@ -117,6 +117,10 @@ export const RoommateListPage: React.FC = () => {
 
   const filteredRoommates = useMemo(() => {
     return roommates.filter((r) => {
+      // Exclude posts from blocked users
+      if (blockedUserIds.includes(r.userId)) {
+        return false;
+      }
       // Gender filter
       if (selectedGender) {
         if (selectedGender === 'Chỉ tìm Nữ' || selectedGender === 'nu') {
