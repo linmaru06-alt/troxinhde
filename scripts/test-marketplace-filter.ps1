@@ -1,4 +1,4 @@
-# Kiểm thử tự động bộ lọc Chợ đồ cũ bằng PowerShell (dùng fixture độc lập)
+﻿# Kiểm thử tự động bộ lọc Chợ đồ cũ bằng PowerShell (dùng fixture độc lập)
 $ErrorActionPreference = "Stop"
 
 $VALID_CATEGORIES = @('Nội thất', 'Đồ điện tử', 'Sách vở', 'Đồ gia dụng')
