@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { formatCurrency, formatPrice } from '../components/ui/Cards';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
 import { ReportModal } from '../components/modals/ReportModal';
 import {
   Users,
@@ -51,6 +52,7 @@ export const RoommateDetailPage: React.FC = () => {
     removeRoommatePost,
   } = useAppStore();
   const [showReport, setShowReport] = useState<boolean>(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const [post, setPost] = useState<RoommatePost | null>(() => {
@@ -125,11 +127,9 @@ export const RoommateDetailPage: React.FC = () => {
   const isBlocked = Boolean(post && blockedUserIds.includes(post.userId));
   const isOwner = currentUser?.id === post.userId;
 
-  const handleDelete = () => {
-    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết tìm bạn ở ghép này không?')) {
-      removeRoommatePost(post.id);
-      navigate('/roommate');
-    }
+  const handleConfirmDelete = () => {
+    removeRoommatePost(post.id);
+    navigate('/roommate');
   };
 
   const handleContactChat = async () => {
@@ -202,7 +202,7 @@ export const RoommateDetailPage: React.FC = () => {
           <div className="flex items-center gap-2">
             {isOwner && (
               <button
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 className="p-3 rounded-2xl border transition cursor-pointer bg-red-50 text-red-500 border-red-200 hover:bg-red-100"
                 title="Xóa bài viết"
               >
@@ -361,6 +361,17 @@ export const RoommateDetailPage: React.FC = () => {
         targetTitle={`Bài tìm bạn: ${post.userName}`}
         targetId={post.id}
         targetType="roommate"
+      />
+
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa bài viết"
+        description="Bạn có chắc chắn muốn xóa bài viết tìm bạn ở ghép này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa bài viết"
+        cancelText="Hủy"
+        variant="destructive"
       />
     </div>
   );

@@ -4,6 +4,7 @@ import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
+import { ConfirmDialog } from './ConfirmDialog';
 import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag, Trash2 } from 'lucide-react';
 
 export const formatPrice = (price: number): string => {
@@ -178,15 +179,20 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
 // 3. RoommateCard
 export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
   const { savedRoommateIds, toggleSaveRoommate, currentUser, removeRoommatePost } = useAppStore();
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  
   const isSaved = savedRoommateIds.includes(post.id);
   const isOwner = currentUser?.id === post.userId;
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handleConfirmDelete = () => {
+    removeRoommatePost(post.id);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết tìm bạn ở ghép này không?')) {
-      removeRoommatePost(post.id);
-    }
+    setShowDeleteConfirm(true);
   };
 
   return (
@@ -218,7 +224,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
           <div className="flex items-center gap-2">
             {isOwner && (
               <button
-                onClick={handleDelete}
+                onClick={handleDeleteClick}
                 className="p-2 rounded-full transition cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50"
                 title="Xóa bài viết"
               >
@@ -269,6 +275,17 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
           Xem chi tiết →
         </Link>
       </div>
+      
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa bài viết"
+        description="Bạn có chắc chắn muốn xóa bài viết tìm bạn ở ghép này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa bài viết"
+        cancelText="Hủy"
+        variant="destructive"
+      />
     </div>
   );
 };
