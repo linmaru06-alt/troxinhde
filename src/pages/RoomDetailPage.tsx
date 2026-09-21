@@ -41,13 +41,12 @@ import {
   Eye,
 } from 'lucide-react';
 
-import { ReportModal } from '../components/modals/ReportModal';
 import { getOrCreateConversation } from '../lib/api/messages';
 
 export const RoomDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast } = useAppStore();
+  const { rooms = [], buildings = [], bookings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
@@ -654,7 +653,7 @@ export const RoomDetailPage: React.FC = () => {
                       let hasCompletedBooking = false;
                       
                       // Check local first
-                      if (bookings.some((b) => b.roomId === room.id && b.renterId === currentUser.id && (b.status === 'completed' || b.status === 'Đã xem phòng' as any))) {
+                      if (bookings.some((b) => b.roomId === room.id && b.renterId === currentUser.id && ((b.status as any) === 'completed' || (b.status as any) === 'Đã xem phòng' || b.status === 'Đã xác nhận'))) {
                         hasCompletedBooking = true;
                       }
                       
