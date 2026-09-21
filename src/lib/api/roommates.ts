@@ -244,3 +244,24 @@ export async function updateRoommatePost(id: string, updates: Record<string, any
   if (error) throw error;
   return data;
 }
+
+export async function deleteRoommatePost(id: string) {
+  if (!isSupabaseConfigured) return true;
+
+  try {
+    // Thử xóa từ roommate_posts trước
+    const { error } = await supabase
+      .from('roommate_posts')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+    
+    // Xóa thêm trong audit_logs nếu có
+    await supabase.from('audit_logs').delete().eq('entity_id', id);
+    return true;
+  } catch (error) {
+    console.warn('[Roommates API] Lỗi khi xóa bài viết:', error);
+    return false;
+  }
+}

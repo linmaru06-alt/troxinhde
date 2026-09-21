@@ -4,7 +4,7 @@ import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { useAppStore } from '../../store/useAppStore';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
-import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag } from 'lucide-react';
+import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag, Trash2 } from 'lucide-react';
 
 export const formatPrice = (price: number): string => {
   if (price === 0) return 'Miễn phí';
@@ -177,8 +177,17 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
 
 // 3. RoommateCard
 export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
-  const { savedRoommateIds, toggleSaveRoommate } = useAppStore();
+  const { savedRoommateIds, toggleSaveRoommate, currentUser, removeRoommatePost } = useAppStore();
   const isSaved = savedRoommateIds.includes(post.id);
+  const isOwner = currentUser?.id === post.userId;
+
+  const handleDelete = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (window.confirm('Bạn có chắc chắn muốn xóa bài viết tìm bạn ở ghép này không?')) {
+      removeRoommatePost(post.id);
+    }
+  };
 
   return (
     <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1">
@@ -206,12 +215,24 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
             </div>
           </div>
 
-          <button
-            onClick={() => toggleSaveRoommate(post.id)}
-            className={`p-2 rounded-full transition cursor-pointer ${isSaved ? 'text-rose-500 bg-rose-50' : 'text-gray-400 hover:text-rose-500 hover:bg-gray-50'}`}
-          >
-            <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-          </button>
+          <div className="flex items-center gap-2">
+            {isOwner && (
+              <button
+                onClick={handleDelete}
+                className="p-2 rounded-full transition cursor-pointer text-gray-400 hover:text-red-500 hover:bg-red-50"
+                title="Xóa bài viết"
+              >
+                <Trash2 className="w-4 h-4" />
+              </button>
+            )}
+            <button
+              onClick={() => toggleSaveRoommate(post.id)}
+              className={`p-2 rounded-full transition cursor-pointer ${isSaved ? 'text-rose-500 bg-rose-50' : 'text-gray-400 hover:text-rose-500 hover:bg-gray-50'}`}
+              title={isSaved ? "Bỏ lưu" : "Lưu bài viết"}
+            >
+              <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+            </button>
+          </div>
         </div>
 
         {/* Budget Tag */}

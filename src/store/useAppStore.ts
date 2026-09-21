@@ -187,6 +187,7 @@ interface AppState {
 
   // Community & Marketplace
   addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
+  removeRoommatePost: (id: string) => void;
   addMarketplaceItem: (item: Omit<MarketplaceItem, 'id' | 'createdAt'>) => string;
   updateMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
   approveMarketplaceItem: (itemId: string) => void;
@@ -832,6 +833,19 @@ export const useAppStore = create<AppState>()(
         // Sync lên Supabase Cloud
         syncRoommatePostToSupabase(newPost).catch(console.warn);
         return newId;
+      },
+
+      removeRoommatePost: (id) => {
+        set((state) => ({
+          roommates: state.roommates.filter((r) => r.id !== id),
+          localCreatedRoommates: state.localCreatedRoommates.filter((r) => r.id !== id),
+        }));
+        
+        import('../lib/api/roommates').then(({ deleteRoommatePost }) => {
+          deleteRoommatePost(id).catch(console.warn);
+        });
+
+        get().showToast('Đã xóa bài viết', 'Bài viết tìm bạn cùng phòng của bạn đã được xóa thành công', 'success');
       },
 
       addMarketplaceItem: (data) => {
