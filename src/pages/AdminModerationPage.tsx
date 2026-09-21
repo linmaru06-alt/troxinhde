@@ -19,6 +19,7 @@ import {
   approveMarketplaceItem as approveMarketplaceItemApi,
   rejectMarketplaceItem as rejectMarketplaceItemApi,
 } from '../lib/api/admin';
+import { CONDITION_LABELS, MarketplaceConditionCode } from '../lib/marketplaceFilter';
 import {
   ShieldCheck,
   Check,
@@ -663,7 +664,7 @@ export const AdminModerationPage: React.FC = () => {
                               : `${Number(item.price).toLocaleString('vi-VN')}đ`}
                           </div>
                           <div className="absolute bottom-2 right-2 bg-white/90 text-gray-800 text-[10px] font-semibold px-2 py-0.5 rounded-md shadow-xs">
-                            {item.condition || 'Còn dùng tốt'}
+                            {(item.condition && CONDITION_LABELS[item.condition as MarketplaceConditionCode]) || item.condition || 'Còn tốt'}
                           </div>
                         </div>
 

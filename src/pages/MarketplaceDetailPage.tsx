@@ -31,6 +31,11 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { getOrCreateConversation } from '../lib/api/messages';
+import {
+  CONDITION_LABELS,
+  MarketplaceConditionCode,
+  normalizeCondition,
+} from '../lib/marketplaceFilter';
 
 const CATEGORY_ICONS: Record<string, string> = {
   'Nội thất': '🪑',
@@ -76,9 +81,9 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [editCategory, setEditCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>(
     item?.category || 'Nội thất'
   );
-  const [editCondition, setEditCondition] = useState<
-    'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'
-  >(item?.condition || 'Còn dùng tốt');
+  const [editCondition, setEditCondition] = useState<MarketplaceConditionCode>(
+    (item?.condition && normalizeCondition(item.condition)) || 'con_tot'
+  );
   const [editLocation, setEditLocation] = useState<string>(item?.location || '');
   const [editDistrict, setEditDistrict] = useState<string>(item?.district || '');
   const [editDescription, setEditDescription] = useState<string>(item?.description || '');
@@ -95,7 +100,7 @@ export const MarketplaceDetailPage: React.FC = () => {
       setEditPrice(item.price);
       setEditPricingType(item.pricingType);
       setEditCategory(item.category);
-      setEditCondition(item.condition);
+      setEditCondition((item.condition && normalizeCondition(item.condition)) || 'con_tot');
       setEditLocation(item.location);
       setEditDistrict(item.district);
       setEditDescription(item.description);
@@ -484,7 +489,7 @@ export const MarketplaceDetailPage: React.FC = () => {
 
               {/* Bottom Condition Pill */}
               <div className="absolute bottom-3 left-3 z-10 bg-slate-950/80 backdrop-blur-xs text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-white/10">
-                Tình trạng: {item.condition}
+                Tình trạng: {CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}
               </div>
 
               {/* Sold Overlay */}
@@ -542,7 +547,7 @@ export const MarketplaceDetailPage: React.FC = () => {
                 </span>
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 border border-amber-200 text-xs font-bold text-amber-800">
                   <Sparkles className="w-3.5 h-3.5 text-amber-600" />
-                  <span>{item.condition}</span>
+                  <span>{CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}</span>
                 </span>
               </div>
 
@@ -599,7 +604,9 @@ export const MarketplaceDetailPage: React.FC = () => {
                 <span className="text-gray-400 font-medium flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-amber-500" /> Tình trạng:
                 </span>
-                <span className="font-bold text-gray-900 block">{item.condition}</span>
+                <span className="font-bold text-gray-900 block">
+                  {CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}
+                </span>
               </div>
               <div className="space-y-0.5 col-span-2 pt-2 border-t border-gray-200/60">
                 <span className="text-gray-400 font-medium flex items-center gap-1">
@@ -890,14 +897,12 @@ export const MarketplaceDetailPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Tình trạng đồ</label>
               <select
                 value={editCondition}
-                onChange={(e) => setEditCondition(e.target.value as any)}
+                onChange={(e) => setEditCondition(e.target.value as MarketplaceConditionCode)}
                 className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
               >
-                <option value="Mới 99%">Mới 99%</option>
-                <option value="Còn dùng tốt">Còn dùng tốt</option>
-                <option value="Dùng tốt">Dùng tốt</option>
-                <option value="Đã qua sử dụng">Đã qua sử dụng</option>
-                <option value="Tặng miễn phí">Tặng miễn phí</option>
+                <option value="nhu_moi">Như mới</option>
+                <option value="con_tot">Còn tốt</option>
+                <option value="da_cu">Đã cũ</option>
               </select>
             </div>
             <Input

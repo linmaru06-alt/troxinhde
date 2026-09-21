@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
+import { CONDITION_LABELS, MarketplaceConditionCode } from '../../lib/marketplaceFilter';
 import { useAppStore } from '../../store/useAppStore';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
@@ -436,7 +437,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
 
         {/* 3. Tình trạng món đồ (Góc dưới bên trái) */}
         <div className="absolute bottom-2 left-2 bg-slate-950/75 text-white text-[10px] font-semibold px-2 py-0.5 rounded-md backdrop-blur-xs border border-white/10">
-          {item.condition}
+          {CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}
         </div>
 
         {/* 3b. Trạng thái Đã bán / Chờ duyệt / Bị từ chối */}

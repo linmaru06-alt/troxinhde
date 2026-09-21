@@ -1,4 +1,4 @@
-import { MarketplaceItem } from '../types';
+import { MarketplaceItem, MarketplaceConditionCode, MarketplaceDeliveryMethodCode } from '../types';
 
 /**
  * Danh sách danh mục hợp lệ
@@ -41,6 +41,105 @@ export function removeVietnameseTones(str: string): string {
 
 export type MarketplaceSortOption = 'newest' | 'price_asc' | 'price_desc';
 
+/**
+ * Danh sách mã tình trạng hợp lệ
+ */
+export const VALID_CONDITIONS = ['nhu_moi', 'con_tot', 'da_cu'] as const;
+
+/**
+ * Danh sách mã cách nhận đồ hợp lệ
+ */
+export const VALID_DELIVERY_METHODS = [
+  'tai_truong',
+  'giao_tan_noi',
+  'tu_den_lay',
+] as const;
+
+/**
+ * Bảng ánh xạ mã -> nhãn tiếng Việt dùng chung cho Form, Filter và Chip
+ */
+export const CONDITION_LABELS: Record<MarketplaceConditionCode, string> = {
+  nhu_moi: 'Như mới',
+  con_tot: 'Còn tốt',
+  da_cu: 'Đã cũ',
+};
+
+export const DELIVERY_METHOD_LABELS: Record<MarketplaceDeliveryMethodCode, string> = {
+  tai_truong: 'Gặp tại trường/KTX',
+  giao_tan_noi: 'Giao tận nơi',
+  tu_den_lay: 'Tự đến lấy',
+};
+
+/**
+ * Khoảng thời gian đăng
+ */
+export const VALID_TIME_RANGES = ['all', '24h', '7d'] as const;
+export type MarketplaceTimeRange = typeof VALID_TIME_RANGES[number];
+
+/**
+ * Chuẩn hóa tình trạng món đồ từ chuỗi bất kỳ hoặc phần trăm:
+ * - "tặng miễn phí" / "miễn phí" -> undefined (miễn phí là giá, không phải tình trạng)
+ * - >=95% -> 'nhu_moi'
+ * - 70-94% -> 'con_tot'
+ * - <70% -> 'da_cu'
+ * - Nhận diện từ khóa tiếng Việt bỏ dấu
+ */
+export function normalizeCondition(cond: string | undefined): MarketplaceConditionCode | undefined {
+  if (!cond) return undefined;
+  const raw = removeVietnameseTones(cond).toLowerCase().trim();
+
+  // 1. "tặng miễn phí" / "miễn phí" trả về undefined
+  if (raw.includes('tang mien phi') || raw === 'mien phi' || raw.includes('0d') || raw.includes('0 dong')) {
+    return undefined;
+  }
+
+  // 2. Nhận diện nếu đã là mã code chuẩn
+  if (raw === 'nhu_moi') return 'nhu_moi';
+  if (raw === 'con_tot') return 'con_tot';
+  if (raw === 'da_cu') return 'da_cu';
+
+  // 3. Nhận diện theo phần trăm: >=95% -> nhu_moi, 70-94% -> con_tot, <70% -> da_cu
+  const percentMatch = raw.match(/(\d+)\s*%/);
+  if (percentMatch) {
+    const percent = parseInt(percentMatch[1], 10);
+    if (!isNaN(percent)) {
+      if (percent >= 95) return 'nhu_moi';
+      if (percent >= 70) return 'con_tot';
+      return 'da_cu';
+    }
+  }
+
+  // 4. Nhận diện theo từ khóa
+  if (
+    raw.includes('nhu moi') ||
+    raw.includes('moi 99') ||
+    raw.includes('moi 95') ||
+    raw.includes('moi tinh') ||
+    raw.startsWith('moi')
+  ) {
+    return 'nhu_moi';
+  }
+
+  if (
+    raw.includes('con dung tot') ||
+    raw.includes('con tot') ||
+    raw.includes('dung tot') ||
+    raw.includes('tot')
+  ) {
+    return 'con_tot';
+  }
+
+  if (
+    raw.includes('da qua su dung') ||
+    raw.includes('da cu') ||
+    raw.includes('cu')
+  ) {
+    return 'da_cu';
+  }
+
+  return undefined;
+}
+
 export interface MarketplaceFilterCriteria {
   keyword?: string;
   categories?: string[]; // Hỗ trợ chọn 1 hoặc nhiều danh mục
@@ -48,6 +147,11 @@ export interface MarketplaceFilterCriteria {
   minPrice?: number;
   maxPrice?: number;
   isFreeOnly?: boolean;
+  conditions?: MarketplaceConditionCode[]; // Tình trạng theo mã: nhu_moi, con_tot, da_cu
+  deliveryMethods?: MarketplaceDeliveryMethodCode[]; // Cách nhận đồ theo mã
+  timeRange?: MarketplaceTimeRange; // Thời gian đăng: all / 24h / 7d
+  isNegotiableOnly?: boolean; // Có thể trả giá
+  hasImagesOnly?: boolean; // Chỉ tin có ảnh
   sortBy?: MarketplaceSortOption;
   viewMode?: 'public' | 'my_items';
   currentUserId?: string;
@@ -73,7 +177,46 @@ export function validatePriceRange(
 }
 
 /**
- * Đếm số lượng bộ lọc đang được kích hoạt (dùng cho Badge trên mobile button)
+ * Đếm số lượng nhóm bộ lọc con đang áp dụng trong "Bộ lọc khác" (tối đa 6 nhóm)
+ */
+export function countAdvancedFilters(criteria: Partial<MarketplaceFilterCriteria>): number {
+  let count = 0;
+
+  // 1. Khoảng giá (chỉ tính khi không bật đồ miễn phí)
+  if (!criteria.isFreeOnly && (criteria.minPrice !== undefined || criteria.maxPrice !== undefined)) {
+    count += 1;
+  }
+
+  // 2. Tình trạng
+  if (criteria.conditions && criteria.conditions.length > 0) {
+    count += 1;
+  }
+
+  // 3. Cách nhận đồ
+  if (criteria.deliveryMethods && criteria.deliveryMethods.length > 0) {
+    count += 1;
+  }
+
+  // 4. Thời gian đăng
+  if (criteria.timeRange && criteria.timeRange !== 'all') {
+    count += 1;
+  }
+
+  // 5. Có thể trả giá
+  if (criteria.isNegotiableOnly) {
+    count += 1;
+  }
+
+  // 6. Chỉ tin có ảnh
+  if (criteria.hasImagesOnly) {
+    count += 1;
+  }
+
+  return count;
+}
+
+/**
+ * Đếm tổng số lượng tất cả bộ lọc đang được kích hoạt (bao gồm cả từ khóa, danh mục, khu vực, miễn phí)
  */
 export function countActiveFilters(criteria: MarketplaceFilterCriteria): number {
   let count = 0;
@@ -92,11 +235,10 @@ export function countActiveFilters(criteria: MarketplaceFilterCriteria): number 
 
   if (criteria.isFreeOnly) {
     count += 1;
-  } else {
-    if (criteria.minPrice !== undefined || criteria.maxPrice !== undefined) {
-      count += 1;
-    }
   }
+
+  // Cộng thêm các nhóm bộ lọc con nâng cao
+  count += countAdvancedFilters(criteria);
 
   return count;
 }
@@ -118,6 +260,11 @@ export interface ParsedMarketplaceFilterState {
   minPrice?: number;
   maxPrice?: number;
   isFreeOnly: boolean;
+  conditions: MarketplaceConditionCode[];
+  deliveryMethods: MarketplaceDeliveryMethodCode[];
+  timeRange: MarketplaceTimeRange;
+  isNegotiableOnly: boolean;
+  hasImagesOnly: boolean;
   sortBy: MarketplaceSortOption;
   page: number;
 }
@@ -132,6 +279,11 @@ export function parseMarketplaceUrlParams(searchParams: URLSearchParams): Parsed
   const rawMin = searchParams.get('giaTu');
   const rawMax = searchParams.get('giaDen');
   const rawFree = searchParams.get('mienPhi');
+  const rawCond = searchParams.get('tinhTrang');
+  const rawDeliv = searchParams.get('nhanDo');
+  const rawTime = searchParams.get('thoiGian');
+  const rawNego = searchParams.get('traGia');
+  const rawImg = searchParams.get('coAnh');
   const rawSort = searchParams.get('sapXep');
   const rawPage = searchParams.get('trang');
 
@@ -165,13 +317,48 @@ export function parseMarketplaceUrlParams(searchParams: URLSearchParams): Parsed
     maxPrice = temp;
   }
 
-  // 6. Sắp xếp (fallback 'newest' nếu giá trị lạ)
+  // 6. Tình trạng (nhu_moi, con_tot, da_cu)
+  let conditions: MarketplaceConditionCode[] = [];
+  if (rawCond) {
+    const splitConds = rawCond.split(',').map((c) => c.trim()).filter(Boolean);
+    for (const c of splitConds) {
+      const normalized = normalizeCondition(c);
+      if (normalized && !conditions.includes(normalized)) {
+        conditions.push(normalized);
+      }
+    }
+  }
+
+  // 7. Cách nhận đồ (tai_truong, giao_tan_noi, tu_den_lay)
+  let deliveryMethods: MarketplaceDeliveryMethodCode[] = [];
+  if (rawDeliv) {
+    const splitDelivs = rawDeliv.split(',').map((d) => d.trim().toLowerCase()).filter(Boolean);
+    for (const d of splitDelivs) {
+      if ((VALID_DELIVERY_METHODS as readonly string[]).includes(d) && !deliveryMethods.includes(d as MarketplaceDeliveryMethodCode)) {
+        deliveryMethods.push(d as MarketplaceDeliveryMethodCode);
+      }
+    }
+  }
+
+  // 8. Thời gian đăng (all, 24h, 7d)
+  let timeRange: MarketplaceTimeRange = 'all';
+  if (rawTime === '24h' || rawTime === '7d') {
+    timeRange = rawTime;
+  }
+
+  // 9. Có thể trả giá
+  const isNegotiableOnly = rawNego === '1' || rawNego === 'true';
+
+  // 10. Chỉ tin có ảnh
+  const hasImagesOnly = rawImg === '1' || rawImg === 'true';
+
+  // 11. Sắp xếp (fallback 'newest' nếu giá trị lạ)
   let sortBy: MarketplaceSortOption = 'newest';
   if (rawSort === 'price_asc' || rawSort === 'price_desc') {
     sortBy = rawSort;
   }
 
-  // 7. Số trang (fallback 1 nếu <= 0 hoặc không phải số)
+  // 12. Số trang (fallback 1 nếu <= 0 hoặc không phải số)
   let page = 1;
   if (rawPage) {
     const parsed = parseInt(rawPage, 10);
@@ -187,6 +374,11 @@ export function parseMarketplaceUrlParams(searchParams: URLSearchParams): Parsed
     minPrice,
     maxPrice,
     isFreeOnly,
+    conditions,
+    deliveryMethods,
+    timeRange,
+    isNegotiableOnly,
+    hasImagesOnly,
     sortBy,
     page,
   };
@@ -233,12 +425,43 @@ export function buildMarketplaceUrlParams(state: ParsedMarketplaceFilterState): 
     }
   }
 
-  // 5. Sắp xếp: chỉ đưa vào khi khác 'newest' (mặc định)
+  // 5. Tình trạng (lưu trực tiếp mã code)
+  if (state.conditions && state.conditions.length > 0) {
+    const validCodes = state.conditions.filter((c) => (VALID_CONDITIONS as readonly string[]).includes(c));
+    if (validCodes.length > 0) {
+      params.set('tinhTrang', validCodes.join(','));
+    }
+  }
+
+  // 6. Cách nhận đồ (lưu trực tiếp mã code)
+  if (state.deliveryMethods && state.deliveryMethods.length > 0) {
+    const validDelivs = state.deliveryMethods.filter((d) => (VALID_DELIVERY_METHODS as readonly string[]).includes(d));
+    if (validDelivs.length > 0) {
+      params.set('nhanDo', validDelivs.join(','));
+    }
+  }
+
+  // 7. Thời gian đăng
+  if (state.timeRange && state.timeRange !== 'all') {
+    params.set('thoiGian', state.timeRange);
+  }
+
+  // 8. Có thể trả giá
+  if (state.isNegotiableOnly) {
+    params.set('traGia', '1');
+  }
+
+  // 9. Chỉ tin có ảnh
+  if (state.hasImagesOnly) {
+    params.set('coAnh', '1');
+  }
+
+  // 10. Sắp xếp: chỉ đưa vào khi khác 'newest' (mặc định)
   if (state.sortBy && state.sortBy !== 'newest') {
     params.set('sapXep', state.sortBy);
   }
 
-  // 6. Trang: chỉ đưa vào khi > 1
+  // 11. Trang: chỉ đưa vào khi > 1
   if (state.page && state.page > 1) {
     params.set('trang', String(Math.floor(state.page)));
   }
@@ -248,10 +471,12 @@ export function buildMarketplaceUrlParams(state: ParsedMarketplaceFilterState): 
 
 /**
  * Hàm lọc danh sách sản phẩm Chợ đồ cũ dựa trên tiêu chí
+ * Nhận tham số nowTime (mặc định Date.now()) để kiểm thử ổn định với thời điểm cố định
  */
 export function filterMarketplaceItems(
   items: MarketplaceItem[],
-  criteria: MarketplaceFilterCriteria
+  criteria: MarketplaceFilterCriteria,
+  nowTime: number = Date.now()
 ): MarketplaceItem[] {
   if (!Array.isArray(items)) return [];
 
@@ -262,6 +487,11 @@ export function filterMarketplaceItems(
     minPrice,
     maxPrice,
     isFreeOnly = false,
+    conditions = [],
+    deliveryMethods = [],
+    timeRange = 'all',
+    isNegotiableOnly = false,
+    hasImagesOnly = false,
     sortBy = 'newest',
     viewMode = 'public',
     currentUserId,
@@ -285,16 +515,14 @@ export function filterMarketplaceItems(
     .filter((item) => {
       // 1. Phân quyền theo chế độ xem (View Mode):
       if (viewMode === 'public') {
-        // Chỉ công khai tin hợp lệ (không chờ duyệt, không bị từ chối)
         const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
         const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
         if (isPending || isRejected) return false;
       } else if (viewMode === 'my_items') {
-        // Chỉ hiện tin của chính người dùng hiện tại
         if (!currentUserId || item.userId !== currentUserId) return false;
       }
 
-      // 2. Lọc theo danh mục (chọn 1 hoặc nhiều danh mục)
+      // 2. Lọc theo danh mục
       if (validCategories.length > 0) {
         if (!validCategories.includes(item.category)) {
           return false;
@@ -303,11 +531,9 @@ export function filterMarketplaceItems(
 
       // 3. Lọc theo Giá:
       if (isFreeOnly) {
-        // Khi bật toggle "Chỉ đồ miễn phí", chỉ giữ các món 0đ hoặc loại "Miễn phí"
         const isItemFree = item.pricingType === 'Miễn phí' || item.price === 0;
         if (!isItemFree) return false;
       } else {
-        // Nếu khoảng giá bị lỗi (min > max), không hiển thị kết quả sai lệch
         if (hasPriceError) return false;
 
         const itemPrice = Number(item.price) || 0;
@@ -319,7 +545,60 @@ export function filterMarketplaceItems(
         }
       }
 
-      // 4. Lọc theo Khu vực (District):
+      // 4. Lọc theo Tình trạng đồ:
+      if (conditions.length > 0) {
+        const normalizedItemCond = normalizeCondition(item.condition);
+        if (!normalizedItemCond || !conditions.includes(normalizedItemCond)) {
+          return false;
+        }
+      }
+
+      // 5. Lọc theo Cách nhận đồ:
+      // Quy tắc: Tin đăng cũ thiếu trường này (hoặc rỗng) thì không khớp bộ lọc cách nhận đồ
+      if (deliveryMethods.length > 0) {
+        const itemMethods = item.deliveryMethods;
+        if (!itemMethods || itemMethods.length === 0) {
+          return false;
+        }
+        const hasMatch = deliveryMethods.some((m) => itemMethods.includes(m));
+        if (!hasMatch) {
+          return false;
+        }
+      }
+
+      // 6. Lọc theo Thời gian đăng (so sánh với nowTime):
+      if (timeRange === '24h') {
+        const itemTime = new Date(item.createdAt || 0).getTime();
+        if (isNaN(itemTime) || nowTime - itemTime > 24 * 3600 * 1000) {
+          return false;
+        }
+      } else if (timeRange === '7d') {
+        const itemTime = new Date(item.createdAt || 0).getTime();
+        if (isNaN(itemTime) || nowTime - itemTime > 7 * 24 * 3600 * 1000) {
+          return false;
+        }
+      }
+
+      // 7. Lọc theo "Có thể trả giá":
+      // Quy tắc: Tin cũ thiếu trường này mặc định là false
+      if (isNegotiableOnly) {
+        if (item.isNegotiable !== true) {
+          return false;
+        }
+      }
+
+      // 8. Lọc theo "Chỉ tin có ảnh":
+      if (hasImagesOnly) {
+        const hasValidImg =
+          Array.isArray(item.images) &&
+          item.images.length > 0 &&
+          item.images.some((img) => img && !img.includes('placeholder'));
+        if (!hasValidImg) {
+          return false;
+        }
+      }
+
+      // 9. Lọc theo Khu vực (District):
       if (normSelectedDistrict) {
         const normItemDistrict = removeVietnameseTones(item.district || '').replace(/quan\s*/g, '').trim();
         const normItemLocation = removeVietnameseTones(item.location || '').replace(/quan\s*/g, '').trim();
@@ -331,7 +610,7 @@ export function filterMarketplaceItems(
         }
       }
 
-      // 5. Tìm kiếm từ khóa (Keyword - không phân biệt hoa thường và không dấu tiếng Việt):
+      // 10. Tìm kiếm từ khóa:
       if (normKeyword) {
         const normName = removeVietnameseTones(item.name || '');
         const normDesc = removeVietnameseTones(item.description || '');
@@ -351,7 +630,7 @@ export function filterMarketplaceItems(
       return true;
     })
     .sort((a, b) => {
-      // 6. Sắp xếp kết quả (Stable sort: Tiêu chí phụ là createdAt mới hơn)
+      // 11. Sắp xếp kết quả (Stable sort: Tiêu chí phụ là createdAt mới hơn)
       const timeB = new Date(b.createdAt || 0).getTime();
       const timeA = new Date(a.createdAt || 0).getTime();
 

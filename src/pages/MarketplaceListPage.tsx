@@ -26,8 +26,12 @@ import {
   RefreshCw,
   Layers,
   User,
+  Check,
+  Truck,
+  HandCoins,
+  Camera,
 } from 'lucide-react';
-import { MarketplaceItem } from '../types';
+import { MarketplaceItem, MarketplaceConditionCode, MarketplaceDeliveryMethodCode } from '../types';
 
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
@@ -37,10 +41,16 @@ import {
   filterMarketplaceItems,
   validatePriceRange,
   countActiveFilters,
+  countAdvancedFilters,
   parseMarketplaceUrlParams,
   buildMarketplaceUrlParams,
   MarketplaceSortOption,
   ParsedMarketplaceFilterState,
+  CONDITION_LABELS,
+  DELIVERY_METHOD_LABELS,
+  VALID_CONDITIONS,
+  VALID_DELIVERY_METHODS,
+  normalizeCondition,
 } from '../lib/marketplaceFilter';
 import { MarketplaceFilterDrawer } from '../components/marketplace/MarketplaceFilterDrawer';
 
@@ -172,15 +182,33 @@ export const MarketplaceListPage: React.FC = () => {
   const [category, setCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>(
     initialMarketDraft?.category || 'Nội thất'
   );
-  const [condition, setCondition] = useState<
-    'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'
-  >(initialMarketDraft?.condition || 'Còn dùng tốt');
+  const [condition, setCondition] = useState<MarketplaceConditionCode>(
+    (initialMarketDraft?.condition && normalizeCondition(initialMarketDraft.condition)) || 'con_tot'
+  );
   const [location, setLocation] = useState<string>(
     initialMarketDraft?.location || 'Số 18 Ngõ 165 Cầu Giấy, Hà Nội'
   );
   const [district, setDistrict] = useState<string>(initialMarketDraft?.district || 'Quận Cầu Giấy');
   const [description, setDescription] = useState<string>(initialMarketDraft?.description || '');
   const [images, setImages] = useState<string[]>(initialMarketDraft?.images || []);
+  const [deliveryMethods, setDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(() => {
+    if (Array.isArray(initialMarketDraft?.deliveryMethods) && initialMarketDraft.deliveryMethods.length > 0) {
+      return initialMarketDraft.deliveryMethods
+        .map((m: string) => {
+          if (m === 'tai_truong' || m === 'giao_tan_noi' || m === 'tu_den_lay') return m as MarketplaceDeliveryMethodCode;
+          if (m === 'Gặp tại trường/KTX') return 'tai_truong';
+          if (m === 'Giao tận nơi') return 'giao_tan_noi';
+          if (m === 'Tự đến lấy') return 'tu_den_lay';
+          return null;
+        })
+        .filter((m): m is MarketplaceDeliveryMethodCode => m !== null);
+    }
+    return ['tai_truong'];
+  });
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [isNegotiable, setIsNegotiable] = useState<boolean>(
+    Boolean(initialMarketDraft?.isNegotiable)
+  );
 
   // Resubmit / Edit Modal State (Nhận lý do từ chối và sửa gửi lại)
   const [resubmitModalOpen, setResubmitModalOpen] = useState<boolean>(false);
@@ -189,11 +217,14 @@ export const MarketplaceListPage: React.FC = () => {
   const [resubmitPrice, setResubmitPrice] = useState<number>(0);
   const [resubmitPricingType, setResubmitPricingType] = useState<'Giá rẻ' | 'Miễn phí'>('Giá rẻ');
   const [resubmitCategory, setResubmitCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>('Nội thất');
-  const [resubmitCondition, setResubmitCondition] = useState<'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'>('Còn dùng tốt');
+  const [resubmitCondition, setResubmitCondition] = useState<MarketplaceConditionCode>('con_tot');
   const [resubmitLocation, setResubmitLocation] = useState<string>('');
   const [resubmitDistrict, setResubmitDistrict] = useState<string>('');
   const [resubmitDescription, setResubmitDescription] = useState<string>('');
   const [resubmitImages, setResubmitImages] = useState<string[]>([]);
+  const [resubmitDeliveryMethods, setResubmitDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(['tai_truong']);
+  const [resubmitDeliveryError, setResubmitDeliveryError] = useState<string | null>(null);
+  const [resubmitIsNegotiable, setResubmitIsNegotiable] = useState<boolean>(false);
   const [isResubmitting, setIsResubmitting] = useState<boolean>(false);
 
   const handleOpenResubmitModal = (itemToEdit: MarketplaceItem) => {
@@ -202,11 +233,18 @@ export const MarketplaceListPage: React.FC = () => {
     setResubmitPrice(itemToEdit.price);
     setResubmitPricingType(itemToEdit.pricingType);
     setResubmitCategory(itemToEdit.category);
-    setResubmitCondition(itemToEdit.condition);
+    setResubmitCondition((itemToEdit.condition && normalizeCondition(itemToEdit.condition)) || 'con_tot');
     setResubmitLocation(itemToEdit.location);
     setResubmitDistrict(itemToEdit.district);
     setResubmitDescription(itemToEdit.description);
     setResubmitImages(itemToEdit.images || []);
+    setResubmitDeliveryMethods(
+      itemToEdit.deliveryMethods && itemToEdit.deliveryMethods.length > 0
+        ? itemToEdit.deliveryMethods
+        : ['tai_truong']
+    );
+    setResubmitDeliveryError(null);
+    setResubmitIsNegotiable(Boolean(itemToEdit.isNegotiable));
     setResubmitModalOpen(true);
   };
 
@@ -223,6 +261,8 @@ export const MarketplaceListPage: React.FC = () => {
         district,
         description,
         images,
+        deliveryMethods,
+        isNegotiable,
         savedAt: new Date().toISOString(),
       };
       try {
@@ -231,7 +271,7 @@ export const MarketplaceListPage: React.FC = () => {
         console.warn(e);
       }
     }
-  }, [title, price, pricingType, category, condition, location, district, description, images, isModalOpen]);
+  }, [title, price, pricingType, category, condition, location, district, description, images, deliveryMethods, isNegotiable, isModalOpen]);
 
   const handleSaveMarketDraft = () => {
     const draftData = {
@@ -244,6 +284,8 @@ export const MarketplaceListPage: React.FC = () => {
       district,
       description,
       images,
+      deliveryMethods,
+      isNegotiable,
       savedAt: new Date().toISOString(),
     };
     try {
@@ -264,6 +306,8 @@ export const MarketplaceListPage: React.FC = () => {
       setCondition('Còn dùng tốt');
       setDescription('');
       setImages([]);
+      setDeliveryMethods(['Tự đến lấy']);
+      setIsNegotiable(false);
       setHasDraftRestored(false);
       showToast('Đã xóa bản nháp', 'Form đăng đồ đã được làm mới', 'info');
     } catch (e) {
@@ -288,6 +332,8 @@ export const MarketplaceListPage: React.FC = () => {
     description: description || 'Chưa có mô tả chi tiết.',
     status: 'Còn hàng',
     createdAt: new Date().toISOString(),
+    deliveryMethods,
+    isNegotiable,
   };
 
   const categories = ['Tất cả', 'Nội thất', 'Đồ điện tử', 'Sách vở', 'Đồ gia dụng'];
@@ -354,14 +400,11 @@ export const MarketplaceListPage: React.FC = () => {
   }, [minPriceInput, maxPriceInput]);
 
   const activeFilterCount = useMemo(() => {
-    return countActiveFilters({
-      keyword: urlState.keyword,
-      categories: urlState.categories,
-      district: urlState.district,
-      minPrice: urlState.minPrice,
-      maxPrice: urlState.maxPrice,
-      isFreeOnly: urlState.isFreeOnly,
-    });
+    return countActiveFilters(urlState);
+  }, [urlState]);
+
+  const advancedFilterCount = useMemo(() => {
+    return countAdvancedFilters(urlState);
   }, [urlState]);
 
   // Lấy danh sách tin của người dùng hiện tại
@@ -386,6 +429,11 @@ export const MarketplaceListPage: React.FC = () => {
       minPrice: urlState.minPrice,
       maxPrice: urlState.maxPrice,
       isFreeOnly: urlState.isFreeOnly,
+      conditions: urlState.conditions,
+      deliveryMethods: urlState.deliveryMethods,
+      timeRange: urlState.timeRange,
+      isNegotiableOnly: urlState.isNegotiableOnly,
+      hasImagesOnly: urlState.hasImagesOnly,
       sortBy: urlState.sortBy,
       viewMode,
       currentUserId: currentUser?.id,
@@ -398,6 +446,11 @@ export const MarketplaceListPage: React.FC = () => {
     urlState.minPrice,
     urlState.maxPrice,
     urlState.isFreeOnly,
+    urlState.conditions,
+    urlState.deliveryMethods,
+    urlState.timeRange,
+    urlState.isNegotiableOnly,
+    urlState.hasImagesOnly,
     urlState.sortBy,
     viewMode,
     currentUser,
@@ -445,6 +498,11 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
+    if (deliveryMethods.length === 0) {
+      setDeliveryError('Vui lòng chọn ít nhất một cách nhận đồ');
+      return;
+    }
+
     const sellerId =
       currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
         ? currentUser.id
@@ -489,6 +547,8 @@ export const MarketplaceListPage: React.FC = () => {
         district,
         images: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
         description: description || 'Đồ thanh lý sinh viên chính chủ.',
+        deliveryMethods,
+        isNegotiable,
       });
 
       // Xóa bản nháp sau khi đăng thành công
@@ -526,6 +586,11 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
+    if (resubmitDeliveryMethods.length === 0) {
+      setResubmitDeliveryError('Vui lòng chọn ít nhất một cách nhận đồ');
+      return;
+    }
+
     setIsResubmitting(true);
     try {
       resubmitMarketplaceItem(resubmittingItem.id, {
@@ -538,6 +603,8 @@ export const MarketplaceListPage: React.FC = () => {
         district: resubmitDistrict,
         description: resubmitDescription.trim(),
         images: resubmitImages,
+        deliveryMethods: resubmitDeliveryMethods,
+        isNegotiable: resubmitIsNegotiable,
       });
 
       setResubmitModalOpen(false);
@@ -777,15 +844,15 @@ export const MarketplaceListPage: React.FC = () => {
             )}
           </button>
 
-          {/* Desktop District & Sort */}
-          <div className="hidden sm:flex items-center gap-2 w-auto shrink-0">
+          {/* District & Sort */}
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-start">
             {/* District Filter */}
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
-              <MapPin className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
+            <div className="flex-1 sm:flex-initial flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 mr-1.5 shrink-0" />
               <select
                 value={urlState.district}
                 onChange={(e) => handleSelectDistrict(e.target.value)}
-                className="bg-transparent focus:outline-none cursor-pointer"
+                className="bg-transparent focus:outline-none cursor-pointer w-full"
               >
                 <option value="">Tất cả khu vực</option>
                 {DISTRICTS.map((d) => (
@@ -797,12 +864,12 @@ export const MarketplaceListPage: React.FC = () => {
             </div>
 
             {/* Sorting */}
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
-              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
+            <div className="flex-1 sm:flex-initial flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
+              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5 shrink-0" />
               <select
                 value={urlState.sortBy}
                 onChange={(e) => handleSelectSort(e.target.value as MarketplaceSortOption)}
-                className="bg-transparent focus:outline-none cursor-pointer"
+                className="bg-transparent focus:outline-none cursor-pointer w-full"
               >
                 <option value="newest">Mới nhất</option>
                 <option value="price_asc">Giá: Thấp → Cao</option>
@@ -812,11 +879,11 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Row 2 (Desktop): Multi-Category Pills & Free-only Toggle & Price Range */}
-        <div className="hidden sm:flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-gray-100">
+        {/* Row 2: Multi-Category Pills on Left, Free-only Toggle & "Bộ lọc khác" on Right */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2.5 border-t border-gray-100">
           {/* Multi-category Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            <span className="text-xs font-bold text-gray-600 mr-1 flex items-center gap-1">
+            <span className="text-xs font-bold text-gray-600 mr-1 flex items-center gap-1 shrink-0">
               <Tag className="w-3.5 h-3.5 text-[#006d37]" />
               Danh mục:
             </span>
@@ -833,7 +900,7 @@ export const MarketplaceListPage: React.FC = () => {
               Tất cả
             </button>
 
-            {categories.filter(c => c !== 'Tất cả').map((cat) => {
+            {categories.filter((c) => c !== 'Tất cả').map((cat) => {
               const isSelected = urlState.categories.includes(cat);
               return (
                 <button
@@ -853,91 +920,76 @@ export const MarketplaceListPage: React.FC = () => {
             })}
           </div>
 
-          {/* Toggle Free-only button */}
-          <div className="flex items-center gap-2">
+          {/* Right Side: Toggle "Đồ tặng miễn phí" & Nút "Bộ lọc khác" */}
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            {/* Toggle Đồ tặng miễn phí (nền xanh đậm khi bật) */}
             <button
               type="button"
               onClick={handleToggleFreeOnly}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
                 urlState.isFreeOnly
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs ring-2 ring-emerald-500/30'
-                  : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+                  ? 'bg-[#006d37] text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Gift className="w-3.5 h-3.5" />
-              <span>Chỉ đồ tặng 0đ</span>
+              <span>Đồ tặng miễn phí</span>
             </button>
-          </div>
-        </div>
 
-        {/* Row 3 (Desktop): Quick Price Presets & Free Form Min/Max Input */}
-        <div className={`hidden sm:flex flex-wrap items-center justify-between gap-3 pt-2.5 border-t border-gray-100 transition-opacity ${
-          urlState.isFreeOnly ? 'opacity-40 pointer-events-none' : 'opacity-100'
-        }`}>
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold text-gray-600 mr-1">Khoảng giá:</span>
-            <button
-              type="button"
-              onClick={() => handleSelectPresetPrice(0, 50000)}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
-            >
-              &lt; 50k
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectPresetPrice(50000, 200000)}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
-            >
-              50k – 200k
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectPresetPrice(200000, 500000)}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
-            >
-              200k – 500k
-            </button>
-            <button
-              type="button"
-              onClick={() => handleSelectPresetPrice(500000, undefined)}
-              className="px-2.5 py-1 text-xs font-medium rounded-lg border border-gray-200 hover:border-[#006d37] hover:bg-emerald-50 text-gray-700 transition cursor-pointer"
-            >
-              &gt; 500k
-            </button>
-          </div>
+            {/* Nút Bộ lọc khác & Container Popover / Drawer */}
+            <div className="relative">
+              <button
+                type="button"
+                data-filter-toggle="true"
+                onClick={() => setIsFilterDrawerOpen((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                  advancedFilterCount > 0 || isFilterDrawerOpen
+                    ? 'bg-emerald-50 text-[#006d37] border-emerald-300 shadow-xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#006d37]" />
+                <span>
+                  {advancedFilterCount > 0 ? `Bộ lọc (${advancedFilterCount})` : 'Bộ lọc khác'}
+                </span>
+              </button>
 
-          <div className="flex items-center gap-2">
-            <div className="flex items-center gap-1.5">
-              <input
-                type="number"
-                value={minPriceInput}
-                onChange={(e) => setMinPriceInput(e.target.value)}
-                placeholder="Từ (đ)"
-                className={`w-24 px-2.5 py-1 text-xs font-medium rounded-xl border ${
-                  priceError ? 'border-rose-400 bg-rose-50' : 'border-gray-200 bg-gray-50'
-                } focus:outline-none focus:ring-1 focus:ring-[#006d37]`}
-              />
-              <span className="text-gray-400 text-xs">–</span>
-              <input
-                type="number"
-                value={maxPriceInput}
-                onChange={(e) => setMaxPriceInput(e.target.value)}
-                placeholder="Đến (đ)"
-                className={`w-24 px-2.5 py-1 text-xs font-medium rounded-xl border ${
-                  priceError ? 'border-rose-400 bg-rose-50' : 'border-gray-200 bg-gray-50'
-                } focus:outline-none focus:ring-1 focus:ring-[#006d37]`}
+              {/* Popover on Desktop & Bottom Sheet Drawer on Mobile */}
+              <MarketplaceFilterDrawer
+                isOpen={isFilterDrawerOpen}
+                onClose={() => setIsFilterDrawerOpen(false)}
+                isFreeOnly={urlState.isFreeOnly}
+                initialValues={{
+                  minPrice: urlState.minPrice,
+                  maxPrice: urlState.maxPrice,
+                  conditions: urlState.conditions,
+                  deliveryMethods: urlState.deliveryMethods,
+                  timeRange: urlState.timeRange,
+                  isNegotiableOnly: urlState.isNegotiableOnly,
+                  hasImagesOnly: urlState.hasImagesOnly,
+                }}
+                onApply={(values) => {
+                  updateUrlFilters(
+                    {
+                      minPrice: values.minPrice,
+                      maxPrice: values.maxPrice,
+                      conditions: values.conditions,
+                      deliveryMethods: values.deliveryMethods,
+                      timeRange: values.timeRange,
+                      isNegotiableOnly: values.isNegotiableOnly,
+                      hasImagesOnly: values.hasImagesOnly,
+                    },
+                    true,
+                    false
+                  );
+                }}
+                activeCount={advancedFilterCount}
               />
             </div>
-            {priceError && (
-              <span className="text-[11px] font-bold text-rose-600 flex items-center gap-1">
-                <AlertCircle className="w-3.5 h-3.5" />
-                {priceError}
-              </span>
-            )}
           </div>
         </div>
 
-        {/* Row 4: Active Filter Chips & Results Count */}
+        {/* Row 3: Active Filter Chips & Results Count */}
         <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
           <div className="flex flex-wrap items-center gap-2">
             {/* Đếm số lượng sản phẩm tìm thấy */}
@@ -988,7 +1040,7 @@ export const MarketplaceListPage: React.FC = () => {
             {urlState.isFreeOnly && (
               <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-300 shadow-2xs">
                 <Gift className="w-3 h-3 text-[#006d37]" />
-                <span>Chỉ đồ tặng 0đ</span>
+                <span>Đồ tặng miễn phí</span>
                 <button
                   type="button"
                   onClick={handleToggleFreeOnly}
@@ -1031,6 +1083,98 @@ export const MarketplaceListPage: React.FC = () => {
                   onClick={() => handleSelectDistrict('')}
                   className="hover:text-rose-600 cursor-pointer"
                   aria-label="Bỏ lọc khu vực"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip tình trạng món đồ */}
+            {urlState.conditions.map((cond) => (
+              <span
+                key={cond}
+                className="inline-flex items-center gap-1 bg-teal-50 text-teal-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-teal-200 shadow-2xs"
+              >
+                <Sparkles className="w-3 h-3 text-teal-600" />
+                <span>Tình trạng: {CONDITION_LABELS[cond] || cond}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = urlState.conditions.filter((c) => c !== cond);
+                    updateUrlFilters({ conditions: next }, true, false);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label={`Bỏ lọc tình trạng ${CONDITION_LABELS[cond] || cond}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip cách nhận đồ */}
+            {urlState.deliveryMethods.map((meth) => (
+              <span
+                key={meth}
+                className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-200 shadow-2xs"
+              >
+                <Truck className="w-3 h-3 text-indigo-600" />
+                <span>Nhận: {DELIVERY_METHOD_LABELS[meth] || meth}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = urlState.deliveryMethods.filter((m) => m !== meth);
+                    updateUrlFilters({ deliveryMethods: next }, true, false);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label={`Bỏ lọc nhận ${DELIVERY_METHOD_LABELS[meth] || meth}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip thời gian đăng */}
+            {urlState.timeRange && urlState.timeRange !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-purple-200 shadow-2xs">
+                <Clock className="w-3 h-3 text-purple-600" />
+                <span>Đăng: {urlState.timeRange === '24h' ? '24 giờ qua' : '7 ngày qua'}</span>
+                <button
+                  type="button"
+                  onClick={() => updateUrlFilters({ timeRange: 'all' }, true, false)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc thời gian đăng"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip có thể trả giá */}
+            {urlState.isNegotiableOnly && (
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 shadow-2xs">
+                <HandCoins className="w-3 h-3 text-emerald-600" />
+                <span>Có thể trả giá</span>
+                <button
+                  type="button"
+                  onClick={() => updateUrlFilters({ isNegotiableOnly: false }, true, false)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc trả giá"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip chỉ tin có ảnh */}
+            {urlState.hasImagesOnly && (
+              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-amber-200 shadow-2xs">
+                <Camera className="w-3 h-3 text-amber-600" />
+                <span>Chỉ tin có ảnh</span>
+                <button
+                  type="button"
+                  onClick={() => updateUrlFilters({ hasImagesOnly: false }, true, false)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc chỉ tin có ảnh"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1255,14 +1399,12 @@ export const MarketplaceListPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Tình trạng đồ</label>
               <select
                 value={condition}
-                onChange={(e) => setCondition(e.target.value as any)}
+                onChange={(e) => setCondition(e.target.value as MarketplaceConditionCode)}
                 className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
               >
-                <option value="Mới 99%">Mới 99%</option>
-                <option value="Còn dùng tốt">Còn dùng tốt</option>
-                <option value="Dùng tốt">Dùng tốt</option>
-                <option value="Đã qua sử dụng">Đã qua sử dụng</option>
-                <option value="Tặng miễn phí">Tặng miễn phí</option>
+                <option value="nhu_moi">Như mới</option>
+                <option value="con_tot">Còn tốt</option>
+                <option value="da_cu">Đã cũ</option>
               </select>
             </div>
             <Input
@@ -1272,6 +1414,65 @@ export const MarketplaceListPage: React.FC = () => {
               placeholder="Quận Cầu Giấy, Hà Nội"
             />
           </div>
+
+          {/* Cách nhận đồ */}
+          <div className="space-y-1.5 text-left">
+            <label className="block text-sm font-medium text-gray-700">
+              Cách nhận đồ <span className="text-rose-500 font-bold">*</span> <span className="text-gray-400 font-normal text-xs">(chọn ít nhất 1)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {VALID_DELIVERY_METHODS.map((methodCode) => {
+                const isChecked = deliveryMethods.includes(methodCode);
+                return (
+                  <button
+                    key={methodCode}
+                    type="button"
+                    onClick={() => {
+                      setDeliveryError(null);
+                      if (isChecked) {
+                        setDeliveryMethods(deliveryMethods.filter((m) => m !== methodCode));
+                      } else {
+                        setDeliveryMethods([...deliveryMethods, methodCode]);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      isChecked
+                        ? 'bg-emerald-50 text-[#006d37] border-emerald-300 shadow-xs ring-1 ring-emerald-400/30'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                    <span>{DELIVERY_METHOD_LABELS[methodCode]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {deliveryError && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1 pt-0.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{deliveryError}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Toggle Cho phép trả giá */}
+          {pricingType === 'Giá rẻ' && (
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Cho phép thương lượng / trả giá</p>
+                  <p className="text-[11px] text-gray-500">Người mua có thể nhắn tin thương lượng giá cả</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={isNegotiable}
+                onChange={(e) => setIsNegotiable(e.target.checked)}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+          )}
 
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
@@ -1432,14 +1633,12 @@ export const MarketplaceListPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Tình trạng đồ</label>
               <select
                 value={resubmitCondition}
-                onChange={(e) => setResubmitCondition(e.target.value as any)}
+                onChange={(e) => setResubmitCondition(e.target.value as MarketplaceConditionCode)}
                 className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
               >
-                <option value="Mới 99%">Mới 99%</option>
-                <option value="Còn dùng tốt">Còn dùng tốt</option>
-                <option value="Dùng tốt">Dùng tốt</option>
-                <option value="Đã qua sử dụng">Đã qua sử dụng</option>
-                <option value="Tặng miễn phí">Tặng miễn phí</option>
+                <option value="nhu_moi">Như mới</option>
+                <option value="con_tot">Còn tốt</option>
+                <option value="da_cu">Đã cũ</option>
               </select>
             </div>
             <Input
@@ -1449,6 +1648,65 @@ export const MarketplaceListPage: React.FC = () => {
               placeholder="Quận Cầu Giấy, Hà Nội"
             />
           </div>
+
+          {/* Cách nhận đồ */}
+          <div className="space-y-1.5 text-left">
+            <label className="block text-sm font-medium text-gray-700">
+              Cách nhận đồ <span className="text-rose-500 font-bold">*</span> <span className="text-gray-400 font-normal text-xs">(chọn ít nhất 1)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {VALID_DELIVERY_METHODS.map((methodCode) => {
+                const isChecked = resubmitDeliveryMethods.includes(methodCode);
+                return (
+                  <button
+                    key={methodCode}
+                    type="button"
+                    onClick={() => {
+                      setResubmitDeliveryError(null);
+                      if (isChecked) {
+                        setResubmitDeliveryMethods(resubmitDeliveryMethods.filter((m) => m !== methodCode));
+                      } else {
+                        setResubmitDeliveryMethods([...resubmitDeliveryMethods, methodCode]);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      isChecked
+                        ? 'bg-emerald-50 text-[#006d37] border-emerald-300 shadow-xs ring-1 ring-emerald-400/30'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                    <span>{DELIVERY_METHOD_LABELS[methodCode]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {resubmitDeliveryError && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1 pt-0.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{resubmitDeliveryError}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Toggle Cho phép trả giá */}
+          {resubmitPricingType === 'Giá rẻ' && (
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Cho phép thương lượng / trả giá</p>
+                  <p className="text-[11px] text-gray-500">Người mua có thể nhắn tin thương lượng giá cả</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={resubmitIsNegotiable}
+                onChange={(e) => setResubmitIsNegotiable(e.target.checked)}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+          )}
 
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
@@ -1497,30 +1755,6 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
         </form>
       </Modal>
-
-      {/* Mobile Filter Drawer */}
-      <MarketplaceFilterDrawer
-        isOpen={isFilterDrawerOpen}
-        onClose={() => setIsFilterDrawerOpen(false)}
-        allCategories={categories.filter((c) => c !== 'Tất cả')}
-        selectedCategories={urlState.categories}
-        onToggleCategory={handleToggleCategory}
-        districts={DISTRICTS}
-        selectedDistrict={urlState.district}
-        onSelectDistrict={handleSelectDistrict}
-        minPriceInput={minPriceInput}
-        maxPriceInput={maxPriceInput}
-        onChangeMinPrice={setMinPriceInput}
-        onChangeMaxPrice={setMaxPriceInput}
-        onSelectPresetPrice={handleSelectPresetPrice}
-        isFreeOnly={urlState.isFreeOnly}
-        onToggleFreeOnly={handleToggleFreeOnly}
-        priceError={priceError}
-        selectedSort={urlState.sortBy}
-        onChangeSort={handleSelectSort}
-        onResetAll={handleResetAllFilters}
-        totalResults={filteredItems.length}
-      />
     </div>
   );
 };
