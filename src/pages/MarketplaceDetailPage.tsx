@@ -83,7 +83,9 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [editDistrict, setEditDistrict] = useState<string>(item?.district || '');
   const [editDescription, setEditDescription] = useState<string>(item?.description || '');
   const [editImages, setEditImages] = useState<string[]>(item?.images || []);
-  const [editStatus, setEditStatus] = useState<'Còn hàng' | 'Đã bán'>(item?.status || 'Còn hàng');
+  const [editStatus, setEditStatus] = useState<
+    'Còn hàng' | 'Đã bán' | 'Chờ duyệt' | 'Bị từ chối' | 'Đã duyệt'
+  >(item?.status || 'Còn hàng');
   const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
 
   // Sync edit state whenever item changes or modal opens
@@ -157,13 +159,13 @@ export const MarketplaceDetailPage: React.FC = () => {
 
   const handleAdminApprove = () => {
     if (!item) return;
-    approveMarketplaceItem(item.id, currentUser?.name || 'Admin');
+    approveMarketplaceItem(item.id);
     showToast('Đã phê duyệt tin! 🎉', 'Tin đăng đồ thanh lý đã được công khai trên chợ sinh viên.', 'success');
   };
 
   const handleAdminRejectSubmit = (reason: string) => {
     if (!item) return;
-    rejectMarketplaceItem(item.id, reason, currentUser?.name || 'Admin');
+    rejectMarketplaceItem(item.id, reason);
     setAdminConfirmOpen(false);
     showToast('Đã từ chối tin', `Đã gửi lý do từ chối "${reason}" đến người đăng tin.`, 'info');
   };
@@ -954,6 +956,7 @@ export const MarketplaceDetailPage: React.FC = () => {
         onConfirm={handleAdminRejectSubmit}
         type="marketplace"
         title={`Từ chối duyệt tin: ${item.name}`}
+        description="Tin đăng sẽ bị chuyển sang trạng thái Từ chối. Người đăng sẽ nhận được thông báo kèm lý do cụ thể để chỉnh sửa và nộp lại."
         entityName={item.name}
       />
     </div>

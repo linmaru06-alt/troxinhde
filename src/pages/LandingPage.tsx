@@ -48,7 +48,14 @@ export const LandingPage: React.FC = () => {
 
   const verifiedRooms = (displayRooms || []).filter((r: any) => r.verified && (r.status === 'Còn trống' || r.availability_status === 'available')).slice(0, 6);
   const featuredRoommates = (roommates || []).slice(0, 3);
-  const featuredMarketplace = (marketplaceItems || []).slice(0, 4);
+  const approvedMarketplaceItems = (marketplaceItems || []).filter(
+    (item) =>
+      item.status !== 'Chờ duyệt' &&
+      item.moderationStatus !== 'pending' &&
+      item.status !== 'Bị từ chối' &&
+      item.moderationStatus !== 'rejected'
+  );
+  const featuredMarketplace = approvedMarketplaceItems.slice(0, 4);
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-16 bg-[#f8f9fa]">
@@ -204,7 +211,7 @@ export const LandingPage: React.FC = () => {
 
           <Link to="/cho-do-cu">
             <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả ({(marketplaceItems || []).length} món đồ)
+              Xem tất cả ({approvedMarketplaceItems.length} món đồ)
             </Button>
           </Link>
         </div>

@@ -7,7 +7,7 @@ export interface AdminConfirmModalProps {
   onClose: () => void;
   onConfirm: (reason: string) => Promise<void> | void;
   title: string;
-  description: string;
+  description?: string;
   confirmText?: string;
   cancelText?: string;
   variant?: 'danger' | 'warning' | 'primary';
@@ -91,6 +91,7 @@ export const AdminConfirmModal: React.FC<AdminConfirmModalProps> = ({
   const getCombinedReason = () => {
     const parts = [...selectedReasons];
     if (customDetail.trim()) {
+      
       parts.push(customDetail.trim());
     }
     return parts.join('; ');
