@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
@@ -202,10 +202,10 @@ export const AdminModerationPage: React.FC = () => {
         try {
           await rejectOwnerAppApi(app.id, app.user_id, reason, currentUser);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-          showToast('Đã từ chối đơn đăng ký chủ trọ!', 'info');
+          showToast('Đã từ chối đơn đăng ký!', 'Đã gửi thông báo từ chối tới chủ trọ.', 'info');
           fetchData();
         } catch (err: any) {
-          showToast(`Lỗi: ${err?.message}`, 'error');
+          showToast('Lỗi thao tác', `Lỗi: ${err?.message}`, 'error');
         }
       },
     });
@@ -219,7 +219,7 @@ export const AdminModerationPage: React.FC = () => {
       showToast('Đã phê duyệt tin đăng thanh lý! 🎉', 'Tin đăng đã được công khai trên chợ.', 'success');
       fetchData();
     } catch (err: any) {
-      showToast(`Lỗi khi duyệt tin: ${err?.message || 'Thất bại'}`, 'error');
+      showToast('Lỗi duyệt tin', `Lỗi: ${err?.message || 'Thất bại'}`, 'error');
     }
   };
 
@@ -235,31 +235,31 @@ export const AdminModerationPage: React.FC = () => {
           rejectMarketplaceItem(item.id, reason);
           await rejectMarketplaceItemApi(item.id, reason, currentUser);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
-          showToast('Đã từ chối tin đăng và gửi lý do cho người đăng!', 'info');
+          showToast('Đã từ chối tin đăng!', 'Lý do từ chối đã được gửi cho người đăng.', 'info');
           fetchData();
         } catch (err: any) {
-          showToast(`Lỗi: ${err?.message}`, 'error');
+          showToast('Lỗi thao tác', `Lỗi: ${err?.message}`, 'error');
         }
       },
     });
   };
 
   // Kết hợp danh sách đồ cũ từ store và Supabase
-  const allMergedMarketplaceItems = React.useMemo(() => {
+  const allMergedMarketplaceItems = useMemo(() => {
     const map = new Map<string, any>();
-    adminMarketplaceItems.forEach((item) => map.set(item.id, item));
-    marketplaceItems.forEach((item) => {
+    adminMarketplaceItems.forEach((item: any) => map.set(item.id, item));
+    marketplaceItems.forEach((item: any) => {
       const existing = map.get(item.id);
       map.set(item.id, { ...existing, ...item });
     });
     return Array.from(map.values()).sort(
-      (a, b) =>
+      (a: any, b: any) =>
         new Date(b.createdAt || b.created_at || 0).getTime() -
         new Date(a.createdAt || a.created_at || 0).getTime()
     );
   }, [marketplaceItems, adminMarketplaceItems]);
 
-  const filteredMarketplaceItems = allMergedMarketplaceItems.filter((item) => {
+  const filteredMarketplaceItems = allMergedMarketplaceItems.filter((item: any) => {
     const isPending =
       item.moderationStatus === 'pending' ||
       item.status === 'Chờ duyệt' ||
@@ -277,7 +277,7 @@ export const AdminModerationPage: React.FC = () => {
   });
 
   const pendingMarketplaceCount = allMergedMarketplaceItems.filter(
-    (i) =>
+    (i: any) =>
       i.moderationStatus === 'pending' ||
       i.status === 'Chờ duyệt' ||
       i.moderation_status === 'pending'
