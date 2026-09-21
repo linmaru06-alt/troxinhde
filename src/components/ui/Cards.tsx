@@ -373,7 +373,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
   const { currentUser, removeMarketplaceItem } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = currentUser?.id === item.sellerId;
+  const isOwner = currentUser?.id === item.userId;
 
   const handleConfirmDelete = () => {
     removeMarketplaceItem(item.id);
