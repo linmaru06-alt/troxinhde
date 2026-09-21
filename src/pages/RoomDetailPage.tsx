@@ -42,7 +42,7 @@ import {
   Eye,
 } from "lucide-react";
 
-import { ReportModal } from "../components/modals/ReportModal";
+
 import { getOrCreateConversation } from "../lib/api/messages";
 
 export const RoomDetailPage: React.FC = () => {
