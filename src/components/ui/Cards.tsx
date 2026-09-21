@@ -23,8 +23,21 @@ export const formatCurrency = (amount: number): string => {
 
 // 1. RoomCard
 export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
-  const { savedRoomIds, toggleSaveRoom } = useAppStore();
+  const { savedRoomIds, toggleSaveRoom, currentUser, removeRoom } = useAppStore();
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const isSaved = savedRoomIds.includes(room.id);
+  const isOwner = currentUser?.id === room.ownerId;
+
+  const handleConfirmDelete = () => {
+    removeRoom(room.id);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
 
   // Calculate estimated total monthly cost (Rent + typical electricity ~150k + water ~100k + wifi/service ~150k)
   const estimatedServices = (room.electricityPrice ? room.electricityPrice * 40 : 150000)
@@ -64,22 +77,33 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
           </Badge>
         </div>
 
-        {/* Save Button */}
-        <button
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            toggleSaveRoom(room.id);
-          }}
-          aria-label={isSaved ? 'Bỏ lưu phòng' : 'Lưu phòng'}
-          className={`absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-all duration-200 shadow-sm ${
-            isSaved
-              ? 'bg-rose-500 text-white scale-110'
-              : 'bg-white/80 hover:bg-white text-gray-700 hover:text-rose-500'
-          }`}
-        >
-          <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-        </button>
+        {/* Action Buttons */}
+        <div className="absolute top-3 right-3 flex flex-col gap-2">
+          {isOwner && (
+            <button
+              onClick={handleDeleteClick}
+              aria-label="Xóa phòng"
+              className="p-2 rounded-full backdrop-blur-md transition-all duration-200 shadow-sm bg-white/80 hover:bg-red-50 text-gray-700 hover:text-red-500"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              toggleSaveRoom(room.id);
+            }}
+            aria-label={isSaved ? 'Bỏ lưu phòng' : 'Lưu phòng'}
+            className={`p-2 rounded-full backdrop-blur-md transition-all duration-200 shadow-sm ${
+              isSaved
+                ? 'bg-rose-500 text-white scale-110'
+                : 'bg-white/80 hover:bg-white text-gray-700 hover:text-rose-500'
+            }`}
+          >
+            <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+          </button>
+        </div>
 
         {/* Price Tag Overlay */}
         <div className="absolute bottom-3 left-3 bg-[#00a854]/95 backdrop-blur-md text-white font-black text-xs sm:text-sm px-3 py-1 rounded-xl shadow-md">
@@ -122,12 +146,38 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
           <span className="text-[10px] font-bold text-gray-400">{room.district}</span>
         </div>
       </div>
+      
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa phòng"
+        description="Bạn có chắc chắn muốn xóa tin đăng phòng này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa phòng"
+        cancelText="Hủy"
+        variant="destructive"
+      />
     </div>
   );
 };
 
 // 2. BuildingCard
 export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => {
+  const { currentUser, removeBuilding } = useAppStore();
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const isOwner = currentUser?.id === building.ownerId;
+
+  const handleConfirmDelete = () => {
+    removeBuilding(building.id);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+
   return (
     <Link
       to={`/toa-nha/${building.id}`}
@@ -149,6 +199,17 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
             </Badge>
           )}
         </div>
+        
+        {isOwner && (
+          <button
+            onClick={handleDeleteClick}
+            aria-label="Xóa tòa nhà"
+            className="absolute top-3 right-3 p-2 rounded-full backdrop-blur-md transition-all duration-200 shadow-sm bg-white/80 hover:bg-red-50 text-gray-700 hover:text-red-500"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+
         <div className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-md text-white text-xs font-medium px-2.5 py-1 rounded-lg">
           Còn {building.availableRooms} / {building.totalRooms} phòng
         </div>
@@ -172,6 +233,17 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
           </span>
         </div>
       </div>
+      
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa tòa nhà"
+        description="Bạn có chắc chắn muốn xóa tòa nhà này không? Tất cả các phòng trong tòa nhà cũng sẽ bị ảnh hưởng."
+        confirmText="Xóa tòa nhà"
+        cancelText="Hủy"
+        variant="destructive"
+      />
     </Link>
   );
 };
@@ -299,6 +371,21 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
+  const { currentUser, removeMarketplaceItem } = useAppStore();
+  const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
+  const isOwner = currentUser?.id === item.sellerId;
+
+  const handleConfirmDelete = () => {
+    removeMarketplaceItem(item.id);
+    setShowDeleteConfirm(false);
+  };
+
+  const handleDeleteClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDeleteConfirm(true);
+  };
+
   const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
   const hasMultipleImages = Array.isArray(item.images) && item.images.length > 1;
 
@@ -329,9 +416,19 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           </Badge>
         </div>
 
-        {/* Huy hiệu số lượng ảnh bổ trợ (Góc trên bên phải) */}
+        {isOwner && (
+          <button
+            onClick={handleDeleteClick}
+            aria-label="Xóa món đồ"
+            className="absolute top-2.5 right-2.5 z-30 p-1.5 rounded-full backdrop-blur-md transition-all duration-200 shadow-sm bg-black/40 hover:bg-red-50 text-white hover:text-red-500"
+          >
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+
+        {/* Huy hiệu số lượng ảnh bổ trợ */}
         {hasMultipleImages && (
-          <span className="absolute top-2.5 right-2.5 bg-black/65 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs border border-white/20">
+          <span className={`absolute ${isOwner ? 'top-10' : 'top-2.5'} right-2.5 bg-black/65 backdrop-blur-xs text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-xs border border-white/20`}>
             <Camera className="w-3 h-3 text-amber-300" />
             {item.images.length} ảnh
           </span>
@@ -420,6 +517,17 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           </span>
         </div>
       </div>
+      
+      <ConfirmDialog
+        isOpen={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleConfirmDelete}
+        title="Xóa bài đăng đồ cũ"
+        description="Bạn có chắc chắn muốn xóa món đồ này không? Hành động này không thể hoàn tác."
+        confirmText="Xóa bài đăng"
+        cancelText="Hủy"
+        variant="destructive"
+      />
     </Link>
   );
 };

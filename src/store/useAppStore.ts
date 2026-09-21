@@ -179,7 +179,9 @@ interface AppState {
 
   // Room & Building management
   addBuilding: (building: Omit<Building, 'id'>) => string;
+  removeBuilding: (id: string) => void;
   addRoom: (room: Omit<Room, 'id' | 'views' | 'savedCount' | 'createdAt'>) => string;
+  removeRoom: (id: string) => void;
   updateRoom: (roomId: string, updates: Partial<Room>) => void;
   updateRoomStatus: (roomId: string, status: Room['status']) => void;
   approveRoom: (roomId: string) => void;
@@ -189,6 +191,7 @@ interface AppState {
   addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
   removeRoommatePost: (id: string) => void;
   addMarketplaceItem: (item: Omit<MarketplaceItem, 'id' | 'createdAt'>) => string;
+  removeMarketplaceItem: (id: string) => void;
   updateMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
   approveMarketplaceItem: (itemId: string) => void;
   rejectMarketplaceItem: (itemId: string, reason: string) => void;
@@ -743,6 +746,15 @@ export const useAppStore = create<AppState>()(
         return newId;
       },
 
+      removeBuilding: (id) => {
+        set((state) => ({
+          buildings: state.buildings.filter((b) => b.id !== id),
+          localCreatedBuildings: state.localCreatedBuildings.filter((b) => b.id !== id),
+        }));
+        // TODO: Call API to delete building if needed
+        get().showToast('Đã xóa tòa nhà', 'Tòa nhà đã được xóa khỏi hệ thống', 'success');
+      },
+
       addRoom: (data) => {
         const newId = `room_${Date.now()}`;
         const newRoom: Room = {
@@ -759,6 +771,15 @@ export const useAppStore = create<AppState>()(
         syncRoomToSupabase(newRoom).catch(console.warn);
         get().showToast('Đăng phòng thành công!', 'Tin đăng đang được kiểm duyệt (trong vòng 24h)', 'success');
         return newId;
+      },
+
+      removeRoom: (id) => {
+        set((state) => ({
+          rooms: state.rooms.filter((r) => r.id !== id),
+          localCreatedRooms: state.localCreatedRooms.filter((r) => r.id !== id),
+        }));
+        // TODO: Call API to delete room if needed
+        get().showToast('Đã xóa phòng', 'Phòng đã được xóa khỏi hệ thống', 'success');
       },
 
       updateRoom: (roomId, updates) => {
@@ -879,6 +900,15 @@ export const useAppStore = create<AppState>()(
         syncMarketplaceItemToSupabase(newItem).catch(console.warn);
         get().showToast('Đã gửi tin chờ duyệt! ⏳', 'Tin đăng sẽ được Ban Quản Trị kiểm duyệt trước khi hiển thị công khai', 'info');
         return newId;
+      },
+
+      removeMarketplaceItem: (id) => {
+        set((state) => ({
+          marketplaceItems: state.marketplaceItems.filter((i) => i.id !== id),
+          localCreatedItems: state.localCreatedItems.filter((i) => i.id !== id),
+        }));
+        // TODO: Call API to delete item if needed
+        get().showToast('Đã xóa bài đăng', 'Bài đăng đồ cũ đã được xóa thành công', 'success');
       },
 
       updateMarketplaceItem: (itemId, updates) => {
