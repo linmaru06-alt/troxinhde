@@ -906,7 +906,6 @@ export const RoomDetailPage: React.FC = () => {
               </>
             )}
           </div>
-          </div>
         </div>
       </div>
       
