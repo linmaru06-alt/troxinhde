@@ -5,7 +5,6 @@ import { MarketplaceCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
-  ShoppingBag,
   PlusCircle,
   Sparkles,
   Tag,
@@ -325,14 +324,12 @@ export const MarketplaceListPage: React.FC = () => {
         {/* Dark Gradient & Frosted Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+        {/* Ambient Warm Amber Glow */}
+        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/15 hover:bg-white/20 rounded-full text-xs font-bold text-amber-300 border border-amber-400/30 backdrop-blur-md shadow-xs">
-              <ShoppingBag className="w-4 h-4 text-amber-400" />
-              <span>Giai Đoạn 4: Chợ Sinh Viên Sang Nhượng & Tặng Đồ 0đ</span>
-            </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Chợ Đồ Cũ Sinh Viên <br />
               <span className="text-[#f59e0b]">Tiết Kiệm Tối Đa Chi Phí</span>
@@ -342,16 +339,25 @@ export const MarketplaceListPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="shrink-0 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={handlePostItem}
-              leftIcon={<PlusCircle className="w-5 h-5" />}
-              className="font-bold shadow-lg cursor-pointer"
-            >
-              Đăng Món Đồ Thanh Lý
-            </Button>
+          {/* Phần đăng món đồ thanh lý nổi bật vượt trội */}
+          <div className="shrink-0 flex flex-col items-center md:items-end gap-2.5 w-full md:w-auto">
+            <div className="p-1 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.5)] hover:shadow-[0_0_40px_rgba(245,158,11,0.75)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
+              <button
+                type="button"
+                onClick={handlePostItem}
+                className="w-full md:w-auto flex items-center justify-center gap-3 px-5 sm:px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
+              >
+                <span className="p-1 bg-white/25 rounded-lg flex items-center justify-center shadow-inner">
+                  <PlusCircle className="w-5 h-5 text-white shrink-0 stroke-[2.5]" />
+                </span>
+                <span>Đăng Món Đồ Muốn Thanh Lý</span>
+                <Sparkles className="w-4 h-4 text-amber-200 shrink-0" />
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-amber-500/35 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>Đăng tin miễn phí • Tặng 0đ hoặc sang nhượng</span>
+            </div>
           </div>
         </div>
       </div>
