@@ -1,5 +1,5 @@
-export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
-export type AdminRole = 'super_admin' | 'moderator' | 'support' | 'finance';
+export type UserRole = "guest" | "user" | "owner" | "admin" | "renter";
+export type AdminRole = "super_admin" | "moderator" | "support" | "finance";
 
 export interface User {
   id: string;
@@ -7,7 +7,7 @@ export interface User {
   isDemoAccount?: boolean;
   phone?: string;
   name: string;
-  role: 'user' | 'owner' | 'admin';
+  role: "user" | "owner" | "admin";
   avatarUrl: string;
   email?: string;
   school?: string;
@@ -25,7 +25,7 @@ export interface User {
   adminRole?: AdminRole;
   onboardingCompleted?: boolean;
   ownerOnboardingCompleted?: boolean;
-  ownerApplicationStatus?: 'none' | 'pending' | 'approved' | 'rejected';
+  ownerApplicationStatus?: "none" | "pending" | "approved" | "rejected";
   ownerApplicationDate?: string;
   ownerApplicationReason?: string;
   ownerApplicationRejectionReason?: string;
@@ -45,7 +45,7 @@ export interface OwnerApplication {
   cccdNumber: string;
   cccdImageUrl?: string;
   legalDocsNote?: string;
-  status: 'pending' | 'approved' | 'rejected';
+  status: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   createdAt: string;
   reviewedAt?: string;
@@ -66,8 +66,8 @@ export interface Room {
   electricityPrice: number;
   waterPrice: number;
   area: number;
-  type: 'Phòng đơn' | 'Studio' | 'Phòng ghép' | 'Căn hộ mini';
-  status: 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt' | 'Bị từ chối' | 'Đã ẩn';
+  type: "Phòng đơn" | "Studio" | "Phòng ghép" | "Căn hộ mini";
+  status: "Còn trống" | "Đã cho thuê" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn";
   verified: boolean;
   rejectionReason?: string;
   amenities: string[];
@@ -120,12 +120,12 @@ export interface RoommatePost {
   userId: string;
   userName: string;
   userAvatar: string;
-  userGender: 'Nam' | 'Nữ' | 'Khác';
+  userGender: "Nam" | "Nữ" | "Khác";
   userAge: number;
   userSchool: string;
   district: string;
   budgetShare: number;
-  genderPreference: 'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả';
+  genderPreference: "Chỉ tìm Nữ" | "Chỉ tìm Nam" | "Tất cả";
   habits: string[];
   lifestyleTags?: string[];
   intro: string;
@@ -134,7 +134,7 @@ export interface RoommatePost {
   linkedRoomPrice?: number;
   linkedRoomArea?: number;
   linkedRoomImage?: string;
-  status?: 'Đang tìm' | 'Đã ghép';
+  status?: "Đang tìm" | "Đã ghép";
   images?: string[];
   createdAt: string;
 }
@@ -146,16 +146,21 @@ export interface MarketplaceItem {
   userPhone?: string;
   userAvatar: string;
   name: string;
-  category: 'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng';
+  category: "Nội thất" | "Đồ điện tử" | "Sách vở" | "Đồ gia dụng";
   price: number;
-  pricingType: 'Miễn phí' | 'Giá rẻ';
-  condition: 'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí';
+  pricingType: "Miễn phí" | "Giá rẻ";
+  condition:
+    | "Mới 99%"
+    | "Còn dùng tốt"
+    | "Đã qua sử dụng"
+    | "Dùng tốt"
+    | "Tặng miễn phí";
   location: string;
   district: string;
   images: string[];
   description: string;
-  status?: 'Còn hàng' | 'Đã bán' | 'Chờ duyệt' | 'Bị từ chối' | 'Đã duyệt';
-  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  status?: "Còn hàng" | "Đã bán" | "Chờ duyệt" | "Bị từ chối" | "Đã duyệt";
+  moderationStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   createdAt: string;
   updatedAt?: string;
@@ -168,7 +173,7 @@ export interface Message {
   content: string;
   is_read?: boolean;
   created_at: string;
-  status?: 'sending' | 'sent' | 'read' | 'failed';
+  status?: "sending" | "sent" | "read" | "failed";
   sender?: {
     id: string;
     full_name?: string;
@@ -216,26 +221,26 @@ export interface NotificationItem {
   title: string;
   body: string;
   type:
-    | 'approval'
-    | 'message'
-    | 'chat_message'
-    | 'booking'
-    | 'system'
-    | 'rejected'
-    | 'rejection'
-    | 'upgrade'
-    | 'action_required'
-    | 'owner_approved'
-    | 'owner_rejected'
-    | 'room_approved'
-    | 'marketplace_approved'
-    | 'marketplace_rejected'
-    | 'new_owner_application';
+    | "approval"
+    | "message"
+    | "chat_message"
+    | "booking"
+    | "system"
+    | "rejected"
+    | "rejection"
+    | "upgrade"
+    | "action_required"
+    | "owner_approved"
+    | "owner_rejected"
+    | "room_approved"
+    | "marketplace_approved"
+    | "marketplace_rejected"
+    | "new_owner_application";
   read: boolean;
   ctaUrl?: string;
   ctaLabel?: string;
   actionLink?: string;
-  priority?: 'normal' | 'urgent';
+  priority?: "normal" | "urgent";
   createdAt: string;
 }
 
@@ -250,7 +255,7 @@ export interface BookingRequest {
   date: string;
   timeSlot: string;
   note?: string;
-  status: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy' | 'Đổi giờ' | 'completed' | 'Đã xem phòng';
+  status: "Chờ chủ trọ xác nhận" | "Đã xác nhận" | "Đã hủy";
   createdAt: string;
 }
 
@@ -258,14 +263,14 @@ export interface ReportItem {
   id: string;
   targetId: string;
   targetTitle: string;
-  targetType: 'room' | 'roommate' | 'marketplace' | 'user';
+  targetType: "room" | "roommate" | "marketplace" | "user";
   reporterId?: string;
   reporterName: string;
   reporterPhone?: string;
   reason: string;
   detail?: string;
-  severity?: 'low' | 'medium' | 'high' | 'critical';
-  status: 'pending' | 'resolved' | 'dismissed';
+  severity?: "low" | "medium" | "high" | "critical";
+  status: "pending" | "resolved" | "dismissed";
   adminNotes?: string;
   resolvedBy?: string;
   createdAt: string;
@@ -278,7 +283,15 @@ export interface AuditLog {
   admin_email?: string;
   admin_role?: string;
   action: string;
-  entity_type: 'room' | 'user' | 'report' | 'owner_application' | 'booking' | 'system' | 'marketplace_item' | 'roommate';
+  entity_type:
+    | "room"
+    | "user"
+    | "report"
+    | "owner_application"
+    | "booking"
+    | "system"
+    | "marketplace_item"
+    | "roommate";
   entity_id?: string;
   data_before?: Record<string, any> | null;
   data_after?: Record<string, any> | null;
@@ -319,7 +332,7 @@ export interface Review {
 }
 
 // Payment & Subscription Models
-export type SubscriptionPlanId = 'free' | 'basic' | 'pro';
+export type SubscriptionPlanId = "free" | "basic" | "pro";
 
 export interface SubscriptionPlan {
   id: SubscriptionPlanId;
@@ -334,7 +347,7 @@ export interface SubscriptionPlan {
   description: string;
 }
 
-export type PaymentMethod = 'momo' | 'vnpay' | 'banking' | 'vietqr';
+export type PaymentMethod = "momo" | "vnpay" | "banking" | "vietqr";
 
 export interface PaymentTransaction {
   id: string;
@@ -344,18 +357,17 @@ export interface PaymentTransaction {
   orderInfo: string;
   amount: number;
   method: PaymentMethod;
-  status: 'success' | 'failed' | 'pending';
+  status: "success" | "failed" | "pending";
   planId?: SubscriptionPlanId;
-  boostType?: '3days' | '7days' | '30days';
+  boostType?: "3days" | "7days" | "30days";
   roomId?: string;
   createdAt: string;
 }
 
 export interface OwnerSubscription {
   planId: SubscriptionPlanId;
-  status: 'active' | 'cancelled' | 'expired';
+  status: "active" | "cancelled" | "expired";
   expiresAt: string;
   autoRenew: boolean;
   startedAt: string;
 }
-
