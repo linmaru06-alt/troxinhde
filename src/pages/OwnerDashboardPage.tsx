@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
+import { BookingRequest } from '../types';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -215,7 +216,9 @@ export const OwnerDashboardPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {bookings.map((b) => (
+              {bookings.map((b: BookingRequest) => {
+                const currentStatus: BookingRequest['status'] = b.status;
+                return (
                 <div
                   key={b.id}
                   className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
@@ -226,16 +229,16 @@ export const OwnerDashboardPage: React.FC = () => {
                       <span className="text-xs text-gray-500">({b.renterPhone})</span>
                       <span
                         className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          b.status === 'Đã xác nhận'
+                          currentStatus === 'Đã xác nhận'
                             ? 'bg-emerald-100 text-emerald-800'
-                            : b.status === 'Đã hủy'
+                            : currentStatus === 'Đã hủy'
                             ? 'bg-rose-100 text-rose-800'
-                            : b.status === 'Đổi giờ'
+                            : currentStatus === 'Đổi giờ'
                             ? 'bg-blue-100 text-blue-800'
                             : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        {b.status}
+                        {currentStatus}
                       </span>
                     </div>
 
@@ -258,7 +261,7 @@ export const OwnerDashboardPage: React.FC = () => {
                       <Phone className="w-3.5 h-3.5 text-emerald-600" /> Gọi khách
                     </a>
 
-                    {b.status === 'Chờ chủ trọ xác nhận' && (
+                    {currentStatus === 'Chờ chủ trọ xác nhận' && (
                       <>
                         <button
                           onClick={() => handleUpdateBookingStatus(b.id, 'Đã xác nhận')}
@@ -308,7 +311,8 @@ export const OwnerDashboardPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
         )}

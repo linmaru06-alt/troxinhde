@@ -4,6 +4,7 @@ import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { resolveUserIdToUuid } from '../lib/api/messages';
 import { useAppStore } from '../store/useAppStore';
+import { BookingRequest } from '../types';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { formatPrice, formatCurrency } from '../components/ui/Cards';
@@ -41,13 +42,13 @@ import {
   Eye,
 } from 'lucide-react';
 
-import { ReportModal } from '../components/modals/ReportModal';
+
 import { getOrCreateConversation } from '../lib/api/messages';
 
 export const RoomDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], toggleSaveRoom, showToast } = useAppStore();
+  const { rooms = [], buildings = [], currentUser, savedRoomIds = [], bookings = [], toggleSaveRoom, showToast } = useAppStore();
 
   const [activeTab, setActiveTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
@@ -654,7 +655,7 @@ export const RoomDetailPage: React.FC = () => {
                       let hasCompletedBooking = false;
                       
                       // Check local first
-                      if (bookings.some((b) => b.roomId === room.id && b.renterId === currentUser.id && (b.status === 'completed' || b.status === 'Đã xem phòng' as any))) {
+                      if (bookings.some((b: BookingRequest) => b.roomId === room.id && b.renterId === currentUser.id && (b.status === 'completed' || b.status === 'Đã xem phòng'))) {
                         hasCompletedBooking = true;
                       }
                       

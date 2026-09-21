@@ -28,6 +28,7 @@ import {
   initialNotifications,
 } from '../data/mockData';
 import { signOut } from '../lib/api/auth';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { logoutAuth } from '../lib/authService';
 import { resolveUserIdToUuid } from '../lib/api/messages';
 import { syncUserToSupabase } from '../lib/supabaseAuthSync';

@@ -67,7 +67,7 @@ export interface Room {
   waterPrice: number;
   area: number;
   type: 'Phòng đơn' | 'Studio' | 'Phòng ghép' | 'Căn hộ mini';
-  status: 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt' | 'Bị từ chối';
+  status: 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt' | 'Bị từ chối' | 'Đã ẩn';
   verified: boolean;
   rejectionReason?: string;
   amenities: string[];
@@ -250,7 +250,7 @@ export interface BookingRequest {
   date: string;
   timeSlot: string;
   note?: string;
-  status: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy';
+  status: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy' | 'Đổi giờ' | 'completed' | 'Đã xem phòng';
   createdAt: string;
 }
 
