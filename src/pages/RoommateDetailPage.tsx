@@ -123,7 +123,15 @@ export const RoommateDetailPage: React.FC = () => {
 
     setIsChatLoading(true);
     try {
-      const convId = await getOrCreateConversation(currentUser.id, post.userId, post.linkedRoomId);
+      const convId = await getOrCreateConversation(
+        currentUser.id,
+        post.userId,
+        post.linkedRoomId,
+        {
+          otherName: post.userName,
+          otherAvatar: post.userAvatar,
+        }
+      );
       navigate(`/tin-nhan/${convId}`);
     } catch (err: any) {
       console.error('[RoommateDetail] Lỗi mở chat:', err);

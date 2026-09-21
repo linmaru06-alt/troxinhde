@@ -185,14 +185,20 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
       setMessages((prev) => [...prev, tempMessage]);
 
       try {
-        const savedMessage = await sendMessageApi(conversationId, currentUser.id, cleanContent);
+        const savedMessage = await sendMessageApi(
+          conversationId,
+          currentUser.id,
+          cleanContent,
+          currentUser.name
+        );
 
-        // Cập nhật trạng thái thành 'sent' và gắn ID thật từ Supabase
+        // Cập nhật trạng thái thành 'sent' và giữ sender_id đồng bộ với currentUser
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempId
               ? {
                   ...savedMessage,
+                  sender_id: currentUser.id,
                   status: 'sent',
                   sender: tempMessage.sender,
                 }

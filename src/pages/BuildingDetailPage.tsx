@@ -48,7 +48,15 @@ export const BuildingDetailPage: React.FC = () => {
 
     setIsChatLoading(true);
     try {
-      const convId = await getOrCreateConversation(currentUser.id, building.ownerId);
+      const convId = await getOrCreateConversation(
+        currentUser.id,
+        building.ownerId,
+        undefined,
+        {
+          otherName: `Chủ tòa nhà ${building.name}`,
+          otherAvatar: building.coverImageUrl,
+        }
+      );
       navigate(`/tin-nhan/${convId}`);
     } catch (err: any) {
       console.error('[BuildingDetail] Lỗi mở chat:', err);

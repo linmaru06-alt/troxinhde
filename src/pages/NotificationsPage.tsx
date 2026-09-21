@@ -29,6 +29,7 @@ export const NotificationsPage: React.FC = () => {
       case 'approval':
         return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;
       case 'message':
+      case 'chat_message':
         return <MessageSquare className="w-5 h-5 text-blue-600" />;
       case 'booking':
         return <Calendar className="w-5 h-5 text-amber-600" />;

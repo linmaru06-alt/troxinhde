@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
-import { getConversations } from '../lib/api/messages';
+import { getConversations, isSameUserId, KNOWN_USER_NAMES } from '../lib/api/messages';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
 import {
@@ -109,20 +109,29 @@ export const ChatPage: React.FC = () => {
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) || conversations[0];
 
-  const isP1Me =
-    Boolean(currentUser?.id) &&
-    (activeConversation?.participant_1 === currentUser?.id ||
-      activeConversation?.participant_1?.startsWith('00000000-0000-0000-0000-000000000003'));
+  const isP1Me = isSameUserId(activeConversation?.participant_1, currentUser?.id);
 
   const otherParticipant = isP1Me
     ? (activeConversation?.p2 || activeConversation?.p1)
     : (activeConversation?.p1 || activeConversation?.p2);
 
+  const otherId = isP1Me
+    ? activeConversation?.participant_2
+    : activeConversation?.participant_1;
+
+  const knownOther = otherId ? KNOWN_USER_NAMES[otherId] : null;
+
   const otherName =
+    activeConversation?.other_name ||
     otherParticipant?.full_name ||
     otherParticipant?.name ||
-    'Người dùng Trọ Xinh';
-  const otherAvatar = otherParticipant?.avatar_url || '/images/user-avatar.jpg';
+    knownOther?.name ||
+    (isP1Me ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
+  const otherAvatar =
+    activeConversation?.other_avatar ||
+    otherParticipant?.avatar_url ||
+    knownOther?.avatar ||
+    '/images/user-avatar.jpg';
   const otherPhone = otherParticipant?.phone;
 
   const quickReplies = [
@@ -210,10 +219,21 @@ export const ChatPage: React.FC = () => {
               </div>
             ) : (
               conversations.map((c) => {
-                const isMe = c.participant_1 === currentUser?.id;
+                const isMe = isSameUserId(c.participant_1, currentUser?.id);
                 const other = isMe ? c.p2 : c.p1;
-                const name = other?.full_name || other?.name || 'Chủ trọ';
-                const avatar = other?.avatar_url || '/images/user-avatar.jpg';
+                const otherId = isMe ? c.participant_2 : c.participant_1;
+                const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+                const name =
+                  c.other_name ||
+                  other?.full_name ||
+                  other?.name ||
+                  known?.name ||
+                  (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
+                const avatar =
+                  c.other_avatar ||
+                  other?.avatar_url ||
+                  known?.avatar ||
+                  '/images/user-avatar.jpg';
                 const isActive = c.id === activeConversationId;
 
                 return (
@@ -333,46 +353,79 @@ export const ChatPage: React.FC = () => {
                   </div>
                 ) : (
                   chatMessages.map((msg) => {
-                    const isMe = msg.sender_id === currentUser?.id;
+                    const isMe = isSameUserId(msg.sender_id, currentUser?.id);
+                    const msgSenderName = isMe
+                      ? (currentUser?.name || 'Bạn')
+                      : (msg.sender?.full_name || msg.sender?.name || (KNOWN_USER_NAMES[msg.sender_id]?.name) || otherName);
+                    const msgSenderAvatar = isMe
+                      ? (currentUser?.avatarUrl || '/images/user-avatar.jpg')
+                      : (msg.sender?.avatar_url || (KNOWN_USER_NAMES[msg.sender_id]?.avatar) || otherAvatar);
+
+                    const timeStr = msg.created_at
+                      ? new Date(msg.created_at).toLocaleTimeString([], {
+                          hour: '2-digit',
+                          minute: '2-digit',
+                        })
+                      : '';
+
                     return (
-                      <div key={msg.id} className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`max-w-[85%] sm:max-w-[70%] rounded-2xl px-4 py-2.5 text-xs shadow-2xs leading-relaxed ${
-                            isMe
-                              ? 'bg-[#00a854] text-white rounded-br-none'
-                              : 'bg-white text-gray-900 border border-gray-100 rounded-bl-none'
-                          }`}
-                        >
-                          <p className="whitespace-pre-wrap break-words">{msg.content}</p>
-                          <div
-                            className={`flex items-center justify-end gap-1 mt-1 text-[10px] ${
-                              isMe ? 'text-emerald-100' : 'text-gray-400'
-                            }`}
-                          >
-                            <span>
-                              {new Date(msg.created_at).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                      <div
+                        key={msg.id}
+                        className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
+                      >
+                        {isMe ? (
+                          /* Phần mình nhắn: Nằm bên PHẢI, có tên người nhắn + bong bóng màu xanh + thời gian */
+                          <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
+                            <span className="text-[11px] font-semibold text-[#006d37] mr-1 mb-1">
+                              {msgSenderName}
                             </span>
-                            {isMe &&
-                              (msg.status === 'sending' ? (
-                                <Clock className="w-2.5 h-2.5 animate-spin" />
-                              ) : msg.status === 'failed' ? (
-                                <button
-                                  type="button"
-                                  onClick={() => retryMessage(msg)}
-                                  className="inline-flex items-center gap-0.5 text-rose-200 hover:text-white font-bold cursor-pointer"
-                                  title="Thử gửi lại tin nhắn này"
-                                >
-                                  <AlertCircle className="w-3 h-3 text-rose-300" />
-                                  <span className="underline">Thử lại</span>
-                                </button>
-                              ) : (
-                                <CheckCheck className="w-3 h-3 text-emerald-200" />
-                              ))}
+                            <div className="bg-[#006d37] text-white rounded-2xl rounded-br-xs px-4 py-2.5 shadow-xs w-fit">
+                              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+                                {msg.content}
+                              </p>
+                              <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-emerald-100">
+                                <span>{timeStr}</span>
+                                {msg.status === 'sending' ? (
+                                  <Clock className="w-2.5 h-2.5 animate-spin text-emerald-200" />
+                                ) : msg.status === 'failed' ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => retryMessage(msg)}
+                                    className="inline-flex items-center gap-0.5 text-rose-200 hover:text-white font-bold cursor-pointer"
+                                    title="Thử gửi lại tin nhắn này"
+                                  >
+                                    <AlertCircle className="w-3 h-3 text-rose-300" />
+                                    <span className="underline">Thử lại</span>
+                                  </button>
+                                ) : (
+                                  <CheckCheck className="w-3 h-3 text-emerald-200" />
+                                )}
+                              </div>
+                            </div>
                           </div>
-                        </div>
+                        ) : (
+                          /* Phần người nhận / đối phương gửi: Nằm bên TRÁI, có avatar + tên cụ thể + bong bóng trắng + thời gian */
+                          <div className="flex items-start gap-2 max-w-[85%] sm:max-w-[70%]">
+                            <img
+                              src={msgSenderAvatar}
+                              alt={msgSenderName}
+                              className="w-8 h-8 rounded-full object-cover shrink-0 ring-1 ring-gray-200 mt-1"
+                            />
+                            <div className="flex flex-col items-start flex-1 min-w-0">
+                              <span className="text-[11px] font-bold text-gray-800 ml-1 mb-1 truncate">
+                                {msgSenderName}
+                              </span>
+                              <div className="bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-2xs w-fit">
+                                <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+                                  {msg.content}
+                                </p>
+                                <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
+                                  <span>{timeStr}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     );
                   })

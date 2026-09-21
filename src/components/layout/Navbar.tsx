@@ -44,7 +44,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { currentUser, logout, savedRoomIds = [] } = useAppStore();
   const { openAuthModal } = useUIStore();
-  const { unreadCount: unreadNotifs } = useRealtimeNotifications();
+  const { unreadCount: unreadNotifs, notifications } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -97,7 +97,9 @@ export const Navbar: React.FC = () => {
     if (khuVuc !== null) setSelectedDistrict(khuVuc);
   }, [location.search]);
 
-  const unreadMessages = 0;
+  const unreadMessages = (notifications || []).filter(
+    (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
+  ).length;
 
   // Main navigation links: Room rental, Map, Roommate, Student Marketplace
   const navLinks = [

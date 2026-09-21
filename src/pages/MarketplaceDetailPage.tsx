@@ -182,7 +182,15 @@ export const MarketplaceDetailPage: React.FC = () => {
 
     setIsChatLoading(true);
     try {
-      const convId = await getOrCreateConversation(currentUser.id, item.userId);
+      const convId = await getOrCreateConversation(
+        currentUser.id,
+        item.userId,
+        undefined,
+        {
+          otherName: item.userName || 'Người bán',
+          otherAvatar: item.userAvatar,
+        }
+      );
       navigate(`/tin-nhan/${convId}`);
     } catch (err: any) {
       console.error('[MarketplaceDetail] Lỗi mở chat:', err);

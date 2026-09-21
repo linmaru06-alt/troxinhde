@@ -21,8 +21,61 @@ const KNOWN_DEMO_UUIDS: Record<string, string> = {
   'nguoithue@troxinh.vn': '00000000-0000-0000-0000-000000000003',
 };
 
+export const KNOWN_USER_NAMES: Record<string, { name: string; avatar: string }> = {
+  '00000000-0000-0000-0000-000000000001': {
+    name: 'Ban Quản Trị Trọ Xinh',
+    avatar: '/images/user-avatar.jpg',
+  },
+  '00000000-0000-0000-0000-000000000002': {
+    name: 'Trần Quốc Tuấn (Chủ Trọ)',
+    avatar: '/images/user-avatar.jpg',
+  },
+  '00000000-0000-0000-0000-000000000003': {
+    name: 'Nguyễn Văn An (Người Thuê)',
+    avatar: '/images/user-avatar.jpg',
+  },
+  demo_admin_uuid: {
+    name: 'Ban Quản Trị Trọ Xinh',
+    avatar: '/images/user-avatar.jpg',
+  },
+  demo_owner_uuid: {
+    name: 'Trần Quốc Tuấn (Chủ Trọ)',
+    avatar: '/images/user-avatar.jpg',
+  },
+  demo_renter_uuid: {
+    name: 'Nguyễn Văn An (Người Thuê)',
+    avatar: '/images/user-avatar.jpg',
+  },
+  user_owner_1: {
+    name: 'Trần Quốc Tuấn (Chủ Trọ)',
+    avatar: '/images/user-avatar.jpg',
+  },
+  user_renter_1: {
+    name: 'Nguyễn Văn An (Người Thuê)',
+    avatar: '/images/user-avatar.jpg',
+  },
+};
+
 const LOCAL_CONVS_KEY = 'troxinh_local_conversations';
 const LOCAL_MSGS_KEY = 'troxinh_local_messages';
+const CONV_META_PREFIX = 'troxinh_conv_meta_';
+
+export function getConversationMeta(convId: string): { other_name?: string; other_avatar?: string } | null {
+  try {
+    const raw = localStorage.getItem(`${CONV_META_PREFIX}${convId}`) || sessionStorage.getItem(`${CONV_META_PREFIX}${convId}`);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveConversationMeta(convId: string, meta: { other_name?: string; other_avatar?: string }) {
+  try {
+    const json = JSON.stringify(meta);
+    localStorage.setItem(`${CONV_META_PREFIX}${convId}`, json);
+    sessionStorage.setItem(`${CONV_META_PREFIX}${convId}`, json);
+  } catch {}
+}
 
 function getLocalConversations(): Conversation[] {
   try {
@@ -38,6 +91,12 @@ function saveLocalConversation(conv: Conversation) {
     const list = getLocalConversations().filter((c) => c.id !== conv.id);
     list.unshift(conv);
     sessionStorage.setItem(LOCAL_CONVS_KEY, JSON.stringify(list));
+    if (conv.other_name || conv.other_avatar) {
+      saveConversationMeta(conv.id, {
+        other_name: conv.other_name,
+        other_avatar: conv.other_avatar,
+      });
+    }
   } catch {}
 }
 
@@ -56,6 +115,50 @@ function saveLocalMessage(msg: Message) {
     list.push(msg);
     sessionStorage.setItem(`${LOCAL_MSGS_KEY}_${msg.conversation_id}`, JSON.stringify(list));
   } catch {}
+}
+
+/**
+ * Kiểm tra xem 2 ID người dùng có trỏ về cùng một tài khoản hay không
+ * (Bao gồm chuẩn hóa giữa UUID trong database và các ID demo/mock)
+ */
+export function isSameUserId(id1?: string | null, id2?: string | null): boolean {
+  if (!id1 || !id2) return false;
+  const clean1 = id1.trim();
+  const clean2 = id2.trim();
+  if (clean1 === clean2) return true;
+
+  const DEMO_GROUPS: string[][] = [
+    [
+      '00000000-0000-0000-0000-000000000001',
+      'demo_admin_uuid',
+      'demo_admin_troxinh',
+      'usr_admin_quan66934',
+      'admin@troxinh.vn',
+    ],
+    [
+      '00000000-0000-0000-0000-000000000002',
+      'demo_owner_uuid',
+      'demo_owner_troxinh',
+      'user_owner_1',
+      'chutro@troxinh.vn',
+    ],
+    [
+      '00000000-0000-0000-0000-000000000003',
+      'demo_renter_uuid',
+      'demo_renter_troxinh',
+      'user_renter_1',
+      'user_renter_2',
+      'nguoithue@troxinh.vn',
+    ],
+  ];
+
+  for (const group of DEMO_GROUPS) {
+    if (group.includes(clean1) && group.includes(clean2)) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 /**
@@ -100,7 +203,12 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
 export async function getOrCreateConversation(
   tenantId: string,
   landlordId: string,
-  roomId?: string
+  roomId?: string,
+  extra?: {
+    otherName?: string;
+    otherAvatar?: string;
+    roomTitle?: string;
+  }
 ): Promise<string> {
   if (!tenantId || !landlordId) {
     throw new Error('Thiếu thông tin người tham gia hội thoại.');
@@ -141,6 +249,12 @@ export async function getOrCreateConversation(
   }
 
   if (existingId) {
+    if (extra?.otherName || extra?.otherAvatar) {
+      saveConversationMeta(existingId, {
+        other_name: extra.otherName,
+        other_avatar: extra.otherAvatar,
+      });
+    }
     return existingId;
   }
 
@@ -160,6 +274,12 @@ export async function getOrCreateConversation(
         .maybeSingle();
 
       if (!insertErr && created?.id) {
+        if (extra?.otherName || extra?.otherAvatar) {
+          saveConversationMeta(created.id, {
+            other_name: extra.otherName,
+            other_avatar: extra.otherAvatar,
+          });
+        }
         return created.id;
       }
       if (insertErr) {
@@ -200,11 +320,15 @@ export async function getOrCreateConversation(
     unread_count_p1: 0,
     unread_count_p2: 0,
     created_at: new Date().toISOString(),
+    other_name: extra?.otherName || otherProfile?.full_name || KNOWN_USER_NAMES[cleanLandlordId]?.name || 'Người dùng Trọ Xinh',
+    other_avatar: extra?.otherAvatar || otherProfile?.avatar_url || KNOWN_USER_NAMES[cleanLandlordId]?.avatar || '/images/user-avatar.jpg',
     p1: undefined,
-    p2: otherProfile || {
+    p2: {
       id: cleanLandlordId,
-      full_name: 'Thành viên Trọ Xinh',
-      avatar_url: '/images/user-avatar.jpg',
+      full_name: extra?.otherName || otherProfile?.full_name || KNOWN_USER_NAMES[cleanLandlordId]?.name || 'Người dùng Trọ Xinh',
+      name: extra?.otherName || otherProfile?.name || KNOWN_USER_NAMES[cleanLandlordId]?.name || 'Người dùng Trọ Xinh',
+      avatar_url: extra?.otherAvatar || otherProfile?.avatar_url || KNOWN_USER_NAMES[cleanLandlordId]?.avatar || '/images/user-avatar.jpg',
+      phone: otherProfile?.phone,
     },
   };
 
@@ -251,14 +375,52 @@ export async function getConversations(userId: string): Promise<Conversation[]> 
 
   // Kết hợp an toàn với các cuộc trò chuyện cục bộ trong phiên
   const localList = getLocalConversations().filter(
-    (c) => c.participant_1 === cleanUserId || c.participant_2 === cleanUserId
+    (c) => isSameUserId(c.participant_1, cleanUserId) || isSameUserId(c.participant_2, cleanUserId)
   );
 
   const convMap = new Map<string, Conversation>();
   localList.forEach((c) => convMap.set(c.id, c));
-  serverList.forEach((c) => convMap.set(c.id, c));
+  serverList.forEach((c) => {
+    const existing = convMap.get(c.id);
+    convMap.set(c.id, {
+      ...c,
+      other_name: c.other_name || existing?.other_name,
+      other_avatar: c.other_avatar || existing?.other_avatar,
+      p1: c.p1 || existing?.p1,
+      p2: c.p2 || existing?.p2,
+    });
+  });
 
-  return Array.from(convMap.values()).sort(
+  const merged = Array.from(convMap.values()).map((c) => {
+    const savedMeta = getConversationMeta(c.id);
+    const isMe = isSameUserId(c.participant_1, cleanUserId);
+    const otherId = isMe ? c.participant_2 : c.participant_1;
+    const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+    const other = isMe ? c.p2 : c.p1;
+
+    const resolvedName =
+      c.other_name ||
+      savedMeta?.other_name ||
+      other?.full_name ||
+      other?.name ||
+      known?.name ||
+      (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
+
+    const resolvedAvatar =
+      c.other_avatar ||
+      savedMeta?.other_avatar ||
+      other?.avatar_url ||
+      known?.avatar ||
+      '/images/user-avatar.jpg';
+
+    return {
+      ...c,
+      other_name: resolvedName,
+      other_avatar: resolvedAvatar,
+    };
+  });
+
+  return merged.sort(
     (a, b) =>
       new Date(b.last_message_at || b.created_at || 0).getTime() -
       new Date(a.last_message_at || a.created_at || 0).getTime()
@@ -312,7 +474,8 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
 export async function sendMessage(
   conversationId: string,
   senderId: string,
-  content: string
+  content: string,
+  senderName?: string
 ): Promise<Message> {
   const cleanContent = content.trim();
   if (!cleanContent) {
@@ -334,6 +497,8 @@ export async function sendMessage(
     created_at: new Date().toISOString(),
     status: 'sent',
   };
+
+  let savedMessage: Message = msgPayload;
 
   // 1. Thử gửi lên Supabase
   if (isSupabaseConfigured) {
@@ -359,6 +524,7 @@ export async function sendMessage(
         .maybeSingle();
 
       if (!error && data) {
+        savedMessage = data as unknown as Message;
         // Cập nhật tin nhắn gần nhất vào bảng conversations
         supabase
           .from('conversations')
@@ -368,8 +534,6 @@ export async function sendMessage(
           })
           .eq('id', conversationId)
           .then();
-
-        return data as unknown as Message;
       }
     } catch (error) {
       console.warn('[MessagesAPI] sendMessage Supabase error:', error);
@@ -377,8 +541,37 @@ export async function sendMessage(
   }
 
   // 2. Fallback lưu cục bộ trong phiên nếu Supabase RLS từ chối
-  saveLocalMessage(msgPayload);
+  saveLocalMessage(savedMessage);
 
-  return msgPayload;
+  // 3. Tự động gửi thông báo Realtime cho người nhận
+  try {
+    const localConvs = getLocalConversations();
+    const conv = localConvs.find((c) => c.id === conversationId);
+    let receiverId = '';
+    if (conv) {
+      receiverId = isSameUserId(conv.participant_1, cleanSenderId)
+        ? conv.participant_2
+        : conv.participant_1;
+    }
+
+    if (isSupabaseConfigured && receiverId && !isSameUserId(receiverId, cleanSenderId)) {
+      supabase
+        .from('notifications')
+        .insert({
+          user_id: receiverId,
+          title: `Tin nhắn từ ${senderName || 'Người dùng'} 💬`,
+          body: cleanContent.length > 80 ? cleanContent.slice(0, 80) + '...' : cleanContent,
+          type: 'chat_message',
+          cta_url: `/tin-nhan/${conversationId}`,
+          cta_label: 'Trả lời ngay',
+          is_read: false,
+        })
+        .then();
+    }
+  } catch (notifErr) {
+    console.warn('[MessagesAPI] Lỗi gửi thông báo tin nhắn:', notifErr);
+  }
+
+  return savedMessage;
 }
 

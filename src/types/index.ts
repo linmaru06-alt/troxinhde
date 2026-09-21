@@ -193,12 +193,14 @@ export interface Conversation {
   unread_count_p1?: number;
   unread_count_p2?: number;
   created_at?: string;
+  other_name?: string;
+  other_avatar?: string;
   // Joined relations
   rooms?: {
     id: string;
     name?: string;
     title?: string;
-    price: number;
+    price?: number;
     images?: string[];
   } | null;
   p1?: ConversationParticipant | null;

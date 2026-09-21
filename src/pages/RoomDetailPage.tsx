@@ -121,7 +121,16 @@ export const RoomDetailPage: React.FC = () => {
 
     setIsChatLoading(true);
     try {
-      const convId = await getOrCreateConversation(currentUser.id, room.ownerId, room.id);
+      const convId = await getOrCreateConversation(
+        currentUser.id,
+        room.ownerId,
+        room.id,
+        {
+          otherName: room.ownerName || 'Chủ trọ',
+          otherAvatar: room.ownerAvatar,
+          roomTitle: room.name,
+        }
+      );
       navigate(`/tin-nhan/${convId}`);
     } catch (err: any) {
       console.error('[RoomDetailPage] Lỗi mở cuộc trò chuyện:', err);
