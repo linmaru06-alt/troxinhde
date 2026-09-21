@@ -1,6 +1,31 @@
 import { MarketplaceItem } from '../types';
 
 /**
+ * Danh sách danh mục hợp lệ
+ */
+export const VALID_CATEGORIES = [
+  'Nội thất',
+  'Đồ điện tử',
+  'Sách vở',
+  'Đồ gia dụng',
+] as const;
+
+/**
+ * Danh sách quận/huyện hợp lệ tại Hà Nội
+ */
+export const VALID_DISTRICTS = [
+  'Quận Cầu Giấy',
+  'Quận Đống Đa',
+  'Quận Hai Bà Trưng',
+  'Quận Thanh Xuân',
+  'Quận Nam Từ Liêm',
+  'Quận Hà Đông',
+  'Quận Ba Đình',
+  'Quận Bắc Từ Liêm',
+  'Quận Hoàng Mai',
+] as const;
+
+/**
  * Loại bỏ dấu tiếng Việt và chuẩn hóa chuỗi để tìm kiếm không phân biệt hoa thường và dấu
  */
 export function removeVietnameseTones(str: string): string {
@@ -14,7 +39,7 @@ export function removeVietnameseTones(str: string): string {
     .trim();
 }
 
-export type MarketplaceSortOption = 'newest' | 'price_asc' | 'price_desc' | 'free_first';
+export type MarketplaceSortOption = 'newest' | 'price_asc' | 'price_desc';
 
 export interface MarketplaceFilterCriteria {
   keyword?: string;
@@ -74,6 +99,151 @@ export function countActiveFilters(criteria: MarketplaceFilterCriteria): number 
   }
 
   return count;
+}
+
+/**
+ * Làm sạch và chuẩn hóa giá trị số tiền: loại bỏ số âm, làm tròn xuống số nguyên
+ */
+export function sanitizePrice(val: any): number | undefined {
+  if (val === null || val === undefined || val === '') return undefined;
+  const num = Number(val);
+  if (isNaN(num) || num < 0) return undefined;
+  return Math.floor(num);
+}
+
+export interface ParsedMarketplaceFilterState {
+  keyword: string;
+  categories: string[];
+  district: string;
+  minPrice?: number;
+  maxPrice?: number;
+  isFreeOnly: boolean;
+  sortBy: MarketplaceSortOption;
+  page: number;
+}
+
+/**
+ * Phân tích và validate an toàn các query param từ URL search string
+ */
+export function parseMarketplaceUrlParams(searchParams: URLSearchParams): ParsedMarketplaceFilterState {
+  const rawQ = searchParams.get('q') || '';
+  const rawCat = searchParams.get('danhMuc');
+  const rawDist = searchParams.get('khuVuc') || '';
+  const rawMin = searchParams.get('giaTu');
+  const rawMax = searchParams.get('giaDen');
+  const rawFree = searchParams.get('mienPhi');
+  const rawSort = searchParams.get('sapXep');
+  const rawPage = searchParams.get('trang');
+
+  // 1. Từ khóa
+  const keyword = rawQ.trim();
+
+  // 2. Danh mục (loại bỏ giá trị không hợp lệ)
+  let categories: string[] = [];
+  if (rawCat) {
+    const splitCats = rawCat.split(',').map((c) => c.trim()).filter(Boolean);
+    categories = splitCats.filter((c) => (VALID_CATEGORIES as readonly string[]).includes(c));
+  }
+
+  // 3. Khu vực (loại bỏ giá trị không hợp lệ)
+  let district = '';
+  if (rawDist && (VALID_DISTRICTS as readonly string[]).includes(rawDist.trim())) {
+    district = rawDist.trim();
+  }
+
+  // 4. Toggle miễn phí
+  const isFreeOnly = rawFree === '1' || rawFree === 'true';
+
+  // 5. Khoảng giá (nếu bật miễn phí thì bỏ qua giá)
+  let minPrice = isFreeOnly ? undefined : sanitizePrice(rawMin);
+  let maxPrice = isFreeOnly ? undefined : sanitizePrice(rawMax);
+
+  // Nếu min > max trong URL, hoán đổi để đảm bảo hợp lệ an toàn
+  if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+    const temp = minPrice;
+    minPrice = maxPrice;
+    maxPrice = temp;
+  }
+
+  // 6. Sắp xếp (fallback 'newest' nếu giá trị lạ)
+  let sortBy: MarketplaceSortOption = 'newest';
+  if (rawSort === 'price_asc' || rawSort === 'price_desc') {
+    sortBy = rawSort;
+  }
+
+  // 7. Số trang (fallback 1 nếu <= 0 hoặc không phải số)
+  let page = 1;
+  if (rawPage) {
+    const parsed = parseInt(rawPage, 10);
+    if (!isNaN(parsed) && parsed >= 1) {
+      page = parsed;
+    }
+  }
+
+  return {
+    keyword,
+    categories,
+    district,
+    minPrice,
+    maxPrice,
+    isFreeOnly,
+    sortBy,
+    page,
+  };
+}
+
+/**
+ * Xây dựng URLSearchParams sạch từ state: Không đưa giá trị mặc định / rỗng vào URL
+ */
+export function buildMarketplaceUrlParams(state: ParsedMarketplaceFilterState): URLSearchParams {
+  const params = new URLSearchParams();
+
+  // 1. Từ khóa
+  if (state.keyword && state.keyword.trim()) {
+    params.set('q', state.keyword.trim());
+  }
+
+  // 2. Danh mục
+  const validCats = state.categories.filter((c) => (VALID_CATEGORIES as readonly string[]).includes(c));
+  if (validCats.length > 0) {
+    params.set('danhMuc', validCats.join(','));
+  }
+
+  // 3. Khu vực
+  if (state.district && (VALID_DISTRICTS as readonly string[]).includes(state.district)) {
+    params.set('khuVuc', state.district);
+  }
+
+  // 4. Miễn phí hoặc khoảng giá
+  if (state.isFreeOnly) {
+    params.set('mienPhi', '1');
+  } else {
+    let min = sanitizePrice(state.minPrice);
+    let max = sanitizePrice(state.maxPrice);
+    if (min !== undefined && max !== undefined && min > max) {
+      const temp = min;
+      min = max;
+      max = temp;
+    }
+    if (min !== undefined) {
+      params.set('giaTu', String(min));
+    }
+    if (max !== undefined) {
+      params.set('giaDen', String(max));
+    }
+  }
+
+  // 5. Sắp xếp: chỉ đưa vào khi khác 'newest' (mặc định)
+  if (state.sortBy && state.sortBy !== 'newest') {
+    params.set('sapXep', state.sortBy);
+  }
+
+  // 6. Trang: chỉ đưa vào khi > 1
+  if (state.page && state.page > 1) {
+    params.set('trang', String(Math.floor(state.page)));
+  }
+
+  return params;
 }
 
 /**
@@ -181,22 +351,22 @@ export function filterMarketplaceItems(
       return true;
     })
     .sort((a, b) => {
-      // 6. Sắp xếp kết quả:
-      if (sortBy === 'price_asc') {
-        return (a.price || 0) - (b.price || 0);
-      }
-      if (sortBy === 'price_desc') {
-        return (b.price || 0) - (a.price || 0);
-      }
-      if (sortBy === 'free_first') {
-        const aFree = a.pricingType === 'Miễn phí' || a.price === 0;
-        const bFree = b.pricingType === 'Miễn phí' || b.price === 0;
-        if (aFree && !bFree) return -1;
-        if (!aFree && bFree) return 1;
-      }
-      // Mặc định: 'newest'
+      // 6. Sắp xếp kết quả (Stable sort: Tiêu chí phụ là createdAt mới hơn)
       const timeB = new Date(b.createdAt || 0).getTime();
       const timeA = new Date(a.createdAt || 0).getTime();
+
+      if (sortBy === 'price_asc') {
+        const diff = (a.price || 0) - (b.price || 0);
+        if (diff !== 0) return diff;
+        return timeB - timeA;
+      }
+      if (sortBy === 'price_desc') {
+        const diff = (b.price || 0) - (a.price || 0);
+        if (diff !== 0) return diff;
+        return timeB - timeA;
+      }
+
+      // Mặc định: 'newest'
       return timeB - timeA;
     });
 }

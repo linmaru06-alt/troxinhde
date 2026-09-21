@@ -275,7 +275,6 @@ export const MarketplaceFilterDrawer: React.FC<MarketplaceFilterDrawerProps> = (
                   <option value="newest">Mới nhất trước</option>
                   <option value="price_asc">Giá: Thấp → Cao</option>
                   <option value="price_desc">Giá: Cao → Thấp</option>
-                  <option value="free_first">Đồ tặng 0đ lên đầu</option>
                 </select>
               </div>
             </div>
