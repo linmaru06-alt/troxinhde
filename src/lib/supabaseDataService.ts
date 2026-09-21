@@ -153,7 +153,7 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
     const poster = r.profiles || {};
     return {
       id: r.id,
-      userId: r.poster_id || poster.id || r.userId || '',
+      userId: r.original_user_id || r.poster_id || poster.id || r.userId || '',
       userName: r.nickname || poster.full_name || r.userName || 'Thành viên Trọ Xinh',
       userAvatar: poster.avatar_url || r.userAvatar || '/images/user-avatar.jpg',
       userAge: Number(r.age || r.userAge) || 20,
@@ -317,6 +317,7 @@ export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<bo
   const payload = {
     id: post.id,
     poster_id: validPosterId,
+    original_user_id: post.userId, // Preserve original userId (e.g. 'user_1') for Demo accounts
     room_id: (post.linkedRoomId && post.linkedRoomId.length === 36) ? post.linkedRoomId : null,
     nickname: post.userName,
     age: post.userAge || 20,
