@@ -464,7 +464,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </Link>
 
               <Link
-                to="/ve-chung-toi/an-toan"
+                to="/help"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
