@@ -22,6 +22,39 @@ export function useRealtimeNotifications() {
 
     let isMounted = true;
     let channel: any = null;
+    const cleanUserIdPromise = resolveUserIdToUuid(currentUser.id);
+
+    const fetchInitialNotifications = async () => {
+      try {
+        const cleanUserId = await cleanUserIdPromise;
+        const { data, error } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', cleanUserId || currentUser.id)
+          .order('created_at', { ascending: false })
+          .limit(50);
+
+        if (!error && data && isMounted) {
+          useAppStore.setState((state) => {
+            const cloudNotifs: NotificationItem[] = data.map((n) => ({
+              id: n.id,
+              userId: n.user_id,
+              title: n.title,
+              body: n.body || n.content || '',
+              type: n.type || 'system',
+              read: n.is_read || false,
+              ctaUrl: n.cta_url || n.action_link,
+              ctaLabel: n.cta_label || 'Xem ngay',
+              priority: n.priority || 'normal',
+              createdAt: n.created_at,
+            }));
+            return { notifications: cloudNotifs };
+          });
+        }
+      } catch (err) {
+        console.warn('Lỗi tải thông báo ban đầu:', err);
+      }
+    };
 
     const subscribeChannel = async () => {
       const cleanUserId = await resolveUserIdToUuid(currentUser.id);
@@ -77,6 +110,7 @@ export function useRealtimeNotifications() {
         .subscribe();
     };
 
+    fetchInitialNotifications();
     subscribeChannel();
 
     return () => {

@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { resolveUserIdToUuid } from '../lib/api/messages';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -38,6 +41,7 @@ import {
   Eye,
 } from 'lucide-react';
 
+import { ReportModal } from '../components/modals/ReportModal';
 import { getOrCreateConversation } from '../lib/api/messages';
 
 export const RoomDetailPage: React.FC = () => {
@@ -49,17 +53,20 @@ export const RoomDetailPage: React.FC = () => {
   const [activeImageIndex, setActiveImageIndex] = useState<number>(0);
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [showLoginModal, setShowLoginModal] = useState<boolean>(false);
-  const [showPhoneConfirm, setShowPhoneConfirm] = useState<boolean>(false);
   const [userReviews, setUserReviews] = useState<any[]>([]);
   const [showReviewModal, setShowReviewModal] = useState<boolean>(false);
   const [newReviewText, setNewReviewText] = useState<string>('');
   const [newReviewStars, setNewReviewStars] = useState<number>(5);
   const [reviewImages, setReviewImages] = useState<string[]>([]);
-  const [revealedPhone, setRevealedPhone] = useState<boolean>(false);
 
   const room = (rooms || []).find((r) => r.id === id);
   const building = (buildings || []).find((b) => room && b.id === room.buildingId);
   const isSaved = room ? (savedRoomIds || []).includes(room.id) : false;
+
+  const isUnavailable = room?.status === 'Đã cho thuê' || room?.status === 'Đã ẩn' || room?.status === 'Chờ duyệt';
+  const isOwner = currentUser?.id === room?.ownerId;
+  const isAdmin = currentUser?.role === 'admin';
+  const canView = room && (!isUnavailable || isOwner || isAdmin);
 
   if (!room) {
     return (
@@ -70,6 +77,28 @@ export const RoomDetailPage: React.FC = () => {
         <h1 className="text-2xl font-extrabold text-gray-900">Phòng Trọ Không Tồn Tại Hoặc Đã Bị Gỡ</h1>
         <p className="text-gray-500 text-sm mt-2 max-w-md">
           Tin đăng phòng này có thể đã hết hạn, đã được cho thuê hoặc đường dẫn không chính xác.
+        </p>
+        <div className="mt-6 flex items-center gap-3">
+          <Link
+            to="/tim-kiem"
+            className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#00a854] hover:bg-[#009249] text-white font-bold text-sm shadow-md transition"
+          >
+            ← Khám Phá Phòng Trọ Khác
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canView) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center text-center px-4 py-20">
+        <div className="w-16 h-16 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mb-4">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <h1 className="text-2xl font-extrabold text-gray-900">Phòng Trọ Không Có Sẵn</h1>
+        <p className="text-gray-500 text-sm mt-2 max-w-md">
+          Chủ trọ đã tạm ẩn tin đăng hoặc phòng đã có người thuê. Bạn có thể tham khảo các phòng trọ khác.
         </p>
         <div className="mt-6 flex items-center gap-3">
           <Link
@@ -172,12 +201,6 @@ export const RoomDetailPage: React.FC = () => {
       isMounted = false;
     };
   }, [room?.id]);
-
-  const handleCallPhone = () => {
-    navigator.clipboard.writeText(room.ownerPhone);
-    showToast(`Đã sao chép số điện thoại: ${room.ownerPhone}`, 'Bạn có thể gọi trực tiếp cho chủ trọ.', 'success');
-    setShowPhoneConfirm(false);
-  };
 
   const handleAddReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -619,7 +642,48 @@ export const RoomDetailPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <Button variant="outline" size="sm" onClick={() => setShowReviewModal(true)}>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={async () => {
+                      if (!currentUser) {
+                        showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để viết đánh giá.', 'error');
+                        return;
+                      }
+                      
+                      let hasCompletedBooking = false;
+                      
+                      // Check local first
+                      if (bookings.some((b) => b.roomId === room.id && b.renterId === currentUser.id && (b.status === 'completed' || b.status === 'Đã xem phòng' as any))) {
+                        hasCompletedBooking = true;
+                      }
+                      
+                      // Check Supabase if configured
+                      if (!hasCompletedBooking && isSupabaseConfigured) {
+                        try {
+                          const { data } = await supabase
+                            .from('viewing_requests')
+                            .select('id')
+                            .eq('room_id', room.id)
+                            .eq('renter_id', await resolveUserIdToUuid(currentUser.id))
+                            .eq('status', 'completed')
+                            .limit(1);
+                            
+                          if (data && data.length > 0) hasCompletedBooking = true;
+                        } catch(e) {}
+                      }
+                      
+                      if (currentUser.role === 'admin' || hasCompletedBooking) {
+                        setShowReviewModal(true);
+                      } else {
+                        showToast(
+                          'Không thể đánh giá',
+                          'Bạn chỉ có thể đánh giá sau khi đã hoàn thành lịch xem phòng thực tế để đảm bảo tính khách quan.',
+                          'error'
+                        );
+                      }
+                    }}
+                  >
                     Viết Đánh Giá
                   </Button>
                 </div>
@@ -713,56 +777,56 @@ export const RoomDetailPage: React.FC = () => {
             </div>
 
             {/* Action Buttons (Desktop Sidebar Only - Mobile uses fixed Bottom CTA) */}
-            <div className="hidden lg:block space-y-2.5">
-              <Link to={`/dat-lich/${room.id}`} className="block">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="w-full shadow-md font-bold"
-                  leftIcon={<Calendar className="w-5 h-5" />}
-                >
-                  Đặt Lịch Xem Phòng
-                </Button>
-              </Link>
-
-              <Button
-                variant="secondary"
-                size="md"
-                className="w-full"
-                onClick={handleContactChat}
-                leftIcon={<MessageSquare className="w-4 h-4" />}
-              >
-                Nhắn Tin Cho Chủ Trọ
-              </Button>
-
-              {/* Click to reveal phone button */}
-              {revealedPhone ? (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-4 h-4 text-[#006d37]" />
-                    <span className="font-mono font-black text-sm text-[#006d37]">{room.ownerPhone}</span>
-                  </div>
-                  <button
-                    onClick={handleCallPhone}
-                    className="text-xs font-bold text-[#006d37] hover:underline"
-                  >
-                    Sao chép
-                  </button>
+            <div className="hidden lg:flex flex-col space-y-2.5">
+              {isUnavailable ? (
+                <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-center text-sm font-bold border border-rose-200">
+                  Phòng này hiện không có sẵn (Trạng thái: {room.status})
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  size="md"
-                  className="w-full"
-                  onClick={() => {
-                    setRevealedPhone(true);
-                    setShowPhoneConfirm(true);
-                  }}
-                  leftIcon={<Phone className="w-4 h-4 text-[#006d37]" />}
-                >
-                  Bấm để hiện số điện thoại
-                </Button>
+                <>
+                  <Link to={`/dat-lich/${room.id}`} className="block">
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      className="w-full shadow-md font-bold"
+                      leftIcon={<Calendar className="w-5 h-5" />}
+                    >
+                      Đặt Lịch Xem Phòng
+                    </Button>
+                  </Link>
+
+                  <Button
+                    variant="secondary"
+                    size="md"
+                    className="w-full"
+                    onClick={handleContactChat}
+                    leftIcon={<MessageSquare className="w-4 h-4" />}
+                  >
+                    Nhắn Tin Cho Chủ Trọ
+                  </Button>
+
+                  <a href={`tel:${room.ownerPhone}`} className="block">
+                    <Button
+                      variant="outline"
+                      size="md"
+                      className="w-full"
+                      leftIcon={<Phone className="w-4 h-4 text-[#006d37]" />}
+                    >
+                      Gọi Điện ({room.ownerPhone})
+                    </Button>
+                  </a>
+                </>
               )}
+
+              <Button
+                variant={isSaved ? "primary" : "outline"}
+                size="md"
+                className="w-full"
+                onClick={() => toggleSaveRoom(room.id)}
+                leftIcon={<Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />}
+              >
+                {isSaved ? "Đã Lưu Phòng" : "Lưu Phòng Trọ"}
+              </Button>
             </div>
 
             {/* Trust Checklist */}
@@ -790,198 +854,71 @@ export const RoomDetailPage: React.FC = () => {
       </div>
 
       {/* MOBILE STICKY BOTTOM ACTION CTA BAR - DUY NHẤT 1 THANH TRÊN MOBILE */}
-      {!showPhoneConfirm && !showReportModal && (
-        <div
-          className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-xl p-3"
-          style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
-        >
-          <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
-            <div>
-              <span className="text-[10px] text-gray-500 block">Giá thuê</span>
-              <span className="text-base font-black text-[#006d37] leading-none">
-                {formatPrice(room.price)}
-              </span>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleContactChat}
-                className="p-2.5 min-w-[44px] min-h-[44px] rounded-xl border border-gray-200 text-gray-700 hover:bg-gray-50 shadow-xs flex items-center justify-center"
-                aria-label="Nhắn tin cho chủ trọ"
-                title="Nhắn tin"
-              >
-                <MessageSquare className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={() => setShowPhoneConfirm(true)}
-                className="p-2.5 min-w-[44px] min-h-[44px] rounded-xl border border-gray-200 text-[#006d37] hover:bg-emerald-50 shadow-xs flex items-center justify-center"
-                aria-label="Gọi điện cho chủ trọ"
-                title="Gọi điện"
-              >
-                <Phone className="w-5 h-5" />
-              </button>
-
-              <Link to={`/dat-lich/${room.id}`}>
-                <Button variant="primary" size="md" className="font-bold shadow-md min-h-[44px]" leftIcon={<Calendar className="w-4 h-4" />}>
-                  Đặt Lịch Ngay
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Phone Call Confirm Modal */}
-      {showPhoneConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-sm w-full space-y-4 text-center animate-fadeIn">
-            <div className="w-12 h-12 bg-emerald-100 text-[#006d37] rounded-full flex items-center justify-center mx-auto">
-              <Phone className="w-6 h-6" />
-            </div>
-            <h3 className="font-bold text-gray-900 text-base">Số điện thoại chủ trọ:</h3>
-            <div className="text-2xl font-black text-[#006d37] tracking-wider py-2 bg-gray-50 rounded-2xl border border-gray-200">
-              {room.ownerPhone}
-            </div>
-            <p className="text-xs text-gray-500">
-              Bạn có thể gọi trực tiếp hoặc sao chép để liên hệ qua Zalo.
-            </p>
-            <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={handleCallPhone} leftIcon={<Copy className="w-3.5 h-3.5" />}>
-                Sao Chép Số
-              </Button>
-              <a href={`tel:${room.ownerPhone}`} className="flex-1">
-                <Button variant="primary" size="sm" fullWidth leftIcon={<Phone className="w-3.5 h-3.5" />}>
-                  Gọi Ngay
-                </Button>
-              </a>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Review Modal */}
-      {showReviewModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 animate-fadeIn">
-            <h3 className="font-bold text-gray-900 text-base">Viết Đánh Giá Về Phòng Trọ</h3>
-            <form onSubmit={handleAddReview} className="space-y-4">
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Mức độ hài lòng:</label>
-                <div className="flex gap-2">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewReviewStars(star)}
-                      className={`text-2xl ${star <= newReviewStars ? 'text-amber-400' : 'text-gray-300'}`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-xs font-semibold text-gray-700">Nội dung đánh giá:</label>
-                <textarea
-                  required
-                  rows={3}
-                  value={newReviewText}
-                  onChange={(e) => setNewReviewText(e.target.value)}
-                  placeholder="Chia sẻ cảm nhận chân thật về phòng, chủ nhà, an ninh xung quanh..."
-                  className="w-full text-xs rounded-xl border border-gray-300 p-2.5 focus:outline-none focus:ring-2 focus:ring-[#006d37]"
-                />
-              </div>
-
-              {/* Review Images Cloudinary Uploader */}
-              <div>
-                <ImageUploader
-                  folder="troxinh/reviews"
-                  maxFiles={3}
-                  label="Thêm ảnh thực tế (tùy chọn)"
-                  helperText="Tối đa 3 ảnh. Giúp người thuê sau tin tưởng hơn"
-                  onComplete={(urls) => setReviewImages(urls)}
-                  existingUrls={reviewImages}
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2 border-t border-gray-100">
-                <Button type="button" variant="outline" size="sm" onClick={() => setShowReviewModal(false)}>
-                  Hủy
-                </Button>
-                <Button type="submit" variant="primary" size="sm">
-                  Gửi Đánh Giá
-                </Button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* Report Modal */}
-      <ReportModal
-        isOpen={showReportModal}
-        onClose={() => setShowReportModal(false)}
-        targetTitle={room.title}
-        targetId={room.id}
-      />
-
-      {/* Login Prompt Modal */}
-      <LoginPromptModal
-        isOpen={showLoginModal}
-        onClose={() => setShowLoginModal(false)}
-        message="Vui lòng đăng nhập để bắt đầu nhắn tin với chủ trọ."
-      />
-
-      {/* MOBILE STICKY BOTTOM ACTION BAR */}
       <div
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 pt-2.5"
+        className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] px-4 pt-2.5"
         style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}
       >
         <div className="flex items-center justify-between gap-3 max-w-lg mx-auto">
-          {/* Price Preview */}
-          <div className="flex flex-col shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase">Giá thuê</span>
-            <span className="text-base font-black text-[#006d37] leading-tight">
-              {formatPrice(room.price)}
-            </span>
-          </div>
-
-          {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2 flex-1 justify-end">
-            {room.ownerPhone ? (
-              <a
-                href={`tel:${room.ownerPhone}`}
-                className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0"
-                title={`Gọi điện trực tiếp: ${room.ownerPhone}`}
-              >
-                <Phone className="w-5 h-5" />
-              </a>
-            ) : null}
-
+          {/* Action Buttons */}
+          <div className="flex items-center gap-2 flex-1 justify-between w-full">
             <button
-              onClick={handleContactChat}
-              disabled={isChatLoading}
-              className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center tap-bounce font-bold shadow-xs shrink-0 disabled:opacity-50 cursor-pointer"
-              title="Nhắn tin"
+              onClick={() => toggleSaveRoom(room.id)}
+              className={`w-11 h-11 rounded-2xl border flex items-center justify-center font-bold shadow-xs shrink-0 ${isSaved ? 'bg-rose-50 border-rose-200 text-rose-600' : 'bg-gray-50 border-gray-200 text-gray-600 hover:bg-gray-100'}`}
+              aria-label="Lưu phòng"
+              title="Lưu phòng"
             >
-              <MessageSquare className="w-5 h-5" />
+              <Heart className={`w-5 h-5 ${isSaved ? 'fill-current' : ''}`} />
             </button>
 
-            <Link to={`/dat-lich/${room.id}`} className="flex-1 max-w-[160px]">
-              <Button
-                variant="primary"
-                size="md"
-                className="w-full font-bold shadow-md h-11 text-xs px-2.5"
-                leftIcon={<Calendar className="w-4 h-4" />}
-              >
-                Đặt Lịch Xem
-              </Button>
-            </Link>
+            {isUnavailable ? (
+               <div className="flex-1 p-2.5 bg-rose-50 text-rose-700 rounded-xl text-center text-xs font-bold border border-rose-200">
+                 Phòng đã thuê/ẩn
+               </div>
+            ) : (
+              <>
+                <button
+                  onClick={handleContactChat}
+                  disabled={isChatLoading}
+                  className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center font-bold shadow-xs shrink-0 disabled:opacity-50 cursor-pointer"
+                  title="Nhắn tin"
+                >
+                  <MessageSquare className="w-5 h-5" />
+                </button>
+
+                <a
+                  href={`tel:${room.ownerPhone}`}
+                  className="w-11 h-11 rounded-2xl bg-emerald-50 text-[#006d37] border border-emerald-200 flex items-center justify-center font-bold shadow-xs shrink-0 cursor-pointer"
+                  title="Gọi điện"
+                >
+                  <Phone className="w-5 h-5" />
+                </a>
+
+                <Link to={`/dat-lich/${room.id}`} className="flex-1">
+                  <Button
+                    variant="primary"
+                    size="md"
+                    className="w-full font-bold shadow-md h-11 text-xs px-2.5"
+                    leftIcon={<Calendar className="w-4 h-4" />}
+                  >
+                    Đặt Lịch
+                  </Button>
+                </Link>
+              </>
+            )}
+          </div>
           </div>
         </div>
       </div>
+      
+      {showReportModal && (
+        <ReportModal
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          targetId={room.id}
+          targetTitle={room.title}
+          targetType="room"
+        />
+      )}
     </div>
   );
 };

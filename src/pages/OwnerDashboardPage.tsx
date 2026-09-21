@@ -40,6 +40,8 @@ export const OwnerDashboardPage: React.FC = () => {
     showToast,
   } = useAppStore();
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleTime, setRescheduleTime] = useState<string>('');
 
   // Supabase Real-time Room Status Subscription
   useRealtimeRoomStatus();
@@ -59,15 +61,23 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const handleUpdateBookingStatus = (bookingId: string, status: any) => {
+  const handleUpdateBookingStatus = (bookingId: string, status: any, note?: string) => {
     updateBookingStatus(bookingId, status);
     if (isSupabaseConfigured && bookingId.length === 36) {
+      const updates: any = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (status === 'Đã xác nhận') updates.status = 'confirmed';
+      else if (status === 'Đổi giờ') {
+        updates.status = 'rescheduled';
+        updates.owner_response_note = note;
+      }
+      else updates.status = 'cancelled';
+
       supabase
         .from('viewing_requests')
-        .update({
-          status: status === 'Đã xác nhận' ? 'confirmed' : 'cancelled',
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('id', bookingId)
         .then();
     }
@@ -220,6 +230,8 @@ export const OwnerDashboardPage: React.FC = () => {
                             ? 'bg-emerald-100 text-emerald-800'
                             : b.status === 'Đã hủy'
                             ? 'bg-rose-100 text-rose-800'
+                            : b.status === 'Đổi giờ'
+                            ? 'bg-blue-100 text-blue-800'
                             : 'bg-amber-100 text-amber-800'
                         }`}
                       >
@@ -255,6 +267,15 @@ export const OwnerDashboardPage: React.FC = () => {
                           <CheckCircle2 className="w-3.5 h-3.5" /> Xác nhận đón
                         </button>
                         <button
+                          onClick={() => {
+                            setRescheduleId(b.id);
+                            setRescheduleTime(b.timeSlot);
+                          }}
+                          className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition"
+                        >
+                          Đổi giờ
+                        </button>
+                        <button
                           onClick={() => handleUpdateBookingStatus(b.id, 'Đã hủy')}
                           className="px-3 py-1.5 bg-gray-100 hover:bg-rose-50 hover:text-rose-600 text-gray-600 rounded-xl text-xs font-bold transition"
                         >
@@ -263,6 +284,29 @@ export const OwnerDashboardPage: React.FC = () => {
                       </>
                     )}
                   </div>
+                  
+                  {rescheduleId === b.id && (
+                    <div className="w-full bg-blue-50/50 p-3 rounded-xl border border-blue-100 mt-3 flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={rescheduleTime} 
+                        onChange={(e) => setRescheduleTime(e.target.value)}
+                        placeholder="Vd: 10:30 - 11:30"
+                        className="flex-1 text-xs p-2 rounded-lg border border-blue-200 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      />
+                      <button 
+                        onClick={() => {
+                          handleUpdateBookingStatus(b.id, 'Đổi giờ', rescheduleTime);
+                          setRescheduleId(null);
+                        }}
+                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shrink-0 transition"
+                      >Gửi đề xuất</button>
+                      <button 
+                        onClick={() => setRescheduleId(null)} 
+                        className="px-3 py-2 bg-white text-gray-600 text-xs font-bold rounded-lg border border-gray-200 shrink-0 hover:bg-gray-50 transition"
+                      >Hủy</button>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

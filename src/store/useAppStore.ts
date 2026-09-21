@@ -29,6 +29,7 @@ import {
 } from '../data/mockData';
 import { signOut } from '../lib/api/auth';
 import { logoutAuth } from '../lib/authService';
+import { resolveUserIdToUuid } from '../lib/api/messages';
 import { syncUserToSupabase } from '../lib/supabaseAuthSync';
 import {
   fetchRoomsFromSupabase,
@@ -39,6 +40,7 @@ import {
   syncRoommatePostToSupabase,
   syncMarketplaceItemToSupabase,
 } from '../lib/supabaseDataService';
+import { toggleSaveRoom as apiToggleSaveRoom, getSavedRooms } from '../lib/api/rooms';
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -160,6 +162,7 @@ interface AppState {
   toggleSaveRoom: (roomId: string) => boolean;
   toggleSaveRoommate: (id: string) => boolean;
   toggleSaveItem: (id: string) => boolean;
+  syncSavedRooms: (userId: string) => Promise<void>;
 
   // User Blocking
   blockedUserIds: string[];
@@ -419,6 +422,7 @@ export const useAppStore = create<AppState>()(
             role: found.role as any,
             avatar_url: found.avatarUrl,
           });
+          get().syncSavedRooms(found.id);
           get().showToast(`Đăng nhập thành công`, `Chào mừng trở lại, ${found.name}!`, 'success');
           return true;
         }
@@ -443,6 +447,7 @@ export const useAppStore = create<AppState>()(
           role: newUser.role as any,
           avatar_url: newUser.avatarUrl,
         });
+        get().syncSavedRooms(newUser.id);
         get().showToast(`Đăng nhập thành công`, `Chào mừng bạn đến với Trọ Xinh!`, 'success');
         return true;
       },
@@ -466,6 +471,7 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: userObj });
+        get().syncSavedRooms(userObj.id);
         get().showToast('Đăng nhập thành công! ✨', `Chào mừng ${userObj.name} quay lại.`, 'success');
       },
 
@@ -491,6 +497,7 @@ export const useAppStore = create<AppState>()(
           role: targetRole,
           avatar_url: newUser.avatarUrl,
         });
+        get().syncSavedRooms(newUser.id);
         get().showToast(
           'Đăng ký tài khoản thành công! 🎉',
           `Chào mừng ${name} gia nhập cộng đồng Trọ Xinh.`,
@@ -643,6 +650,7 @@ export const useAppStore = create<AppState>()(
         const next = isSaved ? savedRoomIds.filter((id) => id !== roomId) : [...savedRoomIds, roomId];
         set({ savedRoomIds: next });
         showToast(isSaved ? 'Đã xóa khỏi danh sách lưu' : 'Đã lưu phòng thành công ❤️', '', isSaved ? 'info' : 'success');
+        apiToggleSaveRoom(currentUser.id, roomId).catch((err) => console.warn('Lỗi sync lưu phòng', err));
         return !isSaved;
       },
 
@@ -670,6 +678,16 @@ export const useAppStore = create<AppState>()(
         set({ savedItemIds: next });
         showToast(isSaved ? 'Đã bỏ lưu món đồ' : 'Đã lưu món đồ thanh lý ❤️', '', 'success');
         return !isSaved;
+      },
+
+      syncSavedRooms: async (userId) => {
+        try {
+          const rooms = await getSavedRooms(userId);
+          const ids = rooms.filter(Boolean).map((r: any) => r.id);
+          set({ savedRoomIds: ids });
+        } catch (err) {
+          console.warn('[syncSavedRooms] Lỗi tải phòng đã lưu:', err);
+        }
       },
 
       blockUser: (targetUserId, targetUserName) => {
@@ -1069,12 +1087,21 @@ export const useAppStore = create<AppState>()(
         set((state) => ({
           notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
         }));
+        if (isSupabaseConfigured && !id.startsWith('notif_')) {
+          supabase.from('notifications').update({ is_read: true }).eq('id', id).then();
+        }
       },
 
       markAllNotificationsRead: () => {
         set((state) => ({
           notifications: state.notifications.map((n) => ({ ...n, read: true })),
         }));
+        const currentUser = get().currentUser;
+        if (isSupabaseConfigured && currentUser) {
+          resolveUserIdToUuid(currentUser.id).then((cleanId) => {
+            if (cleanId) supabase.from('notifications').update({ is_read: true }).eq('user_id', cleanId).eq('is_read', false).then();
+          });
+        }
         get().showToast('Đã đánh dấu đọc tất cả thông báo', '', 'info');
       },
 

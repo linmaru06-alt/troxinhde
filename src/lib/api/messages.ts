@@ -475,7 +475,8 @@ export async function sendMessage(
   conversationId: string,
   senderId: string,
   content: string,
-  senderName?: string
+  senderName?: string,
+  messageId?: string
 ): Promise<Message> {
   const cleanContent = content.trim();
   if (!cleanContent) {
@@ -484,9 +485,10 @@ export async function sendMessage(
 
   const cleanSenderId = await resolveUserIdToUuid(senderId);
   const newMsgId =
-    typeof crypto !== 'undefined' && crypto.randomUUID
+    messageId ||
+    (typeof crypto !== 'undefined' && crypto.randomUUID
       ? crypto.randomUUID()
-      : `msg_${Date.now()}`;
+      : `msg_${Date.now()}`);
 
   const msgPayload: Message = {
     id: newMsgId,
@@ -505,13 +507,13 @@ export async function sendMessage(
     try {
       const { data, error } = await supabase
         .from('messages')
-        .insert({
+        .upsert({
           id: newMsgId,
           conversation_id: conversationId,
           sender_id: cleanSenderId,
           content: cleanContent,
           is_read: false,
-        })
+        }, { onConflict: 'id' })
         .select(`
           id,
           conversation_id,

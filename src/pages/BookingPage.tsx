@@ -65,6 +65,7 @@ export const BookingPage: React.FC = () => {
             message,
             contact_phone,
             status,
+            owner_response_note,
             created_at,
             rooms(id, name, price),
             owner:profiles!owner_id(id, full_name, name, phone, avatar_url)
@@ -98,17 +99,47 @@ export const BookingPage: React.FC = () => {
     try {
       const { error } = await supabase
         .from('viewing_requests')
-        .update({ status: 'declined' })
+        .update({ status: 'cancelled' })
         .eq('id', bookingId);
 
       if (error) throw error;
 
       setCloudBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status: 'declined' } : b))
+        prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
       );
       showToast('Đã hủy lịch hẹn', 'Bạn có thể đặt lại lịch bất kỳ lúc nào.', 'info');
     } catch (err: any) {
       showToast('Không thể hủy lịch', err?.message || 'Vui lòng thử lại sau.', 'error');
+    }
+  };
+
+  const handleRespondToReschedule = async (bookingId: string, accept: boolean, proposedTime?: string) => {
+    try {
+      const updates: any = accept 
+        ? { status: 'confirmed' }
+        : { status: 'cancelled' };
+      
+      if (accept && proposedTime) {
+        updates.time_slot = proposedTime;
+      }
+        
+      const { error } = await supabase
+        .from('viewing_requests')
+        .update(updates)
+        .eq('id', bookingId);
+
+      if (error) throw error;
+
+      setCloudBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, ...updates } : b))
+      );
+      showToast(
+        accept ? 'Đã chấp nhận giờ hẹn mới' : 'Đã từ chối đổi giờ',
+        accept ? 'Lịch hẹn của bạn đã được cập nhật thành công.' : 'Lịch hẹn đã bị hủy.',
+        accept ? 'success' : 'info'
+      );
+    } catch (err: any) {
+      showToast('Không thể phản hồi', err?.message || 'Vui lòng thử lại sau.', 'error');
     }
   };
 
@@ -194,19 +225,23 @@ export const BookingPage: React.FC = () => {
               const statusLabel =
                 b.status === 'confirmed'
                   ? 'Đã xác nhận'
-                  : b.status === 'declined'
+                  : b.status === 'cancelled' || b.status === 'declined'
                   ? 'Đã hủy'
                   : b.status === 'completed'
                   ? 'Đã xem phòng'
+                  : b.status === 'rescheduled'
+                  ? 'Chủ trọ đề xuất đổi giờ'
                   : 'Chờ chủ trọ xác nhận';
 
               const statusColor =
                 b.status === 'confirmed'
                   ? 'bg-emerald-100 text-[#006d37]'
-                  : b.status === 'declined'
+                  : b.status === 'cancelled' || b.status === 'declined'
                   ? 'bg-gray-100 text-gray-500'
                   : b.status === 'completed'
                   ? 'bg-blue-100 text-blue-800'
+                  : b.status === 'rescheduled'
+                  ? 'bg-blue-100 text-blue-700 animate-pulse'
                   : 'bg-amber-100 text-amber-800 animate-pulse';
 
               const roomTitle = b.rooms?.title || 'Phòng trọ';
@@ -239,12 +274,33 @@ export const BookingPage: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Số điện thoại chủ trọ: Chỉ hiển thị khi chủ trọ đã xác nhận lịch hẹn (Tuân thủ Bước 7) */}
-                    <div className="pt-1 text-xs">
+                    {/* Số điện thoại chủ trọ: Chỉ hiển thị khi chủ trọ đã xác nhận lịch hẹn */}
+                    <div className="pt-1 text-xs space-y-2">
                       {b.status === 'confirmed' && ownerPhone ? (
                         <span className="inline-flex items-center gap-1 text-[#006d37] font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
                           <Phone className="w-3 h-3" /> Chủ trọ: {ownerPhone}
                         </span>
+                      ) : b.status === 'rescheduled' ? (
+                        <div className="bg-blue-50 border border-blue-200 p-2.5 rounded-xl space-y-2">
+                          <p className="text-blue-900 font-medium">Chủ trọ đề xuất giờ xem mới:</p>
+                          <p className="text-blue-800 font-bold bg-white px-2 py-1 inline-block rounded border border-blue-100">
+                            {b.owner_response_note}
+                          </p>
+                          <div className="flex gap-2 pt-1">
+                            <button
+                              onClick={() => handleRespondToReschedule(b.id, true, b.owner_response_note)}
+                              className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg transition text-xs"
+                            >
+                              Đồng ý
+                            </button>
+                            <button
+                              onClick={() => handleRespondToReschedule(b.id, false)}
+                              className="px-3 py-1.5 bg-white text-gray-600 border border-gray-300 hover:bg-gray-50 font-bold rounded-lg transition text-xs"
+                            >
+                              Từ chối
+                            </button>
+                          </div>
+                        </div>
                       ) : (
                         <span className="text-gray-400 text-[11px]">
                           Số điện thoại chủ trọ sẽ hiển thị sau khi yêu cầu được xác nhận

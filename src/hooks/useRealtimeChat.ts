@@ -237,7 +237,9 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
         const saved = await sendMessageApi(
           conversationId,
           currentUser.id,
-          failedMessage.content
+          failedMessage.content,
+          currentUser.name,
+          failedMessage.id
         );
 
         setMessages((prev) =>
