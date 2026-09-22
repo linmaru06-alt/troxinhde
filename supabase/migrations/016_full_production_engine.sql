@@ -93,6 +93,19 @@ CREATE POLICY "Allow Upload Documents" ON storage.objects FOR INSERT WITH CHECK 
 -- PHẦN 2: ĐỒNG BỘ ĐẦY ĐỦ CÁC CỘT CHO 18 BẢNG NGHIỆP VỤ
 -- ==============================================================================
 
+-- 0. Bổ sung các cột hồ sơ người dùng cho bảng profiles
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS school TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS year TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS student_card_url TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS social_link TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS facebook_link TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS zalo_link TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS student_verified BOOLEAN DEFAULT false;
+
 -- 1. Bổ sung các cột cho bảng rooms (nếu chưa có)
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS title TEXT;
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS room_number TEXT;

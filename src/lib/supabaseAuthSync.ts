@@ -12,7 +12,147 @@ export interface SupabaseUserProfile {
   verified?: boolean;
   auth_provider?: string;
   owner_application_status?: 'none' | 'pending' | 'approved' | 'rejected';
+  school?: string;
+  year?: string;
+  bio?: string;
+  address?: string;
+  student_card_url?: string;
+  social_link?: string;
+  facebook_link?: string;
+  zalo_link?: string;
+  phone_verified?: boolean;
+  email_verified?: boolean;
+  student_verified?: boolean;
   created_at?: string;
+  updated_at?: string;
+}
+
+/**
+ * Lấy dữ liệu hồ sơ người dùng thực tế từ bảng profiles trên Supabase
+ */
+export async function fetchUserProfileFromSupabase(
+  userId: string
+): Promise<SupabaseUserProfile | null> {
+  if (!userId) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .or(`id.eq.${userId},firebase_uid.eq.${userId}`)
+      .maybeSingle();
+
+    if (error || !data) {
+      return null;
+    }
+
+    return {
+      id: data.id || userId,
+      name: data.full_name || data.name || '',
+      email: data.email || undefined,
+      phone: data.phone || undefined,
+      role: (data.app_role || data.role || 'renter') as any,
+      avatar_url: data.avatar_url || '/images/user-avatar.jpg',
+      verified: Boolean(data.verified),
+      owner_application_status: data.owner_application_status || 'none',
+      school: data.school || '',
+      year: data.year || '',
+      bio: data.bio || '',
+      address: data.address || '',
+      student_card_url: data.student_card_url || '',
+      social_link: data.social_link || data.facebook_link || data.zalo_link || '',
+      facebook_link: data.facebook_link || data.social_link || '',
+      zalo_link: data.zalo_link || '',
+      phone_verified: Boolean(data.phone_verified || data.phone),
+      email_verified: Boolean(data.email_verified || data.email),
+      student_verified: Boolean(data.student_verified || data.student_card_url),
+      created_at: data.created_at,
+      updated_at: data.updated_at,
+    };
+  } catch (err) {
+    console.warn('[Supabase Sync] Lỗi khi lấy profile từ Supabase:', err);
+    return null;
+  }
+}
+
+/**
+ * Đồng bộ hoặc cập nhật hồ sơ người dùng trong bảng `profiles` trên Supabase
+ */
+export async function syncUserToSupabase(
+  profile: SupabaseUserProfile
+): Promise<{ success: boolean; data?: SupabaseUserProfile; error?: string }> {
+  try {
+    const payload: any = {
+      firebase_uid: profile.id,
+      full_name: profile.name,
+      name: profile.name,
+      email: profile.email ? profile.email.trim().toLowerCase() : null,
+      phone: profile.phone ? profile.phone.replace(/\D/g, '') : null,
+      app_role: profile.role === 'user' ? 'renter' : profile.role || 'renter',
+      role: profile.role || 'renter',
+      avatar_url: profile.avatar_url || '/images/user-avatar.jpg',
+      verified: profile.verified ?? true,
+      owner_application_status: profile.owner_application_status || 'none',
+      school: profile.school || null,
+      year: profile.year || null,
+      bio: profile.bio || null,
+      address: profile.address || null,
+      student_card_url: profile.student_card_url || null,
+      social_link: profile.social_link || profile.facebook_link || null,
+      facebook_link: profile.facebook_link || profile.social_link || null,
+      zalo_link: profile.zalo_link || null,
+      phone_verified: profile.phone_verified ?? Boolean(profile.phone),
+      email_verified: profile.email_verified ?? Boolean(profile.email),
+      student_verified: profile.student_verified ?? Boolean(profile.student_card_url),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .upsert(payload, { onConflict: 'firebase_uid' })
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.warn('[Supabase Sync] Lỗi upsert profiles:', error.message);
+      // Thử cập nhật theo ID nếu lỗi conflict
+      const { data: updateData, error: updateErr } = await supabase
+        .from('profiles')
+        .update(payload)
+        .or(`id.eq.${profile.id},firebase_uid.eq.${profile.id}`)
+        .select()
+        .maybeSingle();
+
+      if (updateErr) {
+        return { success: false, error: updateErr.message, data: profile };
+      }
+      return { success: true, data: updateData || profile };
+    }
+
+    return {
+      success: true,
+      data: {
+        id: data?.id || profile.id,
+        name: data?.full_name || data?.name || profile.name,
+        email: data?.email || profile.email,
+        phone: data?.phone || profile.phone,
+        role: data?.app_role || data?.role || profile.role,
+        avatar_url: data?.avatar_url || profile.avatar_url,
+        verified: data?.verified ?? true,
+        owner_application_status: data?.owner_application_status || 'none',
+        school: data?.school || profile.school,
+        year: data?.year || profile.year,
+        student_card_url: data?.student_card_url || profile.student_card_url,
+        social_link: data?.social_link || profile.social_link,
+        phone_verified: Boolean(data?.phone_verified ?? profile.phone_verified),
+        student_verified: Boolean(data?.student_verified ?? profile.student_verified),
+        created_at: data?.created_at,
+        updated_at: data?.updated_at,
+      },
+    };
+  } catch (err: any) {
+    console.warn('[Supabase Sync] Exception khi đồng bộ profile:', err);
+    return { success: false, error: err.message, data: profile };
+  }
 }
 
 /**

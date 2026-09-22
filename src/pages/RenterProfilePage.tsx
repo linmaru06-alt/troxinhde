@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { fetchUserProfileFromSupabase } from '../lib/supabaseAuthSync';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RolePermissionSection } from '../components/profile/RolePermissionSection';
@@ -44,6 +45,40 @@ export const RenterProfilePage: React.FC = () => {
   const navigate = useNavigate();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'blocked'>('profile');
+
+  // Fetch dữ liệu thật từ bảng profiles trên Supabase khi vào trang hoặc reload (F5)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    let isMounted = true;
+    async function loadLatestProfile() {
+      try {
+        const dbProfile = await fetchUserProfileFromSupabase(currentUser.id);
+        if (dbProfile && isMounted) {
+          setCurrentUser({
+            ...currentUser,
+            name: dbProfile.name || currentUser.name,
+            avatarUrl: dbProfile.avatar_url || currentUser.avatarUrl,
+            phone: dbProfile.phone || currentUser.phone,
+            phoneVerified: Boolean(dbProfile.phone_verified),
+            school: dbProfile.school || currentUser.school,
+            year: dbProfile.year || currentUser.year,
+            studentCardUrl: dbProfile.student_card_url || currentUser.studentCardUrl,
+            socialLink: dbProfile.social_link || currentUser.socialLink,
+            ownerApplicationStatus: dbProfile.owner_application_status || currentUser.ownerApplicationStatus,
+            verified: Boolean(dbProfile.verified),
+          });
+        }
+      } catch (err) {
+        console.warn('[RenterProfilePage] Không thể tải dữ liệu profile:', err);
+      }
+    }
+
+    loadLatestProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
 
   if (!currentUser) {
     return (

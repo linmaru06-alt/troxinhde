@@ -1,7 +1,7 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
-import { syncUserToSupabase } from '../../lib/supabaseAuthSync';
+import { syncUserToSupabase, fetchUserProfileFromSupabase } from '../../lib/supabaseAuthSync';
 import { uploadToStorage } from '../../lib/storage';
 import { uploadImage } from '../../lib/cloudinary';
 import {
@@ -21,8 +21,6 @@ import {
   Save,
   Building2,
   Clock,
-  Check,
-  X,
 } from 'lucide-react';
 
 const UNIVERSITY_OPTIONS = [
@@ -116,28 +114,19 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const isPendingHost = currentUser?.ownerApplicationStatus === 'pending';
   const isApprovedOwner = currentUser?.role === 'owner';
 
-  // Khối 1: Thông tin chung
-  const [avatarUrl, setAvatarUrl] = useState<string>(
-    currentUser?.avatarUrl || '/images/user-avatar.jpg'
-  );
-  const [name, setName] = useState<string>(currentUser?.name || '');
-  const [school, setSchool] = useState<string>(currentUser?.school || 'Đại học Quốc Gia Hà Nội');
+  // 1. Khởi tạo State rỗng (Không hardcode mock data)
+  const [avatarUrl, setAvatarUrl] = useState<string>('');
+  const [name, setName] = useState<string>('');
+  const [school, setSchool] = useState<string>('');
   const [customSchool, setCustomSchool] = useState<string>('');
-  const [year, setYear] = useState<string>(currentUser?.year || 'Năm 2');
-  const [phone, setPhone] = useState<string>(currentUser?.phone || '');
-  const [phoneVerified, setPhoneVerified] = useState<boolean>(
-    Boolean(currentUser?.phoneVerified)
-  );
-
-  // Khối 2: Xác thực & Liên hệ
-  const [studentCardUrl, setStudentCardUrl] = useState<string>(
-    currentUser?.studentCardUrl || ''
-  );
-  const [socialLink, setSocialLink] = useState<string>(
-    currentUser?.socialLink || ''
-  );
+  const [year, setYear] = useState<string>('');
+  const [phone, setPhone] = useState<string>('');
+  const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
+  const [studentCardUrl, setStudentCardUrl] = useState<string>('');
+  const [socialLink, setSocialLink] = useState<string>('');
 
   // Trạng thái xử lý
+  const [isLoadingProfile, setIsLoadingProfile] = useState<boolean>(true);
   const [isUploadingAvatar, setIsUploadingAvatar] = useState<boolean>(false);
   const [isUploadingCard, setIsUploadingCard] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
@@ -161,8 +150,99 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const cardInputRef = useRef<HTMLInputElement>(null);
 
+  // =========================================================================
+  // FETCH DATA TỪ SUPABASE KHI LOAD COMPONENT
+  // =========================================================================
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadRealProfile() {
+      if (!currentUser?.id) {
+        setIsLoadingProfile(false);
+        return;
+      }
+
+      setIsLoadingProfile(true);
+
+      try {
+        // Query trực tiếp vào bảng profiles trên Supabase
+        const dbProfile = await fetchUserProfileFromSupabase(currentUser.id);
+
+        if (isMounted) {
+          if (dbProfile) {
+            setName(dbProfile.name || '');
+            setAvatarUrl(dbProfile.avatar_url || currentUser.avatarUrl || '/images/user-avatar.jpg');
+            setPhone(dbProfile.phone || '');
+            setPhoneVerified(Boolean(dbProfile.phone_verified));
+            setStudentCardUrl(dbProfile.student_card_url || '');
+            setSocialLink(dbProfile.social_link || dbProfile.facebook_link || '');
+
+            const dbSchool = dbProfile.school || '';
+            if (UNIVERSITY_OPTIONS.includes(dbSchool)) {
+              setSchool(dbSchool);
+              setCustomSchool('');
+            } else if (dbSchool) {
+              setSchool('Khác / Đã đi làm');
+              setCustomSchool(dbSchool);
+            } else {
+              setSchool('');
+              setCustomSchool('');
+            }
+
+            setYear(dbProfile.year || '');
+
+            // Đồng bộ lại currentUser trong zustand store với dữ liệu thật từ DB
+            setCurrentUser({
+              ...currentUser,
+              name: dbProfile.name || currentUser.name,
+              avatarUrl: dbProfile.avatar_url || currentUser.avatarUrl,
+              phone: dbProfile.phone || currentUser.phone,
+              phoneVerified: Boolean(dbProfile.phone_verified),
+              school: dbProfile.school || currentUser.school,
+              year: dbProfile.year || currentUser.year,
+              studentCardUrl: dbProfile.student_card_url || currentUser.studentCardUrl,
+              socialLink: dbProfile.social_link || currentUser.socialLink,
+              ownerApplicationStatus: dbProfile.owner_application_status || currentUser.ownerApplicationStatus,
+              verified: Boolean(dbProfile.verified),
+            });
+          } else {
+            // Fallback nếu chưa có trong DB thì lấy từ currentUser
+            setName(currentUser.name || '');
+            setAvatarUrl(currentUser.avatarUrl || '/images/user-avatar.jpg');
+            setPhone(currentUser.phone || '');
+            setPhoneVerified(Boolean(currentUser.phoneVerified));
+            setStudentCardUrl(currentUser.studentCardUrl || '');
+            setSocialLink(currentUser.socialLink || '');
+
+            const curSchool = currentUser.school || '';
+            if (UNIVERSITY_OPTIONS.includes(curSchool)) {
+              setSchool(curSchool);
+            } else if (curSchool) {
+              setSchool('Khác / Đã đi làm');
+              setCustomSchool(curSchool);
+            }
+
+            setYear(currentUser.year || '');
+          }
+        }
+      } catch (err) {
+        console.warn('[EditProfileForm] Lỗi tải dữ liệu Supabase:', err);
+      } finally {
+        if (isMounted) {
+          setIsLoadingProfile(false);
+        }
+      }
+    }
+
+    loadRealProfile();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
+
   // Kiểm tra trường học có trong danh sách hay là tùy chọn khác
-  const isCustomSchool = !UNIVERSITY_OPTIONS.includes(school) && school !== '';
+  const isCustomSchool = school === 'Khác / Đã đi làm' || (!UNIVERSITY_OPTIONS.includes(school) && school !== '');
 
   // Cuộn mượt mà lên trường lỗi đầu tiên
   const scrollToFirstError = (firstErrorField: keyof FormErrors) => {
@@ -227,7 +307,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     const preview = URL.createObjectURL(file);
     setStudentCardUrl(preview);
 
-    // Xóa lỗi thẻ nếu đang có
     if (errors.studentCard) {
       setErrors((prev) => ({ ...prev, studentCard: undefined }));
     }
@@ -287,22 +366,18 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
   // =========================================================================
   // 1. VALIDATION DÀNH CHO NÚT "LƯU THAY ĐỔI" (Người thuê thông thường)
-  // SĐT, Thẻ SV/CCCD, Link MXH là TÙY CHỌN (Optional)
   // =========================================================================
   const validateForRenter = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Bắt buộc Họ và tên
     if (!name.trim()) {
       newErrors.name = 'Vui lòng nhập Họ và tên';
     }
 
-    // SĐT là optional, nếu có điền thì phải đúng định dạng
     if (phone.trim() && phone.replace(/\D/g, '').length < 9) {
       newErrors.phone = 'Số điện thoại không đúng định dạng (tối thiểu 9 số)';
     }
 
-    // Link MXH là optional, nếu có điền thì BẮT BUỘC đúng định dạng Facebook hoặc Zalo
     if (socialLink.trim() && !validateSocialUrl(socialLink)) {
       newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
     }
@@ -320,46 +395,37 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
   // =========================================================================
   // 2. VALIDATION DÀNH CHO NÚT "ĐĂNG KÝ LÀM CHỦ TRỌ" (Owner Upgrade)
-  // BẮT BUỘC: Họ tên, Số điện thoại, Ảnh xác minh (CCCD/Thẻ SV), Link MXH
   // =========================================================================
   const validateForOwnerUpgrade = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // 1. Bắt buộc Họ và tên
     if (!name.trim()) {
       newErrors.name = 'Vui lòng nhập Họ và tên chủ trọ';
     }
 
-    // 2. Bắt buộc Số điện thoại
     if (!phone.trim()) {
       newErrors.phone = 'Vui lòng nhập Số điện thoại để đăng ký làm chủ trọ';
     } else if (phone.replace(/\D/g, '').length < 9) {
       newErrors.phone = 'Số điện thoại không đúng định dạng (tối thiểu 9 số)';
     }
 
-    // 3. Bắt buộc Ảnh xác minh danh tính (CCCD / Thẻ SV)
     if (!studentCardUrl.trim()) {
       newErrors.studentCard = 'Vui lòng tải lên ảnh Thẻ sinh viên hoặc CCCD để xác thực danh tính chủ trọ';
     }
 
-    // 4. Bắt buộc Link Mạng xã hội bắt đầu bằng https://facebook.com/, https://www.facebook.com/, hoặc https://zalo.me/
-    if (!socialLink.trim()) {
-      newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
-    } else if (!validateSocialUrl(socialLink)) {
+    if (!socialLink.trim() || !validateSocialUrl(socialLink)) {
       newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      // 1. Ngăn chặn hành động & Báo lỗi Toast
       showToast(
         'Vui lòng bổ sung SĐT, Ảnh xác minh và Link MXH để đăng ký làm chủ trọ',
         'Hồ sơ chủ trọ yêu cầu đầy đủ thông tin định danh và kênh liên lạc trực tiếp.',
         'error'
       );
 
-      // 2. Tự động scroll màn hình lên trường bị thiếu đầu tiên
       const firstField = Object.keys(newErrors)[0] as keyof FormErrors;
       scrollToFirstError(firstField);
       return false;
@@ -368,48 +434,57 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     return true;
   };
 
-  // Helper lưu dữ liệu vào store & supabase
+  // =========================================================================
+  // HÀM UPDATE DATA THỰC TẾ XUỐNG SUPABASE
+  // =========================================================================
   const saveUserData = async (customOwnerStatus?: 'none' | 'pending' | 'approved' | 'rejected') => {
-    if (!currentUser) return null;
+    if (!currentUser) throw new Error('Chưa đăng nhập');
 
     const finalSchool = school === 'Khác / Đã đi làm' && customSchool.trim() ? customSchool.trim() : school;
     const isStudentVerified = Boolean(studentCardUrl) || Boolean(currentUser.studentVerified);
     const targetStatus = customOwnerStatus !== undefined ? customOwnerStatus : (currentUser.ownerApplicationStatus || 'none');
 
+    const profileData = {
+      id: currentUser.id,
+      name: name.trim(),
+      email: currentUser.email,
+      phone: phone.trim() || undefined,
+      role: currentUser.role as any,
+      avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
+      verified: isStudentVerified || currentUser.verified,
+      owner_application_status: targetStatus,
+      school: finalSchool || undefined,
+      year: year || undefined,
+      student_card_url: studentCardUrl || undefined,
+      social_link: socialLink.trim() || undefined,
+      facebook_link: socialLink.trim() || undefined,
+      phone_verified: phoneVerified,
+      student_verified: isStudentVerified,
+    };
+
+    // 1. Cập nhật thực tế xuống Supabase
+    const res = await syncUserToSupabase(profileData);
+    if (!res.success && res.error) {
+      throw new Error(res.error);
+    }
+
+    // 2. Cập nhật Zustand App Store ngay lập tức
     const updatedUser = {
       ...currentUser,
-      name: name.trim(),
-      avatarUrl: avatarUrl || currentUser.avatarUrl,
+      name: profileData.name,
+      avatarUrl: profileData.avatar_url,
       school: finalSchool,
       year: year,
-      phone: phone.trim(),
+      phone: profileData.phone,
       phoneVerified: phoneVerified,
       studentCardUrl: studentCardUrl,
-      socialLink: socialLink.trim(),
+      socialLink: profileData.social_link,
       studentVerified: isStudentVerified,
-      verified: isStudentVerified || currentUser.verified,
+      verified: profileData.verified,
       ownerApplicationStatus: targetStatus,
     };
 
-    // 1. Cập nhật Zustand App Store
     setCurrentUser(updatedUser);
-
-    // 2. Đồng bộ lên Supabase Profiles
-    try {
-      await syncUserToSupabase({
-        id: currentUser.id,
-        name: updatedUser.name,
-        email: updatedUser.email,
-        phone: updatedUser.phone,
-        role: updatedUser.role as any,
-        avatar_url: updatedUser.avatarUrl,
-        verified: updatedUser.verified,
-        owner_application_status: targetStatus,
-      });
-    } catch (syncErr) {
-      console.warn('[EditProfile] Lỗi đồng bộ Supabase:', syncErr);
-    }
-
     return updatedUser;
   };
 
@@ -430,7 +505,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     setIsSaving(true);
     try {
       await saveUserData();
-      showToast('Cập nhật hồ sơ thành công!', 'Thông tin cá nhân của bạn đã được lưu.', 'success');
+      showToast('Cập nhật hồ sơ thành công!', 'Thông tin cá nhân của bạn đã được đồng bộ lên Supabase.', 'success');
       if (onSuccess) onSuccess();
     } catch (err: any) {
       showToast('Lỗi khi cập nhật hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
@@ -439,9 +514,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
   };
 
-  // =========================================================================
-  // Xử lý Đăng ký làm chủ trọ (Quy trình chuyển sang PENDING_HOST)
-  // =========================================================================
+  // Xử lý Đăng ký làm chủ trọ (PENDING_HOST)
   const handleOwnerUpgradeClick = async (e: React.MouseEvent) => {
     e.preventDefault();
 
@@ -456,24 +529,20 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       return;
     }
 
-    // 1. Chạy validation nghiêm ngặt
     if (!validateForOwnerUpgrade()) {
-      return; // Dừng lại nếu thiếu bất kỳ thông tin nào
+      return;
     }
 
     setIsUpgrading(true);
     try {
-      // 2. Lưu dữ liệu vào database và chuyển trạng thái thành 'pending' (PENDING_HOST)
       await saveUserData('pending');
 
-      // 3. Hiển thị Toast thông báo thành công
       showToast(
         'Hồ sơ của bạn đã được gửi.',
         'Quản trị viên sẽ kiểm tra tính xác thực của ảnh thẻ và mạng xã hội trước khi cấp quyền Chủ trọ trong vòng 24h.',
         'success'
       );
 
-      // 4. Mở Popup thông báo chi tiết
       setShowPendingSuccessModal(true);
     } catch (err: any) {
       showToast('Lỗi khi gửi hồ sơ đăng ký', err?.message || 'Vui lòng thử lại sau', 'error');
@@ -481,6 +550,21 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       setIsUpgrading(false);
     }
   };
+
+  if (isLoadingProfile) {
+    return (
+      <div className="bg-white rounded-3xl p-10 border border-gray-200 text-center space-y-4 shadow-xs animate-pulse">
+        <div className="w-12 h-12 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center mx-auto">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+        <div className="space-y-2 max-w-sm mx-auto">
+          <div className="h-4 bg-gray-200 rounded-full w-3/4 mx-auto"></div>
+          <div className="h-3 bg-gray-100 rounded-full w-1/2 mx-auto"></div>
+        </div>
+        <p className="text-xs text-gray-500 font-medium">Đang đồng bộ dữ liệu hồ sơ từ Supabase...</p>
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSave} className={`space-y-6 text-left ${className}`}>
@@ -534,7 +618,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 </div>
               )}
 
-              {/* Overlay hover */}
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white">
                 <Camera className="w-5 h-5 mb-0.5" />
                 <span className="text-[9px] font-bold uppercase tracking-wider">Đổi ảnh</span>
@@ -547,7 +630,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               )}
             </div>
 
-            {/* Camera badge icon */}
             <button
               type="button"
               onClick={() => avatarInputRef.current?.click()}
@@ -613,7 +695,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </label>
             <select
               id="user-school"
-              value={isCustomSchool ? 'Khác / Đã đi làm' : school}
+              value={school}
               onChange={(e) => {
                 setSchool(e.target.value);
                 if (e.target.value !== 'Khác / Đã đi làm') {
@@ -622,6 +704,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               }}
               className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent hover:border-gray-400 transition"
             >
+              <option value="">-- Chọn Trường Đại học / Tổ chức --</option>
               {UNIVERSITY_OPTIONS.map((uni) => (
                 <option key={uni} value={uni}>
                   {uni}
@@ -629,12 +712,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               ))}
             </select>
 
-            {(school === 'Khác / Đã đi làm' || isCustomSchool) && (
+            {isCustomSchool && (
               <input
                 type="text"
-                value={customSchool || (isCustomSchool ? school : '')}
+                value={customSchool}
                 onChange={(e) => setCustomSchool(e.target.value)}
-                placeholder="Nhập tên trường hoặc nơi công tác..."
+                placeholder="Nhập tên trường hoặc nơi công tác cụ thể..."
                 className="w-full mt-2 px-4 py-2.5 rounded-xl border border-gray-300 text-xs text-gray-900 placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-[#00a854]"
               />
             )}
@@ -652,6 +735,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               onChange={(e) => setYear(e.target.value)}
               className="w-full px-4 py-3 rounded-2xl border border-gray-300 bg-white text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent hover:border-gray-400 transition"
             >
+              <option value="">-- Chọn Năm học --</option>
               {YEAR_OPTIONS.map((y) => (
                 <option key={y} value={y}>
                   {y}
@@ -699,7 +783,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 }`}
               />
 
-              {/* Nút bấm nhỏ Xác thực bên cạnh */}
               <div className="absolute right-2">
                 {phoneVerified ? (
                   <div className="px-3 py-1.5 bg-emerald-100/70 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1">
@@ -761,7 +844,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </span>
           </label>
 
-          {/* Input file chỉ chấp nhận image/png, image/jpeg, image/jpg, image/webp */}
           <input
             ref={cardInputRef}
             type="file"
@@ -775,7 +857,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           />
 
           {!studentCardUrl ? (
-            /* Khu vực Drag & Drop / Click Upload */
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -811,7 +892,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               </div>
             </div>
           ) : (
-            /* Hiển thị Preview ảnh thẻ sinh viên khi đã tải lên */
             <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4 flex flex-col sm:flex-row items-center gap-4">
               <div className="w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-gray-200 border border-gray-300 relative shrink-0">
                 <img
@@ -864,7 +944,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </p>
           )}
 
-          {/* Ghi chú bắt buộc theo yêu cầu */}
           <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#00a854] shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-950 font-medium">
