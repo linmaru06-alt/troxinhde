@@ -165,7 +165,7 @@ export const MapViewPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-gray-50 relative">
+    <div className="h-[calc(100dvh-70px)] lg:h-[calc(100dvh-76px)] flex flex-col overflow-hidden bg-gray-50 relative -mt-[1px]">
       {/* Top Map Filter Sub-bar */}
       <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 space-y-2 z-20 shrink-0 shadow-xs">
         <div className="flex items-center justify-between gap-3">
@@ -218,10 +218,10 @@ export const MapViewPage: React.FC = () => {
       </div>
 
       {/* District Horizontal Scroll Bar */}
-      <div className="bg-white border-b border-gray-200 px-3 py-2 z-10 shrink-0 relative flex items-center">
+      <div className="bg-emerald-50/70 border-b border-emerald-100/50 px-3 py-2 z-10 shrink-0 relative flex items-center shadow-xs">
         <button 
           onClick={() => scrollDistricts('left')}
-          className="absolute left-0 z-10 p-1.5 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.1)] hover:bg-gray-50 flex items-center justify-center border-r border-gray-100"
+          className="absolute left-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-r border-emerald-100/50"
         >
           <ChevronLeft className="w-5 h-5 text-gray-600" />
         </button>
@@ -258,7 +258,7 @@ export const MapViewPage: React.FC = () => {
 
         <button 
           onClick={() => scrollDistricts('right')}
-          className="absolute right-0 z-10 p-1.5 bg-white shadow-[-2px_0_4px_rgba(0,0,0,0.1)] hover:bg-gray-50 flex items-center justify-center border-l border-gray-100"
+          className="absolute right-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[-2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-l border-emerald-100/50"
         >
           <ChevronRight className="w-5 h-5 text-gray-600" />
         </button>
