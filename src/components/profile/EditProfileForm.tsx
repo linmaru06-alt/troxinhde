@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { syncUserToSupabase } from '../../lib/supabaseAuthSync';
 import { uploadToStorage } from '../../lib/storage';
@@ -9,7 +10,6 @@ import {
   School,
   Calendar,
   ShieldCheck,
-  ShieldAlert,
   UploadCloud,
   CheckCircle2,
   Trash2,
@@ -18,9 +18,10 @@ import {
   Link2,
   Sparkles,
   AlertCircle,
-  HelpCircle,
   Save,
-  RotateCcw,
+  Building2,
+  ArrowRight,
+  Info,
 } from 'lucide-react';
 
 const UNIVERSITY_OPTIONS = [
@@ -59,17 +60,27 @@ const YEAR_OPTIONS = [
   'Đi làm',
 ];
 
+interface FormErrors {
+  name?: string;
+  phone?: string;
+  studentCard?: string;
+  socialLink?: string;
+}
+
 interface EditProfileFormProps {
   onSuccess?: () => void;
   onCancel?: () => void;
   className?: string;
+  showOwnerUpgradeCTA?: boolean;
 }
 
 export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   onSuccess,
   onCancel,
   className = '',
+  showOwnerUpgradeCTA = true,
 }) => {
+  const navigate = useNavigate();
   const { currentUser, setCurrentUser, showToast } = useAppStore();
 
   // Khối 1: Thông tin chung
@@ -98,18 +109,42 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [isUploadingCard, setIsUploadingCard] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [errors, setErrors] = useState<{ name?: string; phone?: string; socialLink?: string }>({});
+  const [isUpgrading, setIsUpgrading] = useState<boolean>(false);
+  const [errors, setErrors] = useState<FormErrors>({});
 
   // Modal / Trạng thái xác thực SĐT mini
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState<boolean>(false);
   const [otpCode, setOtpCode] = useState<string>('');
   const [isVerifyingPhone, setIsVerifyingPhone] = useState<boolean>(false);
 
+  // DOM Refs phục vụ tự động Scroll và Focus khi validation thất bại
+  const nameInputRef = useRef<HTMLInputElement>(null);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const cardSectionRef = useRef<HTMLDivElement>(null);
+  const socialInputRef = useRef<HTMLInputElement>(null);
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const cardInputRef = useRef<HTMLInputElement>(null);
 
   // Kiểm tra trường học có trong danh sách hay là tùy chọn khác
   const isCustomSchool = !UNIVERSITY_OPTIONS.includes(school) && school !== '';
+
+  // Cuộn mượt mà lên trường lỗi đầu tiên
+  const scrollToFirstError = (firstErrorField: keyof FormErrors) => {
+    setTimeout(() => {
+      if (firstErrorField === 'name' && nameInputRef.current) {
+        nameInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        nameInputRef.current.focus();
+      } else if (firstErrorField === 'phone' && phoneInputRef.current) {
+        phoneInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        phoneInputRef.current.focus();
+      } else if (firstErrorField === 'studentCard' && cardSectionRef.current) {
+        cardSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else if (firstErrorField === 'socialLink' && socialInputRef.current) {
+        socialInputRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        socialInputRef.current.focus();
+      }
+    }, 100);
+  };
 
   // Xử lý upload ảnh Avatar
   const handleAvatarFileChange = async (file: File | null) => {
@@ -122,12 +157,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
 
     setIsUploadingAvatar(true);
-    // Preview trước tức thì
     const preview = URL.createObjectURL(file);
     setAvatarUrl(preview);
 
     try {
-      // Ưu tiên tải lên Supabase Storage hoặc Cloudinary
       let uploadedUrl = '';
       try {
         uploadedUrl = await uploadToStorage(file, 'avatars', { folder: 'user_avatars' });
@@ -155,9 +188,13 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
 
     setIsUploadingCard(true);
-    // Preview tức thì
     const preview = URL.createObjectURL(file);
     setStudentCardUrl(preview);
+
+    // Xóa lỗi thẻ nếu đang có
+    if (errors.studentCard) {
+      setErrors((prev) => ({ ...prev, studentCard: undefined }));
+    }
 
     try {
       let uploadedUrl = '';
@@ -189,6 +226,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const handleSendOtp = () => {
     if (!phone || phone.replace(/\D/g, '').length < 9) {
       setErrors((prev) => ({ ...prev, phone: 'Vui lòng nhập số điện thoại hợp lệ' }));
+      scrollToFirstError('phone');
       return;
     }
     setErrors((prev) => ({ ...prev, phone: undefined }));
@@ -211,19 +249,25 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }, 600);
   };
 
-  // Validate form
-  const validateForm = () => {
-    const newErrors: { name?: string; phone?: string; socialLink?: string } = {};
+  // =========================================================================
+  // 1. VALIDATION DÀNH CHO NÚT "LƯU THAY ĐỔI" (Người thuê thông thường)
+  // SĐT, Thẻ SV/CCCD, Link MXH là TÙY CHỌN (Optional)
+  // =========================================================================
+  const validateForRenter = (): boolean => {
+    const newErrors: FormErrors = {};
 
+    // Chỉ bắt buộc Họ và tên
     if (!name.trim()) {
       newErrors.name = 'Vui lòng nhập Họ và tên';
     }
 
-    if (phone && phone.replace(/\D/g, '').length < 9) {
-      newErrors.phone = 'Số điện thoại không đúng định dạng';
+    // SĐT là optional, nhưng nếu có điền thì phải đúng định dạng
+    if (phone.trim() && phone.replace(/\D/g, '').length < 9) {
+      newErrors.phone = 'Số điện thoại không đúng định dạng (tối thiểu 9 số)';
     }
 
-    if (socialLink) {
+    // Link MXH là optional, nếu có điền thì phải là URL/Zalo/FB hợp lệ
+    if (socialLink.trim()) {
       const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(socialLink.trim());
       const isZaloPhone = /^0\d{9}$/.test(socialLink.trim()) || socialLink.includes('zalo.me') || socialLink.includes('facebook.com') || socialLink.includes('fb.com');
       if (!isUrl && !isZaloPhone) {
@@ -232,24 +276,73 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+
+    if (Object.keys(newErrors).length > 0) {
+      const firstField = Object.keys(newErrors)[0] as keyof FormErrors;
+      scrollToFirstError(firstField);
+      return false;
+    }
+
+    return true;
   };
 
-  // Xử lý Lưu thay đổi
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // =========================================================================
+  // 2. VALIDATION DÀNH CHO NÚT "ĐĂNG KÝ LÀM CHỦ TRỌ" (Owner Upgrade)
+  // BẮT BUỘC: Họ tên, Số điện thoại, Ảnh xác minh (CCCD/Thẻ SV), Link MXH
+  // =========================================================================
+  const validateForOwnerUpgrade = (): boolean => {
+    const newErrors: FormErrors = {};
 
-    if (!validateForm()) {
-      showToast('Vui lòng kiểm tra lại các trường thông tin!', '', 'error');
-      return;
+    // 1. Bắt buộc Họ và tên
+    if (!name.trim()) {
+      newErrors.name = 'Vui lòng nhập Họ và tên chủ trọ';
     }
 
-    if (!currentUser) {
-      showToast('Bạn chưa đăng nhập. Vui lòng đăng nhập lại.', '', 'error');
-      return;
+    // 2. Bắt buộc Số điện thoại
+    if (!phone.trim()) {
+      newErrors.phone = 'Vui lòng nhập Số điện thoại để đăng ký làm chủ trọ';
+    } else if (phone.replace(/\D/g, '').length < 9) {
+      newErrors.phone = 'Số điện thoại không đúng định dạng (tối thiểu 9 số)';
     }
 
-    setIsSaving(true);
+    // 3. Bắt buộc Ảnh xác minh danh tính (CCCD / Thẻ SV)
+    if (!studentCardUrl.trim()) {
+      newErrors.studentCard = 'Vui lòng tải lên ảnh Thẻ sinh viên hoặc CCCD để xác thực danh tính chủ trọ';
+    }
+
+    // 4. Bắt buộc Link Mạng xã hội (Zalo / Facebook)
+    if (!socialLink.trim()) {
+      newErrors.socialLink = 'Vui lòng cung cấp link Zalo hoặc Facebook để liên hệ và tạo uy tín đối tác';
+    } else {
+      const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(socialLink.trim());
+      const isZaloPhone = /^0\d{9}$/.test(socialLink.trim()) || socialLink.includes('zalo.me') || socialLink.includes('facebook.com') || socialLink.includes('fb.com');
+      if (!isUrl && !isZaloPhone) {
+        newErrors.socialLink = 'Vui lòng nhập liên kết hợp lệ (vd: https://zalo.me/... hoặc https://facebook.com/...)';
+      }
+    }
+
+    setErrors(newErrors);
+
+    if (Object.keys(newErrors).length > 0) {
+      // 1. Ngăn chặn hành động & Báo lỗi Toast tổng quan
+      showToast(
+        'Vui lòng bổ sung SĐT, Ảnh xác minh và Link MXH để đăng ký làm chủ trọ',
+        'Hồ sơ chủ trọ yêu cầu đầy đủ thông tin định danh và kênh liên lạc trực tiếp.',
+        'error'
+      );
+
+      // 2. Tự động scroll màn hình lên trường bị thiếu đầu tiên
+      const firstField = Object.keys(newErrors)[0] as keyof FormErrors;
+      scrollToFirstError(firstField);
+      return false;
+    }
+
+    return true;
+  };
+
+  // Helper lưu dữ liệu vào store & supabase
+  const saveUserData = async () => {
+    if (!currentUser) return null;
 
     const finalSchool = school === 'Khác / Đã đi làm' && customSchool.trim() ? customSchool.trim() : school;
     const isStudentVerified = Boolean(studentCardUrl) || Boolean(currentUser.studentVerified);
@@ -268,34 +361,82 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       verified: isStudentVerified || currentUser.verified,
     };
 
+    // 1. Cập nhật Zustand App Store
+    setCurrentUser(updatedUser);
+
+    // 2. Đồng bộ lên Supabase Profiles
     try {
-      // 1. Cập nhật Zustand App Store
-      setCurrentUser(updatedUser);
+      await syncUserToSupabase({
+        id: currentUser.id,
+        name: updatedUser.name,
+        email: updatedUser.email,
+        phone: updatedUser.phone,
+        role: updatedUser.role as any,
+        avatar_url: updatedUser.avatarUrl,
+        verified: updatedUser.verified,
+      });
+    } catch (syncErr) {
+      console.warn('[EditProfile] Lỗi đồng bộ Supabase:', syncErr);
+    }
 
-      // 2. Đồng bộ lên Supabase Profiles
-      try {
-        await syncUserToSupabase({
-          id: currentUser.id,
-          name: updatedUser.name,
-          email: updatedUser.email,
-          phone: updatedUser.phone,
-          role: updatedUser.role as any,
-          avatar_url: updatedUser.avatarUrl,
-          verified: updatedUser.verified,
-        });
-      } catch (syncErr) {
-        console.warn('[EditProfile] Lỗi đồng bộ Supabase:', syncErr);
-      }
+    return updatedUser;
+  };
 
+  // Xử lý Lưu thay đổi (Người thuê bình thường)
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!validateForRenter()) {
+      showToast('Vui lòng kiểm tra lại thông tin!', '', 'error');
+      return;
+    }
+
+    if (!currentUser) {
+      showToast('Bạn chưa đăng nhập. Vui lòng đăng nhập lại.', '', 'error');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await saveUserData();
       showToast('Cập nhật hồ sơ thành công!', 'Thông tin cá nhân của bạn đã được lưu.', 'success');
-
-      if (onSuccess) {
-        onSuccess();
-      }
+      if (onSuccess) onSuccess();
     } catch (err: any) {
       showToast('Lỗi khi cập nhật hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  // Xử lý Đăng ký làm chủ trọ (Kèm validation nghiêm ngặt)
+  const handleOwnerUpgradeClick = async (e: React.MouseEvent) => {
+    e.preventDefault();
+
+    if (!currentUser) {
+      showToast('Vui lòng đăng nhập để đăng ký làm chủ trọ', '', 'error');
+      navigate('/dang-nhap?returnUrl=/nang-cap-chu-tro');
+      return;
+    }
+
+    // Chạy validation riêng cho chủ trọ
+    if (!validateForOwnerUpgrade()) {
+      return; // Dừng lại, đã hiển thị toast và scroll lên trường lỗi
+    }
+
+    setIsUpgrading(true);
+    try {
+      // Tự động lưu profile đã điền đủ thông tin
+      await saveUserData();
+      showToast('Thông tin định danh hợp lệ!', 'Đang chuyển hướng tới biểu mẫu đăng ký cơ sở phòng trọ...', 'success');
+
+      // Chuyển hướng tới trang đăng ký chủ trọ
+      setTimeout(() => {
+        navigate('/nang-cap-chu-tro');
+      }, 500);
+    } catch (err: any) {
+      showToast('Lỗi khi xử lý hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsUpgrading(false);
     }
   };
 
@@ -316,7 +457,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </p>
           </div>
           <span className="text-[11px] font-bold text-gray-400 bg-gray-100 px-2.5 py-1 rounded-full">
-            Bắt buộc
+            Cơ bản
           </span>
         </div>
 
@@ -402,6 +543,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </label>
             <input
               id="user-fullname"
+              ref={nameInputRef}
               type="text"
               value={name}
               onChange={(e) => {
@@ -410,10 +552,15 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               }}
               placeholder="Nhập họ và tên đầy đủ (vd: Nguyễn Văn A)"
               className={`w-full px-4 py-3 rounded-2xl border text-sm text-gray-900 placeholder-gray-400 bg-white transition focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent ${
-                errors.name ? 'border-red-400 bg-red-50/20' : 'border-gray-300 hover:border-gray-400'
+                errors.name ? 'border-red-500 bg-red-50/20 ring-1 ring-red-500' : 'border-gray-300 hover:border-gray-400'
               }`}
             />
-            {errors.name && <p className="text-xs text-red-600 font-medium">{errors.name}</p>}
+            {errors.name && (
+              <p className="text-xs text-red-600 font-semibold flex items-center gap-1 animate-fadeIn">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {errors.name}
+              </p>
+            )}
           </div>
 
           {/* Trường học / Nơi làm việc */}
@@ -440,7 +587,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               ))}
             </select>
 
-            {/* Nếu chọn khác hoặc là trường tùy chỉnh */}
             {(school === 'Khác / Đã đi làm' || isCustomSchool) && (
               <input
                 type="text"
@@ -478,6 +624,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               <span className="flex items-center gap-1.5">
                 <Phone className="w-4 h-4 text-[#00a854]" />
                 Số điện thoại
+                <span className="text-[11px] font-normal text-gray-500">
+                  (Tùy chọn cho Người thuê • <strong className="text-amber-700">Bắt buộc cho Chủ trọ</strong>)
+                </span>
               </span>
               {phoneVerified ? (
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
@@ -492,18 +641,19 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             <div className="relative flex items-center">
               <input
                 id="user-phone"
+                ref={phoneInputRef}
                 type="tel"
                 value={phone}
                 onChange={(e) => {
                   setPhone(e.target.value);
                   if (phoneVerified && e.target.value !== currentUser?.phone) {
-                    setPhoneVerified(false); // Cần xác minh lại nếu đổi SĐT
+                    setPhoneVerified(false);
                   }
                   if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
                 }}
                 placeholder="Nhập số điện thoại (vd: 0987654321)"
                 className={`w-full px-4 py-3 pr-28 rounded-2xl border text-sm text-gray-900 placeholder-gray-400 bg-white transition focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent ${
-                  errors.phone ? 'border-red-400 bg-red-50/20' : 'border-gray-300 hover:border-gray-400'
+                  errors.phone ? 'border-red-500 bg-red-50/20 ring-1 ring-red-500' : 'border-gray-300 hover:border-gray-400'
                 }`}
               />
 
@@ -518,7 +668,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    className="px-3 py-1.5 bg-[#00a854] hover:bg-[#009247] text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition flex items-center gap-1"
+                    className="px-3 py-1.5 bg-[#00a854] hover:bg-[#009247] text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition flex items-center gap-1 cursor-pointer"
                   >
                     <ShieldCheck className="w-3.5 h-3.5" />
                     Xác thực
@@ -526,9 +676,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 )}
               </div>
             </div>
-            {errors.phone && <p className="text-xs text-red-600 font-medium">{errors.phone}</p>}
+            {errors.phone && (
+              <p className="text-xs text-red-600 font-semibold flex items-center gap-1 animate-fadeIn">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                {errors.phone}
+              </p>
+            )}
             <p className="text-[11px] text-gray-500">
-              Số điện thoại dùng để nhận tin nhắn lịch hẹn phòng và hỗ trợ giao dịch an toàn.
+              Số điện thoại dùng để nhận tin nhắn lịch hẹn phòng và liên hệ xác thực tài khoản.
             </p>
           </div>
         </div>
@@ -545,7 +700,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               2. Khối Xác Thực & Liên Hệ
             </h2>
             <p className="text-xs sm:text-sm text-gray-500">
-              Tăng độ tin cậy để nhận huy hiệu xác minh và kết nối người mua/bán
+              Tăng độ tin cậy để nhận huy hiệu xác minh và kết nối an toàn
             </p>
           </div>
           <span className="text-[11px] font-bold text-emerald-800 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200">
@@ -554,9 +709,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         </div>
 
         {/* 2.1 Xác minh sinh viên (Thẻ SV / CCCD Upload) */}
-        <div className="space-y-2">
-          <label className="block text-xs sm:text-sm font-bold text-gray-800">
-            Xác minh sinh viên (Mặt trước Thẻ SV hoặc CCCD)
+        <div ref={cardSectionRef} className="space-y-2">
+          <label className="block text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-between">
+            <span>
+              Xác minh sinh viên / CCCD (Mặt trước Thẻ SV hoặc CCCD)
+            </span>
+            <span className="text-[11px] font-normal text-gray-500">
+              (Tùy chọn cho Người thuê • <strong className="text-amber-700">Bắt buộc cho Chủ trọ</strong>)
+            </span>
           </label>
 
           <input
@@ -582,12 +742,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               onDrop={handleDropCard}
               onClick={() => cardInputRef.current?.click()}
               className={`p-6 sm:p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer text-center flex flex-col items-center justify-center gap-2.5 ${
-                isDragOver
+                errors.studentCard
+                  ? 'border-red-500 bg-red-50/30 ring-1 ring-red-500'
+                  : isDragOver
                   ? 'border-[#00a854] bg-emerald-50/50 scale-[0.99]'
                   : 'border-gray-300 hover:border-[#00a854] bg-gray-50/60 hover:bg-gray-50'
               }`}
             >
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-[#00a854] flex items-center justify-center">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center ${errors.studentCard ? 'bg-red-100 text-red-600' : 'bg-emerald-100 text-[#00a854]'}`}>
                 {isUploadingCard ? (
                   <Loader2 className="w-6 h-6 animate-spin" />
                 ) : (
@@ -595,7 +757,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 )}
               </div>
               <div className="space-y-1">
-                <p className="text-xs sm:text-sm font-bold text-gray-800">
+                <p className={`text-xs sm:text-sm font-bold ${errors.studentCard ? 'text-red-700' : 'text-gray-800'}`}>
                   {isUploadingCard
                     ? 'Đang tải lên tài liệu xác minh...'
                     : 'Kéo thả hoặc bấm vào đây để tải ảnh lên'}
@@ -627,14 +789,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                   Đã tải lên mặt trước thẻ
                 </div>
                 <p className="text-xs text-gray-600 font-medium">
-                  Hồ sơ đang ở trạng thái xác thực danh tính sinh viên.
+                  Hồ sơ đang ở trạng thái xác thực danh tính sinh viên / đối tác.
                 </p>
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => cardInputRef.current?.click()}
                     disabled={isUploadingCard}
-                    className="text-xs font-bold text-[#00a854] hover:underline"
+                    className="text-xs font-bold text-[#00a854] hover:underline cursor-pointer"
                   >
                     Đổi ảnh khác
                   </button>
@@ -643,7 +805,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                     type="button"
                     onClick={() => setStudentCardUrl('')}
                     disabled={isUploadingCard}
-                    className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1"
+                    className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Trash2 className="w-3 h-3" /> Xóa
                   </button>
@@ -652,24 +814,37 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </div>
           )}
 
+          {errors.studentCard && (
+            <p className="text-xs text-red-600 font-semibold flex items-center gap-1 animate-fadeIn">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {errors.studentCard}
+            </p>
+          )}
+
           {/* Ghi chú bắt buộc theo yêu cầu */}
           <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#00a854] shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-950 font-medium">
-              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong>. Thông tin chỉ dùng để duyệt huy hiệu và được bảo mật tuyệt đối.
+              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong>. Thông tin chỉ dùng để duyệt hồ sơ và được bảo mật tuyệt đối.
             </p>
           </div>
         </div>
 
-        {/* 2.2 Mạng xã hội (Tùy chọn) */}
+        {/* 2.2 Mạng xã hội */}
         <div className="space-y-1.5">
-          <label htmlFor="user-social-link" className="block text-xs sm:text-sm font-bold text-gray-800 flex items-center gap-1.5">
-            <Link2 className="w-4 h-4 text-blue-600" />
-            Mạng xã hội <span className="text-xs font-normal text-gray-500">(Tùy chọn)</span>
+          <label htmlFor="user-social-link" className="block text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-between">
+            <span className="flex items-center gap-1.5">
+              <Link2 className="w-4 h-4 text-blue-600" />
+              Mạng xã hội
+            </span>
+            <span className="text-[11px] font-normal text-gray-500">
+              (Tùy chọn cho Người thuê • <strong className="text-amber-700">Bắt buộc cho Chủ trọ</strong>)
+            </span>
           </label>
           <div className="relative">
             <input
               id="user-social-link"
+              ref={socialInputRef}
               type="text"
               value={socialLink}
               onChange={(e) => {
@@ -678,49 +853,99 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               }}
               placeholder="Điền link Zalo hoặc Facebook cá nhân (vd: https://facebook.com/username hoặc https://zalo.me/0987654321)"
               className={`w-full px-4 py-3 rounded-2xl border text-sm text-gray-900 placeholder-gray-400 bg-white transition focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent ${
-                errors.socialLink ? 'border-red-400 bg-red-50/20' : 'border-gray-300 hover:border-gray-400'
+                errors.socialLink ? 'border-red-500 bg-red-50/20 ring-1 ring-red-500' : 'border-gray-300 hover:border-gray-400'
               }`}
             />
           </div>
-          {errors.socialLink && <p className="text-xs text-red-600 font-medium">{errors.socialLink}</p>}
+          {errors.socialLink && (
+            <p className="text-xs text-red-600 font-semibold flex items-center gap-1 animate-fadeIn">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {errors.socialLink}
+            </p>
+          )}
           <p className="text-[11px] text-gray-500">
-            Giúp tăng độ tin cậy khi giao dịch trên Chợ đồ cũ và tìm bạn cùng phòng trọ.
+            Giúp tăng độ tin cậy khi giao dịch trên Chợ đồ cũ và xác minh quyền Chủ trọ đối tác.
           </p>
         </div>
       </section>
 
       {/* ========================================================================= */}
-      {/* 3. NÚT LƯU THAY ĐỔI (Trải dài Mobile, Xanh lá thương hiệu) */}
+      {/* 3. KHU VỰC HÀNH ĐỘNG & NÂNG CẤP CHỦ TRỌ (Action Buttons) */}
       {/* ========================================================================= */}
-      <div className="pt-2 flex flex-col sm:flex-row items-center justify-end gap-3">
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            disabled={isSaving}
-            className="w-full sm:w-auto px-6 py-3.5 rounded-2xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-bold text-sm transition active:scale-95 text-center"
-          >
-            Hủy bỏ
-          </button>
+      <div className="space-y-4 pt-2">
+        {/* Banner / CTA Đăng Ký Làm Chủ Trọ nếu tài khoản chưa phải chủ trọ */}
+        {showOwnerUpgradeCTA && currentUser?.role !== 'owner' && (
+          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-3xl p-5 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-sm shrink-0">
+                <Building2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-black text-gray-900">Bạn muốn đăng phòng cho thuê?</h4>
+                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
+                    Miễn phí
+                  </span>
+                </div>
+                <p className="text-xs text-gray-600">
+                  Nâng cấp tài khoản lên Chủ Trọ Đối Tác để bắt đầu đăng tin và tiếp cận hàng ngàn sinh viên.
+                </p>
+              </div>
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOwnerUpgradeClick}
+              disabled={isUpgrading || isSaving}
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-60"
+            >
+              {isUpgrading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Đang kiểm tra hồ sơ...
+                </>
+              ) : (
+                <>
+                  <Building2 className="w-4 h-4" />
+                  Đăng Ký Làm Chủ Trọ
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          </div>
         )}
 
-        <button
-          type="submit"
-          disabled={isSaving || isUploadingAvatar || isUploadingCard}
-          className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-        >
-          {isSaving ? (
-            <>
-              <Loader2 className="w-5 h-5 animate-spin" />
-              Đang lưu thay đổi...
-            </>
-          ) : (
-            <>
-              <Save className="w-5 h-5" />
-              Lưu thay đổi
-            </>
+        {/* Nút Lưu thay đổi thông thường */}
+        <div className="flex flex-col sm:flex-row items-center justify-end gap-3">
+          {onCancel && (
+            <button
+              type="button"
+              onClick={onCancel}
+              disabled={isSaving || isUpgrading}
+              className="w-full sm:w-auto px-6 py-3.5 rounded-2xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-bold text-sm transition active:scale-95 text-center cursor-pointer"
+            >
+              Hủy bỏ
+            </button>
           )}
-        </button>
+
+          <button
+            type="submit"
+            disabled={isSaving || isUpgrading || isUploadingAvatar || isUploadingCard}
+            className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-5 h-5 animate-spin" />
+                Đang lưu thay đổi...
+              </>
+            ) : (
+              <>
+                <Save className="w-5 h-5" />
+                Lưu thay đổi
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* ========================================================================= */}
@@ -758,7 +983,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               <button
                 type="button"
                 onClick={() => setShowPhoneVerifyModal(false)}
-                className="flex-1 py-3 rounded-xl border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50"
+                className="flex-1 py-3 rounded-xl border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
               >
                 Hủy
               </button>
@@ -766,7 +991,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 type="button"
                 onClick={handleConfirmOtp}
                 disabled={isVerifyingPhone}
-                className="flex-1 py-3 rounded-xl bg-[#00a854] hover:bg-[#009247] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5"
+                className="flex-1 py-3 rounded-xl bg-[#00a854] hover:bg-[#009247] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {isVerifyingPhone ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

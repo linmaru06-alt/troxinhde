@@ -1,9 +1,49 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
+import { useAppStore } from '../../store/useAppStore';
 import { Button } from '../ui/Button';
 import { Building2, ArrowRight } from 'lucide-react';
 
 export const UpgradeCTACard: React.FC = () => {
+  const navigate = useNavigate();
+  const { currentUser, showToast } = useAppStore();
+
+  const handleUpgrade = () => {
+    if (!currentUser) {
+      navigate('/dang-nhap?returnUrl=/nang-cap-chu-tro');
+      return;
+    }
+
+    const hasPhone = Boolean(currentUser.phone && currentUser.phone.replace(/\D/g, '').length >= 9);
+    const hasCard = Boolean(currentUser.studentCardUrl);
+    const hasSocial = Boolean(currentUser.socialLink);
+
+    if (!hasPhone || !hasCard || !hasSocial) {
+      showToast(
+        'Vui lòng bổ sung SĐT, Ảnh xác minh và Link MXH để đăng ký làm chủ trọ',
+        'Hồ sơ chủ trọ yêu cầu đầy đủ thông tin định danh và kênh liên lạc trực tiếp.',
+        'error'
+      );
+
+      // Tự động cuộn mượt mà lên form hồ sơ
+      const targetInput = !hasPhone
+        ? document.getElementById('user-phone')
+        : !hasCard
+        ? document.getElementById('user-social-link')
+        : document.getElementById('user-social-link');
+
+      if (targetInput) {
+        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        targetInput.focus();
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
+
+    navigate('/nang-cap-chu-tro');
+  };
+
   return (
     <div className="bg-gradient-to-r from-blue-50 to-emerald-50 rounded-2xl p-4 border border-blue-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
       <div className="flex items-center gap-3">
@@ -18,11 +58,17 @@ export const UpgradeCTACard: React.FC = () => {
         </div>
       </div>
 
-      <Link to="/nang-cap-chu-tro" className="shrink-0 w-full sm:w-auto">
-        <Button variant="primary" size="sm" className="w-full" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
+      <div className="shrink-0 w-full sm:w-auto">
+        <Button
+          variant="primary"
+          size="sm"
+          className="w-full cursor-pointer"
+          rightIcon={<ArrowRight className="w-3.5 h-3.5" />}
+          onClick={handleUpgrade}
+        >
           Đăng Ký Làm Chủ Trọ
         </Button>
-      </Link>
+      </div>
     </div>
   );
 };
