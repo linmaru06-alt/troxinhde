@@ -216,7 +216,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
       const name = f.properties?.shapeName || f.properties?.name || '';
       return name.includes(selectedDistrict);
     });
-    return feature ? { type: 'FeatureCollection', features: [feature] } : null;
+    return feature ? { type: 'FeatureCollection' as const, features: [feature] } : null;
   }, [selectedDistrict, geoJsonData]);
 
   // Map rooms to geo locations
