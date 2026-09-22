@@ -10,14 +10,35 @@
 -- ==============================================================================
 
 -- ==============================================================================
--- PHẦN 1: GỠ BỎ RÀNG BUỘC CHECK CŨ VÀ KHÓA NGOẠI PHỤ THUỘC SUPABASE AUTH
+-- PHẦN 1: GỠ BỎ RÀNG BUỘC CHECK CŨ VÀ ĐẢM BẢO TỒN TẠI CỘT/BẢNG ĐẦY ĐỦ
 -- ==============================================================================
 ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_app_role_check;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_owner_application_status_check;
 ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_room_type_check;
 ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_status_check;
 ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_moderation_status_check;
 ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_availability_status_check;
 ALTER TABLE public.buildings DROP CONSTRAINT IF EXISTS buildings_status_check;
+
+-- Đảm bảo các cột cho bảng profiles (Đặc biệt là cột verified, firebase_uid, app_role)
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS firebase_uid TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS full_name TEXT DEFAULT 'Người Dùng Trọ Xinh';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS app_role TEXT DEFAULT 'renter';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'renter';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url TEXT DEFAULT '/images/user-avatar.jpg';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS owner_application_status TEXT DEFAULT 'none';
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_demo_account BOOLEAN DEFAULT false;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS school TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS year TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS bio TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) DEFAULT 5.0;
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS verified BOOLEAN DEFAULT false;
 
 -- Đảm bảo các cột phụ cần thiết cho bảng rooms
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
@@ -30,6 +51,8 @@ ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS floor INTEGER DEFAULT 1;
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS rules JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS amenities JSONB DEFAULT '[]'::jsonb;
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS is_boosted BOOLEAN DEFAULT false;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS boost_badge TEXT;
 
 -- Đảm bảo các cột phụ cho bảng buildings
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
@@ -38,6 +61,118 @@ ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS total_rooms INTEGER DEFAULT 10;
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS available_rooms INTEGER DEFAULT 5;
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS verified_badge BOOLEAN DEFAULT true;
+
+-- Đảm bảo các bảng nghiệp vụ liên quan đã tồn tại trước khi cấu hình RLS & Realtime
+CREATE TABLE IF NOT EXISTS public.conversations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID,
+    participant_1 UUID,
+    participant_2 UUID,
+    last_message TEXT,
+    last_message_at TIMESTAMPTZ,
+    unread_count_p1 INTEGER DEFAULT 0,
+    unread_count_p2 INTEGER DEFAULT 0,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    conversation_id UUID REFERENCES public.conversations(id) ON DELETE CASCADE,
+    sender_id UUID,
+    content TEXT NOT NULL,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.notifications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    cta_url TEXT,
+    cta_label TEXT,
+    is_read BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.owner_applications (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    full_name TEXT,
+    phone TEXT,
+    id_card_number TEXT,
+    id_card_front_url TEXT,
+    id_card_back_url TEXT,
+    property_address TEXT,
+    status TEXT DEFAULT 'pending',
+    rejection_reason TEXT,
+    reviewed_by UUID,
+    reviewed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.roommate_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    title TEXT NOT NULL,
+    content TEXT,
+    district TEXT,
+    price BIGINT DEFAULT 0,
+    gender_preference TEXT,
+    status TEXT DEFAULT 'approved',
+    contact_phone TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.marketplace_items (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID,
+    title TEXT NOT NULL,
+    price BIGINT DEFAULT 0,
+    category TEXT,
+    condition TEXT,
+    images JSONB DEFAULT '[]'::jsonb,
+    description TEXT,
+    status TEXT DEFAULT 'available',
+    contact_phone TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.reports (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    reporter_id UUID,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    details TEXT,
+    status TEXT DEFAULT 'pending',
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS public.viewing_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    room_id UUID,
+    renter_id UUID,
+    owner_id UUID,
+    requested_date TEXT,
+    requested_time TEXT,
+    time_slot TEXT DEFAULT '09:00 - 10:00',
+    contact_phone TEXT,
+    renter_name TEXT DEFAULT '',
+    renter_phone TEXT DEFAULT '',
+    message TEXT,
+    status TEXT DEFAULT 'pending',
+    note TEXT,
+    owner_response_note TEXT,
+    created_at TIMESTAMPTZ DEFAULT now(),
+    updated_at TIMESTAMPTZ DEFAULT now()
+);
 
 -- ==============================================================================
 -- PHẦN 2: SEED PROFILE NỀN TẢNG (TRÁNH LỖI KHÓA NGOẠI KHI CLIENT GỬI ID)
