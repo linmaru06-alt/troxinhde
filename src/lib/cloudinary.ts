@@ -15,15 +15,20 @@ export async function uploadImage(
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
   const uploadPreset = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET || 'troxinh_unsigned';
 
-  // Fallback graceful: Nếu chưa cấu hình cloud_name thật trong env, chuyển file thành data url preview
+  // Fallback thông minh: Nếu chưa cấu hình Cloudinary, tự động tải lên Supabase Storage
   if (!cloudName) {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        resolve(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    });
+    try {
+      const { uploadToStorage } = await import('./storage');
+      const targetBucket = folder === 'troxinh/avatars' ? 'avatars' : 'room-images';
+      return await uploadToStorage(file, targetBucket, { folder });
+    } catch (storageErr: any) {
+      console.warn('[ImageUpload] Supabase Storage fallback failed, fallback to preview DataURL:', storageErr?.message);
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(file);
+      });
+    }
   }
 
   const formData = new FormData();
