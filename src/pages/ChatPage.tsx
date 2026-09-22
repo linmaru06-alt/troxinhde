@@ -3,6 +3,8 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { getConversations, isSameUserId, KNOWN_USER_NAMES } from '../lib/api/messages';
+import { getMarketplaceItemById } from '../lib/api/marketplace';
+import { formatCurrency } from '../components/ui/Cards';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
 import {
@@ -19,13 +21,19 @@ import {
   ShieldOff,
   ShieldCheck,
   ShieldAlert,
+  ChevronRight,
+  ShoppingBag,
+  Tag,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
+
+const ITEM_PLACEHOLDER =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7.5 4.27 9 5.15'/%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E";
 
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
-  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser } = useAppStore();
+  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems } = useAppStore();
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
@@ -144,6 +152,105 @@ export const ChatPage: React.FC = () => {
     knownOther?.avatar ||
     '/images/user-avatar.jpg';
   const otherPhone = otherParticipant?.phone;
+
+  // 3. Xác định món đồ gắn kèm trong cuộc hội thoại (Chợ đồ cũ)
+  const [remoteItem, setRemoteItem] = useState<any>(null);
+
+  // Tìm tin nhắn ngữ cảnh món đồ gần nhất
+  const latestContextMsg = chatMessages
+    .slice()
+    .reverse()
+    .find((m) => m.type === 'item_context' || Boolean(m.item_id));
+
+  let parsedContext: {
+    itemId?: string;
+    title?: string;
+    price?: number;
+    image?: string;
+    status?: string;
+  } | null = null;
+
+  if (latestContextMsg?.content) {
+    try {
+      const p = JSON.parse(latestContextMsg.content);
+      if (p && typeof p === 'object') parsedContext = p;
+    } catch {}
+  }
+
+  const attachedItemId =
+    activeConversation?.last_item_id ||
+    latestContextMsg?.item_id ||
+    parsedContext?.itemId ||
+    null;
+
+  const storeItem = attachedItemId
+    ? marketplaceItems.find((m) => m.id === attachedItemId)
+    : null;
+
+  useEffect(() => {
+    if (!attachedItemId) {
+      setRemoteItem(null);
+      return;
+    }
+    // Nếu trong store chưa có, fetch thêm từ Supabase API
+    if (!storeItem) {
+      getMarketplaceItemById(attachedItemId)
+        .then((res) => {
+          if (res) setRemoteItem(res);
+        })
+        .catch(() => {});
+    }
+  }, [attachedItemId, storeItem]);
+
+  // Thông tin hiển thị thẻ ghim món đồ
+  const pinnedTitle =
+    storeItem?.name ||
+    storeItem?.title ||
+    remoteItem?.title ||
+    parsedContext?.title ||
+    'Món đồ thanh lý';
+
+  const rawPrice =
+    storeItem?.price ??
+    remoteItem?.price ??
+    parsedContext?.price;
+
+  const isFree =
+    storeItem?.pricingType === 'Miễn phí' ||
+    remoteItem?.is_free ||
+    rawPrice === 0;
+
+  const pinnedPriceDisplay = isFree
+    ? 'Tặng 0đ'
+    : rawPrice !== undefined && rawPrice !== null && rawPrice > 0
+      ? formatCurrency(rawPrice)
+      : 'Tặng 0đ';
+
+  const pinnedImage =
+    storeItem?.images?.[0] ||
+    remoteItem?.image_urls?.[0] ||
+    parsedContext?.image ||
+    '';
+
+  // Xác định nhãn trạng thái (Đang bán / Đã bán / Đã ẩn)
+  const isItemSold =
+    storeItem?.status === 'Đã bán' ||
+    remoteItem?.status === 'sold' ||
+    remoteItem?.status === 'Đã bán' ||
+    parsedContext?.status === 'Đã bán';
+
+  const isItemHidden =
+    storeItem?.status === 'Bị ẩn' ||
+    storeItem?.status === 'Bị từ chối' ||
+    remoteItem?.status === 'hidden' ||
+    remoteItem?.status === 'rejected' ||
+    Boolean((storeItem as any)?.isHidden);
+
+  const itemStatusType: 'sold' | 'hidden' | 'available' = isItemSold
+    ? 'sold'
+    : isItemHidden
+      ? 'hidden'
+      : 'available';
 
   const quickReplies = [
     'Phòng này còn trống không ạ?',
@@ -423,6 +530,65 @@ export const ChatPage: React.FC = () => {
                     Bỏ chặn
                   </button>
                 </div>
+              )}
+
+              {/* Thẻ ghim món đồ gắn kèm phía trên khung chat */}
+              {attachedItemId && (
+                <Link
+                  to={`/cho-do-cu/${attachedItemId}`}
+                  className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/50 transition-all group cursor-pointer shrink-0"
+                  title="Bấm để xem chi tiết món đồ"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    {/* Thumbnail ảnh sản phẩm (có placeholder fallback) */}
+                    <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                      <img
+                        src={pinnedImage || ITEM_PLACEHOLDER}
+                        alt={pinnedTitle}
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = ITEM_PLACEHOLDER;
+                        }}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      />
+                    </div>
+
+                    {/* Tên & Giá sản phẩm */}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
+                          Món đồ
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-[#006d37] transition-colors">
+                          {pinnedTitle}
+                        </h4>
+                      </div>
+                      <p className="text-xs font-black text-[#006d37]">
+                        {pinnedPriceDisplay}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Nhãn trạng thái & Nút xem chi tiết */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {itemStatusType === 'sold' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+                        Đã bán
+                      </span>
+                    ) : itemStatusType === 'hidden' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                        Đã ẩn
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                        Đang bán
+                      </span>
+                    )}
+                    <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#006d37] group-hover:translate-x-0.5 transition-transform shrink-0" />
+                  </div>
+                </Link>
               )}
 
               {/* Vùng hiển thị tin nhắn (Scroll Area) */}
