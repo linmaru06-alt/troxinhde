@@ -2,7 +2,7 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Room } from '../types';
-import { RoomCard, HorizontalRoomCard, formatPrice } from '../components/ui/Cards';
+import { HorizontalRoomCard, formatPrice } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { TroXinhMap, HANOI_UNIVERSITIES, DISTRICT_CENTERS } from '../components/map/TroXinhMap';
 import {
@@ -12,12 +12,11 @@ import {
   ArrowLeft,
   GraduationCap,
   SlidersHorizontal,
-  Compass,
   Search,
-  CheckCircle2,
   X,
   ChevronLeft,
   ChevronRight,
+  RotateCcw,
 } from 'lucide-react';
 
 const HANOI_DISTRICTS = [
@@ -27,6 +26,17 @@ const HANOI_DISTRICTS = [
 ];
 
 import { useRooms } from '../hooks/queries/useRooms';
+import {
+  PRICE_OPTIONS,
+  isPublicRoom,
+  normalizeRoom,
+  parseRoomSearchParams,
+  filterAndSortRooms,
+  formatPriceRangeDisplay,
+  findMatchedUniversity,
+  findMatchedDistrict,
+  findMatchedType,
+} from '../lib/roomSearch';
 
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
   const R = 6371; // Bán kính trái đất (km)
@@ -40,16 +50,31 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
 };
 
 export const MapViewPage: React.FC = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { rooms, showToast } = useAppStore();
   const { data: cloudRooms } = useRooms();
 
-  const activeRooms: Room[] = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) as unknown as Room[];
+  // Thống nhất điều kiện phòng công khai và chuẩn hóa schema Room
+  const activeRooms = useMemo<Room[]>(() => {
+    const sourceRooms = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) || [];
+    return (sourceRooms as any[]).filter(isPublicRoom).map(normalizeRoom);
+  }, [cloudRooms, rooms]);
 
-  const [activeRoomId, setActiveRoomId] = useState<string | null>(activeRooms[0]?.id || null);
+  // Đọc đầy đủ các bộ lọc từ URLSearchParams qua nguồn dùng chung
+  const searchParamsObj = useMemo(() => parseRoomSearchParams(searchParams), [searchParams]);
+  const {
+    searchQuery,
+    selectedSchool,
+    selectedDistrict: urlDistrict,
+    selectedPrice,
+    selectedType,
+    selectedAmenity,
+    verifiedOnly,
+  } = searchParamsObj;
+
+  const [activeRoomId, setActiveRoomId] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<'map' | 'list'>('map');
-  const [priceRange, setPriceRange] = useState<string>('all');
-  const [keyword, setKeyword] = useState<string>('');
+  const [keywordInput, setKeywordInput] = useState<string>(searchQuery);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [showUniversities, setShowUniversities] = useState<boolean>(false);
@@ -57,7 +82,6 @@ export const MapViewPage: React.FC = () => {
   const [showMetroBus, setShowMetroBus] = useState<boolean>(false);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState<boolean>(true);
   const [activeUniversity, setActiveUniversity] = useState<{ name: string; coords: [number, number] } | null>(null);
-  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
   const districtScrollRef = useRef<HTMLDivElement>(null);
@@ -72,51 +96,69 @@ export const MapViewPage: React.FC = () => {
     }
   };
 
-  // Nếu người dùng thay đổi từ khóa tìm kiếm mà khác với tên trường đang chọn, xóa trạng thái trường
+  // Cập nhật tham số an toàn lên URL dạng functional
+  const updateParam = (key: string, value: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value && value.trim()) {
+        next.set(key, value.trim());
+      } else {
+        next.delete(key);
+      }
+      next.delete('page');
+      return next;
+    });
+  };
+
+  const clearAllFilters = () => {
+    setSearchParams(new URLSearchParams());
+    setKeywordInput('');
+    setActiveUniversity(null);
+  };
+
+  // Đồng bộ keywordInput khi searchQuery thay đổi từ URL
   useEffect(() => {
-    if (activeUniversity && keyword !== activeUniversity.name) {
-      setActiveUniversity(null);
-    }
-  }, [keyword, activeUniversity]);
+    setKeywordInput(searchQuery);
+  }, [searchQuery]);
+
+  // Debounce cập nhật từ khóa 'q' lên URL
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (keywordInput.trim() !== searchQuery) {
+        updateParam('q', keywordInput.trim());
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [keywordInput, searchQuery]);
 
   const handleSelectUniversity = (uni: { name: string; coords: [number, number] }) => {
     setActiveUniversity(uni);
-    setKeyword(uni.name); // Tự động điền từ khóa để lọc các phòng gần trường này
+    updateParam('truong', uni.name);
   };
 
-  // Filtered rooms on map
+  // Lọc phòng trên bản đồ bằng nguồn dùng chung
   const filteredRooms = useMemo(() => {
-    return (activeRooms || []).filter((r: any) => {
+    const base = filterAndSortRooms(activeRooms, searchParamsObj);
+    if (!activeUniversity) return base;
 
-      // Price filter
-      if (priceRange === 'under_2m' && r.price >= 2000000) return false;
-      if (priceRange === '2m_3.5m' && (r.price < 2000000 || r.price > 3500000)) return false;
-      if (priceRange === 'over_3.5m' && r.price <= 3500000) return false;
-
-      // Keyword search
-      if (keyword.trim()) {
-        if (activeUniversity && keyword === activeUniversity.name) {
-          // Lọc theo bán kính (VD: 4.5km) quanh trường thay vì tìm text chính xác
-          const cleanDistrict = r.district?.replace('Quận ', '').replace('Huyện ', '') || 'Cầu Giấy';
-          const center = DISTRICT_CENTERS[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
-          const dist = getDistance(
-            activeUniversity.coords[0], activeUniversity.coords[1],
-            center.lat, center.lng
-          );
-          if (dist > 4.5) return false;
-        } else {
-          const q = keyword.toLowerCase();
-          const matchTitle = (r.title || '').toLowerCase().includes(q);
-          const matchAddr = (r.address || '').toLowerCase().includes(q);
-          const matchDistrict = (r.district || '').toLowerCase().includes(q);
-          const matchSchool = r.nearestSchool?.toLowerCase().includes(q);
-          if (!matchTitle && !matchAddr && !matchDistrict && !matchSchool) return false;
-        }
-      }
-
-      return true;
+    // Nếu chọn trường ĐH cụ thể trên bản đồ, lọc thêm theo bán kính 4.5km
+    return base.filter((r: any) => {
+      const cleanDistrict = r.district?.replace('Quận ', '').replace('Huyện ', '') || 'Cầu Giấy';
+      const center = DISTRICT_CENTERS[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
+      const dist = getDistance(
+        activeUniversity.coords[0], activeUniversity.coords[1],
+        center.lat, center.lng
+      );
+      return dist <= 4.5;
     });
-  }, [activeRooms, priceRange, keyword]);
+  }, [activeRooms, searchParamsObj, activeUniversity]);
+
+  // Tự động chọn phòng đầu tiên
+  useEffect(() => {
+    if (filteredRooms.length > 0 && (!activeRoomId || !filteredRooms.some((r) => r.id === activeRoomId))) {
+      setActiveRoomId(filteredRooms[0].id);
+    }
+  }, [filteredRooms, activeRoomId]);
 
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
@@ -141,9 +183,8 @@ export const MapViewPage: React.FC = () => {
         setUserLocation(userCoords);
         showToast('Đã định vị thành công! 📍', 'Bản đồ đang hiển thị các phòng trọ quanh vị trí của bạn.', 'success');
       },
-      (error) => {
+      () => {
         setIsLocating(false);
-        // Default to Cầu Giấy demo center if blocked
         setUserLocation([21.0333, 105.7937]);
         showToast('Vị trí mẫu (Hà Nội)', 'Đã lấy tọa độ trung tâm khu vực Cầu Giấy, Hà Nội.', 'info');
       },
@@ -164,17 +205,27 @@ export const MapViewPage: React.FC = () => {
     }
   }, []);
 
+  const hasActiveFilters = Boolean(
+    searchQuery ||
+    selectedSchool ||
+    urlDistrict ||
+    selectedPrice ||
+    selectedType ||
+    selectedAmenity ||
+    verifiedOnly
+  );
+
   return (
     <div className="h-[calc(100dvh-70px)] lg:h-[calc(100dvh-76px)] flex flex-col overflow-hidden bg-gray-50 relative -mt-[1px]">
       {/* Top Map Filter Sub-bar */}
       <div className="bg-white border-b border-gray-200 z-20 shrink-0 shadow-xs relative">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 space-y-2">
-          <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
             <div className="flex items-center gap-2">
               <Link
-                to={`/tim-phong?${searchParams.toString()}`}
+                to={`/tim-kiem?${searchParams.toString()}`}
                 className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition"
-                title="Quay lại danh sách"
+                title="Quay lại danh sách phòng (giữ nguyên bộ lọc)"
               >
                 <ArrowLeft className="w-5 h-5" />
               </Link>
@@ -192,12 +243,12 @@ export const MapViewPage: React.FC = () => {
             </div>
 
             {/* Action Tools */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               {/* GPS Location Button */}
               <button
                 onClick={handleGetLocation}
                 disabled={isLocating}
-                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition cursor-pointer ${
                   userLocation
                     ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
                     : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
@@ -208,8 +259,21 @@ export const MapViewPage: React.FC = () => {
                 <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
               </button>
 
+              {/* Price Filter Select - Đồng bộ với URL param 'gia' */}
+              <select
+                value={selectedPrice}
+                onChange={(e) => updateParam('gia', e.target.value)}
+                className="text-xs font-bold bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-gray-700 focus:outline-none focus:border-[#006d37] cursor-pointer"
+              >
+                {PRICE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
 
-              <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
+              {/* Chuyển sang danh sách - Giữ nguyên 100% bộ lọc URL */}
+              <Link to={`/tim-kiem?${searchParams.toString()}`} className="hidden md:block">
                 <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
                   Xem danh sách
                 </Button>
@@ -223,50 +287,126 @@ export const MapViewPage: React.FC = () => {
       <div className="bg-emerald-50/70 border-b border-emerald-100/50 z-10 shrink-0 relative shadow-xs overflow-hidden">
         <div className="max-w-7xl mx-auto px-3 py-2 flex items-center relative">
           <button 
-          onClick={() => scrollDistricts('left')}
-          className="absolute left-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-r border-emerald-100/50"
-        >
-          <ChevronLeft className="w-5 h-5 text-gray-600" />
-        </button>
-        
-        <div 
-          ref={districtScrollRef}
-          className="flex items-center gap-2 overflow-x-auto no-scrollbar px-6 w-full scroll-smooth"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          <button
-            onClick={() => setSelectedDistrict(null)}
-            className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
-              selectedDistrict === null 
-                ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-            }`}
+            onClick={() => scrollDistricts('left')}
+            className="absolute left-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-r border-emerald-100/50 cursor-pointer"
           >
-            Tất cả
+            <ChevronLeft className="w-5 h-5 text-gray-600" />
           </button>
-          {HANOI_DISTRICTS.map((district) => (
+          
+          <div 
+            ref={districtScrollRef}
+            className="flex items-center gap-2 overflow-x-auto no-scrollbar px-6 w-full scroll-smooth"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+          >
             <button
-              key={district}
-              onClick={() => setSelectedDistrict(district)}
-              className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
-                selectedDistrict === district 
+              onClick={() => updateParam('khuVuc', '')}
+              className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border cursor-pointer ${
+                !urlDistrict 
                   ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
                   : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
               }`}
             >
-              {district}
+              Tất cả
             </button>
-          ))}
-        </div>
+            {HANOI_DISTRICTS.map((district) => {
+              const isSelected = urlDistrict?.toLowerCase().includes(district.toLowerCase());
+              return (
+                <button
+                  key={district}
+                  onClick={() => updateParam('khuVuc', isSelected ? '' : district)}
+                  className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border cursor-pointer ${
+                    isSelected 
+                      ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                  }`}
+                >
+                  {district}
+                </button>
+              );
+            })}
+          </div>
 
-        <button 
-          onClick={() => scrollDistricts('right')}
-          className="absolute right-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[-2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-l border-emerald-100/50"
-        >
-          <ChevronRight className="w-5 h-5 text-gray-600" />
-        </button>
+          <button 
+            onClick={() => scrollDistricts('right')}
+            className="absolute right-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[-2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-l border-emerald-100/50 cursor-pointer"
+          >
+            <ChevronRight className="w-5 h-5 text-gray-600" />
+          </button>
+        </div>
       </div>
-      </div>
+
+      {/* Active Filter Chips Bar on Map */}
+      {hasActiveFilters && (
+        <div className="bg-white border-b border-gray-200 z-10 shrink-0">
+          <div className="max-w-7xl mx-auto px-3 sm:px-4 py-1.5 flex items-center gap-2 overflow-x-auto text-[11px] font-bold text-gray-700 no-scrollbar">
+            <span className="text-emerald-800 shrink-0 flex items-center gap-1">
+              <SlidersHorizontal className="w-3 h-3 text-[#00a854]" /> Đang lọc:
+            </span>
+            {verifiedOnly && (
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-2.5 py-0.5 rounded-full border border-emerald-200 shadow-2xs shrink-0">
+                🛡️ Đã xác minh
+                <button onClick={() => updateParam('xacMinh', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {searchQuery && (
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                "{searchQuery}"
+                <button onClick={() => updateParam('q', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {selectedSchool && (
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                🎓 {findMatchedUniversity(selectedSchool) || selectedSchool}
+                <button onClick={() => updateParam('truong', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {urlDistrict && (
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                📍 {findMatchedDistrict(urlDistrict) || urlDistrict}
+                <button onClick={() => updateParam('khuVuc', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {selectedPrice && (
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                💵 {formatPriceRangeDisplay(selectedPrice)}
+                <button onClick={() => updateParam('gia', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {selectedType && (
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                🏠 {findMatchedType(selectedType) || selectedType}
+                <button onClick={() => updateParam('loai', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            {selectedAmenity && (
+              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                ⚡ {selectedAmenity}
+                <button onClick={() => updateParam('tienIch', '')} className="hover:text-rose-600 cursor-pointer">
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
+            )}
+            <button
+              onClick={clearAllFilters}
+              className="text-rose-600 hover:text-rose-800 underline ml-auto shrink-0 cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw className="w-3 h-3" /> Xóa tất cả
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Main Split Layout */}
       <div className="flex-1 flex overflow-hidden relative w-full max-w-7xl mx-auto border-x border-gray-200 bg-white">
@@ -276,7 +416,7 @@ export const MapViewPage: React.FC = () => {
             mobileTab === 'list' ? 'block' : 'hidden md:block'
           }`}
         >
-          {/* Search Bar */}
+          {/* Search Bar - Đồng bộ với URL param 'q' */}
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
               <Search className="h-4 w-4 text-gray-400" />
@@ -284,61 +424,28 @@ export const MapViewPage: React.FC = () => {
             <input
               type="text"
               placeholder="Nhập địa điểm tìm kiếm cụ thể..."
-              value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              className="block w-full pl-10 pr-3 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#006d37] focus:border-transparent text-sm transition font-medium"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              className="block w-full pl-10 pr-8 py-2.5 border border-gray-200 rounded-xl leading-5 bg-gray-50 placeholder-gray-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#006d37] focus:border-transparent text-sm transition font-medium"
             />
+            {keywordInput && (
+              <button
+                onClick={() => {
+                  setKeywordInput('');
+                  updateParam('q', '');
+                }}
+                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 cursor-pointer"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
           </div>
 
           <div className="flex items-center justify-between pb-1">
-            <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí:</p>
+            <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí trên bản đồ:</p>
             <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-md">
               {filteredRooms.length} kết quả
             </span>
-          </div>
-
-          {/* Price Pills */}
-          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-gray-100">
-            <button
-              onClick={() => setPriceRange('all')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                priceRange === 'all'
-                  ? 'bg-[#00a854] text-white border border-[#00a854]'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              Tất cả giá
-            </button>
-            <button
-              onClick={() => setPriceRange('under_2m')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                priceRange === 'under_2m'
-                  ? 'bg-[#00a854] text-white border border-[#00a854]'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              &lt; 2 triệu
-            </button>
-            <button
-              onClick={() => setPriceRange('2m_3.5m')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                priceRange === '2m_3.5m'
-                  ? 'bg-[#00a854] text-white border border-[#00a854]'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              2 - 3.5 triệu
-            </button>
-            <button
-              onClick={() => setPriceRange('over_3.5m')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
-                priceRange === 'over_3.5m'
-                  ? 'bg-[#00a854] text-white border border-[#00a854]'
-                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
-              }`}
-            >
-              &gt; 3.5 triệu
-            </button>
           </div>
 
           {filteredRooms.length === 0 ? (
@@ -348,21 +455,18 @@ export const MapViewPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-xs font-bold text-gray-800">Không tìm thấy phòng trọ phù hợp</p>
-                <p className="text-[11px] text-gray-500 mt-1">Hãy thử chọn "Tất cả khu vực" hoặc mở rộng khoảng giá.</p>
+                <p className="text-[11px] text-gray-500 mt-1">Hãy thử nới lỏng bộ lọc hoặc xóa bớt tiêu chí tìm kiếm.</p>
               </div>
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => {
-                  setPriceRange('all');
-                  setKeyword('');
-                }}
+                onClick={clearAllFilters}
               >
-                Đặt lại bộ lọc
+                Xóa tất cả bộ lọc
               </Button>
             </div>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {filteredRooms.map((room: Room) => (
                 <div
                   key={room.id}
@@ -400,7 +504,7 @@ export const MapViewPage: React.FC = () => {
             showUniversities={showUniversities}
             showMetroBus={showMetroBus}
             onSelectUniversity={handleSelectUniversity}
-            selectedDistrict={selectedDistrict}
+            selectedDistrict={urlDistrict}
           />
 
           {/* Map Display Layers Panel */}
@@ -463,9 +567,9 @@ export const MapViewPage: React.FC = () => {
             )}
           </div>
 
-          {/* Mobile Bottom Room Preview Card (Slide-up on marker tap) */}
+          {/* Mobile Bottom Room Preview Card */}
           {(() => {
-            const activeRoom = rooms.find((r) => r.id === activeRoomId);
+            const activeRoom = filteredRooms.find((r) => r.id === activeRoomId) || activeRooms.find((r) => r.id === activeRoomId);
             if (!activeRoom) return null;
             return (
               <div
@@ -474,7 +578,7 @@ export const MapViewPage: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <img
-                    src={activeRoom.images?.[0] || '/images/hero-banner.webp'}
+                    src={activeRoom.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'}
                     alt={activeRoom.title}
                     className="w-18 h-18 rounded-2xl object-cover shrink-0"
                   />
@@ -510,14 +614,14 @@ export const MapViewPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile Floating View Switcher (Bản đồ / Danh sách) - Luôn nổi và không bị bottom nav che */}
+      {/* Mobile Floating View Switcher (Bản đồ / Danh sách) */}
       <div
         className="md:hidden fixed z-30 left-1/2 -translate-x-1/2 flex items-center bg-gray-950/90 backdrop-blur-md text-white rounded-full p-1 shadow-2xl border border-white/20"
         style={{ bottom: 'calc(var(--mobile-bottom-offset, 3.5rem) + 0.75rem)' }}
       >
         <button
           onClick={() => setMobileTab('map')}
-          className={`px-3.5 py-1.5 text-xs font-black rounded-full transition flex items-center gap-1.5 ${
+          className={`px-3.5 py-1.5 text-xs font-black rounded-full transition flex items-center gap-1.5 cursor-pointer ${
             mobileTab === 'map' ? 'bg-[#00a854] text-white shadow-md' : 'text-gray-300 hover:text-white'
           }`}
         >
@@ -526,7 +630,7 @@ export const MapViewPage: React.FC = () => {
         </button>
         <button
           onClick={() => setMobileTab('list')}
-          className={`px-3.5 py-1.5 text-xs font-black rounded-full transition flex items-center gap-1.5 ${
+          className={`px-3.5 py-1.5 text-xs font-black rounded-full transition flex items-center gap-1.5 cursor-pointer ${
             mobileTab === 'list' ? 'bg-[#00a854] text-white shadow-md' : 'text-gray-300 hover:text-white'
           }`}
         >

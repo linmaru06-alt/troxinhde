@@ -87,13 +87,15 @@ export const RoommateListPage: React.FC = () => {
   }, [searchKeyword]);
 
   const updateParam = (key: string, value: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (value && value.trim()) {
-      next.set(key, value.trim());
-    } else {
-      next.delete(key);
-    }
-    setSearchParams(next, { replace: true });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value && value.trim()) {
+        next.set(key, value.trim());
+      } else {
+        next.delete(key);
+      }
+      return next;
+    }, { replace: true });
   };
 
   // Debounce search input to avoid lag and history spam

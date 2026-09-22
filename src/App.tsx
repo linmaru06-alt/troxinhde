@@ -233,7 +233,7 @@ export const App: React.FC = () => {
               {/* Public Core Routes */}
               <Route path="/" element={<LandingPage />} />
               <Route path="/tim-kiem" element={<SearchPage />} />
-              <Route path="/tim-phong" element={<Navigate to="/tim-kiem" replace />} />
+              <Route path="/tim-phong" element={<SearchPage />} />
               <Route path="/ban-do" element={<MapViewPage />} />
               <Route path="/phong/:id" element={<RoomDetailPage />} />
               <Route path="/toa-nha/:id" element={<BuildingDetailPage />} />

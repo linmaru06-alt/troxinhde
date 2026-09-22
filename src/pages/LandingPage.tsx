@@ -43,7 +43,7 @@ export const LandingPage: React.FC = () => {
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set('q', searchQuery.trim());
     if (selectedDistrict) params.set('khuVuc', selectedDistrict);
-    navigate(`/tim-phong?${params.toString()}`);
+    navigate(`/tim-kiem?${params.toString()}`);
   };
 
   const verifiedRooms = (displayRooms || []).filter((r: any) => r.verified && (r.status === 'Còn trống' || r.availability_status === 'available')).slice(0, 6);

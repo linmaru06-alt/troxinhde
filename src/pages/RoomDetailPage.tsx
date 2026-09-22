@@ -313,12 +313,12 @@ export const RoomDetailPage: React.FC = () => {
           Trang chủ
         </Link>
         <span>/</span>
-        <Link to="/tim-phong" className="hover:text-[#006d37]">
+        <Link to="/tim-kiem" className="hover:text-[#006d37]">
           Tìm phòng
         </Link>
         <span>/</span>
         <Link
-          to={`/tim-phong?khuVuc=${encodeURIComponent(room.district)}`}
+          to={`/tim-kiem?khuVuc=${encodeURIComponent(room.district)}`}
           className="hover:text-[#006d37]"
         >
           {room.district}
