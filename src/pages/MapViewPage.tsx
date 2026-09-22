@@ -16,7 +16,15 @@ import {
   Search,
   CheckCircle2,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
+
+const HANOI_DISTRICTS = [
+  'Cầu Giấy', 'Đống Đa', 'Thanh Xuân', 'Hà Đông', 
+  'Nam Từ Liêm', 'Bắc Từ Liêm', 'Hai Bà Trưng', 
+  'Ba Đình', 'Hoàng Mai', 'Tây Hồ', 'Long Biên', 'Hoàn Kiếm'
+];
 
 import { useRooms } from '../hooks/queries/useRooms';
 
@@ -49,8 +57,20 @@ export const MapViewPage: React.FC = () => {
   const [showMetroBus, setShowMetroBus] = useState<boolean>(false);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState<boolean>(true);
   const [activeUniversity, setActiveUniversity] = useState<{ name: string; coords: [number, number] } | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const districtScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollDistricts = (direction: 'left' | 'right') => {
+    if (districtScrollRef.current) {
+      const scrollAmount = 200;
+      districtScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
 
   // Nếu người dùng thay đổi từ khóa tìm kiếm mà khác với tên trường đang chọn, xóa trạng thái trường
   useEffect(() => {
@@ -197,6 +217,53 @@ export const MapViewPage: React.FC = () => {
         </div>
       </div>
 
+      {/* District Horizontal Scroll Bar */}
+      <div className="bg-white border-b border-gray-200 px-3 py-2 z-10 shrink-0 relative flex items-center">
+        <button 
+          onClick={() => scrollDistricts('left')}
+          className="absolute left-0 z-10 p-1.5 bg-white shadow-[2px_0_4px_rgba(0,0,0,0.1)] hover:bg-gray-50 flex items-center justify-center border-r border-gray-100"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        
+        <div 
+          ref={districtScrollRef}
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar px-6 w-full scroll-smooth"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <button
+            onClick={() => setSelectedDistrict(null)}
+            className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
+              selectedDistrict === null 
+                ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+            }`}
+          >
+            Tất cả
+          </button>
+          {HANOI_DISTRICTS.map((district) => (
+            <button
+              key={district}
+              onClick={() => setSelectedDistrict(district)}
+              className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
+                selectedDistrict === district 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+              }`}
+            >
+              {district}
+            </button>
+          ))}
+        </div>
+
+        <button 
+          onClick={() => scrollDistricts('right')}
+          className="absolute right-0 z-10 p-1.5 bg-white shadow-[-2px_0_4px_rgba(0,0,0,0.1)] hover:bg-gray-50 flex items-center justify-center border-l border-gray-100"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-600" />
+        </button>
+      </div>
+
       {/* Main Split Layout */}
       <div className="flex-1 flex overflow-hidden relative">
         {/* Left Scrollable List */}
@@ -329,6 +396,7 @@ export const MapViewPage: React.FC = () => {
             showUniversities={showUniversities}
             showMetroBus={showMetroBus}
             onSelectUniversity={handleSelectUniversity}
+            selectedDistrict={selectedDistrict}
           />
 
           {/* Map Display Layers Panel */}

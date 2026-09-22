@@ -5,6 +5,7 @@ import {
   Marker,
   Popup,
   Circle,
+  GeoJSON,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
@@ -167,6 +168,7 @@ export interface TroXinhMapProps {
   userLocation?: [number, number] | null;
   universityRadiusCenter?: [number, number] | null;
   onSelectUniversity?: (uni: { name: string; coords: [number, number] }) => void;
+  selectedDistrict?: string | null;
 }
 
 export const DISTRICT_CENTERS: Record<string, { lat: number; lng: number }> = {
@@ -195,7 +197,28 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   userLocation = null,
   universityRadiusCenter = null,
   onSelectUniversity,
+  selectedDistrict = null,
 }) => {
+  const [geoJsonData, setGeoJsonData] = useState<any>(null);
+
+  // Fetch GeoJSON boundary data
+  useEffect(() => {
+    fetch('/data/hanoi-districts.geojson')
+      .then(res => res.json())
+      .then(data => setGeoJsonData(data))
+      .catch(err => console.warn('Không tải được viền quận huyện:', err));
+  }, []);
+
+  // Filter geojson for selected district
+  const selectedDistrictGeoJson = useMemo(() => {
+    if (!selectedDistrict || !geoJsonData) return null;
+    const feature = geoJsonData.features?.find((f: any) => {
+      const name = f.properties?.shapeName || f.properties?.name || '';
+      return name.includes(selectedDistrict);
+    });
+    return feature ? { type: 'FeatureCollection', features: [feature] } : null;
+  }, [selectedDistrict, geoJsonData]);
+
   // Map rooms to geo locations
   const roomMarkers = useMemo(() => {
     return rooms.map((room, index) => {
@@ -217,12 +240,16 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   }, [rooms]);
 
   const selectedRoom = roomMarkers.find((r) => r.id === activeRoomId);
+  const selectedDistrictCenter = selectedDistrict ? DISTRICT_CENTERS[selectedDistrict] : null;
+
   const mapCenter: [number, number] = userLocation
     ? userLocation
     : universityRadiusCenter
     ? universityRadiusCenter
     : selectedRoom
     ? [selectedRoom.geo.lat, selectedRoom.geo.lng]
+    : selectedDistrictCenter
+    ? [selectedDistrictCenter.lat, selectedDistrictCenter.lng]
     : center;
 
   return (
@@ -426,6 +453,22 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
             weight: 1.5,
           }}
         />
+
+        {/* District Boundary Highlight */}
+        {selectedDistrictGeoJson && (
+          <GeoJSON 
+            key={selectedDistrict}
+            data={selectedDistrictGeoJson} 
+            style={{
+              color: '#ef4444', // Red-500
+              weight: 2,
+              opacity: 1,
+              fillColor: '#ef4444',
+              fillOpacity: 0.1,
+              dashArray: '5, 5'
+            }} 
+          />
+        )}
 
         {/* Room Marker */}
         <Marker position={roomPosition} icon={singlePinIcon}>
