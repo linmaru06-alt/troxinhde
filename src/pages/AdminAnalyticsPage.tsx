@@ -107,263 +107,143 @@ export const AdminAnalyticsPage: React.FC = () => {
       <DashboardSidebar role="admin" />
 
       <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto space-y-6 overflow-y-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight flex items-center gap-2">
-              <BarChart3 className="w-7 h-7 text-[#006d37]" />
-              Báo Cáo & Thống Kê Nền Tảng
-            </h1>
-
-          </div>
-
-          <button
-            onClick={fetchAnalytics}
-            disabled={isLoading}
-            className="self-start sm:self-auto px-3.5 py-2 text-xs font-bold rounded-xl border border-gray-200 bg-white hover:bg-gray-50 flex items-center gap-1.5 shadow-xs"
-          >
-            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
-            Cập nhật số liệu
-          </button>
+        <div className="flex items-center gap-2 mb-6">
+          <h1 className="text-xl sm:text-2xl font-normal text-gray-800 tracking-tight">
+            Trang chủ
+          </h1>
         </div>
 
-        {/* 4 Thẻ chỉ số chính */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
-            <span className="text-xs text-gray-500 font-semibold">Tổng số phòng trọ</span>
-            <div className="text-2xl sm:text-3xl font-black text-gray-900">
-              {metrics.totalRooms} <span className="text-sm font-semibold text-gray-400">phòng</span>
-            </div>
-            <p className="text-[11px] text-[#006d37] font-semibold">
-              {metrics.approvedRooms} phòng đã công khai
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
-            <span className="text-xs text-gray-500 font-semibold">Cộng đồng người dùng</span>
-            <div className="text-2xl sm:text-3xl font-black text-[#006d37]">
-              {metrics.totalUsers} <span className="text-sm font-semibold text-gray-400">tài khoản</span>
-            </div>
-            <p className="text-[11px] text-gray-500 font-medium">
-              Gồm {metrics.totalOwners} chủ trọ đối tác
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
-            <span className="text-xs text-gray-500 font-semibold">Lịch hẹn xem phòng</span>
-            <div className="text-2xl sm:text-3xl font-black text-blue-600">
-              {metrics.totalBookings} <span className="text-sm font-semibold text-gray-400">lượt</span>
-            </div>
-            <p className="text-[11px] text-blue-700 font-medium">
-              {metrics.pendingBookings} lịch đang chờ hẹn
-            </p>
-          </div>
-
-          <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-xs space-y-1">
-            <span className="text-xs text-gray-500 font-semibold">Phản ánh & Báo cáo</span>
-            <div className="text-2xl sm:text-3xl font-black text-rose-600">
-              {metrics.totalReports} <span className="text-sm font-semibold text-gray-400">báo cáo</span>
-            </div>
-            <p className="text-[11px] text-rose-700 font-medium">
-              {metrics.pendingReports} báo cáo đang chờ xử lý
-            </p>
-          </div>
-        </div>
-
-        {/* Module Tích Hợp Google Analytics 4 (GA4) & Nhúng Biểu Đồ Looker Studio */}
-        <div className="bg-gradient-to-br from-emerald-950 via-gray-900 to-slate-900 text-white rounded-3xl p-6 sm:p-7 shadow-lg border border-emerald-800/30 space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-                Google Analytics 4 • Đang Giám Sát Trực Tiếp
-              </div>
-              <h2 className="text-xl sm:text-2xl font-black tracking-tight text-white flex items-center gap-2.5 pt-1">
-                <Activity className="w-6 h-6 text-emerald-400" />
-                Lưu Lượng Web & Định Danh Người Dùng
-              </h2>
-              <p className="text-xs text-gray-400 max-w-2xl leading-relaxed">
-                Đang thu thập dữ liệu qua mã luồng{' '}
-                <code className="text-emerald-300 font-mono bg-emerald-950/80 px-1.5 py-0.5 rounded border border-emerald-700/50">
-                  {GA_ID}
-                </code>
-                . Hệ thống tự động gắn nhãn vai trò tài khoản (Admin, Chủ trọ, Người thuê) để bạn phân tích hành vi và lọc lưu lượng nội bộ.
-              </p>
-            </div>
-
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <a
-                href="https://analytics.google.com/analytics/web/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-2 shadow-md transition-all hover:scale-[1.02] active:scale-[0.98]"
-              >
-                <span>Mở Google Analytics Realtime</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
-          </div>
-
-          {/* 3 Thẻ Chỉ Số & Tính Năng */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xs space-y-1">
-              <div className="text-[11px] text-gray-400 font-medium">Định Danh Vai Trò</div>
-              <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                <span>user_role: 'admin'</span>
-              </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                Phiên làm việc hiện tại của bạn được đánh dấu là Admin để hỗ trợ bộ lọc loại trừ lưu lượng quản trị trên GA4.
-              </p>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xs space-y-1">
-              <div className="text-[11px] text-gray-400 font-medium">Theo Dõi SPA Tuyệt Đối</div>
-              <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                <Globe className="w-4 h-4 text-blue-400" />
-                <span>Tự động gửi PageView</span>
-              </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                Tất cả lượt chuyển route trong web đều tự động kích hoạt sự kiện xem trang mà không cần tải lại trình duyệt.
-              </p>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-4 backdrop-blur-xs space-y-1">
-              <div className="text-[11px] text-gray-400 font-medium">Báo Cáo Nhúng Trực Tiếp</div>
-              <div className="text-sm font-bold text-white flex items-center gap-1.5">
-                <TrendingUp className="w-4 h-4 text-amber-400" />
-                <span>{lookerUrl ? 'Đang Hiển Thị Biểu Đồ' : 'Hỗ Trợ Looker Studio'}</span>
-              </div>
-              <p className="text-[11px] text-gray-400 leading-relaxed">
-                {lookerUrl
-                  ? 'Bảng biểu đồ Looker Studio đang được nhúng và đồng bộ tương tác trực tiếp tại đây.'
-                  : 'Dán liên kết nhúng từ Looker Studio để xem biểu đồ GA4 ngay tại giao diện Admin này.'}
-              </p>
-            </div>
-          </div>
-
-          {/* Khung nhúng biểu đồ Looker Studio */}
-          {lookerUrl ? (
-            <div className="w-full bg-black/40 rounded-2xl overflow-hidden border border-white/10">
-              <div className="p-3 text-xs flex justify-between items-center text-gray-300 border-b border-white/10">
-                <span className="font-semibold flex items-center gap-1.5 text-emerald-400">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Bảng Điều Khiển Trực Quan Looker Studio (GA4)
-                </span>
-                <button
-                  type="button"
-                  onClick={handleRemoveLookerUrl}
-                  className="text-gray-400 hover:text-rose-400 transition-colors underline text-[11px]"
-                >
-                  Gỡ liên kết nhúng
-                </button>
-              </div>
-              <iframe
-                src={lookerUrl}
-                title="Báo Cáo Trực Quan Looker Studio GA4"
-                className="w-full h-[580px] border-0"
-                allowFullScreen
-              />
-            </div>
-          ) : (
-            <div className="bg-white/5 border border-dashed border-white/20 rounded-2xl p-4 sm:p-5 space-y-3">
-              <div className="space-y-1">
-                <div className="text-xs font-bold text-emerald-300 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5" />
-                  Nhúng Biểu Đồ Trực Quan Looker Studio Vào Trang Này (Tùy Chọn)
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          {/* Cột trái: Biểu đồ chính (chiếm 7/12) */}
+          <div className="lg:col-span-7 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden flex flex-col">
+            <div className="flex border-b border-gray-100">
+              <div className="flex-1 p-4 border-b-2 border-blue-600 cursor-pointer">
+                <div className="text-sm font-medium text-blue-600 flex items-center justify-between">
+                  <span>Số người dùng đang hoạt động</span>
+                  <span className="text-xs">▼</span>
                 </div>
-                <p className="text-[11px] text-gray-300 leading-relaxed">
-                  Nếu bạn đã tạo báo cáo trên Google Looker Studio (kết nối nguồn GA4), hãy vào mục <strong>Tệp ➔ Nhúng báo cáo (Embed report)</strong> và dán liên kết nhúng (URL) vào bên dưới để biểu đồ xuất hiện trực tiếp trong trang quản trị:
-                </p>
+                <div className="text-3xl font-normal text-gray-800 mt-1">{metrics.totalUsers || 18}</div>
+                <div className="text-xs font-medium text-emerald-600 mt-1">↑ 50,0%</div>
               </div>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <input
-                  type="url"
-                  placeholder="Ví dụ: https://lookerstudio.google.com/embed/reporting/..."
-                  value={tempLookerInput}
-                  onChange={(e) => setTempLookerInput(e.target.value)}
-                  className="flex-1 bg-black/40 border border-white/20 rounded-xl px-3.5 py-2 text-xs text-white placeholder-gray-500 focus:outline-hidden focus:border-emerald-400 transition-colors"
-                />
-                <button
-                  type="button"
-                  onClick={handleSaveLookerUrl}
-                  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-xl text-xs font-bold text-white transition-all shadow-xs whitespace-nowrap"
-                >
-                  Lưu & Hiển Thị
-                </button>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Phân bổ phòng theo quận thực tế */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-gray-900">
-              Phân Bổ Phòng Trọ Theo Khu Vực Thực Tế
-            </h3>
-            <span className="text-xs text-gray-400">Dữ liệu từ bảng rooms</span>
-          </div>
-
-          {districtStats.length === 0 ? (
-            <div className="py-8 text-center text-xs text-gray-400">
-              Chưa có đủ dữ liệu phòng để lập biểu đồ phân bổ khu vực.
-            </div>
-          ) : (
-            <div className="space-y-3 text-xs">
-              {districtStats.map((item, idx) => {
-                const colors = ['bg-[#006d37]', 'bg-emerald-500', 'bg-blue-500', 'bg-amber-500', 'bg-purple-500'];
-                return (
-                  <div key={item.district} className="space-y-1">
-                    <div className="flex justify-between font-semibold">
-                      <span className="text-gray-800">{item.district}</span>
-                      <span className="text-gray-500">
-                        {item.count} phòng ({item.percent}%)
-                      </span>
-                    </div>
-                    <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${colors[idx % colors.length]}`}
-                        style={{ width: `${item.percent}%` }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-
-        {/* Nhật ký quản trị gần nhất */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <History className="w-5 h-5 text-[#006d37]" />
-              Nhật Ký Quản Trị Hệ Thống
-            </h3>
-            <span className="text-xs text-gray-500 font-semibold">{auditLogs.length} thao tác đã ghi</span>
-          </div>
-
-          <div className="divide-y divide-gray-100 text-xs">
-            {auditLogs.length === 0 ? (
-              <p className="py-6 text-center text-gray-400">Chưa có bản ghi nhật ký nào.</p>
-            ) : (
-              auditLogs.slice(0, 10).map((log) => (
-                <div key={log.id} className="py-3 flex items-center justify-between gap-4">
-                  <div className="space-y-0.5">
-                    <div className="font-bold text-gray-900">{log.action}</div>
-                    <p className="text-[11px] text-gray-500">
-                      Bởi: <strong>{log.admin_email}</strong> • Đối tượng: {log.entity_type} ({log.entity_id?.slice(0, 8)})
-                    </p>
-                  </div>
-                  <div className="text-right whitespace-nowrap">
-                    <span className="text-[10px] text-gray-400">
-                      {new Date(log.created_at).toLocaleString('vi-VN')}
-                    </span>
-                  </div>
+              <div className="flex-1 p-4 border-b-2 border-transparent hover:bg-gray-50 cursor-pointer">
+                <div className="text-sm font-medium text-gray-500 flex items-center justify-between">
+                  <span>Số lượng sự kiện</span>
+                  <span className="text-xs">▼</span>
                 </div>
-              ))
-            )}
+                <div className="text-3xl font-normal text-gray-800 mt-1">1,4 N</div>
+                <div className="text-xs font-medium text-emerald-600 mt-1">↑ 686,8%</div>
+              </div>
+            </div>
+            {/* Biểu đồ giả lập (Chart placeholder) */}
+            <div className="flex-1 p-6 flex flex-col justify-end min-h-[250px] relative">
+               <div className="absolute inset-0 p-6 flex items-end">
+                 <svg className="w-full h-full" preserveAspectRatio="none" viewBox="0 0 100 100">
+                   {/* Dotted reference lines */}
+                   <line x1="0" y1="20" x2="100" y2="20" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
+                   <line x1="0" y1="50" x2="100" y2="50" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
+                   <line x1="0" y1="80" x2="100" y2="80" stroke="#e5e7eb" strokeWidth="1" strokeDasharray="4 4" />
+                   
+                   <path d="M0,80 L15,50 L30,40 L45,60 L60,80 L75,45 L100,45" fill="none" stroke="#1a73e8" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                   <circle cx="30" cy="40" r="4" fill="white" stroke="#1a73e8" strokeWidth="2" vectorEffect="non-scaling-stroke" />
+                 </svg>
+               </div>
+               {/* Y-axis labels */}
+               <div className="absolute right-2 top-6 bottom-6 flex flex-col justify-between text-[10px] text-gray-400">
+                 <span>12</span>
+                 <span>10</span>
+                 <span>8</span>
+                 <span>6</span>
+                 <span>4</span>
+                 <span>2</span>
+                 <span>0</span>
+               </div>
+               {/* X-axis labels */}
+               <div className="flex justify-between text-xs text-gray-400 mt-auto pt-4 border-t border-gray-100 w-[95%]">
+                 <span>15<br/>thg</span>
+                 <span>16</span>
+                 <span>17</span>
+                 <span>18</span>
+                 <span>19</span>
+                 <span>20</span>
+                 <span>21</span>
+               </div>
+            </div>
+            <div className="p-4 border-t border-gray-100 text-sm text-blue-600 font-medium flex justify-between items-center bg-white hover:bg-gray-50 cursor-pointer">
+              <span className="text-gray-500">7 ngày trước ▼</span>
+              <span>Xem trang tổng quan nhanh về báo cáo →</span>
+            </div>
           </div>
+
+          {/* Cột giữa: 30 phút qua (chiếm 3/12) */}
+          <div className="lg:col-span-3 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col p-5">
+            <div className="text-xs font-bold text-gray-500 uppercase flex items-center justify-between">
+              SỐ NGƯỜI DÙNG ĐANG HOẠT ĐỘNG TRONG 30 PHÚT QUA
+              <span className="w-4 h-4 rounded-full bg-emerald-100 flex items-center justify-center">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              </span>
+            </div>
+            <div className="text-5xl font-normal text-gray-800 mt-3">3</div>
+            <div className="text-[11px] font-medium text-gray-500 mt-1 uppercase">SỐ NGƯỜI DÙNG ĐANG HOẠT ĐỘNG MỖI PHÚT</div>
+            
+            {/* Bar chart placeholder */}
+            <div className="h-16 flex items-end gap-1 mt-4 border-b border-gray-100 pb-1">
+              {[...Array(20)].map((_, i) => (
+                <div key={i} className="flex-1 bg-blue-600 rounded-t-sm" style={{ height: `${i === 17 ? 40 : i === 19 ? 70 : i === 18 ? 30 : i === 1 ? 60 : i === 2 ? 50 : 0}%` }} />
+              ))}
+            </div>
+            
+            <div className="mt-4">
+              <div className="flex justify-between text-[11px] font-bold text-gray-500 uppercase border-b border-gray-100 pb-2 mb-2">
+                <span>QUỐC GIA ▼</span>
+                <span>SỐ NGƯỜI ... ▼</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-700 py-1 border-b border-gray-100">
+                <span>Vietnam</span>
+                <span>3</span>
+              </div>
+            </div>
+            
+            <div className="mt-auto pt-6 text-sm text-blue-600 font-medium text-center cursor-pointer hover:underline">
+              Xem báo cáo thời gian thực →
+            </div>
+          </div>
+
+          {/* Cột phải: Release notes (chiếm 2/12) */}
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-200 shadow-sm flex flex-col p-5">
+            <div className="text-[11px] font-bold text-gray-500 uppercase flex items-center gap-1.5 mb-4">
+              <Sparkles className="w-3.5 h-3.5 text-gray-400" />
+              THÔNG BÁO PHÁT HÀNH
+            </div>
+            <h3 className="text-[15px] font-bold text-gray-800 mb-3">Khám phá Trang tổng quan</h3>
+            
+            <div className="bg-gray-50 rounded-lg p-6 flex justify-center mb-4 border border-gray-100 relative overflow-hidden h-28">
+               <div className="absolute inset-0 flex items-center justify-center opacity-70">
+                 {/* Decorative simple graphic to mimic the screenshot */}
+                 <div className="flex items-end gap-2 h-12">
+                   <div className="w-4 h-6 border border-gray-300 bg-white" />
+                   <div className="w-4 h-10 border border-gray-300 bg-white" />
+                   <div className="w-16 h-12 border border-gray-300 bg-white flex items-center justify-center relative">
+                     <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-400" />
+                     <Users className="w-6 h-6 text-gray-400" />
+                   </div>
+                 </div>
+               </div>
+            </div>
+            
+            <p className="text-xs text-gray-600 leading-relaxed mb-4">
+              Trang tổng quan là một loại hình báo cáo mới với tính năng kéo thả linh hoạt, giúp trực quan hóa các chỉ số quan trọng một cách nhanh chóng nhằm mang lại những thông tin chi tiết hữu ích.
+            </p>
+            
+            <div className="mt-auto text-sm text-blue-600 font-medium cursor-pointer hover:underline text-center">
+              Tạo Trang tổng quan
+            </div>
+          </div>
+        </div>
+
+        {/* Section: Mới truy cập gần đây */}
+        <div className="pt-6">
+          <h2 className="text-base font-medium text-gray-800 mb-4">Mới truy cập gần đây</h2>
+          <div className="h-20" /> {/* Spacer as placeholder for recently accessed */}
         </div>
       </main>
     </div>
