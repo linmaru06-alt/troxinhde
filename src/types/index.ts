@@ -176,8 +176,10 @@ export interface MarketplaceItem {
 export interface Message {
   id: string;
   conversation_id: string;
-  sender_id: string;
+  sender_id?: string | null;
   content: string;
+  type?: 'text' | 'item_context' | 'system';
+  item_id?: string | null;
   is_read?: boolean;
   created_at: string;
   status?: "sending" | "sent" | "read" | "failed";
@@ -202,6 +204,7 @@ export interface Conversation {
   id: string;
   room_id?: string | null;
   item_id?: string | null;
+  last_item_id?: string | null;
   participant_1: string;
   participant_2: string;
   last_message?: string | null;

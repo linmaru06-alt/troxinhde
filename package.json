@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
+    "test": "node scripts/test-find-or-create-conversation.mjs",
     "test:all": "node scripts/run-all-tests.mjs",
     "test:auth": "node scripts/test-unified-auth.mjs",
     "test:momo": "node scripts/test-momo-integration.mjs",

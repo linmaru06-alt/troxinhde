@@ -1,64 +1,16 @@
 import { supabase, isSupabaseConfigured } from "../supabase";
 import { Conversation, Message } from "../../types";
+import {
+  UUID_REGEX,
+  KNOWN_DEMO_UUIDS,
+  KNOWN_USER_NAMES,
+  DEMO_GROUPS,
+  resolveDemoAlias,
+  isDemoUser,
+  isSameUserId,
+} from "../demoAliases";
 
-const UUID_REGEX =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const KNOWN_DEMO_UUIDS: Record<string, string> = {
-  demo_admin_uuid: "00000000-0000-0000-0000-000000000001",
-  demo_admin_troxinh: "00000000-0000-0000-0000-000000000001",
-  usr_admin_quan66934: "00000000-0000-0000-0000-000000000001",
-  "admin@troxinh.vn": "00000000-0000-0000-0000-000000000001",
-
-  demo_owner_uuid: "00000000-0000-0000-0000-000000000002",
-  demo_owner_troxinh: "00000000-0000-0000-0000-000000000002",
-  user_owner_1: "00000000-0000-0000-0000-000000000002",
-  "chutro@troxinh.vn": "00000000-0000-0000-0000-000000000002",
-
-  demo_renter_uuid: "00000000-0000-0000-0000-000000000003",
-  demo_renter_troxinh: "00000000-0000-0000-0000-000000000003",
-  user_renter_1: "00000000-0000-0000-0000-000000000003",
-  user_renter_2: "00000000-0000-0000-0000-000000000003",
-  "nguoithue@troxinh.vn": "00000000-0000-0000-0000-000000000003",
-};
-
-export const KNOWN_USER_NAMES: Record<
-  string,
-  { name: string; avatar: string }
-> = {
-  "00000000-0000-0000-0000-000000000001": {
-    name: "Ban Quản Trị Trọ Xinh",
-    avatar: "/images/user-avatar.jpg",
-  },
-  "00000000-0000-0000-0000-000000000002": {
-    name: "Trần Quốc Tuấn (Chủ Trọ)",
-    avatar: "/images/user-avatar.jpg",
-  },
-  "00000000-0000-0000-0000-000000000003": {
-    name: "Nguyễn Văn An (Người Thuê)",
-    avatar: "/images/user-avatar.jpg",
-  },
-  demo_admin_uuid: {
-    name: "Ban Quản Trị Trọ Xinh",
-    avatar: "/images/user-avatar.jpg",
-  },
-  demo_owner_uuid: {
-    name: "Trần Quốc Tuấn (Chủ Trọ)",
-    avatar: "/images/user-avatar.jpg",
-  },
-  demo_renter_uuid: {
-    name: "Nguyễn Văn An (Người Thuê)",
-    avatar: "/images/user-avatar.jpg",
-  },
-  user_owner_1: {
-    name: "Trần Quốc Tuấn (Chủ Trọ)",
-    avatar: "/images/user-avatar.jpg",
-  },
-  user_renter_1: {
-    name: "Nguyễn Văn An (Người Thuê)",
-    avatar: "/images/user-avatar.jpg",
-  },
-};
+export { isSameUserId, isDemoUser, resolveDemoAlias, KNOWN_USER_NAMES, KNOWN_DEMO_UUIDS, DEMO_GROUPS };
 
 const LOCAL_CONVS_KEY = "troxinh_local_conversations";
 const LOCAL_MSGS_KEY = "troxinh_local_messages";
@@ -90,7 +42,6 @@ export interface ConversationMeta {
   last_item_id?: string;
   last_item_name?: string;
   last_item_price?: number;
-  discussed_items?: string[];
   [key: string]: any;
 }
 
@@ -169,53 +120,6 @@ function saveLocalMessage(msg: Message) {
 }
 
 /**
- * Kiểm tra xem 2 ID người dùng có trỏ về cùng một tài khoản hay không
- * (Bao gồm chuẩn hóa giữa UUID trong database và các ID demo/mock)
- */
-export function isSameUserId(
-  id1?: string | null,
-  id2?: string | null,
-): boolean {
-  if (!id1 || !id2) return false;
-  const clean1 = id1.trim();
-  const clean2 = id2.trim();
-  if (clean1 === clean2) return true;
-
-  const DEMO_GROUPS: string[][] = [
-    [
-      "00000000-0000-0000-0000-000000000001",
-      "demo_admin_uuid",
-      "demo_admin_troxinh",
-      "usr_admin_quan66934",
-      "admin@troxinh.vn",
-    ],
-    [
-      "00000000-0000-0000-0000-000000000002",
-      "demo_owner_uuid",
-      "demo_owner_troxinh",
-      "user_owner_1",
-      "chutro@troxinh.vn",
-    ],
-    [
-      "00000000-0000-0000-0000-000000000003",
-      "demo_renter_uuid",
-      "demo_renter_troxinh",
-      "user_renter_1",
-      "user_renter_2",
-      "nguoithue@troxinh.vn",
-    ],
-  ];
-
-  for (const group of DEMO_GROUPS) {
-    if (group.includes(clean1) && group.includes(clean2)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-/**
  * Chuẩn hóa ID người dùng thành UUID hợp lệ để không gây lỗi SQL syntax trong PostgreSQL
  */
 export async function resolveUserIdToUuid(userId: string): Promise<string> {
@@ -226,8 +130,9 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
     return trimmed;
   }
 
-  if (KNOWN_DEMO_UUIDS[trimmed]) {
-    return KNOWN_DEMO_UUIDS[trimmed];
+  const demoUuid = resolveDemoAlias(trimmed);
+  if (demoUuid) {
+    return demoUuid;
   }
 
   if (isSupabaseConfigured) {
@@ -250,8 +155,8 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
     }
   }
 
-  // Fallback an toàn về ID demo renter để không làm gãy câu lệnh SQL
-  return "00000000-0000-0000-0000-000000000003";
+  // Fallback an toàn về ID demo renter để không làm gãy câu lệnh SQL nếu ở chế độ demo
+  return "00000000-0000-4000-8000-000000000003";
 }
 
 /**
@@ -279,6 +184,9 @@ export async function getOrCreateConversation(
     throw new Error("Không thể tạo cuộc trò chuyện với chính mình.");
   }
 
+  // Sắp xếp thứ tự ID để chống trùng
+  const [p1, p2] = cleanTenantId < cleanLandlordId ? [cleanTenantId, cleanLandlordId] : [cleanLandlordId, cleanTenantId];
+
   // Chỉ gắn room_id khi có định dạng UUID chuẩn hợp lệ
   const validRoomId =
     roomId && UUID_REGEX.test(roomId.trim()) ? roomId.trim() : null;
@@ -291,7 +199,7 @@ export async function getOrCreateConversation(
         .from("conversations")
         .select("id")
         .or(
-          `and(participant_1.eq.${cleanTenantId},participant_2.eq.${cleanLandlordId}),and(participant_1.eq.${cleanLandlordId},participant_2.eq.${cleanTenantId})`,
+          `and(participant_1.eq.${p1},participant_2.eq.${p2}),and(participant_1.eq.${p2},participant_2.eq.${p1})`,
         );
 
       if (validRoomId) {
@@ -326,8 +234,8 @@ export async function getOrCreateConversation(
       const { data: created, error: insertErr } = await supabase
         .from("conversations")
         .insert({
-          participant_1: cleanTenantId,
-          participant_2: cleanLandlordId,
+          participant_1: p1,
+          participant_2: p2,
           room_id: validRoomId,
           last_message: "Bắt đầu cuộc trò chuyện...",
           last_message_at: new Date().toISOString(),
@@ -345,6 +253,17 @@ export async function getOrCreateConversation(
         return created.id;
       }
       if (insertErr) {
+        // Nếu trùng do race condition
+        const { data: retryData } = await supabase
+          .from("conversations")
+          .select("id")
+          .or(
+            `and(participant_1.eq.${p1},participant_2.eq.${p2}),and(participant_1.eq.${p2},participant_2.eq.${p1})`,
+          )
+          .maybeSingle();
+        if (retryData?.id) {
+          return retryData.id;
+        }
         console.warn(
           "[MessagesAPI] Không thể insert trực tiếp Supabase (có thể do RLS/Auth):",
           insertErr.message,
@@ -359,13 +278,11 @@ export async function getOrCreateConversation(
   }
 
   // 3. Fallback an toàn: Khởi tạo conversation ID chuẩn UUID
-  // Đảm bảo người dùng luôn điều hướng mượt mà vào giao diện tin nhắn
   const fallbackId =
     typeof crypto !== "undefined" && crypto.randomUUID
       ? crypto.randomUUID()
       : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`;
 
-  // Tải trước thông tin hồ sơ đối phương để khung chat hiển thị tên và avatar đầy đủ
   let otherProfile: any = null;
   if (isSupabaseConfigured) {
     try {
@@ -380,8 +297,8 @@ export async function getOrCreateConversation(
 
   const fallbackConversation: Conversation = {
     id: fallbackId,
-    participant_1: cleanTenantId,
-    participant_2: cleanLandlordId,
+    participant_1: p1,
+    participant_2: p2,
     room_id: validRoomId || undefined,
     last_message: "Bắt đầu cuộc trò chuyện...",
     last_message_at: new Date().toISOString(),
@@ -444,6 +361,8 @@ export async function getConversations(
           participant_1,
           participant_2,
           room_id,
+          item_id,
+          last_item_id,
           last_message,
           last_message_at,
           unread_count_p1,
@@ -478,19 +397,17 @@ export async function getConversations(
     const existing = convMap.get(c.id);
     convMap.set(c.id, {
       ...c,
-      other_name: c.other_name || existing?.other_name,
-      other_avatar: c.other_avatar || existing?.other_avatar,
-      p1: c.p1 || existing?.p1,
-      p2: c.p2 || existing?.p2,
+      other_name: existing?.other_name || c.other_name,
+      other_avatar: existing?.other_avatar || c.other_avatar,
     });
   });
 
   const merged = Array.from(convMap.values()).map((c) => {
-    const savedMeta = getConversationMeta(c.id);
     const isMe = isSameUserId(c.participant_1, cleanUserId);
-    const otherId = isMe ? c.participant_2 : c.participant_1;
-    const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
     const other = isMe ? c.p2 : c.p1;
+    const otherId = isMe ? c.participant_2 : c.participant_1;
+    const known = KNOWN_USER_NAMES[otherId];
+    const savedMeta = getConversationMeta(c.id);
 
     const resolvedName =
       c.other_name ||
@@ -498,7 +415,7 @@ export async function getConversations(
       other?.full_name ||
       other?.name ||
       known?.name ||
-      (isMe ? "Chủ trọ / Người đăng" : "Khách liên hệ");
+      (isMe ? "Chủ trọ / Người bán" : "Khách liên hệ");
 
     const resolvedAvatar =
       c.other_avatar ||
@@ -538,6 +455,8 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
           conversation_id,
           sender_id,
           content,
+          type,
+          item_id,
           is_read,
           created_at,
           sender:profiles!sender_id(id, full_name, name, avatar_url)
@@ -570,29 +489,33 @@ export async function getMessages(conversationId: string): Promise<Message[]> {
  */
 export async function sendMessage(
   conversationId: string,
-  senderId: string,
+  senderId: string | null,
   content: string,
   senderName?: string,
   messageId?: string,
+  type: "text" | "item_context" | "system" = "text",
+  itemId?: string | null,
 ): Promise<Message> {
   const cleanContent = content.trim();
   if (!cleanContent) {
     throw new Error("Nội dung tin nhắn không được để trống.");
   }
 
-  const cleanSenderId = await resolveUserIdToUuid(senderId);
+  const cleanSenderId = senderId ? await resolveUserIdToUuid(senderId) : null;
   const newMsgId =
     messageId && UUID_REGEX.test(messageId.trim())
       ? messageId.trim()
-      : (typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`);
+      : typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`;
 
   const msgPayload: Message = {
     id: newMsgId,
     conversation_id: conversationId,
     sender_id: cleanSenderId,
     content: cleanContent,
+    type,
+    item_id: itemId || null,
     is_read: false,
     created_at: new Date().toISOString(),
     status: "sent",
@@ -603,7 +526,7 @@ export async function sendMessage(
   // 1. Thử gửi lên Supabase
   if (isSupabaseConfigured) {
     try {
-      // Đảm bảo cuộc trò chuyện tồn tại trước khi chèn tin nhắn (tránh vi phạm Foreign Key)
+      // Đảm bảo cuộc trò chuyện tồn tại
       if (UUID_REGEX.test(conversationId.trim())) {
         const { data: convExists } = await supabase
           .from("conversations")
@@ -611,7 +534,7 @@ export async function sendMessage(
           .eq("id", conversationId)
           .maybeSingle();
 
-        if (!convExists) {
+        if (!convExists && cleanSenderId) {
           await supabase.from("conversations").insert({
             id: conversationId,
             participant_1: cleanSenderId,
@@ -630,6 +553,8 @@ export async function sendMessage(
             conversation_id: conversationId,
             sender_id: cleanSenderId,
             content: cleanContent,
+            type,
+            item_id: itemId || null,
             is_read: false,
           },
           { onConflict: "id" },
@@ -640,6 +565,8 @@ export async function sendMessage(
           conversation_id,
           sender_id,
           content,
+          type,
+          item_id,
           is_read,
           created_at,
           sender:profiles!sender_id(id, full_name, name, avatar_url)
@@ -647,9 +574,12 @@ export async function sendMessage(
         )
         .maybeSingle();
 
-      if (!error && data) {
+      if (error) {
+        if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
+          throw new Error(`Lỗi gửi tin nhắn Supabase: ${error.message}`);
+        }
+      } else if (data) {
         savedMessage = data as unknown as Message;
-        // Cập nhật tin nhắn gần nhất vào bảng conversations
         supabase
           .from("conversations")
           .update({
@@ -659,45 +589,52 @@ export async function sendMessage(
           .eq("id", conversationId)
           .then();
       }
-    } catch (error) {
+    } catch (error: any) {
+      if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
+        throw error;
+      }
       console.warn("[MessagesAPI] sendMessage Supabase error:", error);
     }
   }
 
-  // 2. Fallback lưu cục bộ trong phiên nếu Supabase RLS từ chối
-  saveLocalMessage(savedMessage);
+  // 2. Fallback lưu cục bộ nếu là chế độ demo/test
+  if (!isSupabaseConfigured || isDemoUser(cleanSenderId) || isDemoUser(conversationId)) {
+    saveLocalMessage(savedMessage);
+  }
 
-  // 3. Tự động gửi thông báo Realtime cho người nhận
+  // 3. Gửi thông báo Realtime cho người nhận nếu là tin nhắn người dùng
   try {
-    const localConvs = getLocalConversations();
-    const conv = localConvs.find((c) => c.id === conversationId);
-    let receiverId = "";
-    if (conv) {
-      receiverId = isSameUserId(conv.participant_1, cleanSenderId)
-        ? conv.participant_2
-        : conv.participant_1;
-    }
+    if (cleanSenderId) {
+      const localConvs = getLocalConversations();
+      const conv = localConvs.find((c) => c.id === conversationId);
+      let receiverId = "";
+      if (conv) {
+        receiverId = isSameUserId(conv.participant_1, cleanSenderId)
+          ? conv.participant_2
+          : conv.participant_1;
+      }
 
-    if (
-      isSupabaseConfigured &&
-      receiverId &&
-      !isSameUserId(receiverId, cleanSenderId)
-    ) {
-      supabase
-        .from("notifications")
-        .insert({
-          user_id: receiverId,
-          title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
-          body:
-            cleanContent.length > 80
-              ? cleanContent.slice(0, 80) + "..."
-              : cleanContent,
-          type: "chat_message",
-          cta_url: `/tin-nhan/${conversationId}`,
-          cta_label: "Trả lời ngay",
-          is_read: false,
-        })
-        .then();
+      if (
+        isSupabaseConfigured &&
+        receiverId &&
+        !isSameUserId(receiverId, cleanSenderId)
+      ) {
+        supabase
+          .from("notifications")
+          .insert({
+            user_id: receiverId,
+            title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
+            body:
+              cleanContent.length > 80
+                ? cleanContent.slice(0, 80) + "..."
+                : cleanContent,
+            type: "chat_message",
+            cta_url: `/tin-nhan/${conversationId}`,
+            cta_label: "Trả lời ngay",
+            is_read: false,
+          })
+          .then();
+      }
     }
   } catch (notifErr) {
     console.warn("[MessagesAPI] Lỗi gửi thông báo tin nhắn:", notifErr);
@@ -707,13 +644,16 @@ export async function sendMessage(
 }
 
 export interface FindOrCreateConversationOptions {
-  itemName?: string;
-  itemPrice?: number;
-  itemImage?: string;
-  buyerName?: string;
-  sellerName?: string;
-  sellerAvatar?: string;
-  initialMessage?: string;
+  mockItem?: {
+    id: string;
+    title: string;
+    price: number;
+    user_id?: string;
+    sellerId?: string;
+    images?: string[];
+  };
+  currentUserId?: string;
+  isTestEnv?: boolean;
 }
 
 export interface FindOrCreateConversationResult {
@@ -722,32 +662,39 @@ export interface FindOrCreateConversationResult {
   isNew: boolean;
   contextInserted: boolean;
   itemId: string;
+  lastItemId?: string | null;
   conversation?: Conversation;
-  toString: () => string;
-  valueOf: () => string;
 }
 
-export function formatItemContextMessage(
+/**
+ * Định dạng thẻ tóm tắt ngữ cảnh món đồ (không mạo danh người mua, không có câu hỏi thừa)
+ */
+export function formatItemContextSummary(
   itemName?: string,
   price?: number,
-  _itemId?: string,
 ): string {
-  const name = itemName ? `"${itemName}"` : "món đồ thanh lý của bạn";
+  const name = itemName ? `"${itemName}"` : "Món đồ thanh lý";
   const priceText =
     price !== undefined
       ? price === 0
         ? " (Đồ tặng miễn phí)"
         : ` (${price.toLocaleString("vi-VN")} đ)`
       : "";
-  return `👋 Xin chào! Tôi quan tâm đến ${name}${priceText}. Món này còn không bạn?`;
+  return `[Món đồ] ${name}${priceText}`;
 }
 
 /**
  * Tìm hoặc khởi tạo cuộc hội thoại cho Chợ đồ cũ sinh viên trong hệ thống chat chung:
- * - Đã có hội thoại giữa người mua và người bán về món đồ đó -> trả về hội thoại cũ.
- * - Chưa có hội thoại giữa 2 người -> tạo mới cuộc trò chuyện và chèn tin nhắn ngữ cảnh món đồ.
- * - Đã có hội thoại giữa 2 người nhưng hỏi về món khác -> giữ nguyên hội thoại chung (theo cấu trúc cặp người dùng hiện có) và chèn thêm tin nhắn ngữ cảnh cho món đồ mới.
- * - Từ chối khi buyerId trùng với sellerId (không thể tự nhắn cho chính mình).
+ * 1. Không gửi tin nhắn thay mặt người mua: Ngữ cảnh món đồ là tin nhắn hệ thống (type: 'item_context', lưu item_id),
+ *    hiển thị dạng thẻ, bỏ câu "Món này còn không bạn?".
+ * 2. Chèn ngữ cảnh khi last_item_id khác itemId đang hỏi (kể cả quay lại món đã hỏi trước đó), không dựa vào discussed_items.
+ * 3. Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId;
+ *    báo lỗi nếu sellerId không phải chủ món đồ hoặc món không tồn tại;
+ *    buyerId phải là người dùng đang đăng nhập.
+ * 4. Chống trùng: sắp xếp cặp id trước khi lưu (p1 < p2), ràng buộc unique cho cặp người dùng;
+ *    insert bị trùng do race condition thì tự động lấy hội thoại đã có.
+ * 5. Fallback safeStorage chỉ dùng khi ở chế độ demo/test; môi trường thật lỗi Supabase thì ném lỗi rõ ràng.
+ * 6. Trả về object thuần { id, conversationId, isNew, contextInserted, itemId, lastItemId }.
  */
 export async function findOrCreateConversation(
   buyerId: string,
@@ -755,7 +702,7 @@ export async function findOrCreateConversation(
   itemId: string,
   options?: FindOrCreateConversationOptions,
 ): Promise<FindOrCreateConversationResult> {
-  // 1. Kiểm tra đầu vào
+  // 1. Kiểm tra đầu vào cơ bản
   if (!buyerId || !sellerId) {
     throw new Error("Thiếu thông tin người tham gia hội thoại.");
   }
@@ -765,7 +712,7 @@ export async function findOrCreateConversation(
     throw new Error("Thiếu thông tin món đồ cần trao đổi.");
   }
 
-  // 2. Chặn tự nhắn tin cho chính mình (bao gồm cả chuẩn hóa UUID và tài khoản demo)
+  // 2. Chặn tự nhắn tin cho chính mình
   if (isSameUserId(buyerId, sellerId)) {
     throw new Error("Không thể tự nhắn tin cho chính mình.");
   }
@@ -777,155 +724,132 @@ export async function findOrCreateConversation(
     throw new Error("Không thể tự nhắn tin cho chính mình.");
   }
 
-  // 3. Tìm cuộc trò chuyện hiện có giữa 2 người dùng (theo cấu trúc chat chung cặp người dùng)
-  let existingId: string | null = null;
+  const isDemoOrTest = options?.isTestEnv || isDemoUser(cleanBuyerId) || isDemoUser(cleanSellerId);
+
+  // 3. YÊU CẦU 2: GỌI HÀM POSTGRES RPC TRÊN SUPABASE (SECURITY DEFINER)
+  // Trong môi trường thật, toàn bộ transaction (xác thực, kiểm tra chủ món đồ, chống trùng, khóa dòng, chèn tin)
+  // được thực thi trong 1 giao dịch nguyên tử (atomic transaction) trên Postgres.
+  if (isSupabaseConfigured && !isDemoOrTest) {
+    try {
+      const { data, error } = await supabase.rpc("find_or_create_conversation", {
+        p_item_id: cleanItemId,
+      });
+
+      if (error) {
+        throw new Error(error.message || "Lỗi xử lý cuộc trò chuyện từ cơ sở dữ liệu.");
+      }
+
+      if (data && typeof data === "object") {
+        const convId = data.conversationId || data.id;
+        return {
+          id: convId,
+          conversationId: convId,
+          isNew: Boolean(data.isNew),
+          contextInserted: Boolean(data.contextInserted),
+          itemId: data.itemId || cleanItemId,
+          lastItemId: data.lastItemId || cleanItemId,
+        };
+      }
+    } catch (rpcErr: any) {
+      // Yêu cầu 6: Môi trường thật lỗi Supabase thì ném lỗi rõ ràng, không fallback che giấu
+      throw rpcErr;
+    }
+  }
+
+  // 4. LUỒNG CHẾ ĐỘ DEMO / TEST (Khi chưa cấu hình Supabase hoặc chạy trong môi trường kiểm thử)
+  let itemTitle = "Món đồ thanh lý";
+  let itemPrice = 0;
+  let itemImage = "";
+
+  if (options?.mockItem) {
+    const mockOwner = options.mockItem.user_id || options.mockItem.sellerId;
+    if (mockOwner && !isSameUserId(mockOwner, cleanSellerId)) {
+      throw new Error("Người bán không phải là chủ sở hữu của món đồ này.");
+    }
+    itemTitle = options.mockItem.title || itemTitle;
+    itemPrice = options.mockItem.price || 0;
+    itemImage = options.mockItem.images?.[0] || "";
+  } else if (!isDemoOrTest) {
+    throw new Error("Món đồ không tồn tại hoặc đã bị xóa.");
+  }
+
+  const [p1, p2] = cleanBuyerId < cleanSellerId ? [cleanBuyerId, cleanSellerId] : [cleanSellerId, cleanBuyerId];
+  let existingConvId: string | null = null;
+  let currentLastItemId: string | null = null;
   let isNew = false;
   let contextInserted = false;
 
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from("conversations")
-        .select("id, participant_1, participant_2, room_id, last_message, last_message_at")
-        .or(
-          `and(participant_1.eq.${cleanBuyerId},participant_2.eq.${cleanSellerId}),and(participant_1.eq.${cleanSellerId},participant_2.eq.${cleanBuyerId})`,
-        )
-        .order("last_message_at", { ascending: false, nullsFirst: false })
-        .limit(1);
-
-      if (!error && data && data.length > 0) {
-        existingId = data[0].id;
-      }
-    } catch (err) {
-      console.warn("[findOrCreateConversation] Lỗi tra cứu Supabase:", err);
-    }
+  const localList = getLocalConversations();
+  const found = localList.find(
+    (c) =>
+      (isSameUserId(c.participant_1, p1) && isSameUserId(c.participant_2, p2)) ||
+      (isSameUserId(c.participant_1, p2) && isSameUserId(c.participant_2, p1)),
+  );
+  if (found) {
+    existingConvId = found.id;
+    const meta = getConversationMeta(found.id);
+    currentLastItemId = (found as any).last_item_id || meta?.last_item_id || null;
   }
 
-  if (!existingId) {
-    const localList = getLocalConversations();
-    const found = localList.find(
-      (c) =>
-        (isSameUserId(c.participant_1, cleanBuyerId) && isSameUserId(c.participant_2, cleanSellerId)) ||
-        (isSameUserId(c.participant_1, cleanSellerId) && isSameUserId(c.participant_2, cleanBuyerId)),
-    );
-    if (found) {
-      existingId = found.id;
-    }
-  }
-
-  // 4. Nếu chưa có hội thoại giữa 2 người -> Tạo mới
-  if (!existingId) {
+  if (!existingConvId) {
     isNew = true;
-
-    // Thử tạo trên Supabase
-    if (isSupabaseConfigured) {
-      try {
-        const { data: created, error: insertErr } = await supabase
-          .from("conversations")
-          .insert({
-            participant_1: cleanBuyerId,
-            participant_2: cleanSellerId,
-            last_message: "Bắt đầu cuộc trò chuyện...",
-            last_message_at: new Date().toISOString(),
-          })
-          .select("id")
-          .maybeSingle();
-
-        if (!insertErr && created?.id) {
-          existingId = created.id;
-        }
-      } catch (insertEx) {
-        console.warn("[findOrCreateConversation] Lỗi tạo conversation Supabase:", insertEx);
-      }
-    }
-
-    if (!existingId) {
-      existingId =
-        typeof crypto !== "undefined" && crypto.randomUUID
-          ? crypto.randomUUID()
-          : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`;
-    }
-
-    // Lưu metadata ngữ cảnh món đồ
-    const initialMeta: ConversationMeta = {
-      other_name: options?.sellerName || "Người bán",
-      other_avatar: options?.sellerAvatar || "/images/user-avatar.jpg",
-      last_item_id: cleanItemId,
-      last_item_name: options?.itemName,
-      last_item_price: options?.itemPrice,
-      discussed_items: [cleanItemId],
-    };
-    saveConversationMeta(existingId, initialMeta);
+    existingConvId =
+      typeof crypto !== "undefined" && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`;
+    currentLastItemId = cleanItemId;
 
     saveLocalConversation({
-      id: existingId,
-      participant_1: cleanBuyerId,
-      participant_2: cleanSellerId,
+      id: existingConvId,
+      participant_1: p1,
+      participant_2: p2,
       item_id: cleanItemId,
-      last_message: "Bắt đầu cuộc trò chuyện...",
+      last_item_id: cleanItemId,
+      last_message: formatItemContextSummary(itemTitle, itemPrice),
       last_message_at: new Date().toISOString(),
       unread_count_p1: 0,
       unread_count_p2: 0,
       created_at: new Date().toISOString(),
-      other_name: options?.sellerName || "Người bán",
-      other_avatar: options?.sellerAvatar || "/images/user-avatar.jpg",
     });
-
-    // Chèn tin nhắn ngữ cảnh mở đầu
-    const contextMsg =
-      options?.initialMessage ||
-      formatItemContextMessage(options?.itemName, options?.itemPrice, cleanItemId);
-    await sendMessage(existingId, cleanBuyerId, contextMsg, options?.buyerName);
-    contextInserted = true;
-  } else {
-    // 5. Nếu đã có hội thoại giữa 2 người:
-    isNew = false;
-
-    // Kiểm tra xem hội thoại này đã từng trao đổi về món đồ này chưa
-    const meta = getConversationMeta(existingId) || {};
-    const discussed: string[] = Array.isArray(meta.discussed_items)
-      ? meta.discussed_items
-      : meta.last_item_id
-        ? [meta.last_item_id]
-        : [];
-
-    const isSameItem = meta.last_item_id === cleanItemId || discussed.includes(cleanItemId);
-
-    if (isSameItem) {
-      // CÙNG MÓN ĐỒ: Trả về hội thoại cũ, không tạo trùng, không chèn tin nhắn lặp lại
-      contextInserted = false;
-    } else {
-      // MÓN ĐỒ KHÁC: Chèn ngữ cảnh món mới vào luồng hội thoại chung
-      const contextMsg =
-        options?.initialMessage ||
-        formatItemContextMessage(options?.itemName, options?.itemPrice, cleanItemId);
-      await sendMessage(existingId, cleanBuyerId, contextMsg, options?.buyerName);
-      contextInserted = true;
-
-      // Cập nhật metadata hội thoại với món đồ mới
-      saveConversationMeta(existingId, {
-        last_item_id: cleanItemId,
-        last_item_name: options?.itemName,
-        last_item_price: options?.itemPrice,
-        discussed_items: Array.from(new Set([...discussed, cleanItemId])),
-      });
-    }
   }
 
-  const finalConvId = existingId;
-  const resultObj: FindOrCreateConversationResult = {
-    id: finalConvId,
-    conversationId: finalConvId,
+  const shouldInsertContext = isNew || (currentLastItemId !== cleanItemId);
+
+  if (shouldInsertContext) {
+    const cardContent = JSON.stringify({
+      type: "item_context",
+      itemId: cleanItemId,
+      title: itemTitle,
+      price: itemPrice,
+      image: itemImage,
+      summary: formatItemContextSummary(itemTitle, itemPrice),
+    });
+
+    await sendMessage(
+      existingConvId,
+      null,
+      cardContent,
+      "Hệ thống",
+      undefined,
+      "item_context",
+      cleanItemId,
+    );
+    contextInserted = true;
+    currentLastItemId = cleanItemId;
+
+    saveConversationMeta(existingConvId, {
+      last_item_id: cleanItemId,
+      last_item_name: itemTitle,
+      last_item_price: itemPrice,
+    });
+  }
+
+  return {
+    id: existingConvId,
+    conversationId: existingConvId,
     isNew,
     contextInserted,
     itemId: cleanItemId,
-    toString() {
-      return finalConvId;
-    },
-    valueOf() {
-      return finalConvId;
-    },
+    lastItemId: currentLastItemId,
   };
-
-  return resultObj;
 }

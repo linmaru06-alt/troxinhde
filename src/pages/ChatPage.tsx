@@ -286,7 +286,19 @@ export const ChatPage: React.FC = () => {
                         </p>
                       )}
                       <p className="text-xs text-gray-500 truncate leading-snug">
-                        {c.last_message || 'Bắt đầu cuộc trò chuyện...'}
+                        {(() => {
+                          const raw = c.last_message;
+                          if (!raw) return 'Bắt đầu cuộc trò chuyện...';
+                          const trimmed = raw.trim();
+                          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                            try {
+                              const parsed = JSON.parse(trimmed);
+                              if (parsed.summary) return parsed.summary;
+                              if (parsed.title) return `[Món đồ] ${parsed.title}`;
+                            } catch {}
+                          }
+                          return raw;
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -441,6 +453,33 @@ export const ChatPage: React.FC = () => {
                           minute: '2-digit',
                         })
                       : '';
+
+                    // Tin nhắn hệ thống / ngữ cảnh món đồ (sender_id null hoặc type item_context/system):
+                    // Hiển thị dạng dòng chữ giữa khung chat theo yêu cầu 5
+                    const isSystemOrContext = !msg.sender_id || msg.type === 'item_context' || msg.type === 'system';
+
+                    if (isSystemOrContext) {
+                      let displayText = msg.content;
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (parsed && typeof parsed === 'object') {
+                          displayText =
+                            parsed.summary ||
+                            (parsed.title
+                              ? `[Món đồ] ${parsed.title}${parsed.price !== undefined ? (parsed.price === 0 ? ' (Đồ tặng miễn phí)' : ` (${parsed.price.toLocaleString('vi-VN')} đ)`) : ''}`
+                              : msg.content);
+                        }
+                      } catch {}
+
+                      return (
+                        <div key={msg.id} className="flex justify-center my-3 w-full">
+                          <div className="bg-emerald-50/90 border border-emerald-200/90 text-emerald-800 text-xs px-3.5 py-1.5 rounded-full shadow-2xs max-w-[90%] text-center flex items-center justify-center gap-1.5">
+                            <span className="font-semibold">{displayText}</span>
+                            {timeStr && <span className="text-[10px] text-emerald-600/80">({timeStr})</span>}
+                          </div>
+                        </div>
+                      );
+                    }
 
                     return (
                       <div
