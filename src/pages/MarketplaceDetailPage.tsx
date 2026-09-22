@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -17,6 +17,7 @@ import {
   MessageSquare,
   Phone,
   AlertTriangle,
+  AlertCircle,
   Sparkles,
   ChevronLeft,
   ChevronRight,
@@ -30,7 +31,8 @@ import {
   Check,
   RefreshCw,
 } from 'lucide-react';
-import { findOrCreateConversation } from '../lib/api/messages';
+import { findOrCreateConversation, isSameUserId } from '../lib/api/messages';
+import { updateMarketplaceItem as updateMarketplaceItemApi } from '../lib/api/marketplace';
 import {
   CONDITION_LABELS,
   MarketplaceConditionCode,
@@ -47,6 +49,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 export const MarketplaceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const {
     marketplaceItems,
     currentUser,
@@ -65,10 +68,23 @@ export const MarketplaceDetailPage: React.FC = () => {
   const item = marketplaceItems.find((i) => i.id === id);
 
   // Phân quyền và trạng thái kiểm duyệt
-  const isOwner = currentUser && item && currentUser.id === item.userId;
+  const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, item.userId));
   const isAdmin = currentUser && (currentUser.role === 'admin' || (currentUser as any).app_role === 'admin');
-  const isPending = item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending');
-  const isRejected = item && (item.status === 'Bị từ chối' || item.moderationStatus === 'rejected');
+  const isSold = item?.status === 'Đã bán' || item?.status === 'sold';
+  const isPending = item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending' || item.status === 'pending');
+  const isRejected = item && (item.status === 'Bị từ chối' || item.moderationStatus === 'rejected' || item.status === 'rejected');
+  const isHidden = item && (item.status === 'Bị ẩn' || item.status === 'hidden' || Boolean((item as any).isHidden));
+  const isUnavailable = Boolean(isSold || isPending || isRejected || isHidden);
+
+  const unavailableReason = isSold
+    ? 'Món đồ này đã bán, không thể liên hệ.'
+    : isPending
+      ? 'Món đồ đang chờ duyệt, chưa thể liên hệ.'
+      : isRejected
+        ? 'Món đồ bị từ chối duyệt, không thể liên hệ.'
+        : isHidden
+          ? 'Món đồ hiện đang bị ẩn, không thể liên hệ.'
+          : '';
 
   // Admin moderation modal
   const [adminConfirmOpen, setAdminConfirmOpen] = useState<boolean>(false);
@@ -108,6 +124,13 @@ export const MarketplaceDetailPage: React.FC = () => {
       setEditStatus(item.status || 'Còn hàng');
     }
   }, [item, isEditModalOpen]);
+
+  // Tự động mở modal sửa nếu URL có param ?edit=true và là người đăng
+  useEffect(() => {
+    if (searchParams.get('edit') === 'true' && isOwner) {
+      setIsEditModalOpen(true);
+    }
+  }, [searchParams, isOwner]);
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -253,6 +276,26 @@ export const MarketplaceDetailPage: React.FC = () => {
     } else {
       navigator.clipboard.writeText(window.location.href);
       showToast('Đã sao chép liên kết!', 'Bạn có thể gửi link cho bạn bè', 'info');
+    }
+  };
+
+  const handleMarkAsSold = async () => {
+    if (!item || !isOwner) return;
+
+    try {
+      updateMarketplaceItem(item.id, {
+        status: 'Đã bán',
+      });
+
+      try {
+        await updateMarketplaceItemApi(item.id, { status: 'sold' });
+      } catch {
+        // Fallback
+      }
+
+      showToast('Đã đánh dấu đã bán! 🎉', 'Món đồ đã được chuyển sang trạng thái Đã bán.', 'success');
+    } catch (err: any) {
+      showToast('Lỗi thao tác', err?.message || 'Không thể đánh dấu đã bán', 'error');
     }
   };
 
@@ -650,29 +693,81 @@ export const MarketplaceDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {item.status === 'Đã bán' ? (
-                  <span className="text-xs text-gray-400 font-medium italic">Món đồ này đã được bán</span>
-                ) : (
-                  <>
-                    {item.userPhone && (
-                      <a href={`tel:${item.userPhone}`}>
-                        <Button variant="outline" size="sm" leftIcon={<Phone className="w-3.5 h-3.5" />}>
-                          Gọi {item.userPhone}
-                        </Button>
-                      </a>
-                    )}
+              <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
+                {isOwner ? (
+                  // Người xem là người đăng: Thay bằng nút "Sửa tin" và "Đánh dấu đã bán"
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
-                      variant="primary"
+                      variant="outline"
                       size="sm"
-                      disabled={isChatLoading}
-                      onClick={handleContactSeller}
-                      leftIcon={<MessageSquare className="w-3.5 h-3.5" />}
-                      className="shadow-sm"
+                      onClick={() => setIsEditModalOpen(true)}
+                      leftIcon={<Edit className="w-3.5 h-3.5" />}
+                      className="border-[#006d37] text-[#006d37] hover:bg-emerald-50 text-xs font-bold"
                     >
-                      {isChatLoading ? 'Đang mở...' : 'Nhắn Tin Ngay'}
+                      Sửa tin
                     </Button>
-                  </>
+                    {isSold ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        leftIcon={<Check className="w-3.5 h-3.5 text-gray-400" />}
+                        className="border-gray-300 text-gray-400 bg-gray-50 text-xs font-semibold cursor-not-allowed opacity-80"
+                      >
+                        Đã đánh dấu đã bán
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleMarkAsSold}
+                        leftIcon={<Check className="w-3.5 h-3.5" />}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-xs font-bold shadow-xs"
+                      >
+                        Đánh dấu đã bán
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  // Người xem KHÔNG phải người đăng: Nút "Nhắn người bán"
+                  <div className="flex flex-col items-end gap-1.5">
+                    <div className="flex items-center gap-2">
+                      {!isUnavailable && item.userPhone && (
+                        <a href={`tel:${item.userPhone}`}>
+                          <Button variant="outline" size="sm" leftIcon={<Phone className="w-3.5 h-3.5" />}>
+                            Gọi {item.userPhone}
+                          </Button>
+                        </a>
+                      )}
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        disabled={isUnavailable || isChatLoading}
+                        onClick={handleContactSeller}
+                        leftIcon={
+                          isChatLoading ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          )
+                        }
+                        className={
+                          isUnavailable
+                            ? 'opacity-50 cursor-not-allowed bg-gray-200 text-gray-500 hover:bg-gray-200 border-gray-300 shadow-none'
+                            : 'shadow-sm'
+                        }
+                      >
+                        {isChatLoading ? 'Đang kết nối...' : 'Nhắn người bán'}
+                      </Button>
+                    </div>
+                    {/* Dòng lý do rõ ràng khi món đã bán, bị ẩn hoặc chờ duyệt */}
+                    {isUnavailable && unavailableReason && (
+                      <p className="text-[11px] text-rose-600 font-medium flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                        <AlertCircle className="w-3 h-3 shrink-0" />
+                        {unavailableReason}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

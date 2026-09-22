@@ -1,13 +1,29 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { CONDITION_LABELS, MarketplaceConditionCode } from '../../lib/marketplaceFilter';
 import { useAppStore } from '../../store/useAppStore';
+import { findOrCreateConversation, isSameUserId } from '../../lib/api/messages';
+import { updateMarketplaceItem as updateMarketplaceItemApi } from '../../lib/api/marketplace';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Card } from './Card';
-import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag, Trash2 } from 'lucide-react';
+import {
+  Heart,
+  MapPin,
+  Sparkles,
+  Navigation,
+  CheckCircle,
+  Camera,
+  Tag,
+  Trash2,
+  MessageSquare,
+  Edit,
+  Check,
+  AlertCircle,
+  RefreshCw,
+} from 'lucide-react';
 
 export { Card };
 
@@ -450,9 +466,27 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
-  const { currentUser, removeMarketplaceItem } = useAppStore();
+  const { currentUser, removeMarketplaceItem, updateMarketplaceItem, showToast } = useAppStore();
+  const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = currentUser?.id === item.userId;
+  const [isChatLoading, setIsChatLoading] = React.useState(false);
+
+  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, item.userId));
+  const isSold = item.status === 'Đã bán' || item.status === 'sold';
+  const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
+  const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
+  const isHidden = item.status === 'Bị ẩn' || item.status === 'hidden' || Boolean((item as any).isHidden);
+  const isUnavailable = Boolean(isSold || isPending || isRejected || isHidden);
+
+  const unavailableReason = isSold
+    ? 'Đã bán'
+    : isPending
+      ? 'Chờ duyệt'
+      : isRejected
+        ? 'Bị từ chối'
+        : isHidden
+          ? 'Đang ẩn'
+          : '';
 
   const handleConfirmDelete = () => {
     removeMarketplaceItem(item.id);
@@ -463,6 +497,64 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
     e.preventDefault();
     e.stopPropagation();
     setShowDeleteConfirm(true);
+  };
+
+  const handleMarkAsSold = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isOwner) return;
+
+    try {
+      updateMarketplaceItem(item.id, { status: 'Đã bán' });
+      try {
+        await updateMarketplaceItemApi(item.id, { status: 'sold' });
+      } catch {
+        // Fallback
+      }
+      showToast('Đã đánh dấu đã bán! 🎉', 'Món đồ đã được chuyển sang trạng thái Đã bán.', 'success');
+    } catch (err: any) {
+      showToast('Lỗi thao tác', err?.message || 'Không thể đánh dấu đã bán', 'error');
+    }
+  };
+
+  const handleContactSeller = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!currentUser) {
+      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
+      return;
+    }
+    if (isSameUserId(currentUser.id, item.userId)) {
+      showToast('Đây là món đồ của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
+      return;
+    }
+
+    setIsChatLoading(true);
+    try {
+      const result = await findOrCreateConversation(
+        currentUser.id,
+        item.userId,
+        item.id,
+        {
+          mockItem: {
+            id: item.id,
+            title: item.name,
+            price: item.price,
+            user_id: item.userId,
+            images: item.images,
+          },
+          currentUserId: currentUser.id,
+        }
+      );
+      navigate(`/tin-nhan/${result.conversationId}`);
+    } catch (err: any) {
+      console.error('[MarketplaceCard] Lỗi mở chat:', err);
+      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsChatLoading(false);
+    }
   };
 
   const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
@@ -594,6 +686,71 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           <span className="text-[#006d37] font-bold text-xs shrink-0 group-hover:translate-x-0.5 transition-transform">
             Xem ngay →
           </span>
+        </div>
+
+        {/* 7. Action Bar: Nhắn người bán / Sửa tin & Đánh dấu đã bán */}
+        <div className="pt-2.5 mt-0.5 border-t border-gray-100 flex flex-col gap-1">
+          {isOwner ? (
+            <div className="grid grid-cols-2 gap-1.5 w-full">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  navigate(`/cho-do-cu/${item.id}?edit=true`);
+                }}
+                className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
+              >
+                <Edit className="w-3 h-3" />
+                Sửa tin
+              </button>
+              {isSold ? (
+                <button
+                  type="button"
+                  disabled
+                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed opacity-75"
+                >
+                  <Check className="w-3 h-3" />
+                  Đã bán
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleMarkAsSold}
+                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-colors shadow-xs cursor-pointer"
+                >
+                  <Check className="w-3 h-3" />
+                  Đã bán
+                </button>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1 w-full">
+              <button
+                type="button"
+                disabled={isUnavailable || isChatLoading}
+                onClick={handleContactSeller}
+                className={`w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
+                  isUnavailable
+                    ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'
+                    : 'bg-[#006d37] hover:bg-emerald-800 text-white cursor-pointer active:scale-98'
+                }`}
+              >
+                {isChatLoading ? (
+                  <RefreshCw className="w-3 h-3 animate-spin" />
+                ) : (
+                  <MessageSquare className="w-3.5 h-3.5" />
+                )}
+                <span>{isChatLoading ? 'Đang mở...' : 'Nhắn người bán'}</span>
+              </button>
+              {isUnavailable && unavailableReason && (
+                <span className="text-[10px] text-rose-600 font-semibold text-center flex items-center justify-center gap-1">
+                  <AlertCircle className="w-2.5 h-2.5 shrink-0" />
+                  Món đồ {unavailableReason.toLowerCase()}
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
       
