@@ -194,6 +194,7 @@ export interface ConversationParticipant {
 export interface Conversation {
   id: string;
   room_id?: string | null;
+  item_id?: string | null;
   participant_1: string;
   participant_2: string;
   last_message?: string | null;

@@ -64,12 +64,50 @@ const LOCAL_CONVS_KEY = "troxinh_local_conversations";
 const LOCAL_MSGS_KEY = "troxinh_local_messages";
 const CONV_META_PREFIX = "troxinh_conv_meta_";
 
+const inMemoryStore = new Map<string, string>();
+
+function safeGetStorage(key: string): string | null {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage) {
+      return localStorage.getItem(key);
+    }
+  } catch {}
+  return inMemoryStore.get(key) || null;
+}
+
+function safeSetStorage(key: string, value: string): void {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage) {
+      localStorage.setItem(key, value);
+    }
+  } catch {}
+  inMemoryStore.set(key, value);
+}
+
+export interface ConversationMeta {
+  other_name?: string;
+  other_avatar?: string;
+  last_item_id?: string;
+  last_item_name?: string;
+  last_item_price?: number;
+  discussed_items?: string[];
+  [key: string]: any;
+}
+
+export function clearLocalChatCache(): void {
+  try {
+    if (typeof localStorage !== "undefined" && localStorage) {
+      localStorage.removeItem(LOCAL_CONVS_KEY);
+    }
+  } catch {}
+  inMemoryStore.clear();
+}
+
 export function getConversationMeta(
   convId: string,
-): { other_name?: string; other_avatar?: string } | null {
+): ConversationMeta | null {
   try {
-    const raw =
-      localStorage.getItem(`${CONV_META_PREFIX}${convId}`);
+    const raw = safeGetStorage(`${CONV_META_PREFIX}${convId}`);
     return raw ? JSON.parse(raw) : null;
   } catch {
     return null;
@@ -78,17 +116,18 @@ export function getConversationMeta(
 
 export function saveConversationMeta(
   convId: string,
-  meta: { other_name?: string; other_avatar?: string },
+  meta: Partial<ConversationMeta>,
 ) {
   try {
-    const json = JSON.stringify(meta);
-    localStorage.setItem(`${CONV_META_PREFIX}${convId}`, json);
+    const existing = getConversationMeta(convId) || {};
+    const merged = { ...existing, ...meta };
+    safeSetStorage(`${CONV_META_PREFIX}${convId}`, JSON.stringify(merged));
   } catch {}
 }
 
 function getLocalConversations(): Conversation[] {
   try {
-    const raw = localStorage.getItem(LOCAL_CONVS_KEY);
+    const raw = safeGetStorage(LOCAL_CONVS_KEY);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -99,7 +138,7 @@ function saveLocalConversation(conv: Conversation) {
   try {
     const list = getLocalConversations().filter((c) => c.id !== conv.id);
     list.unshift(conv);
-    localStorage.setItem(LOCAL_CONVS_KEY, JSON.stringify(list));
+    safeSetStorage(LOCAL_CONVS_KEY, JSON.stringify(list));
     if (conv.other_name || conv.other_avatar) {
       saveConversationMeta(conv.id, {
         other_name: conv.other_name,
@@ -111,7 +150,7 @@ function saveLocalConversation(conv: Conversation) {
 
 function getLocalMessages(conversationId: string): Message[] {
   try {
-    const raw = localStorage.getItem(`${LOCAL_MSGS_KEY}_${conversationId}`);
+    const raw = safeGetStorage(`${LOCAL_MSGS_KEY}_${conversationId}`);
     return raw ? JSON.parse(raw) : [];
   } catch {
     return [];
@@ -122,7 +161,7 @@ function saveLocalMessage(msg: Message) {
   try {
     const list = getLocalMessages(msg.conversation_id);
     list.push(msg);
-    localStorage.setItem(
+    safeSetStorage(
       `${LOCAL_MSGS_KEY}_${msg.conversation_id}`,
       JSON.stringify(list),
     );
@@ -645,4 +684,228 @@ export async function sendMessage(
   }
 
   return savedMessage;
+}
+
+export interface FindOrCreateConversationOptions {
+  itemName?: string;
+  itemPrice?: number;
+  itemImage?: string;
+  buyerName?: string;
+  sellerName?: string;
+  sellerAvatar?: string;
+  initialMessage?: string;
+}
+
+export interface FindOrCreateConversationResult {
+  id: string;
+  conversationId: string;
+  isNew: boolean;
+  contextInserted: boolean;
+  itemId: string;
+  conversation?: Conversation;
+  toString: () => string;
+  valueOf: () => string;
+}
+
+export function formatItemContextMessage(
+  itemName?: string,
+  price?: number,
+  _itemId?: string,
+): string {
+  const name = itemName ? `"${itemName}"` : "món đồ thanh lý của bạn";
+  const priceText =
+    price !== undefined
+      ? price === 0
+        ? " (Đồ tặng miễn phí)"
+        : ` (${price.toLocaleString("vi-VN")} đ)`
+      : "";
+  return `👋 Xin chào! Tôi quan tâm đến ${name}${priceText}. Món này còn không bạn?`;
+}
+
+/**
+ * Tìm hoặc khởi tạo cuộc hội thoại cho Chợ đồ cũ sinh viên trong hệ thống chat chung:
+ * - Đã có hội thoại giữa người mua và người bán về món đồ đó -> trả về hội thoại cũ.
+ * - Chưa có hội thoại giữa 2 người -> tạo mới cuộc trò chuyện và chèn tin nhắn ngữ cảnh món đồ.
+ * - Đã có hội thoại giữa 2 người nhưng hỏi về món khác -> giữ nguyên hội thoại chung (theo cấu trúc cặp người dùng hiện có) và chèn thêm tin nhắn ngữ cảnh cho món đồ mới.
+ * - Từ chối khi buyerId trùng với sellerId (không thể tự nhắn cho chính mình).
+ */
+export async function findOrCreateConversation(
+  buyerId: string,
+  sellerId: string,
+  itemId: string,
+  options?: FindOrCreateConversationOptions,
+): Promise<FindOrCreateConversationResult> {
+  // 1. Kiểm tra đầu vào
+  if (!buyerId || !sellerId) {
+    throw new Error("Thiếu thông tin người tham gia hội thoại.");
+  }
+
+  const cleanItemId = itemId ? itemId.trim() : "";
+  if (!cleanItemId) {
+    throw new Error("Thiếu thông tin món đồ cần trao đổi.");
+  }
+
+  // 2. Chặn tự nhắn tin cho chính mình (bao gồm cả chuẩn hóa UUID và tài khoản demo)
+  if (isSameUserId(buyerId, sellerId)) {
+    throw new Error("Không thể tự nhắn tin cho chính mình.");
+  }
+
+  const cleanBuyerId = await resolveUserIdToUuid(buyerId);
+  const cleanSellerId = await resolveUserIdToUuid(sellerId);
+
+  if (cleanBuyerId === cleanSellerId) {
+    throw new Error("Không thể tự nhắn tin cho chính mình.");
+  }
+
+  // 3. Tìm cuộc trò chuyện hiện có giữa 2 người dùng (theo cấu trúc chat chung cặp người dùng)
+  let existingId: string | null = null;
+  let isNew = false;
+  let contextInserted = false;
+
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from("conversations")
+        .select("id, participant_1, participant_2, room_id, last_message, last_message_at")
+        .or(
+          `and(participant_1.eq.${cleanBuyerId},participant_2.eq.${cleanSellerId}),and(participant_1.eq.${cleanSellerId},participant_2.eq.${cleanBuyerId})`,
+        )
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(1);
+
+      if (!error && data && data.length > 0) {
+        existingId = data[0].id;
+      }
+    } catch (err) {
+      console.warn("[findOrCreateConversation] Lỗi tra cứu Supabase:", err);
+    }
+  }
+
+  if (!existingId) {
+    const localList = getLocalConversations();
+    const found = localList.find(
+      (c) =>
+        (isSameUserId(c.participant_1, cleanBuyerId) && isSameUserId(c.participant_2, cleanSellerId)) ||
+        (isSameUserId(c.participant_1, cleanSellerId) && isSameUserId(c.participant_2, cleanBuyerId)),
+    );
+    if (found) {
+      existingId = found.id;
+    }
+  }
+
+  // 4. Nếu chưa có hội thoại giữa 2 người -> Tạo mới
+  if (!existingId) {
+    isNew = true;
+
+    // Thử tạo trên Supabase
+    if (isSupabaseConfigured) {
+      try {
+        const { data: created, error: insertErr } = await supabase
+          .from("conversations")
+          .insert({
+            participant_1: cleanBuyerId,
+            participant_2: cleanSellerId,
+            last_message: "Bắt đầu cuộc trò chuyện...",
+            last_message_at: new Date().toISOString(),
+          })
+          .select("id")
+          .maybeSingle();
+
+        if (!insertErr && created?.id) {
+          existingId = created.id;
+        }
+      } catch (insertEx) {
+        console.warn("[findOrCreateConversation] Lỗi tạo conversation Supabase:", insertEx);
+      }
+    }
+
+    if (!existingId) {
+      existingId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`;
+    }
+
+    // Lưu metadata ngữ cảnh món đồ
+    const initialMeta: ConversationMeta = {
+      other_name: options?.sellerName || "Người bán",
+      other_avatar: options?.sellerAvatar || "/images/user-avatar.jpg",
+      last_item_id: cleanItemId,
+      last_item_name: options?.itemName,
+      last_item_price: options?.itemPrice,
+      discussed_items: [cleanItemId],
+    };
+    saveConversationMeta(existingId, initialMeta);
+
+    saveLocalConversation({
+      id: existingId,
+      participant_1: cleanBuyerId,
+      participant_2: cleanSellerId,
+      item_id: cleanItemId,
+      last_message: "Bắt đầu cuộc trò chuyện...",
+      last_message_at: new Date().toISOString(),
+      unread_count_p1: 0,
+      unread_count_p2: 0,
+      created_at: new Date().toISOString(),
+      other_name: options?.sellerName || "Người bán",
+      other_avatar: options?.sellerAvatar || "/images/user-avatar.jpg",
+    });
+
+    // Chèn tin nhắn ngữ cảnh mở đầu
+    const contextMsg =
+      options?.initialMessage ||
+      formatItemContextMessage(options?.itemName, options?.itemPrice, cleanItemId);
+    await sendMessage(existingId, cleanBuyerId, contextMsg, options?.buyerName);
+    contextInserted = true;
+  } else {
+    // 5. Nếu đã có hội thoại giữa 2 người:
+    isNew = false;
+
+    // Kiểm tra xem hội thoại này đã từng trao đổi về món đồ này chưa
+    const meta = getConversationMeta(existingId) || {};
+    const discussed: string[] = Array.isArray(meta.discussed_items)
+      ? meta.discussed_items
+      : meta.last_item_id
+        ? [meta.last_item_id]
+        : [];
+
+    const isSameItem = meta.last_item_id === cleanItemId || discussed.includes(cleanItemId);
+
+    if (isSameItem) {
+      // CÙNG MÓN ĐỒ: Trả về hội thoại cũ, không tạo trùng, không chèn tin nhắn lặp lại
+      contextInserted = false;
+    } else {
+      // MÓN ĐỒ KHÁC: Chèn ngữ cảnh món mới vào luồng hội thoại chung
+      const contextMsg =
+        options?.initialMessage ||
+        formatItemContextMessage(options?.itemName, options?.itemPrice, cleanItemId);
+      await sendMessage(existingId, cleanBuyerId, contextMsg, options?.buyerName);
+      contextInserted = true;
+
+      // Cập nhật metadata hội thoại với món đồ mới
+      saveConversationMeta(existingId, {
+        last_item_id: cleanItemId,
+        last_item_name: options?.itemName,
+        last_item_price: options?.itemPrice,
+        discussed_items: Array.from(new Set([...discussed, cleanItemId])),
+      });
+    }
+  }
+
+  const finalConvId = existingId;
+  const resultObj: FindOrCreateConversationResult = {
+    id: finalConvId,
+    conversationId: finalConvId,
+    isNew,
+    contextInserted,
+    itemId: cleanItemId,
+    toString() {
+      return finalConvId;
+    },
+    valueOf() {
+      return finalConvId;
+    },
+  };
+
+  return resultObj;
 }
