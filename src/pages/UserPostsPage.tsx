@@ -15,17 +15,18 @@ export const UserPostsPage: React.FC = () => {
 
   // Filter posts by current user
   const userRoommates = roommates.filter(post => post.userId === currentUser.id);
-  const userMarketplaceItems = marketplaceItems.filter(item => item.userId === currentUser.id);
+  const userMarketplaceItems = marketplaceItems.filter(item => (item.userId || item.sellerId) === currentUser.id);
   const userRooms = rooms.filter(room => room.ownerId === currentUser.id);
 
   const getStatusBadge = (status?: string, verified?: boolean) => {
-    if (status === 'pending' || !verified) {
+    if (status === 'pending' || (verified !== undefined && !verified)) {
       return (
         <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">
           <Clock3 className="w-3 h-3" /> Chờ duyệt
         </span>
       );
     }
+
     return (
       <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">
         <CheckCircle2 className="w-3 h-3" /> Đã duyệt
@@ -109,7 +110,7 @@ export const UserPostsPage: React.FC = () => {
                         Xem chi tiết
                       </Link>
                     </div>
-                    <h3 className="text-sm font-bold text-gray-900 line-clamp-2 mt-1 flex-1">{post.title}</h3>
+                    <h3 className="text-sm font-bold text-gray-900 line-clamp-2 mt-1 flex-1">{post.title || post.linkedRoomTitle || post.intro || 'Tìm bạn cùng phòng'}</h3>
                     <div className="flex items-center gap-4 mt-3 text-xs text-gray-500">
                       <div className="flex items-center gap-1">
                         <MapPin className="w-3.5 h-3.5" />
@@ -144,7 +145,7 @@ export const UserPostsPage: React.FC = () => {
                   <Card key={item.id} className="p-3 flex gap-3 hover:border-emerald-200 transition-colors overflow-hidden">
                     <OptimizedImage
                       src={item.images[0] || '/images/placeholder.jpg'}
-                      alt={item.title}
+                      alt={item.title || item.name || 'Món đồ'}
                       width={80}
                       height={80}
                       className="w-20 h-20 rounded-xl object-cover shrink-0"
@@ -153,7 +154,7 @@ export const UserPostsPage: React.FC = () => {
                       <div className="flex justify-between items-start mb-1">
                         {getStatusBadge(item.status)}
                       </div>
-                      <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{item.title}</h3>
+                      <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{item.title || item.name}</h3>
                       <p className="text-[#00a854] font-black text-sm mt-0.5">
                         {item.price.toLocaleString('vi-VN')}đ
                       </p>

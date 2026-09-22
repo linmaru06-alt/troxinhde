@@ -131,6 +131,8 @@ export interface RoommatePost {
   genderPreference: "Chỉ tìm Nữ" | "Chỉ tìm Nam" | "Tất cả";
   habits: string[];
   lifestyleTags?: string[];
+  title?: string;
+  verified?: boolean;
   intro: string;
   linkedRoomId?: string;
   linkedRoomTitle?: string;
@@ -148,10 +150,12 @@ export type MarketplaceDeliveryMethodCode = 'tai_truong' | 'giao_tan_noi' | 'tu_
 export interface MarketplaceItem {
   id: string;
   userId: string;
+  sellerId?: string;
   userName: string;
   userPhone?: string;
   userAvatar: string;
   name: string;
+  title?: string;
   category: "Nội thất" | "Đồ điện tử" | "Sách vở" | "Đồ gia dụng";
   price: number;
   pricingType: "Miễn phí" | "Giá rẻ";

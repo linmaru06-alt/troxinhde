@@ -48,24 +48,27 @@ export const RenterProfilePage: React.FC = () => {
 
   // Fetch dữ liệu thật từ bảng profiles trên Supabase khi vào trang hoặc reload (F5)
   useEffect(() => {
-    if (!currentUser?.id) return;
+    const userId = currentUser?.id;
+    if (!userId) return;
 
     let isMounted = true;
     async function loadLatestProfile() {
       try {
-        const dbProfile = await fetchUserProfileFromSupabase(currentUser.id);
+        const dbProfile = await fetchUserProfileFromSupabase(userId);
         if (dbProfile && isMounted) {
+          const current = useAppStore.getState().currentUser;
+          if (!current) return;
           setCurrentUser({
-            ...currentUser,
-            name: dbProfile.name || currentUser.name,
-            avatarUrl: dbProfile.avatar_url || currentUser.avatarUrl,
-            phone: dbProfile.phone || currentUser.phone,
+            ...current,
+            name: dbProfile.name || current.name,
+            avatarUrl: dbProfile.avatar_url || current.avatarUrl,
+            phone: dbProfile.phone || current.phone,
             phoneVerified: Boolean(dbProfile.phone_verified),
-            school: dbProfile.school || currentUser.school,
-            year: dbProfile.year || currentUser.year,
-            studentCardUrl: dbProfile.student_card_url || currentUser.studentCardUrl,
-            socialLink: dbProfile.social_link || currentUser.socialLink,
-            ownerApplicationStatus: dbProfile.owner_application_status || currentUser.ownerApplicationStatus,
+            school: dbProfile.school || current.school,
+            year: dbProfile.year || current.year,
+            studentCardUrl: dbProfile.student_card_url || current.studentCardUrl,
+            socialLink: dbProfile.social_link || current.socialLink,
+            ownerApplicationStatus: dbProfile.owner_application_status || current.ownerApplicationStatus,
             verified: Boolean(dbProfile.verified),
           });
         }
@@ -78,7 +81,7 @@ export const RenterProfilePage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [currentUser?.id]);
+  }, [currentUser?.id, setCurrentUser]);
 
   if (!currentUser) {
     return (
@@ -111,14 +114,14 @@ export const RenterProfilePage: React.FC = () => {
                 // Đồng bộ lên Supabase để không bị mất khi F5
                 try {
                   const { syncUserToSupabase } = await import('../lib/supabaseAuthSync');
-                  syncUserToSupabase({
-                    id: currentUser.id,
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    phone: currentUser.phone,
-                    role: currentUser.role as any,
+                  await syncUserToSupabase({
+                    id: currentUser.id || '',
+                    name: currentUser.name || '',
+                    email: currentUser.email || undefined,
+                    phone: currentUser.phone || undefined,
+                    role: (currentUser.role || 'renter') as any,
                     avatar_url: urls[0],
-                    verified: currentUser.verified,
+                    verified: currentUser.verified ?? false,
                   });
                 } catch (err) {
                   console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);

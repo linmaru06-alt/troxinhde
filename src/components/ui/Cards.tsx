@@ -6,7 +6,10 @@ import { useAppStore } from '../../store/useAppStore';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
+import { Card } from './Card';
 import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag, Trash2 } from 'lucide-react';
+
+export { Card };
 
 export const formatPrice = (price?: number | null): string => {
   if (price === 0) return 'Miễn phí';

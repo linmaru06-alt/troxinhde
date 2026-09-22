@@ -328,57 +328,6 @@ export async function createSupabaseProfile(
   }
 }
 
-/**
- * Đồng bộ hoặc cập nhật hồ sơ người dùng trong bảng `profiles` trên Supabase
- */
-export async function syncUserToSupabase(
-  profile: SupabaseUserProfile
-): Promise<{ success: boolean; data?: SupabaseUserProfile; error?: string }> {
-  try {
-    const payload = {
-      firebase_uid: profile.id,
-      full_name: profile.name,
-      name: profile.name,
-      email: profile.email ? profile.email.trim().toLowerCase() : null,
-      phone: profile.phone ? profile.phone.replace(/\D/g, '') : null,
-      app_role: profile.role === 'user' ? 'renter' : profile.role || 'renter',
-      role: profile.role || 'renter',
-      avatar_url: profile.avatar_url || '/images/user-avatar.jpg',
-      verified: profile.verified ?? true,
-      owner_application_status: profile.owner_application_status || 'none',
-      updated_at: new Date().toISOString(),
-    };
-
-    const { data, error } = await supabase
-      .from('profiles')
-      .upsert(payload, { onConflict: 'firebase_uid' })
-      .select()
-      .maybeSingle();
-
-    if (error) {
-      console.warn('[Supabase Sync] Lỗi upsert profiles:', error.message);
-      return { success: true, data: profile }; // Fallback an toàn
-    }
-
-    return {
-      success: true,
-      data: {
-        id: data?.id || profile.id,
-        name: data?.full_name || data?.name || profile.name,
-        email: data?.email || profile.email,
-        phone: data?.phone || profile.phone,
-        role: data?.app_role || data?.role || profile.role,
-        avatar_url: data?.avatar_url || profile.avatar_url,
-        verified: data?.verified ?? true,
-        owner_application_status: data?.owner_application_status || 'none',
-        created_at: data?.created_at,
-      },
-    };
-  } catch (err: any) {
-    console.warn('[Supabase Sync] Exception khi đồng bộ profile:', err);
-    return { success: true, data: profile };
-  }
-}
 
 /**
  * Tìm kiếm người dùng theo Email trên Supabase (bảng profiles)
