@@ -101,13 +101,32 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
 }) => {
   // Map rooms to geo locations
   const roomMarkers = useMemo(() => {
-    return rooms.map((room, index) => {
-      // Deterministic spread around Hanoi districts
-      const latOffsets = [0.005, -0.008, 0.012, -0.015, 0.002, 0.018, -0.004, 0.009];
-      const lngOffsets = [-0.006, 0.014, -0.011, 0.003, 0.019, -0.005, 0.016, -0.012];
+    // Basic District Centers for Hanoi
+    const districtCenters: Record<string, { lat: number; lng: number }> = {
+      'Cầu Giấy': { lat: 21.0333, lng: 105.7937 },
+      'Đống Đa': { lat: 21.0150, lng: 105.8239 },
+      'Hai Bà Trưng': { lat: 21.0062, lng: 105.8431 },
+      'Hoàn Kiếm': { lat: 21.0287, lng: 105.8524 },
+      'Thanh Xuân': { lat: 20.9935, lng: 105.8152 },
+      'Hoàng Mai': { lat: 20.9634, lng: 105.8499 },
+      'Nam Từ Liêm': { lat: 21.0120, lng: 105.7663 },
+      'Bắc Từ Liêm': { lat: 21.0664, lng: 105.7483 },
+      'Hà Đông': { lat: 20.9669, lng: 105.7723 },
+      'Ba Đình': { lat: 21.0340, lng: 105.8226 },
+      'Tây Hồ': { lat: 21.0601, lng: 105.8173 },
+      'Long Biên': { lat: 21.0404, lng: 105.8973 },
+    };
 
-      const lat = 21.0333 + (latOffsets[index % latOffsets.length] || 0);
-      const lng = 105.7937 + (lngOffsets[index % lngOffsets.length] || 0);
+    return rooms.map((room, index) => {
+      const cleanDistrict = room.district?.replace('Quận ', '').replace('Huyện ', '') || 'Cầu Giấy';
+      const baseCenter = districtCenters[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
+
+      // Spiral placement to prevent overlapping markers
+      const angle = index * 2.4; // Golden angle approximation
+      const radius = 0.003 * Math.sqrt(index); // Expanding radius
+      
+      const lat = baseCenter.lat + (radius * Math.cos(angle));
+      const lng = baseCenter.lng + (radius * Math.sin(angle));
 
       return {
         ...room,
@@ -134,8 +153,8 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
         className="w-full h-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
 
         <MapRecenter center={mapCenter} zoom={zoom} />
@@ -296,8 +315,8 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
         className="w-full h-full z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
 
         {/* 1.5km Radius circle around room */}
@@ -421,8 +440,8 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
         className="w-full h-full z-0"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
 
         <LocationPickerMarker
