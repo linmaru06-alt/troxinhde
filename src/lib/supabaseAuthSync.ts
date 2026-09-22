@@ -84,7 +84,7 @@ export async function fetchUserProfileFromSupabase(
  */
 export async function updateUserProfile(
   userId: string,
-  data: Partial<SupabaseUserProfile>
+  data: any
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!userId) {
     return { success: false, error: 'Không tìm thấy ID người dùng để cập nhật.' };

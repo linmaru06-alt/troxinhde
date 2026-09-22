@@ -169,7 +169,78 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   );
 };
 
-// 2. BuildingCard
+// 1.5 HorizontalRoomCard
+export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
+  return (
+    <div className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full">
+      {/* Left side: Image */}
+      <div className="relative w-[110px] sm:w-[130px] shrink-0 rounded-2xl overflow-hidden bg-gray-100">
+        <ImageWithFallback
+          src={room.images?.[0] || '/images/hero-banner.webp'}
+          alt={room.title}
+          preset="thumbnail"
+          loading="lazy"
+          fallback="room"
+          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+        />
+        {/* Area Badge */}
+        <div className="absolute top-1.5 left-1.5 bg-gray-900/70 backdrop-blur-sm text-white text-[10px] font-bold px-1.5 py-0.5 rounded-md">
+          {room.area} m²
+        </div>
+        {/* Price Badge */}
+        <div className="absolute bottom-1.5 left-1.5 bg-[#00a854] text-white text-[11px] font-black px-2 py-0.5 rounded-md shadow-sm">
+          {formatPrice(room.price)}
+        </div>
+      </div>
+
+      {/* Right side: Info */}
+      <div className="flex-1 flex flex-col justify-between py-0.5 min-w-0 pr-1">
+        <div>
+          {/* Top row: Type & Electricity */}
+          <div className="flex items-center gap-2 mb-1">
+            <span className="text-[9px] sm:text-[10px] font-bold px-2 py-0.5 rounded-md border text-emerald-700 bg-emerald-50 border-emerald-200 uppercase tracking-wide">
+              {room.type}
+            </span>
+            <span className="text-[10px] text-amber-600 font-bold flex items-center gap-0.5">
+              ⚡ {room.electricityPrice ? `${room.electricityPrice / 1000}k` : '3.5k'}/số
+            </span>
+          </div>
+
+          {/* Title */}
+          <h3 className="text-sm font-bold text-gray-900 line-clamp-2 leading-tight group-hover:text-[#00a854] transition-colors mt-1">
+            {room.title}
+          </h3>
+
+          {/* Address */}
+          <p className="text-[11px] text-gray-500 line-clamp-1 flex items-center gap-1 mt-1 font-medium">
+            <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
+            <span className="truncate">
+              {[room.address, room.district].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}
+            </span>
+          </p>
+        </div>
+
+        {/* Bottom row: University & Details link */}
+        <div className="flex items-center justify-between mt-2 w-full">
+          {room.nearestSchool ? (
+            <div className="flex items-center gap-1.5 text-[9.5px] sm:text-[10.5px] font-bold text-blue-700 bg-blue-50 px-2 py-1 rounded-lg shrink min-w-0">
+              <span className="text-[12px]">🎓</span>
+              <span className="truncate">
+                {room.nearestSchool} {room.distanceToSchoolKm ? `(~${(room.distanceToSchoolKm * 1000).toFixed(0)}m)` : ''}
+              </span>
+            </div>
+          ) : (
+            <div></div>
+          )}
+          <Link to={`/phong/${room.id}`} onClick={(e) => e.stopPropagation()} className="text-[11px] font-bold text-[#00a854] flex items-center shrink-0 ml-2 hover:underline">
+            Chi tiết &gt;
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => {
   const { currentUser, removeBuilding } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
