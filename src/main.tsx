@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import App from './App';
+import 'leaflet/dist/leaflet.css';
 import './index.css';
 
 const queryClient = new QueryClient({
