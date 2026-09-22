@@ -70,10 +70,10 @@ export const MarketplaceDetailPage: React.FC = () => {
   // Phân quyền và trạng thái kiểm duyệt
   const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, item.userId));
   const isAdmin = currentUser && (currentUser.role === 'admin' || (currentUser as any).app_role === 'admin');
-  const isSold = item?.status === 'Đã bán' || item?.status === 'sold';
-  const isPending = item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending' || item.status === 'pending');
-  const isRejected = item && (item.status === 'Bị từ chối' || item.moderationStatus === 'rejected' || item.status === 'rejected');
-  const isHidden = item && (item.status === 'Bị ẩn' || item.status === 'hidden' || Boolean((item as any).isHidden));
+  const isSold = item?.status === 'Đã bán';
+  const isPending = Boolean(item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending'));
+  const isRejected = Boolean(item && (item.status === 'Bị từ chối' || item.moderationStatus === 'rejected'));
+  const isHidden = Boolean(item && (item as any).isHidden);
   const isUnavailable = Boolean(isSold || isPending || isRejected || isHidden);
 
   const unavailableReason = isSold

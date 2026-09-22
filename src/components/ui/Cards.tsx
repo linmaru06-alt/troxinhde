@@ -472,10 +472,10 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
   const [isChatLoading, setIsChatLoading] = React.useState(false);
 
   const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, item.userId));
-  const isSold = item.status === 'Đã bán' || item.status === 'sold';
-  const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
-  const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
-  const isHidden = item.status === 'Bị ẩn' || item.status === 'hidden' || Boolean((item as any).isHidden);
+  const isSold = item.status === 'Đã bán';
+  const isPending = Boolean(item.status === 'Chờ duyệt' || item.moderationStatus === 'pending');
+  const isRejected = Boolean(item.status === 'Bị từ chối' || item.moderationStatus === 'rejected');
+  const isHidden = Boolean((item as any).isHidden);
   const isUnavailable = Boolean(isSold || isPending || isRejected || isHidden);
 
   const unavailableReason = isSold
