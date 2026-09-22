@@ -54,7 +54,7 @@ export const RenterProfilePage: React.FC = () => {
     let isMounted = true;
     async function loadLatestProfile() {
       try {
-        const dbProfile = await fetchUserProfileFromSupabase(userId);
+        const dbProfile = await fetchUserProfileFromSupabase(userId ?? '');
         if (dbProfile && isMounted) {
           const current = useAppStore.getState().currentUser;
           if (!current) return;
