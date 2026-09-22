@@ -388,7 +388,7 @@ BEGIN
             21.0368,
             105.7905,
             'Tòa nhà căn hộ dịch vụ và phòng trọ cao cấp, camera an ninh 24/7, thang máy, khóa vân tay.',
-            ARRAY['Thang máy', 'Khóa vân tay', 'PCCC đạt chuẩn', 'Để xe miễn phí'],
+            '["Thang máy", "Khóa vân tay", "PCCC đạt chuẩn", "Để xe miễn phí"]'::jsonb, 
             'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
             'active'
         )
@@ -406,7 +406,7 @@ BEGIN
             21.0227,
             105.8023,
             'Chung cư mini cao cấp gần ĐH Ngoại Thương, ĐH Luật, Ngoại Giao. Giờ giấc tự do 100%.',
-            ARRAY['Thang máy', 'Bếp riêng', 'Ban công thoáng', 'Khóa vân tay'],
+            '["Thang máy", "Bếp riêng", "Ban công thoáng", "Khóa vân tay"]'::jsonb,
             'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=800',
             'active'
         )
@@ -424,7 +424,7 @@ BEGIN
             21.0042,
             105.8458,
             'Vị trí đắc địa cách Bách Khoa 200m, Kinh Tế Quốc Dân 400m, Xây Dựng 500m. Khu dân trí cao, yên tĩnh.',
-            ARRAY['Điều hòa', 'Bình nóng lạnh', 'Chỗ để xe rộng', 'Camera an ninh'],
+            '["Điều hòa", "Bình nóng lạnh", "Chỗ để xe rộng", "Camera an ninh"]'::jsonb,
             'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800',
             'active'
         )
