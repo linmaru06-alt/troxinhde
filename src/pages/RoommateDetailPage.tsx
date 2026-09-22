@@ -25,8 +25,8 @@ import type { RoommatePost } from '../types';
  * Hàm làm mờ số điện thoại hoặc link liên hệ ngoài luồng trong nội dung tự giới thiệu
  * để bảo vệ quyền riêng tư và tránh lừa đảo.
  */
-function maskContactInfo(text: string): string {
-  if (!text) return '';
+function maskContactInfo(text?: string | null): string {
+  if (!text || typeof text !== 'string') return '';
   // Mask số điện thoại VN (10-11 chữ số, có thể cách nhau bởi dấu chấm, khoảng trắng, gạch nối)
   const phoneRegex = /(0[3|5|7|8|9][0-9]{1}[.\s-]?[0-9]{3}[.\s-]?[0-9]{3,4})/g;
   let masked = text.replace(phoneRegex, (m) => m.slice(0, 3) + '***' + m.slice(-3));
@@ -40,13 +40,13 @@ export const RoommateDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const {
-    roommates,
-    rooms,
+    roommates = [],
+    rooms = [],
     currentUser,
-    savedRoommateIds,
+    savedRoommateIds = [],
     toggleSaveRoommate,
     showToast,
-    blockedUserIds,
+    blockedUserIds = [],
     blockUser,
     unblockUser,
     removeRoommatePost,
@@ -56,31 +56,37 @@ export const RoommateDetailPage: React.FC = () => {
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
 
   const [post, setPost] = useState<RoommatePost | null>(() => {
-    return roommates.find((r) => r.id === id) || null;
+    return Array.isArray(roommates) ? (roommates.find((r) => r && r.id === id) || null) : null;
   });
   const [isLoading, setIsLoading] = useState<boolean>(!post && Boolean(id));
 
   useEffect(() => {
     if (!id) return;
-    const storePost = roommates.find((r) => r.id === id);
+
+    let isMounted = true;
+    const storePost = Array.isArray(roommates) ? roommates.find((r) => r && r.id === id) : null;
+
     if (storePost) {
       setPost(storePost);
       setIsLoading(false);
-      return;
+    } else {
+      setIsLoading(true);
     }
 
-    let isMounted = true;
-    setIsLoading(true);
+    // Luôn truy vấn API Supabase để lấy dữ liệu chi tiết và mới nhất
     getRoommatePostById(id)
       .then((data) => {
-        if (isMounted) {
+        if (isMounted && data) {
           setPost(data);
+          setIsLoading(false);
+        } else if (isMounted && !storePost) {
+          setPost(null);
           setIsLoading(false);
         }
       })
       .catch((err) => {
-        console.error('[RoommateDetail] Lỗi tải bài đăng chi tiết:', err);
-        if (isMounted) {
+        console.warn('[RoommateDetail] Lỗi tải bài đăng chi tiết:', err);
+        if (isMounted && !storePost) {
           setPost(null);
           setIsLoading(false);
         }
@@ -89,7 +95,7 @@ export const RoommateDetailPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [id, roommates]);
+  }, [id]);
 
   // Loading Skeleton State
   if (isLoading) {
@@ -101,7 +107,7 @@ export const RoommateDetailPage: React.FC = () => {
     );
   }
 
-  // Not Found State (Tuyệt đối không tự động lấy tin người khác gán vào)
+  // Not Found State
   if (!post) {
     return (
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center space-y-4">
@@ -122,10 +128,14 @@ export const RoommateDetailPage: React.FC = () => {
     );
   }
 
-  const linkedRoom = rooms.find((r) => r.id === post.linkedRoomId);
-  const isSaved = savedRoommateIds.includes(post.id);
-  const isBlocked = Boolean(post && blockedUserIds.includes(post.userId));
-  const isOwner = currentUser?.id === post.userId;
+  // Tìm phòng liên kết an toàn
+  const linkedRoom = (post.linkedRoomId && Array.isArray(rooms))
+    ? rooms.find((r) => r && r.id === post.linkedRoomId)
+    : null;
+
+  const isSaved = Array.isArray(savedRoommateIds) ? savedRoommateIds.includes(post.id) : false;
+  const isBlocked = Boolean(post && Array.isArray(blockedUserIds) && blockedUserIds.includes(post.userId));
+  const isOwner = Boolean(currentUser?.id && currentUser.id === post.userId);
 
   const handleConfirmDelete = () => {
     removeRoommatePost(post.id);
@@ -154,8 +164,8 @@ export const RoommateDetailPage: React.FC = () => {
         post.userId,
         post.linkedRoomId,
         {
-          otherName: post.userName,
-          otherAvatar: post.userAvatar,
+          otherName: post.userName || 'Thành viên Trọ Xinh',
+          otherAvatar: post.userAvatar || '/images/user-avatar.jpg',
         }
       );
       navigate(`/tin-nhan/${convId}`);
@@ -175,7 +185,7 @@ export const RoommateDetailPage: React.FC = () => {
         <span>/</span>
         <Link to="/roommate" className="hover:text-[#006d37]">Tìm bạn ở ghép</Link>
         <span>/</span>
-        <span className="text-gray-900 font-bold truncate">{post.userName}</span>
+        <span className="text-gray-900 font-bold truncate">{post.userName || 'Chi tiết'}</span>
       </div>
 
       {/* Main Profile Card */}
@@ -184,18 +194,21 @@ export const RoommateDetailPage: React.FC = () => {
           <div className="flex items-center gap-4">
             <img
               src={post.userAvatar || '/images/user-avatar.jpg'}
-              alt={post.userName}
+              alt={post.userName || 'Avatar'}
               className="w-20 h-20 rounded-full object-cover ring-4 ring-emerald-100 shadow-md"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/images/user-avatar.jpg';
+              }}
             />
             <div className="space-y-1">
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-black text-gray-900">{post.userName}</h1>
+                <h1 className="text-2xl font-black text-gray-900">{post.userName || 'Thành viên'}</h1>
                 <Badge variant="verified" size="sm">Đã xác minh hồ sơ</Badge>
               </div>
               {post.userSchool && (
                 <p className="text-xs text-[#006d37] font-bold">{post.userSchool}</p>
               )}
-              <p className="text-xs text-gray-500">{post.userAge} tuổi • Giới tính: {post.userGender}</p>
+              <p className="text-xs text-gray-500">{post.userAge || 20} tuổi • Giới tính: {post.userGender || 'Khác'}</p>
             </div>
           </div>
 
@@ -245,7 +258,7 @@ export const RoommateDetailPage: React.FC = () => {
           </div>
           <div>
             <span className="text-xs text-gray-500 font-medium">Khu vực & Tiêu chí:</span>
-            <div className="text-sm font-bold text-gray-900">{post.district} • {post.genderPreference}</div>
+            <div className="text-sm font-bold text-gray-900">{post.district || 'Hà Nội'} • {post.genderPreference || 'Tất cả'}</div>
           </div>
         </div>
 
@@ -253,19 +266,19 @@ export const RoommateDetailPage: React.FC = () => {
         <div className="space-y-2">
           <h3 className="text-sm font-bold text-gray-900 uppercase">Giới thiệu bản thân:</h3>
           <p className="text-xs sm:text-sm text-gray-700 leading-relaxed bg-gray-50 p-4 rounded-2xl border border-gray-100">
-            "{maskContactInfo(post.intro)}"
+            "{maskContactInfo(post.intro) || 'Thành viên chưa cập nhật phần tự giới thiệu.'}"
           </p>
         </div>
 
         {/* Habits & Tags */}
-        {post.habits && post.habits.length > 0 && (
+        {Array.isArray(post.habits) && post.habits.length > 0 && (
           <div className="space-y-3">
             <h3 className="text-sm font-bold text-gray-900 uppercase">Thói quen sinh hoạt:</h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
               {post.habits.map((h, i) => (
                 <div key={i} className="flex items-center gap-2 p-2.5 bg-gray-50 rounded-xl text-xs font-semibold text-gray-700 border border-gray-100">
                   <CheckCircle2 className="w-4 h-4 text-[#006d37] shrink-0" />
-                  <span>{h}</span>
+                  <span>{String(h)}</span>
                 </div>
               ))}
             </div>
@@ -283,32 +296,46 @@ export const RoommateDetailPage: React.FC = () => {
                   src={img}
                   alt={`Ảnh không gian ${idx + 1}`}
                   className="w-full h-36 sm:h-44 object-cover rounded-2xl border border-gray-200 shadow-xs"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
+                  }}
                 />
               ))}
             </div>
           </div>
         )}
 
-        {/* Linked Room */}
-        {linkedRoom && (
+        {/* Linked Room (nếu có linkedRoom HOẶC có thông tin linkedRoomId/linkedRoomTitle từ post) */}
+        {(linkedRoom || post.linkedRoomTitle || post.linkedRoomId) && (
           <div className="pt-6 border-t border-gray-100 space-y-3">
             <h3 className="text-sm font-bold text-gray-900 uppercase">Phòng trọ đang ở / muốn cùng thuê:</h3>
             <div className="flex flex-col sm:flex-row items-center gap-4 p-4 rounded-2xl bg-gray-50 border border-gray-200">
               <img
-                src={linkedRoom.images[0]}
-                alt={linkedRoom.title}
+                src={linkedRoom?.images?.[0] || post.linkedRoomImage || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'}
+                alt={linkedRoom?.title || post.linkedRoomTitle || 'Phòng trọ'}
                 className="w-full sm:w-28 h-24 rounded-xl object-cover"
+                onError={(e) => {
+                  (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800';
+                }}
               />
               <div className="flex-1 overflow-hidden space-y-1">
-                <span className="text-xs font-bold text-[#006d37]">{formatPrice(linkedRoom.price)}</span>
-                <h4 className="text-sm font-bold text-gray-900 line-clamp-1">{linkedRoom.title}</h4>
-                <p className="text-xs text-gray-500 truncate">{linkedRoom.address}</p>
+                <span className="text-xs font-bold text-[#006d37]">
+                  {formatPrice(linkedRoom?.price ?? post.linkedRoomPrice)}
+                </span>
+                <h4 className="text-sm font-bold text-gray-900 line-clamp-1">
+                  {linkedRoom?.title || post.linkedRoomTitle || 'Phòng trọ liên kết'}
+                </h4>
+                <p className="text-xs text-gray-500 truncate">
+                  {linkedRoom?.address || post.district || 'Hà Nội'}
+                </p>
               </div>
-              <Link to={`/phong/${linkedRoom.id}`}>
-                <Button variant="outline" size="sm">
-                  Xem Chi Tiết Phòng
-                </Button>
-              </Link>
+              {(linkedRoom?.id || post.linkedRoomId) && (
+                <Link to={`/phong/${linkedRoom?.id || post.linkedRoomId}`}>
+                  <Button variant="outline" size="sm">
+                    Xem Chi Tiết Phòng
+                  </Button>
+                </Link>
+              )}
             </div>
           </div>
         )}

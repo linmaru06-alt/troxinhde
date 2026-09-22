@@ -8,18 +8,22 @@ import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag, Trash2 } from 'lucide-react';
 
-export const formatPrice = (price: number): string => {
+export const formatPrice = (price?: number | null): string => {
   if (price === 0) return 'Miễn phí';
-  if (price >= 1000000) {
-    const tr = price / 1000000;
+  const num = Number(price);
+  if (price === undefined || price === null || isNaN(num) || num <= 0) return 'Thỏa thuận';
+  if (num >= 1000000) {
+    const tr = num / 1000000;
     return `${tr % 1 === 0 ? tr : tr.toFixed(1)} tr/tháng`;
   }
-  return `${price.toLocaleString('vi-VN')} đ/tháng`;
+  return `${num.toLocaleString('vi-VN')} đ/tháng`;
 };
 
-export const formatCurrency = (amount: number): string => {
+export const formatCurrency = (amount?: number | null): string => {
   if (amount === 0) return 'Miễn phí';
-  return `${amount.toLocaleString('vi-VN')} đ`;
+  const num = Number(amount);
+  if (amount === undefined || amount === null || isNaN(num)) return 'Thỏa thuận';
+  return `${num.toLocaleString('vi-VN')} đ`;
 };
 
 // 1. RoomCard
