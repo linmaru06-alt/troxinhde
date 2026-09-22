@@ -85,12 +85,14 @@ export const HANOI_METRO_BUS_STATIONS = [
   { name: 'Ga ĐHQG Hà Nội', coords: [21.0365, 105.7820] as [number, number], type: 'metro' },
   { name: 'Ga Chùa Hà', coords: [21.0325, 105.7930] as [number, number], type: 'metro' },
   { name: 'Ga Cầu Giấy', coords: [21.0285, 105.8035] as [number, number], type: 'metro' },
-  // Major Bus Stations
-  { name: 'Bến xe Mỹ Đình', coords: [21.0285, 105.7780] as [number, number], type: 'bus' },
-  { name: 'Bến xe Giáp Bát', coords: [20.9805, 105.8420] as [number, number], type: 'bus' },
-  { name: 'Bến xe Nước Ngầm', coords: [20.9655, 105.8450] as [number, number], type: 'bus' },
-  { name: 'Bến xe Yên Nghĩa', coords: [20.9505, 105.7460] as [number, number], type: 'bus' },
-  { name: 'Bến xe Gia Lâm', coords: [21.0505, 105.8750] as [number, number], type: 'bus' },
+  // Major City Bus Interchanges
+  { name: 'Trạm Bus Cầu Giấy', coords: [21.0284, 105.8039] as [number, number], type: 'bus' },
+  { name: 'Trạm Bus Long Biên', coords: [21.0425, 105.8483] as [number, number], type: 'bus' },
+  { name: 'Trạm Bus Kim Mã', coords: [21.0311, 105.8234] as [number, number], type: 'bus' },
+  { name: 'Trạm Bus Trần Khánh Dư', coords: [21.0201, 105.8615] as [number, number], type: 'bus' },
+  { name: 'Trạm Bus Nhổn', coords: [21.0540, 105.7350] as [number, number], type: 'bus' },
+  { name: 'Trạm Bus Nam Thăng Long', coords: [21.0575, 105.7876] as [number, number], type: 'bus' },
+  { name: 'Trạm Bus Hoàng Quốc Việt', coords: [21.0465, 105.7940] as [number, number], type: 'bus' },
 ];
 
 // University icon creator
