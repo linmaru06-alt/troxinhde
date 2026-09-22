@@ -543,10 +543,11 @@ export async function sendMessage(
 
   const cleanSenderId = await resolveUserIdToUuid(senderId);
   const newMsgId =
-    messageId ||
-    (typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : `msg_${Date.now()}`);
+    messageId && UUID_REGEX.test(messageId.trim())
+      ? messageId.trim()
+      : (typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `00000000-0000-4000-8000-${Date.now().toString(16).padStart(12, "0")}`);
 
   const msgPayload: Message = {
     id: newMsgId,
@@ -563,6 +564,25 @@ export async function sendMessage(
   // 1. Thử gửi lên Supabase
   if (isSupabaseConfigured) {
     try {
+      // Đảm bảo cuộc trò chuyện tồn tại trước khi chèn tin nhắn (tránh vi phạm Foreign Key)
+      if (UUID_REGEX.test(conversationId.trim())) {
+        const { data: convExists } = await supabase
+          .from("conversations")
+          .select("id")
+          .eq("id", conversationId)
+          .maybeSingle();
+
+        if (!convExists) {
+          await supabase.from("conversations").insert({
+            id: conversationId,
+            participant_1: cleanSenderId,
+            participant_2: "00000000-0000-0000-0000-000000000001",
+            last_message: cleanContent,
+            last_message_at: new Date().toISOString(),
+          });
+        }
+      }
+
       const { data, error } = await supabase
         .from("messages")
         .upsert(

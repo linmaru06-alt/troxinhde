@@ -31,7 +31,7 @@ export interface SupabaseUserProfile {
  * Lấy dữ liệu hồ sơ người dùng thực tế từ bảng profiles trên Supabase
  */
 export async function fetchUserProfileFromSupabase(
-  userId: string
+  userId?: string
 ): Promise<SupabaseUserProfile | null> {
   if (!userId) return null;
   try {

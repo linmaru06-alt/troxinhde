@@ -137,6 +137,16 @@ ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS verified_badge BOOLEAN DEF
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS rating NUMERIC(3,2) DEFAULT 4.9;
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS review_count INTEGER DEFAULT 12;
 ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS cover_image_url TEXT;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS water_price NUMERIC DEFAULT 100000;
+
+-- Gỡ bỏ ràng buộc check cũ (nếu có từ bản khởi tạo) để tránh lỗi khi người dùng đăng bài
+ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_room_type_check;
+ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_status_check;
+ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_moderation_status_check;
+ALTER TABLE public.rooms DROP CONSTRAINT IF EXISTS rooms_availability_status_check;
+ALTER TABLE public.buildings DROP CONSTRAINT IF EXISTS buildings_status_check;
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- 3. Bổ sung cột cho bảng transactions (Thanh toán VietQR & MoMo)
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE SET NULL;
@@ -381,8 +391,8 @@ BEGIN
     END IF;
 
     IF v_owner_id IS NULL THEN
-        INSERT INTO public.profiles (id, full_name, role, app_role, phone, email)
-        VALUES ('00000000-0000-0000-0000-000000000001', 'Chủ Trọ Trọ Xinh', 'owner', 'owner', '0912345678', 'chutro@troxinh.vn')
+        INSERT INTO public.profiles (id, firebase_uid, full_name, role, app_role, phone, email)
+        VALUES ('00000000-0000-0000-0000-000000000001', 'system_owner_001', 'Chủ Trọ Trọ Xinh', 'owner', 'owner', '0912345678', 'chutro@troxinh.vn')
         ON CONFLICT (id) DO UPDATE SET app_role = 'owner', role = 'owner'
         RETURNING id INTO v_owner_id;
     END IF;
@@ -401,7 +411,7 @@ BEGIN
             21.0368,
             105.7905,
             'Tòa nhà căn hộ dịch vụ và phòng trọ cao cấp, camera an ninh 24/7, thang máy, khóa vân tay.',
-            '["Thang máy", "Khóa vân tay", "PCCC đạt chuẩn", "Để xe miễn phí"]'::jsonb, 
+            '["Thang máy", "Khóa vân tay", "PCCC đạt chuẩn", "Để xe miễn phí"]'::jsonb,
             'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800',
             'active'
         )
@@ -450,7 +460,7 @@ BEGIN
         )
         VALUES 
         (
-            'r0000000-0000-0000-0000-000000000001',
+            'c0000000-0000-0000-0000-000000000001',
             'b0000000-0000-0000-0000-000000000001',
             v_owner_id,
             'Phòng Studio Full Đồ Ban Công Thoáng Mát Cầu Giấy',
@@ -460,10 +470,10 @@ BEGIN
             3500000,
             25,
             3,
-            'Phòng khép kín',
+            'studio',
             '["Điều hòa", "Nóng lạnh", "Tủ lạnh", "Máy giặt chung", "Ban công", "Khóa vân tay", "Thang máy"]'::jsonb,
             'Phòng trọ cao cấp thiết kế hiện đại, đầy đủ tiện nghi, view thoáng mát, cách ĐHQG và ĐH Sư Phạm 800m. Có ban công riêng đón ánh sáng tự nhiên.',
-            'Còn trống',
+            'available',
             'available',
             'approved',
             '["https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800", "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800"]'::jsonb,
@@ -478,7 +488,7 @@ BEGIN
         )
         VALUES 
         (
-            'r0000000-0000-0000-0000-000000000002',
+            'c0000000-0000-0000-0000-000000000002',
             'b0000000-0000-0000-0000-000000000002',
             v_owner_id,
             'Căn Hộ Mini Khép Kín Gần ĐH Ngoại Thương',
@@ -488,10 +498,10 @@ BEGIN
             4200000,
             32,
             5,
-            'Chung cư mini',
+            'apartment',
             '["Điều hòa Inverter", "Nóng lạnh", "Tủ bếp riêng", "Máy giặt riêng", "Giường nệm cao cấp", "Thang máy", "PCCC chuẩn"]'::jsonb,
             'Căn hộ mini cao cấp cách cổng trường Ngoại Thương và Ngoại Giao 500m. Thiết kế bếp riêng biệt không ám mùi, giờ giấc tự do, bảo vệ 24/7.',
-            'Còn trống',
+            'available',
             'available',
             'approved',
             '["https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800", "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800"]'::jsonb,
@@ -506,7 +516,7 @@ BEGIN
         )
         VALUES 
         (
-            'r0000000-0000-0000-0000-000000000003',
+            'c0000000-0000-0000-0000-000000000003',
             'b0000000-0000-0000-0000-000000000003',
             v_owner_id,
             'Phòng Trọ Giá Rẻ Sinh Viên Bách Kinh Xây',
@@ -516,16 +526,27 @@ BEGIN
             2600000,
             20,
             2,
-            'Phòng trọ giá rẻ',
+            'single',
             '["Điều hòa", "Nóng lạnh", "Wifi tốc độ cao", "Để xe tầng 1"]'::jsonb,
             'Phòng trọ sạch sẽ, điện nước giá dân có công tơ riêng, cách trường ĐH Bách Khoa chỉ 3 phút đi bộ. Phù hợp cho 1-2 bạn sinh viên.',
-            'Còn trống',
+            'available',
             'available',
             'approved',
             '["https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800", "https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=800"]'::jsonb,
             false,
             NULL
         )
+        ON CONFLICT (id) DO NOTHING;
+
+        -- 3. Seed Bảng Hình Ảnh Chi Tiết (room_images)
+        INSERT INTO public.room_images (id, room_id, url, order_index, is_cover)
+        VALUES 
+            ('d0000000-0000-0000-0000-000000000001', 'c0000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800', 0, true),
+            ('d0000000-0000-0000-0000-000000000002', 'c0000000-0000-0000-0000-000000000001', 'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800', 1, false),
+            ('d0000000-0000-0000-0000-000000000003', 'c0000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800', 0, true),
+            ('d0000000-0000-0000-0000-000000000004', 'c0000000-0000-0000-0000-000000000002', 'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800', 1, false),
+            ('d0000000-0000-0000-0000-000000000005', 'c0000000-0000-0000-0000-000000000003', 'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800', 0, true),
+            ('d0000000-0000-0000-0000-000000000006', 'c0000000-0000-0000-0000-000000000003', 'https://images.unsplash.com/photo-1505691938895-1758d7feb511?w=800', 1, false)
         ON CONFLICT (id) DO NOTHING;
 
     END IF;

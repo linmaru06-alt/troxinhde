@@ -277,31 +277,32 @@ export const OwnerCreateRoomPage: React.FC = () => {
       return;
     }
 
-    const ownerId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
-    const bldId = buildingId && buildingId.length === 36 ? buildingId : '00000000-0000-0000-0000-000000000001';
+    const ownerId = currentUser?.id || '00000000-0000-0000-0000-000000000001';
+    const bldId =
+      buildingId && buildingId.length === 36
+        ? buildingId
+        : selectedBuilding?.id && selectedBuilding.id.length === 36
+        ? selectedBuilding.id
+        : 'b0000000-0000-0000-0000-000000000001';
 
     setIsSubmitting(true);
     try {
       if (isEditMode && editingRoom) {
         // CẬP NHẬT PHÒNG HIỆN CÓ
-        try {
-          await apiUpdateRoom(editingRoom.id, {
-            title: title.trim(),
-            room_number: roomNumber.trim(),
-            price: Number(price),
-            deposit: Number(deposit),
-            area: Number(area),
-            room_type: type,
-            amenities,
-            description: description.trim(),
-            images,
-          });
-        } catch (apiErr) {
-          console.warn('[Supabase API] update room fallback:', apiErr);
-        }
+        await apiUpdateRoom(editingRoom.id, {
+          title: title.trim(),
+          room_number: roomNumber.trim(),
+          price: Number(price),
+          deposit: Number(deposit),
+          area: Number(area),
+          room_type: type,
+          amenities,
+          description: description.trim(),
+          images,
+        });
 
         updateRoom(editingRoom.id, {
-          buildingId,
+          buildingId: bldId,
           buildingName: selectedBuilding?.name || editingRoom.buildingName,
           title: title.trim(),
           roomNumber: roomNumber.trim(),
@@ -321,29 +322,25 @@ export const OwnerCreateRoomPage: React.FC = () => {
         showToast('Cập nhật tin đăng thành công!', 'Các thay đổi đã được lưu lại', 'success');
         navigate(`/chu-tro/phong/${editingRoom.id}`);
       } else {
-        // TẠO PHÒNG MỚI
-        try {
-          await createRoom({
-            building_id: bldId,
-            owner_id: ownerId,
-            title: title.trim(),
-            room_number: roomNumber.trim(),
-            price: Number(price),
-            deposit: Number(deposit),
-            electricity_price: selectedBuilding?.electricityPrice || 3800,
-            water_price: selectedBuilding?.waterPrice || 100000,
-            area: Number(area),
-            room_type: type,
-            amenities,
-            description: description.trim(),
-            images: images.length > 0 ? images : ['/images/hero-banner.webp'],
-          });
-        } catch (apiErr) {
-          console.warn('[Supabase API] create room fallback:', apiErr);
-        }
+        // TẠO PHÒNG MỚI (LƯU SUPABASE TRƯỚC HẾT)
+        const createdRoom = await createRoom({
+          building_id: bldId,
+          owner_id: ownerId,
+          title: title.trim(),
+          room_number: roomNumber.trim(),
+          price: Number(price),
+          deposit: Number(deposit),
+          electricity_price: selectedBuilding?.electricityPrice || 3800,
+          water_price: selectedBuilding?.waterPrice || 100000,
+          area: Number(area),
+          room_type: type,
+          amenities,
+          description: description.trim(),
+          images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'],
+        });
 
         addRoom({
-          buildingId,
+          buildingId: bldId,
           buildingName: selectedBuilding?.name || 'Tòa nhà Trọ Xinh',
           ownerId: currentUser?.id || ownerId,
           ownerName: currentUser?.name || 'Chủ trọ',
@@ -360,7 +357,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
           status: 'Chờ duyệt',
           verified: false,
           amenities,
-          images: images.length > 0 ? images : ['/images/hero-banner.webp'],
+          images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'],
           distanceToSchoolKm: 0.5,
           nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
           address: selectedBuilding?.address || 'Hà Nội',
@@ -370,7 +367,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
         // Xóa bản nháp sau khi tạo thành công
         localStorage.removeItem(draftStorageKey);
-        showToast('Tạo phòng trọ thành công!', 'Tin đăng đã được chuyển đến ban quản trị phê duyệt.', 'success');
+        showToast('Tạo phòng trọ thành công!', 'Tin đăng đã được chuyển đến ban quản trị phê duyệt trên Supabase.', 'success');
         navigate('/chu-tro');
       }
     } catch (err: any) {
