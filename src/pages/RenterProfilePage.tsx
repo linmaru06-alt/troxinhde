@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RolePermissionSection } from '../components/profile/RolePermissionSection';
+import { EditProfileForm } from '../components/profile/EditProfileForm';
 import { AvatarUploader } from '../components/ui/AvatarUploader';
 import {
   User,
@@ -179,6 +180,10 @@ export const RenterProfilePage: React.FC = () => {
       <div className="space-y-6">
         {activeTab === 'profile' && (
           <div className="space-y-6 animate-fadeIn">
+            {/* Form Cập nhật Hồ sơ Người dùng (Edit Profile Form) */}
+            <EditProfileForm />
+
+            {/* Vai trò & Quyền hạn */}
             <RolePermissionSection user={currentUser} />
             
             {/* Blocked Contacts */}

@@ -29,6 +29,9 @@ export interface User {
   ownerApplicationDate?: string;
   ownerApplicationReason?: string;
   ownerApplicationRejectionReason?: string;
+  studentCardUrl?: string;
+  socialLink?: string;
+  studentVerified?: boolean;
   createdAt: string;
 }
 

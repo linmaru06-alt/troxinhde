@@ -4,6 +4,7 @@ export type UploadFolder =
   | 'troxinh/buildings'
   | 'troxinh/marketplace'
   | 'troxinh/avatars'
+  | 'troxinh/documents'
   | 'troxinh/reviews';
 
 // Upload 1 ảnh
