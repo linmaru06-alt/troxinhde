@@ -30,7 +30,7 @@ import {
   Check,
   RefreshCw,
 } from 'lucide-react';
-import { getOrCreateConversation } from '../lib/api/messages';
+import { findOrCreateConversation } from '../lib/api/messages';
 import {
   CONDITION_LABELS,
   MarketplaceConditionCode,
@@ -269,16 +269,22 @@ export const MarketplaceDetailPage: React.FC = () => {
 
     setIsChatLoading(true);
     try {
-      const convId = await getOrCreateConversation(
+      const result = await findOrCreateConversation(
         currentUser.id,
         item.userId,
-        undefined,
+        item.id,
         {
-          otherName: item.userName || 'Người bán',
-          otherAvatar: item.userAvatar,
+          mockItem: {
+            id: item.id,
+            title: item.name,
+            price: item.price,
+            user_id: item.userId,
+            images: item.images,
+          },
+          currentUserId: currentUser.id,
         }
       );
-      navigate(`/tin-nhan/${convId}`);
+      navigate(`/tin-nhan/${result.conversationId}`);
     } catch (err: any) {
       console.error('[MarketplaceDetail] Lỗi mở chat:', err);
       showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
