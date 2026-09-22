@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { syncUserToSupabase } from '../../lib/supabaseAuthSync';
 import { uploadToStorage } from '../../lib/storage';
-import { uploadImage, validateImageFile } from '../../lib/cloudinary';
+import { uploadImage } from '../../lib/cloudinary';
 import {
   User as UserIcon,
   Phone,
@@ -20,8 +20,9 @@ import {
   AlertCircle,
   Save,
   Building2,
-  ArrowRight,
-  Info,
+  Clock,
+  Check,
+  X,
 } from 'lucide-react';
 
 const UNIVERSITY_OPTIONS = [
@@ -74,6 +75,35 @@ interface EditProfileFormProps {
   showOwnerUpgradeCTA?: boolean;
 }
 
+/**
+ * Kiểm tra định dạng link Facebook hoặc Zalo
+ * BẮT BUỘC phải là URL hợp lệ bắt đầu bằng https://facebook.com/, https://www.facebook.com/, hoặc https://zalo.me/
+ */
+export const validateSocialUrl = (url: string): boolean => {
+  if (!url || !url.trim()) return false;
+  const regex = /^https:\/\/(www\.)?(facebook\.com\/[A-Za-z0-9_.-]+|zalo\.me\/[A-Za-z0-9_.-]+)/i;
+  return regex.test(url.trim());
+};
+
+/**
+ * Kiểm tra định dạng ảnh (PNG, JPEG, JPG, WebP) và dung lượng tối đa 5MB
+ */
+export const validateImageSizeAndType = (file: File): string | null => {
+  const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/jpg'];
+  const hasValidType = ACCEPTED_TYPES.includes(file.type.toLowerCase()) || Boolean(file.name.match(/\.(jpg|jpeg|png|webp)$/i));
+
+  if (!hasValidType) {
+    return 'Định dạng ảnh không hợp lệ. Chỉ chấp nhận JPG, JPEG, PNG, WebP';
+  }
+
+  const MAX_SIZE_MB = 5;
+  if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+    return 'Dung lượng file vượt quá giới hạn tối đa 5MB. Vui lòng chọn ảnh nhẹ hơn.';
+  }
+
+  return null;
+};
+
 export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   onSuccess,
   onCancel,
@@ -82,6 +112,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 }) => {
   const navigate = useNavigate();
   const { currentUser, setCurrentUser, showToast } = useAppStore();
+
+  const isPendingHost = currentUser?.ownerApplicationStatus === 'pending';
+  const isApprovedOwner = currentUser?.role === 'owner';
 
   // Khối 1: Thông tin chung
   const [avatarUrl, setAvatarUrl] = useState<string>(
@@ -111,6 +144,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isUpgrading, setIsUpgrading] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormErrors>({});
+
+  // Popup Modal thông báo gửi hồ sơ chủ trọ thành công
+  const [showPendingSuccessModal, setShowPendingSuccessModal] = useState<boolean>(false);
 
   // Modal / Trạng thái xác thực SĐT mini
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState<boolean>(false);
@@ -150,7 +186,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const handleAvatarFileChange = async (file: File | null) => {
     if (!file) return;
 
-    const validationError = validateImageFile(file);
+    const validationError = validateImageSizeAndType(file);
     if (validationError) {
       showToast(validationError, '', 'error');
       return;
@@ -181,7 +217,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const handleCardFileChange = async (file: File | null) => {
     if (!file) return;
 
-    const validationError = validateImageFile(file);
+    const validationError = validateImageSizeAndType(file);
     if (validationError) {
       showToast(validationError, '', 'error');
       return;
@@ -256,23 +292,19 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const validateForRenter = (): boolean => {
     const newErrors: FormErrors = {};
 
-    // Chỉ bắt buộc Họ và tên
+    // Bắt buộc Họ và tên
     if (!name.trim()) {
       newErrors.name = 'Vui lòng nhập Họ và tên';
     }
 
-    // SĐT là optional, nhưng nếu có điền thì phải đúng định dạng
+    // SĐT là optional, nếu có điền thì phải đúng định dạng
     if (phone.trim() && phone.replace(/\D/g, '').length < 9) {
       newErrors.phone = 'Số điện thoại không đúng định dạng (tối thiểu 9 số)';
     }
 
-    // Link MXH là optional, nếu có điền thì phải là URL/Zalo/FB hợp lệ
-    if (socialLink.trim()) {
-      const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(socialLink.trim());
-      const isZaloPhone = /^0\d{9}$/.test(socialLink.trim()) || socialLink.includes('zalo.me') || socialLink.includes('facebook.com') || socialLink.includes('fb.com');
-      if (!isUrl && !isZaloPhone) {
-        newErrors.socialLink = 'Vui lòng nhập liên kết hợp lệ (vd: https://zalo.me/... hoặc https://facebook.com/...)';
-      }
+    // Link MXH là optional, nếu có điền thì BẮT BUỘC đúng định dạng Facebook hoặc Zalo
+    if (socialLink.trim() && !validateSocialUrl(socialLink)) {
+      newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
     }
 
     setErrors(newErrors);
@@ -310,21 +342,17 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       newErrors.studentCard = 'Vui lòng tải lên ảnh Thẻ sinh viên hoặc CCCD để xác thực danh tính chủ trọ';
     }
 
-    // 4. Bắt buộc Link Mạng xã hội (Zalo / Facebook)
+    // 4. Bắt buộc Link Mạng xã hội bắt đầu bằng https://facebook.com/, https://www.facebook.com/, hoặc https://zalo.me/
     if (!socialLink.trim()) {
-      newErrors.socialLink = 'Vui lòng cung cấp link Zalo hoặc Facebook để liên hệ và tạo uy tín đối tác';
-    } else {
-      const isUrl = /^(https?:\/\/)?([\da-z.-]+)\.([a-z.]{2,6})([\/\w .-]*)*\/?$/.test(socialLink.trim());
-      const isZaloPhone = /^0\d{9}$/.test(socialLink.trim()) || socialLink.includes('zalo.me') || socialLink.includes('facebook.com') || socialLink.includes('fb.com');
-      if (!isUrl && !isZaloPhone) {
-        newErrors.socialLink = 'Vui lòng nhập liên kết hợp lệ (vd: https://zalo.me/... hoặc https://facebook.com/...)';
-      }
+      newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
+    } else if (!validateSocialUrl(socialLink)) {
+      newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
     }
 
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      // 1. Ngăn chặn hành động & Báo lỗi Toast tổng quan
+      // 1. Ngăn chặn hành động & Báo lỗi Toast
       showToast(
         'Vui lòng bổ sung SĐT, Ảnh xác minh và Link MXH để đăng ký làm chủ trọ',
         'Hồ sơ chủ trọ yêu cầu đầy đủ thông tin định danh và kênh liên lạc trực tiếp.',
@@ -341,11 +369,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   };
 
   // Helper lưu dữ liệu vào store & supabase
-  const saveUserData = async () => {
+  const saveUserData = async (customOwnerStatus?: 'none' | 'pending' | 'approved' | 'rejected') => {
     if (!currentUser) return null;
 
     const finalSchool = school === 'Khác / Đã đi làm' && customSchool.trim() ? customSchool.trim() : school;
     const isStudentVerified = Boolean(studentCardUrl) || Boolean(currentUser.studentVerified);
+    const targetStatus = customOwnerStatus !== undefined ? customOwnerStatus : (currentUser.ownerApplicationStatus || 'none');
 
     const updatedUser = {
       ...currentUser,
@@ -359,6 +388,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       socialLink: socialLink.trim(),
       studentVerified: isStudentVerified,
       verified: isStudentVerified || currentUser.verified,
+      ownerApplicationStatus: targetStatus,
     };
 
     // 1. Cập nhật Zustand App Store
@@ -374,6 +404,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         role: updatedUser.role as any,
         avatar_url: updatedUser.avatarUrl,
         verified: updatedUser.verified,
+        owner_application_status: targetStatus,
       });
     } catch (syncErr) {
       console.warn('[EditProfile] Lỗi đồng bộ Supabase:', syncErr);
@@ -408,9 +439,16 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
   };
 
-  // Xử lý Đăng ký làm chủ trọ (Kèm validation nghiêm ngặt)
+  // =========================================================================
+  // Xử lý Đăng ký làm chủ trọ (Quy trình chuyển sang PENDING_HOST)
+  // =========================================================================
   const handleOwnerUpgradeClick = async (e: React.MouseEvent) => {
     e.preventDefault();
+
+    if (isPendingHost) {
+      showToast('Hồ sơ của bạn đang được xét duyệt', 'Quản trị viên đang thẩm định trong vòng 24h.', 'info');
+      return;
+    }
 
     if (!currentUser) {
       showToast('Vui lòng đăng nhập để đăng ký làm chủ trọ', '', 'error');
@@ -418,23 +456,27 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       return;
     }
 
-    // Chạy validation riêng cho chủ trọ
+    // 1. Chạy validation nghiêm ngặt
     if (!validateForOwnerUpgrade()) {
-      return; // Dừng lại, đã hiển thị toast và scroll lên trường lỗi
+      return; // Dừng lại nếu thiếu bất kỳ thông tin nào
     }
 
     setIsUpgrading(true);
     try {
-      // Tự động lưu profile đã điền đủ thông tin
-      await saveUserData();
-      showToast('Thông tin định danh hợp lệ!', 'Đang chuyển hướng tới biểu mẫu đăng ký cơ sở phòng trọ...', 'success');
+      // 2. Lưu dữ liệu vào database và chuyển trạng thái thành 'pending' (PENDING_HOST)
+      await saveUserData('pending');
 
-      // Chuyển hướng tới trang đăng ký chủ trọ
-      setTimeout(() => {
-        navigate('/nang-cap-chu-tro');
-      }, 500);
+      // 3. Hiển thị Toast thông báo thành công
+      showToast(
+        'Hồ sơ của bạn đã được gửi.',
+        'Quản trị viên sẽ kiểm tra tính xác thực của ảnh thẻ và mạng xã hội trước khi cấp quyền Chủ trọ trong vòng 24h.',
+        'success'
+      );
+
+      // 4. Mở Popup thông báo chi tiết
+      setShowPendingSuccessModal(true);
     } catch (err: any) {
-      showToast('Lỗi khi xử lý hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
+      showToast('Lỗi khi gửi hồ sơ đăng ký', err?.message || 'Vui lòng thử lại sau', 'error');
     } finally {
       setIsUpgrading(false);
     }
@@ -466,7 +508,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           <input
             ref={avatarInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/png, image/jpeg, image/jpg, image/webp"
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
@@ -510,7 +552,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={isUploadingAvatar}
-              className="absolute bottom-0 right-0 p-1.5 bg-[#00a854] text-white rounded-full shadow-sm hover:bg-[#009247] transition active:scale-95"
+              className="absolute bottom-0 right-0 p-1.5 bg-[#00a854] text-white rounded-full shadow-sm hover:bg-[#009247] transition active:scale-95 cursor-pointer"
               title="Thay đổi ảnh đại diện"
             >
               <Camera className="w-3.5 h-3.5" />
@@ -520,13 +562,13 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           <div className="space-y-1.5 text-center sm:text-left flex-1">
             <h3 className="text-sm font-bold text-gray-900">Ảnh đại diện</h3>
             <p className="text-xs text-gray-500">
-              Định dạng JPG, PNG, WEBP (tối đa 5MB). Sử dụng ảnh chân dung rõ mặt để tạo uy tín khi giao lưu.
+              Chấp nhận PNG, JPEG, JPG, WebP (tối đa 5MB). Ảnh rõ mặt giúp hồ sơ tăng độ tin cậy.
             </p>
             <button
               type="button"
               onClick={() => avatarInputRef.current?.click()}
               disabled={isUploadingAvatar}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00a854] hover:text-[#009247] hover:underline pt-1"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-[#00a854] hover:text-[#009247] hover:underline pt-1 cursor-pointer"
             >
               <Camera className="w-3.5 h-3.5" />
               {isUploadingAvatar ? 'Đang tải ảnh lên...' : 'Thay đổi ảnh'}
@@ -719,10 +761,11 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </span>
           </label>
 
+          {/* Input file chỉ chấp nhận image/png, image/jpeg, image/jpg, image/webp */}
           <input
             ref={cardInputRef}
             type="file"
-            accept="image/png,image/jpeg,image/webp"
+            accept="image/png, image/jpeg, image/jpg, image/webp"
             className="hidden"
             onChange={(e) => {
               if (e.target.files && e.target.files.length > 0) {
@@ -763,7 +806,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                     : 'Kéo thả hoặc bấm vào đây để tải ảnh lên'}
                 </p>
                 <p className="text-[11px] text-gray-500">
-                  Hỗ trợ định dạng JPG, PNG, WEBP (mặt trước rõ nét, không bị che khuất)
+                  Chỉ nhận PNG, JPEG, JPG, WebP (dung lượng tối đa 5MB)
                 </p>
               </div>
             </div>
@@ -825,7 +868,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#00a854] shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-950 font-medium">
-              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong>. Thông tin chỉ dùng để duyệt hồ sơ và được bảo mật tuyệt đối.
+              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong> hoặc hoàn tất hồ sơ Chủ trọ. Thông tin được mã hóa bảo mật tuyệt đối.
             </p>
           </div>
         </div>
@@ -851,7 +894,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 setSocialLink(e.target.value);
                 if (errors.socialLink) setErrors((prev) => ({ ...prev, socialLink: undefined }));
               }}
-              placeholder="Điền link Zalo hoặc Facebook cá nhân (vd: https://facebook.com/username hoặc https://zalo.me/0987654321)"
+              placeholder="Nhập link dạng https://facebook.com/... hoặc https://zalo.me/..."
               className={`w-full px-4 py-3 rounded-2xl border text-sm text-gray-900 placeholder-gray-400 bg-white transition focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:border-transparent ${
                 errors.socialLink ? 'border-red-500 bg-red-50/20 ring-1 ring-red-500' : 'border-gray-300 hover:border-gray-400'
               }`}
@@ -864,7 +907,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             </p>
           )}
           <p className="text-[11px] text-gray-500">
-            Giúp tăng độ tin cậy khi giao dịch trên Chợ đồ cũ và xác minh quyền Chủ trọ đối tác.
+            Bắt đầu bằng <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800">https://facebook.com/</code>, <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800">https://www.facebook.com/</code> hoặc <code className="bg-gray-100 px-1 py-0.5 rounded text-gray-800">https://zalo.me/</code>
           </p>
         </div>
       </section>
@@ -874,21 +917,31 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       {/* ========================================================================= */}
       <div className="space-y-4 pt-2">
         {/* Banner / CTA Đăng Ký Làm Chủ Trọ nếu tài khoản chưa phải chủ trọ */}
-        {showOwnerUpgradeCTA && currentUser?.role !== 'owner' && (
-          <div className="bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 rounded-3xl p-5 border border-emerald-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs">
+        {showOwnerUpgradeCTA && !isApprovedOwner && (
+          <div className={`rounded-3xl p-5 border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xs transition-all ${
+            isPendingHost
+              ? 'bg-amber-50/80 border-amber-200'
+              : 'bg-gradient-to-r from-emerald-50 via-teal-50 to-blue-50 border-emerald-200/80'
+          }`}>
             <div className="flex items-start sm:items-center gap-3.5">
-              <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-sm shrink-0">
-                <Building2 className="w-6 h-6" />
+              <div className={`p-3 text-white rounded-2xl shadow-sm shrink-0 ${isPendingHost ? 'bg-amber-600' : 'bg-emerald-600'}`}>
+                {isPendingHost ? <Clock className="w-6 h-6 animate-pulse" /> : <Building2 className="w-6 h-6" />}
               </div>
               <div className="space-y-0.5">
                 <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-black text-gray-900">Bạn muốn đăng phòng cho thuê?</h4>
-                  <span className="text-[10px] font-black uppercase tracking-wider px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full">
-                    Miễn phí
+                  <h4 className="text-sm font-black text-gray-900">
+                    {isPendingHost ? 'Hồ Sơ Đăng Ký Đang Chờ Xét Duyệt' : 'Bạn muốn đăng phòng cho thuê?'}
+                  </h4>
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                    isPendingHost ? 'bg-amber-100 text-amber-900' : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {isPendingHost ? 'Đang xét duyệt' : 'Miễn phí'}
                   </span>
                 </div>
                 <p className="text-xs text-gray-600">
-                  Nâng cấp tài khoản lên Chủ Trọ Đối Tác để bắt đầu đăng tin và tiếp cận hàng ngàn sinh viên.
+                  {isPendingHost
+                    ? 'Quản trị viên đang kiểm tra tính xác thực của ảnh thẻ và mạng xã hội trong vòng 24h.'
+                    : 'Nâng cấp tài khoản lên Chủ Trọ Đối Tác để bắt đầu đăng tin và tiếp cận hàng ngàn sinh viên.'}
                 </p>
               </div>
             </div>
@@ -896,19 +949,27 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             <button
               type="button"
               onClick={handleOwnerUpgradeClick}
-              disabled={isUpgrading || isSaving}
-              className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs sm:text-sm shadow-md hover:shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0 cursor-pointer disabled:opacity-60"
+              disabled={isPendingHost || isUpgrading || isSaving}
+              className={`w-full sm:w-auto px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0 ${
+                isPendingHost
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed shadow-none'
+                  : 'bg-emerald-700 hover:bg-emerald-800 text-white hover:shadow-lg cursor-pointer'
+              }`}
             >
               {isUpgrading ? (
                 <>
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang kiểm tra hồ sơ...
+                  Đang xử lý gửi hồ sơ...
+                </>
+              ) : isPendingHost ? (
+                <>
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  Đang chờ duyệt hồ sơ
                 </>
               ) : (
                 <>
                   <Building2 className="w-4 h-4" />
                   Đăng Ký Làm Chủ Trọ
-                  <ArrowRight className="w-4 h-4" />
                 </>
               )}
             </button>
@@ -947,6 +1008,44 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           </button>
         </div>
       </div>
+
+      {/* ========================================================================= */}
+      {/* POPUP THÔNG BÁO GỬI HỒ SƠ CHỦ TRỌ THÀNH CÔNG */}
+      {/* ========================================================================= */}
+      {showPendingSuccessModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl border border-gray-100 text-center animate-scaleUp">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-xs">
+              <CheckCircle2 className="w-9 h-9" />
+            </div>
+
+            <div className="space-y-2">
+              <h3 className="text-xl font-black text-gray-950">Gửi Hồ Sơ Thành Công!</h3>
+              <p className="text-sm text-gray-600 leading-relaxed">
+                Hồ sơ của bạn đã được gửi. Quản trị viên sẽ kiểm tra tính xác thực của ảnh thẻ và mạng xã hội trước khi cấp quyền Chủ trọ trong vòng <strong>24h</strong>.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 text-xs text-left space-y-1.5 text-gray-600">
+              <div className="flex items-center gap-2 font-bold text-gray-800">
+                <Clock className="w-4 h-4 text-amber-600" />
+                Trạng thái: <span className="text-amber-700">Đang chờ xét duyệt (PENDING_HOST)</span>
+              </div>
+              <p className="text-[11px] text-gray-500">
+                Bạn sẽ nhận được thông báo ngay khi hồ sơ được phê duyệt hoàn tất.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowPendingSuccessModal(false)}
+              className="w-full py-3.5 rounded-2xl bg-[#00a854] hover:bg-[#009247] text-white font-bold text-sm shadow-md transition cursor-pointer active:scale-95"
+            >
+              Đã hiểu & Đóng
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ========================================================================= */}
       {/* MODAL XÁC THỰC SỐ ĐIỆN THOẠI (OTP) */}
