@@ -358,7 +358,7 @@ export const OwnerDashboardPage: React.FC = () => {
               >
                 <div className="flex items-center gap-4">
                   <img
-                    src={room.images[0]}
+                    src={room.images?.[0] || '/images/hero-banner.webp'}
                     alt={room.title}
                     className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0"
                   />

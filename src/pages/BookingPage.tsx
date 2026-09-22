@@ -498,7 +498,7 @@ export const BookingPage: React.FC = () => {
 
             {/* Room mini card */}
             <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-2xl border border-gray-200">
-              <img src={room.images[0]} alt="" className="w-16 h-16 rounded-xl object-cover ring-1 ring-black/5 shrink-0" />
+              <img src={room.images?.[0] || '/images/hero-banner.webp'} alt="" className="w-16 h-16 rounded-xl object-cover ring-1 ring-black/5 shrink-0" />
               <div className="flex-1 overflow-hidden space-y-0.5">
                 <span className="text-xs font-black text-[#00a854]">{formatPrice(room.price)}</span>
                 <h4 className="text-xs font-bold text-gray-950 truncate">{room.title}</h4>

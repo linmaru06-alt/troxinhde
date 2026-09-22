@@ -79,7 +79,7 @@ export const AdminUsersPage: React.FC = () => {
 
   // Hàm che số điện thoại: 0912345678 -> 091****678
   const maskPhone = (phone?: string) => {
-    if (!phone || phone.length < 7) return phone || '—';
+    if (!phone || typeof phone !== 'string' || phone.length < 7) return phone || '—';
     return `${phone.slice(0, 3)}****${phone.slice(-3)}`;
   };
 
@@ -165,10 +165,10 @@ export const AdminUsersPage: React.FC = () => {
 
     if (
       search &&
-      !u.name.toLowerCase().includes(search.toLowerCase()) &&
+      !(u.name || '').toLowerCase().includes(search.toLowerCase()) &&
       !(u.phone || '').includes(search) &&
       !(u.email || '').toLowerCase().includes(search.toLowerCase()) &&
-      !u.id.toLowerCase().includes(search.toLowerCase())
+      !(u.id || '').toLowerCase().includes(search.toLowerCase())
     ) {
       return false;
     }

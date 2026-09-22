@@ -80,7 +80,7 @@ export const BuildingDetailPage: React.FC = () => {
       {/* Hero Banner with Building Image */}
       <div className="relative aspect-21/9 w-full overflow-hidden rounded-3xl bg-gray-900 shadow-xl">
         <ImageWithFallback
-          src={building.images[0]}
+          src={building.images?.[0] || '/images/hero-banner.webp'}
           alt={building.name}
           preset="hero"
           loading="eager"
@@ -119,7 +119,7 @@ export const BuildingDetailPage: React.FC = () => {
 
             <h3 className="text-sm font-bold text-gray-900 pt-2">Tiện ích chung toàn tòa nhà:</h3>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {building.amenities.map((item, idx) => (
+              {(Array.isArray(building.amenities) ? building.amenities : []).map((item, idx) => (
                 <div
                   key={idx}
                   className="flex items-center gap-2 p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs font-semibold text-gray-800"

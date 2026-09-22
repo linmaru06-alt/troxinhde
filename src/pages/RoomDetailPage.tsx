@@ -291,14 +291,14 @@ export const RoomDetailPage: React.FC = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8 pb-24 lg:pb-8">
       <SEOHead
         title={`${room.title} - ${formatPrice(room.price)} | TroXinh`}
-        description={`${room.area}m² tại ${room.district}, ${room.address}. Gần ${room.nearestSchool}. Đầy đủ tiện nghi: ${room.amenities.slice(0, 4).join(", ")}. Liên hệ ngay để đặt lịch xem phòng.`}
-        image={room.images[0]}
+        description={`${room.area}m² tại ${room.district}, ${room.address}. Gần ${room.nearestSchool}. Đầy đủ tiện nghi: ${(room.amenities || []).slice(0, 4).join(", ")}. Liên hệ ngay để đặt lịch xem phòng.`}
+        image={room.images?.[0] || '/images/hero-banner.webp'}
         url={`/phong/${room.id}`}
         type="article"
         accommodation={{
           name: room.title,
           description: room.description,
-          images: room.images,
+          images: Array.isArray(room.images) ? room.images : [],
           address: room.address,
           district: room.district,
           price: room.price,
@@ -335,7 +335,7 @@ export const RoomDetailPage: React.FC = () => {
           <div className="space-y-3">
             <div className="relative aspect-16/10 w-full overflow-hidden rounded-3xl bg-gray-100 shadow-md">
               <ImageWithFallback
-                src={room.images[activeImageIndex] || room.images[0]}
+                src={room.images?.[activeImageIndex] || room.images?.[0] || '/images/hero-banner.webp'}
                 alt={room.title}
                 preset="gallery"
                 loading="eager"
@@ -383,7 +383,7 @@ export const RoomDetailPage: React.FC = () => {
             </div>
 
             {/* Thumbnails */}
-            {room.images.length > 1 && (
+            {Array.isArray(room.images) && room.images.length > 1 && (
               <div className="flex gap-3 overflow-x-auto pb-1">
                 {room.images.map((img, idx) => (
                   <button
@@ -700,7 +700,7 @@ export const RoomDetailPage: React.FC = () => {
                   Danh mục tiện nghi có sẵn trong phòng:
                 </h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {room.amenities.map((item, idx) => (
+                  {(Array.isArray(room.amenities) ? room.amenities : []).map((item, idx) => (
                     <div
                       key={idx}
                       className="flex items-center gap-2.5 p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs font-semibold text-gray-800"
@@ -925,7 +925,7 @@ export const RoomDetailPage: React.FC = () => {
             <div className="bg-white rounded-3xl p-6 border border-gray-200/80 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-4">
                 <img
-                  src={building.images[0]}
+                  src={building.images?.[0] || '/images/hero-banner.webp'}
                   alt={building.name}
                   className="w-16 h-16 rounded-2xl object-cover shrink-0"
                 />

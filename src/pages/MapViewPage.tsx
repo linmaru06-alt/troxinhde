@@ -49,9 +49,9 @@ export const MapViewPage: React.FC = () => {
       // Keyword search
       if (keyword.trim()) {
         const q = keyword.toLowerCase();
-        const matchTitle = r.title.toLowerCase().includes(q);
-        const matchAddr = r.address.toLowerCase().includes(q);
-        const matchDistrict = r.district.toLowerCase().includes(q);
+        const matchTitle = (r.title || '').toLowerCase().includes(q);
+        const matchAddr = (r.address || '').toLowerCase().includes(q);
+        const matchDistrict = (r.district || '').toLowerCase().includes(q);
         const matchSchool = r.nearestSchool?.toLowerCase().includes(q);
         if (!matchTitle && !matchAddr && !matchDistrict && !matchSchool) return false;
       }
@@ -276,7 +276,7 @@ export const MapViewPage: React.FC = () => {
               >
                 <div className="flex items-center gap-3">
                   <img
-                    src={activeRoom.images[0]}
+                    src={activeRoom.images?.[0] || '/images/hero-banner.webp'}
                     alt={activeRoom.title}
                     className="w-18 h-18 rounded-2xl object-cover shrink-0"
                   />

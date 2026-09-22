@@ -38,9 +38,9 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
     if (filterTab !== 'all' && app.status !== filterTab) return false;
     if (
       search &&
-      !app.userName.toLowerCase().includes(search.toLowerCase()) &&
-      !app.userPhone.includes(search) &&
-      !app.district.toLowerCase().includes(search.toLowerCase())
+      !(app.userName || '').toLowerCase().includes(search.toLowerCase()) &&
+      !(app.userPhone || '').includes(search) &&
+      !(app.district || '').toLowerCase().includes(search.toLowerCase())
     ) {
       return false;
     }

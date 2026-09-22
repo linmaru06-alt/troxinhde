@@ -42,9 +42,9 @@ export const AdminBookingsPage: React.FC = () => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
     if (
       search &&
-      !b.rooms?.name?.toLowerCase().includes(search.toLowerCase()) &&
-      !b.renter?.full_name?.toLowerCase().includes(search.toLowerCase()) &&
-      !b.contact_phone?.includes(search)
+      !(b.rooms?.name || '').toLowerCase().includes(search.toLowerCase()) &&
+      !(b.renter?.full_name || '').toLowerCase().includes(search.toLowerCase()) &&
+      !(b.contact_phone || '').includes(search)
     ) {
       return false;
     }

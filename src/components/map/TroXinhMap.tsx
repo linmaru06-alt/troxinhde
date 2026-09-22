@@ -237,7 +237,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
                 <div className="w-56 p-3 space-y-2 text-left">
                   <div className="aspect-16/10 rounded-xl overflow-hidden bg-gray-100 relative">
                     <img
-                      src={room.images[0]}
+                      src={room.images?.[0] || '/images/hero-banner.webp'}
                       alt={room.title}
                       className="w-full h-full object-cover"
                     />

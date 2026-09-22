@@ -56,7 +56,7 @@ export const OwnerBuildingListPage: React.FC = () => {
                 className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all space-y-4"
               >
                 <div className="relative aspect-16/9 w-full bg-gray-100">
-                  <img src={bld.images[0]} alt={bld.name} className="w-full h-full object-cover" />
+                  <img src={bld.images?.[0] || '/images/hero-banner.webp'} alt={bld.name} className="w-full h-full object-cover" />
                   <div className="absolute top-3 left-3">
                     <Badge variant="verified" size="sm">Đã kiểm duyệt PCCC</Badge>
                   </div>

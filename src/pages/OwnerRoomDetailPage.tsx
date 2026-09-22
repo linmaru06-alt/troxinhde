@@ -53,7 +53,7 @@ export const OwnerRoomDetailPage: React.FC = () => {
         {/* Status Banner */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <img src={room.images[0]} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+            <img src={room.images?.[0] || '/images/hero-banner.webp'} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-gray-900">{room.roomNumber} - {room.title}</h1>

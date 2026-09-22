@@ -238,7 +238,7 @@ export const SearchPage: React.FC = () => {
       if (selectedType && r.type !== selectedType) return false;
 
       // Amenity filter
-      if (selectedAmenity && !r.amenities.some((a: string) => a.toLowerCase().includes(selectedAmenity.toLowerCase()))) {
+      if (selectedAmenity && !(Array.isArray(r.amenities) && r.amenities.some((a: string) => (a || '').toLowerCase().includes(selectedAmenity.toLowerCase())))) {
         return false;
       }
 

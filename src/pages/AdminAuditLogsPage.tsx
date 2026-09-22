@@ -43,7 +43,7 @@ export const AdminAuditLogsPage: React.FC = () => {
     if (entityFilter !== 'all' && l.entity_type !== entityFilter) return false;
     if (
       search &&
-      !l.action.toLowerCase().includes(search.toLowerCase()) &&
+      !(l.action || '').toLowerCase().includes(search.toLowerCase()) &&
       !(l.reason || '').toLowerCase().includes(search.toLowerCase()) &&
       !(l.admin_email || '').toLowerCase().includes(search.toLowerCase()) &&
       !(l.entity_id || '').toLowerCase().includes(search.toLowerCase())

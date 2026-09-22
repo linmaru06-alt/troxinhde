@@ -56,7 +56,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
           <ImageWithFallback
-            src={room.images[0] || '/images/hero-banner.webp'}
+            src={room.images?.[0] || '/images/hero-banner.webp'}
             alt={room.title}
             preset="thumbnail"
             loading="lazy"
@@ -190,7 +190,7 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
     >
       <div className="relative aspect-16/10 w-full overflow-hidden bg-gray-100">
         <ImageWithFallback
-          src={building.images[0]}
+          src={building.images?.[0] || '/images/hero-banner.webp'}
           alt={building.name}
           preset="hero"
           loading="lazy"
@@ -402,7 +402,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
       {/* 1. Hình ảnh sản phẩm + Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <ImageWithFallback
-          src={item.images[0]}
+          src={item.images?.[0] || '/images/hero-banner.webp'}
           alt={item.name}
           preset="market"
           loading="lazy"
