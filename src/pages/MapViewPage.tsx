@@ -167,59 +167,62 @@ export const MapViewPage: React.FC = () => {
   return (
     <div className="h-[calc(100dvh-70px)] lg:h-[calc(100dvh-76px)] flex flex-col overflow-hidden bg-gray-50 relative -mt-[1px]">
       {/* Top Map Filter Sub-bar */}
-      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 space-y-2 z-20 shrink-0 shadow-xs">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Link
-              to={`/tim-phong?${searchParams.toString()}`}
-              className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition"
-              title="Quay lại danh sách"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h2 className="text-sm font-black text-gray-950 leading-tight flex items-center gap-1.5">
-                <span>Bản Đồ Nhà Trọ Đã Xác Minh</span>
-                <span className="bg-emerald-100 text-[#006d37] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {filteredRooms.length} phòng
-                </span>
-              </h2>
-              <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
-                Hiển thị mức giá thực tế và vị trí đã kiểm duyệt 100%
-              </p>
+      <div className="bg-white border-b border-gray-200 z-20 shrink-0 shadow-xs relative">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/tim-phong?${searchParams.toString()}`}
+                className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition"
+                title="Quay lại danh sách"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h2 className="text-sm font-black text-gray-950 leading-tight flex items-center gap-1.5">
+                  <span>Bản Đồ Nhà Trọ Đã Xác Minh</span>
+                  <span className="bg-emerald-100 text-[#006d37] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {filteredRooms.length} phòng
+                  </span>
+                </h2>
+                <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
+                  Hiển thị mức giá thực tế và vị trí đã kiểm duyệt 100%
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Action Tools */}
-          <div className="flex items-center gap-2">
-            {/* GPS Location Button */}
-            <button
-              onClick={handleGetLocation}
-              disabled={isLocating}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
-                userLocation
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-              }`}
-              title="Định vị vị trí hiện tại của bạn"
-            >
-              <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
-              <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
-            </button>
+            {/* Action Tools */}
+            <div className="flex items-center gap-2">
+              {/* GPS Location Button */}
+              <button
+                onClick={handleGetLocation}
+                disabled={isLocating}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                  userLocation
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+                title="Định vị vị trí hiện tại của bạn"
+              >
+                <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
+                <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
+              </button>
 
 
-            <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
-              <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
-                Xem danh sách
-              </Button>
-            </Link>
+              <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
+                <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
+                  Xem danh sách
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
 
       {/* District Horizontal Scroll Bar */}
-      <div className="bg-emerald-50/70 border-b border-emerald-100/50 px-3 py-2 z-10 shrink-0 relative flex items-center shadow-xs">
-        <button 
+      <div className="bg-emerald-50/70 border-b border-emerald-100/50 z-10 shrink-0 relative shadow-xs overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 py-2 flex items-center relative">
+          <button 
           onClick={() => scrollDistricts('left')}
           className="absolute left-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-r border-emerald-100/50"
         >
@@ -263,9 +266,10 @@ export const MapViewPage: React.FC = () => {
           <ChevronRight className="w-5 h-5 text-gray-600" />
         </button>
       </div>
+      </div>
 
       {/* Main Split Layout */}
-      <div className="flex-1 flex overflow-hidden relative">
+      <div className="flex-1 flex overflow-hidden relative w-full max-w-7xl mx-auto border-x border-gray-200 bg-white">
         {/* Left Scrollable List */}
         <div
           className={`w-full md:w-[400px] lg:w-[450px] bg-white border-r border-gray-200 overflow-y-auto p-4 space-y-4 shrink-0 transition-transform md:translate-x-0 z-10 ${
