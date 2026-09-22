@@ -41,6 +41,7 @@ const OtpVerificationPage = React.lazy(() => import('./pages/OtpVerificationPage
 // Renter Pages & Owner Upgrade
 const RenterOnboardingPage = React.lazy(() => import('./pages/RenterOnboardingPage').then((m) => ({ default: m.RenterOnboardingPage })));
 const RenterProfilePage = React.lazy(() => import('./pages/RenterProfilePage').then((m) => ({ default: m.RenterProfilePage })));
+const UserPostsPage = React.lazy(() => import('./pages/UserPostsPage').then((m) => ({ default: m.UserPostsPage })));
 const SavedRoomsPage = React.lazy(() => import('./pages/SavedRoomsPage').then((m) => ({ default: m.SavedRoomsPage })));
 const NotificationsPage = React.lazy(() => import('./pages/NotificationsPage').then((m) => ({ default: m.NotificationsPage })));
 const ChatPage = React.lazy(() => import('./pages/ChatPage').then((m) => ({ default: m.ChatPage })));
@@ -313,6 +314,14 @@ export const App: React.FC = () => {
               element={
                 <ProtectedRoute>
                   <SavedRoomsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/quan-ly-bai-viet"
+              element={
+                <ProtectedRoute>
+                  <UserPostsPage />
                 </ProtectedRoute>
               }
             />
