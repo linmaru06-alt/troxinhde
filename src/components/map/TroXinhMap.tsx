@@ -340,6 +340,22 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
             />
           ))}
 
+        {/* District Boundary Highlight */}
+        {selectedDistrictGeoJson && (
+          <GeoJSON 
+            key={selectedDistrict}
+            data={selectedDistrictGeoJson} 
+            style={{
+              color: '#ef4444', // Red-500
+              weight: 2,
+              opacity: 1,
+              fillColor: '#ef4444',
+              fillOpacity: 0.1,
+              dashArray: '5, 5'
+            }} 
+          />
+        )}
+
         {/* Room Price Pin Markers */}
         {roomMarkers.map((room) => {
           const isActive = room.id === activeRoomId || !!universityRadiusCenter;
@@ -453,22 +469,6 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
             weight: 1.5,
           }}
         />
-
-        {/* District Boundary Highlight */}
-        {selectedDistrictGeoJson && (
-          <GeoJSON 
-            key={selectedDistrict}
-            data={selectedDistrictGeoJson} 
-            style={{
-              color: '#ef4444', // Red-500
-              weight: 2,
-              opacity: 1,
-              fillColor: '#ef4444',
-              fillOpacity: 0.1,
-              dashArray: '5, 5'
-            }} 
-          />
-        )}
 
         {/* Room Marker */}
         <Marker position={roomPosition} icon={singlePinIcon}>
