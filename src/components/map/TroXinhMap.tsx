@@ -5,6 +5,7 @@ import {
   Marker,
   Popup,
   Circle,
+  GeoJSON,
   useMap,
   useMapEvents,
 } from 'react-leaflet';
@@ -34,6 +35,68 @@ export const HANOI_UNIVERSITIES = [
   { name: 'ĐH Luật HN', coords: [21.0359, 105.8105] as [number, number] },
   { name: 'Học Viện Ngân Hàng', coords: [20.9815, 105.7975] as [number, number] },
   { name: 'ĐH FPT Hà Nội', coords: [21.0122, 105.5257] as [number, number] },
+  { name: 'ĐH Công Nghiệp HN', coords: [21.0537, 105.7351] as [number, number] },
+  { name: 'ĐH Thương Mại', coords: [21.0366, 105.7747] as [number, number] },
+  { name: 'ĐH Giao Thông VT', coords: [21.0287, 105.8037] as [number, number] },
+  { name: 'ĐH Thủy Lợi', coords: [21.0074, 105.8247] as [number, number] },
+  { name: 'HV Tài Chính', coords: [21.0772, 105.7766] as [number, number] },
+  { name: 'HV Báo Chí & TT', coords: [21.0382, 105.7869] as [number, number] },
+  { name: 'ĐH Mỏ - Địa Chất', coords: [21.0725, 105.7739] as [number, number] },
+  { name: 'ĐH Dược HN', coords: [21.0253, 105.8554] as [number, number] },
+  { name: 'HV Bưu Chính VT', coords: [20.9806, 105.7877] as [number, number] },
+  { name: 'ĐH Kiến Trúc HN', coords: [20.9831, 105.7891] as [number, number] },
+  { name: 'ĐH Hà Nội', coords: [20.9904, 105.7958] as [number, number] },
+  { name: 'HV An Ninh ND', coords: [20.9839, 105.7925] as [number, number] },
+  { name: 'ĐH KHTN (ĐHQGHN)', coords: [21.0024, 105.8066] as [number, number] },
+  { name: 'ĐH KHXH&NV (ĐHQGHN)', coords: [21.0029, 105.8058] as [number, number] },
+  { name: 'HV Ngoại Giao', coords: [21.0215, 105.8085] as [number, number] },
+  { name: 'ĐH Ngoại Ngữ (ĐHQGHN)', coords: [21.0375, 105.7815] as [number, number] },
+  { name: 'ĐH Công Đoàn', coords: [21.0118, 105.8268] as [number, number] },
+  { name: 'ĐH Thăng Long', coords: [20.9754, 105.8143] as [number, number] },
+  { name: 'ĐH Điện Lực', coords: [21.0463, 105.7845] as [number, number] },
+  { name: 'ĐH Mở Hà Nội', coords: [21.0025, 105.8459] as [number, number] },
+  { name: 'ĐH Tài Nguyên MT', coords: [21.0427, 105.7601] as [number, number] },
+  { name: 'HV Nông Nghiệp VN', coords: [21.0041, 105.9348] as [number, number] },
+  { name: 'HV Cảnh Sát ND', coords: [21.0744, 105.7648] as [number, number] },
+  { name: 'ĐH Sân Khấu ĐA', coords: [21.0374, 105.7725] as [number, number] },
+  { name: 'ĐH Mỹ Thuật CN', coords: [21.0232, 105.8267] as [number, number] },
+  { name: 'HV Quản Lý GD', coords: [20.9859, 105.8443] as [number, number] },
+  { name: 'HV Y Dược Cổ Truyền', coords: [20.9789, 105.7909] as [number, number] }
+];
+
+// Coordinates for Metro & Bus stations in Hanoi
+export const HANOI_METRO_BUS_STATIONS = [
+  // Metro Line 2A (Cát Linh - Hà Đông)
+  { name: 'Ga Cát Linh', coords: [21.0278, 105.8322] as [number, number], type: 'metro' },
+  { name: 'Ga La Thành', coords: [21.0238, 105.8258] as [number, number], type: 'metro' },
+  { name: 'Ga Thái Hà', coords: [21.0188, 105.8202] as [number, number], type: 'metro' },
+  { name: 'Ga Láng', coords: [21.0125, 105.8152] as [number, number], type: 'metro' },
+  { name: 'Ga Thượng Đình', coords: [20.9997, 105.8115] as [number, number], type: 'metro' },
+  { name: 'Ga Vành Đai 3', coords: [20.9922, 105.8013] as [number, number], type: 'metro' },
+  { name: 'Ga Phùng Khoang', coords: [20.9855, 105.7925] as [number, number], type: 'metro' },
+  { name: 'Ga Văn Quán', coords: [20.9789, 105.7865] as [number, number], type: 'metro' },
+  { name: 'Ga Hà Đông', coords: [20.9715, 105.7760] as [number, number], type: 'metro' },
+  { name: 'Ga Yên Nghĩa', coords: [20.9505, 105.7460] as [number, number], type: 'metro' },
+  // Metro Line 3 (Nhổn - Ga Hà Nội)
+  { name: 'Ga Nhổn', coords: [21.0538, 105.7350] as [number, number], type: 'metro' },
+  { name: 'Ga Minh Khai', coords: [21.0495, 105.7420] as [number, number], type: 'metro' },
+  { name: 'Ga Phú Diễn', coords: [21.0435, 105.7560] as [number, number], type: 'metro' },
+  { name: 'Ga Cầu Diễn', coords: [21.0375, 105.7630] as [number, number], type: 'metro' },
+  { name: 'Ga Lê Đức Thọ', coords: [21.0360, 105.7685] as [number, number], type: 'metro' },
+  { name: 'Ga ĐHQG Hà Nội', coords: [21.0365, 105.7820] as [number, number], type: 'metro' },
+  { name: 'Ga Chùa Hà', coords: [21.0325, 105.7930] as [number, number], type: 'metro' },
+  { name: 'Ga Cầu Giấy', coords: [21.0285, 105.8035] as [number, number], type: 'metro' },
+  // City Bus Routes & Stops
+  { name: 'Bus 16, 20A, 26, 32 (ĐHQG)', coords: [21.0372, 105.7818] as [number, number], type: 'bus' },
+  { name: 'Bus 13, 26, 32 (ĐH Sư Phạm)', coords: [21.0360, 105.7845] as [number, number], type: 'bus' },
+  { name: 'Bus 16, 26, 32, 49 (HV Báo Chí)', coords: [21.0385, 105.7865] as [number, number], type: 'bus' },
+  { name: 'Bus 09, 26, 28 (Cầu Giấy)', coords: [21.0284, 105.8039] as [number, number], type: 'bus' },
+  { name: 'Bus 12, 21A, 26, 35A (Thái Hà)', coords: [21.0118, 105.8268] as [number, number], type: 'bus' },
+  { name: 'Bus 08A, 18, 23, 26 (ĐH Bách Khoa)', coords: [21.0070, 105.8430] as [number, number], type: 'bus' },
+  { name: 'Bus 01, 02, 08, 09 (Long Biên)', coords: [21.0425, 105.8483] as [number, number], type: 'bus' },
+  { name: 'Bus 11, 22A, 32, 34 (Kim Mã)', coords: [21.0311, 105.8234] as [number, number], type: 'bus' },
+  { name: 'Bus 07, 14, 27, 35A (Hoàng Q. Việt)', coords: [21.0465, 105.7940] as [number, number], type: 'bus' },
+  { name: 'Bus 20A, 29, 32, 57 (Nhổn)', coords: [21.0540, 105.7350] as [number, number], type: 'bus' },
 ];
 
 // University icon creator
@@ -43,6 +106,22 @@ const createUniIcon = (name: string) => {
     html: `
       <div style="background: white; border: 1.5px solid #2563eb; color: #1e40af; border-radius: 9999px; padding: 2px 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; items-center; gap: 3px; white-space: nowrap;">
         <span>🎓</span> ${name}
+      </div>
+    `,
+    iconSize: [120, 24],
+    iconAnchor: [60, 12],
+  });
+};
+
+// Metro & Bus icon creator
+const createMetroBusIcon = (name: string, type: string) => {
+  const iconEmoji = type === 'metro' ? '🚇' : '🚌';
+  const colorClass = type === 'metro' ? 'border-[#f59e0b] color-[#d97706]' : 'border-[#0284c7] color-[#0369a1]';
+  return L.divIcon({
+    className: 'custom-metro-pin',
+    html: `
+      <div style="background: white; border: 1.5px solid ${type === 'metro' ? '#f59e0b' : '#0284c7'}; color: ${type === 'metro' ? '#d97706' : '#0369a1'}; border-radius: 9999px; padding: 2px 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; items-center; gap: 3px; white-space: nowrap;">
+        <span>${iconEmoji}</span> ${name}
       </div>
     `,
     iconSize: [120, 24],
@@ -85,9 +164,27 @@ export interface TroXinhMapProps {
   center?: [number, number];
   zoom?: number;
   showUniversities?: boolean;
+  showMetroBus?: boolean;
   userLocation?: [number, number] | null;
   universityRadiusCenter?: [number, number] | null;
+  onSelectUniversity?: (uni: { name: string; coords: [number, number] }) => void;
+  selectedDistrict?: string | null;
 }
+
+export const DISTRICT_CENTERS: Record<string, { lat: number; lng: number }> = {
+  'Cầu Giấy': { lat: 21.0333, lng: 105.7937 },
+  'Đống Đa': { lat: 21.0150, lng: 105.8239 },
+  'Hai Bà Trưng': { lat: 21.0062, lng: 105.8431 },
+  'Hoàn Kiếm': { lat: 21.0287, lng: 105.8524 },
+  'Thanh Xuân': { lat: 20.9935, lng: 105.8152 },
+  'Hoàng Mai': { lat: 20.9634, lng: 105.8499 },
+  'Nam Từ Liêm': { lat: 21.0120, lng: 105.7663 },
+  'Bắc Từ Liêm': { lat: 21.0664, lng: 105.7483 },
+  'Hà Đông': { lat: 20.9669, lng: 105.7723 },
+  'Ba Đình': { lat: 21.0340, lng: 105.8226 },
+  'Tây Hồ': { lat: 21.0601, lng: 105.8173 },
+  'Long Biên': { lat: 21.0404, lng: 105.8973 },
+};
 
 export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   rooms,
@@ -96,30 +193,37 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   center = [21.0333, 105.7937], // Default Hanoi Cầu Giấy center
   zoom = 13,
   showUniversities = true,
+  showMetroBus = false,
   userLocation = null,
   universityRadiusCenter = null,
+  onSelectUniversity,
+  selectedDistrict = null,
 }) => {
+  const [geoJsonData, setGeoJsonData] = useState<any>(null);
+
+  // Fetch GeoJSON boundary data
+  useEffect(() => {
+    fetch('/data/hanoi-districts.geojson')
+      .then(res => res.json())
+      .then(data => setGeoJsonData(data))
+      .catch(err => console.warn('Không tải được viền quận huyện:', err));
+  }, []);
+
+  // Filter geojson for selected district
+  const selectedDistrictGeoJson = useMemo(() => {
+    if (!selectedDistrict || !geoJsonData) return null;
+    const feature = geoJsonData.features?.find((f: any) => {
+      const name = f.properties?.shapeName || f.properties?.name || '';
+      return name.includes(selectedDistrict);
+    });
+    return feature ? { type: 'FeatureCollection' as const, features: [feature] } : null;
+  }, [selectedDistrict, geoJsonData]);
+
   // Map rooms to geo locations
   const roomMarkers = useMemo(() => {
-    // Basic District Centers for Hanoi
-    const districtCenters: Record<string, { lat: number; lng: number }> = {
-      'Cầu Giấy': { lat: 21.0333, lng: 105.7937 },
-      'Đống Đa': { lat: 21.0150, lng: 105.8239 },
-      'Hai Bà Trưng': { lat: 21.0062, lng: 105.8431 },
-      'Hoàn Kiếm': { lat: 21.0287, lng: 105.8524 },
-      'Thanh Xuân': { lat: 20.9935, lng: 105.8152 },
-      'Hoàng Mai': { lat: 20.9634, lng: 105.8499 },
-      'Nam Từ Liêm': { lat: 21.0120, lng: 105.7663 },
-      'Bắc Từ Liêm': { lat: 21.0664, lng: 105.7483 },
-      'Hà Đông': { lat: 20.9669, lng: 105.7723 },
-      'Ba Đình': { lat: 21.0340, lng: 105.8226 },
-      'Tây Hồ': { lat: 21.0601, lng: 105.8173 },
-      'Long Biên': { lat: 21.0404, lng: 105.8973 },
-    };
-
     return rooms.map((room, index) => {
       const cleanDistrict = room.district?.replace('Quận ', '').replace('Huyện ', '') || 'Cầu Giấy';
-      const baseCenter = districtCenters[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
+      const baseCenter = DISTRICT_CENTERS[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
 
       // Spiral placement to prevent overlapping markers
       const angle = index * 2.4; // Golden angle approximation
@@ -136,12 +240,16 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   }, [rooms]);
 
   const selectedRoom = roomMarkers.find((r) => r.id === activeRoomId);
+  const selectedDistrictCenter = selectedDistrict ? DISTRICT_CENTERS[selectedDistrict] : null;
+
   const mapCenter: [number, number] = userLocation
     ? userLocation
     : universityRadiusCenter
     ? universityRadiusCenter
     : selectedRoom
     ? [selectedRoom.geo.lat, selectedRoom.geo.lng]
+    : selectedDistrictCenter
+    ? [selectedDistrictCenter.lat, selectedDistrictCenter.lng]
     : center;
 
   return (
@@ -214,12 +322,43 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
               key={`uni_${i}`}
               position={uni.coords}
               icon={createUniIcon(uni.name)}
+              eventHandlers={{
+                click: () => {
+                  if (onSelectUniversity) onSelectUniversity(uni);
+                }
+              }}
             />
           ))}
 
+        {/* Metro & Bus Stations */}
+        {showMetroBus &&
+          HANOI_METRO_BUS_STATIONS.map((station, i) => (
+            <Marker
+              key={`station_${i}`}
+              position={station.coords}
+              icon={createMetroBusIcon(station.name, station.type)}
+            />
+          ))}
+
+        {/* District Boundary Highlight */}
+        {selectedDistrictGeoJson && (
+          <GeoJSON 
+            key={selectedDistrict}
+            data={selectedDistrictGeoJson} 
+            style={{
+              color: '#ef4444', // Red-500
+              weight: 2,
+              opacity: 1,
+              fillColor: '#ef4444',
+              fillOpacity: 0.1,
+              dashArray: '5, 5'
+            }} 
+          />
+        )}
+
         {/* Room Price Pin Markers */}
         {roomMarkers.map((room) => {
-          const isActive = room.id === activeRoomId;
+          const isActive = room.id === activeRoomId || !!universityRadiusCenter;
           const isRented = room.status === 'Đã cho thuê';
 
           return (

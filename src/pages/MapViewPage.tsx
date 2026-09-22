@@ -2,9 +2,9 @@ import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Room } from '../types';
-import { RoomCard, formatPrice } from '../components/ui/Cards';
+import { RoomCard, HorizontalRoomCard, formatPrice } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
-import { TroXinhMap, HANOI_UNIVERSITIES } from '../components/map/TroXinhMap';
+import { TroXinhMap, HANOI_UNIVERSITIES, DISTRICT_CENTERS } from '../components/map/TroXinhMap';
 import {
   List,
   MapPin,
@@ -16,9 +16,28 @@ import {
   Search,
   CheckCircle2,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
+const HANOI_DISTRICTS = [
+  'Cầu Giấy', 'Đống Đa', 'Thanh Xuân', 'Hà Đông', 
+  'Nam Từ Liêm', 'Bắc Từ Liêm', 'Hai Bà Trưng', 
+  'Ba Đình', 'Hoàng Mai', 'Tây Hồ', 'Long Biên', 'Hoàn Kiếm'
+];
+
 import { useRooms } from '../hooks/queries/useRooms';
+
+const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371; // Bán kính trái đất (km)
+  const dLat = (lat2 - lat1) * (Math.PI / 180);
+  const dLon = (lon2 - lon1) * (Math.PI / 180);
+  const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+            Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) *
+            Math.sin(dLon/2) * Math.sin(dLon/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  return R * c; // Khoảng cách (km)
+};
 
 export const MapViewPage: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -33,27 +52,66 @@ export const MapViewPage: React.FC = () => {
   const [keyword, setKeyword] = useState<string>('');
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState<boolean>(false);
+  const [showUniversities, setShowUniversities] = useState<boolean>(false);
+  const [showRooms, setShowRooms] = useState<boolean>(true);
+  const [showMetroBus, setShowMetroBus] = useState<boolean>(false);
+  const [isLayerPanelOpen, setIsLayerPanelOpen] = useState<boolean>(true);
+  const [activeUniversity, setActiveUniversity] = useState<{ name: string; coords: [number, number] } | null>(null);
+  const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
 
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const districtScrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollDistricts = (direction: 'left' | 'right') => {
+    if (districtScrollRef.current) {
+      const scrollAmount = 200;
+      districtScrollRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth'
+      });
+    }
+  };
+
+  // Nếu người dùng thay đổi từ khóa tìm kiếm mà khác với tên trường đang chọn, xóa trạng thái trường
+  useEffect(() => {
+    if (activeUniversity && keyword !== activeUniversity.name) {
+      setActiveUniversity(null);
+    }
+  }, [keyword, activeUniversity]);
+
+  const handleSelectUniversity = (uni: { name: string; coords: [number, number] }) => {
+    setActiveUniversity(uni);
+    setKeyword(uni.name); // Tự động điền từ khóa để lọc các phòng gần trường này
+  };
 
   // Filtered rooms on map
   const filteredRooms = useMemo(() => {
     return (activeRooms || []).filter((r: any) => {
 
       // Price filter
-      if (priceRange === 'under_3m' && r.price >= 3000000) return false;
-      if (priceRange === '3m_5m' && (r.price < 3000000 || r.price > 5000000)) return false;
-      if (priceRange === '5m_8m' && (r.price < 5000000 || r.price > 8000000)) return false;
-      if (priceRange === 'over_8m' && r.price <= 8000000) return false;
+      if (priceRange === 'under_2m' && r.price >= 2000000) return false;
+      if (priceRange === '2m_3.5m' && (r.price < 2000000 || r.price > 3500000)) return false;
+      if (priceRange === 'over_3.5m' && r.price <= 3500000) return false;
 
       // Keyword search
       if (keyword.trim()) {
-        const q = keyword.toLowerCase();
-        const matchTitle = (r.title || '').toLowerCase().includes(q);
-        const matchAddr = (r.address || '').toLowerCase().includes(q);
-        const matchDistrict = (r.district || '').toLowerCase().includes(q);
-        const matchSchool = r.nearestSchool?.toLowerCase().includes(q);
-        if (!matchTitle && !matchAddr && !matchDistrict && !matchSchool) return false;
+        if (activeUniversity && keyword === activeUniversity.name) {
+          // Lọc theo bán kính (VD: 4.5km) quanh trường thay vì tìm text chính xác
+          const cleanDistrict = r.district?.replace('Quận ', '').replace('Huyện ', '') || 'Cầu Giấy';
+          const center = DISTRICT_CENTERS[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
+          const dist = getDistance(
+            activeUniversity.coords[0], activeUniversity.coords[1],
+            center.lat, center.lng
+          );
+          if (dist > 4.5) return false;
+        } else {
+          const q = keyword.toLowerCase();
+          const matchTitle = (r.title || '').toLowerCase().includes(q);
+          const matchAddr = (r.address || '').toLowerCase().includes(q);
+          const matchDistrict = (r.district || '').toLowerCase().includes(q);
+          const matchSchool = r.nearestSchool?.toLowerCase().includes(q);
+          if (!matchTitle && !matchAddr && !matchDistrict && !matchSchool) return false;
+        }
       }
 
       return true;
@@ -107,7 +165,7 @@ export const MapViewPage: React.FC = () => {
   }, []);
 
   return (
-    <div className="h-[100dvh] flex flex-col overflow-hidden bg-gray-50 relative">
+    <div className="h-[calc(100dvh-70px)] lg:h-[calc(100dvh-76px)] flex flex-col overflow-hidden bg-gray-50 relative -mt-[1px]">
       {/* Top Map Filter Sub-bar */}
       <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 space-y-2 z-20 shrink-0 shadow-xs">
         <div className="flex items-center justify-between gap-3">
@@ -149,18 +207,6 @@ export const MapViewPage: React.FC = () => {
               <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
             </button>
 
-            {/* Price Filter Select */}
-            <select
-              value={priceRange}
-              onChange={(e) => setPriceRange(e.target.value)}
-              className="text-xs font-bold bg-white border border-gray-200 rounded-xl px-2.5 py-1.5 text-gray-700 focus:outline-none focus:border-[#006d37]"
-            >
-              <option value="all">Tất cả mức giá</option>
-              <option value="under_3m">&lt; 3 Triệu / tháng</option>
-              <option value="3m_5m">3 – 5 Triệu / tháng</option>
-              <option value="5m_8m">5 – 8 Triệu / tháng</option>
-              <option value="over_8m">&gt; 8 Triệu / tháng</option>
-            </select>
 
             <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
               <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
@@ -169,6 +215,53 @@ export const MapViewPage: React.FC = () => {
             </Link>
           </div>
         </div>
+      </div>
+
+      {/* District Horizontal Scroll Bar */}
+      <div className="bg-emerald-50/70 border-b border-emerald-100/50 px-3 py-2 z-10 shrink-0 relative flex items-center shadow-xs">
+        <button 
+          onClick={() => scrollDistricts('left')}
+          className="absolute left-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-r border-emerald-100/50"
+        >
+          <ChevronLeft className="w-5 h-5 text-gray-600" />
+        </button>
+        
+        <div 
+          ref={districtScrollRef}
+          className="flex items-center gap-2 overflow-x-auto no-scrollbar px-6 w-full scroll-smooth"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          <button
+            onClick={() => setSelectedDistrict(null)}
+            className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
+              selectedDistrict === null 
+                ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+            }`}
+          >
+            Tất cả
+          </button>
+          {HANOI_DISTRICTS.map((district) => (
+            <button
+              key={district}
+              onClick={() => setSelectedDistrict(district)}
+              className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
+                selectedDistrict === district 
+                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
+                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+              }`}
+            >
+              {district}
+            </button>
+          ))}
+        </div>
+
+        <button 
+          onClick={() => scrollDistricts('right')}
+          className="absolute right-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[-2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-l border-emerald-100/50"
+        >
+          <ChevronRight className="w-5 h-5 text-gray-600" />
+        </button>
       </div>
 
       {/* Main Split Layout */}
@@ -194,10 +287,54 @@ export const MapViewPage: React.FC = () => {
           </div>
 
           <div className="flex items-center justify-between pb-1">
-            <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí trên bản đồ:</p>
+            <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí:</p>
             <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-md">
               {filteredRooms.length} kết quả
             </span>
+          </div>
+
+          {/* Price Pills */}
+          <div className="flex flex-wrap items-center gap-2 pb-2 border-b border-gray-100">
+            <button
+              onClick={() => setPriceRange('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                priceRange === 'all'
+                  ? 'bg-[#00a854] text-white border border-[#00a854]'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              Tất cả giá
+            </button>
+            <button
+              onClick={() => setPriceRange('under_2m')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                priceRange === 'under_2m'
+                  ? 'bg-[#00a854] text-white border border-[#00a854]'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              &lt; 2 triệu
+            </button>
+            <button
+              onClick={() => setPriceRange('2m_3.5m')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                priceRange === '2m_3.5m'
+                  ? 'bg-[#00a854] text-white border border-[#00a854]'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              2 - 3.5 triệu
+            </button>
+            <button
+              onClick={() => setPriceRange('over_3.5m')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-colors ${
+                priceRange === 'over_3.5m'
+                  ? 'bg-[#00a854] text-white border border-[#00a854]'
+                  : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+              }`}
+            >
+              &gt; 3.5 triệu
+            </button>
           </div>
 
           {filteredRooms.length === 0 ? (
@@ -236,7 +373,7 @@ export const MapViewPage: React.FC = () => {
                       : 'opacity-90 hover:opacity-100'
                   }`}
                 >
-                  <RoomCard room={room} />
+                  <HorizontalRoomCard room={room} />
                 </div>
               ))}
             </div>
@@ -250,19 +387,76 @@ export const MapViewPage: React.FC = () => {
           }`}
         >
           <TroXinhMap
-            rooms={filteredRooms}
+            rooms={showRooms ? filteredRooms : []}
             activeRoomId={activeRoomId}
             onSelectRoom={handleSelectRoom}
             userLocation={userLocation}
-            universityRadiusCenter={null}
-            zoom={userLocation ? 14 : 13}
+            universityRadiusCenter={activeUniversity ? activeUniversity.coords : null}
+            zoom={userLocation ? 14 : activeUniversity ? 14 : 13}
+            showUniversities={showUniversities}
+            showMetroBus={showMetroBus}
+            onSelectUniversity={handleSelectUniversity}
+            selectedDistrict={selectedDistrict}
           />
 
-          <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-gray-200 shadow-md text-xs font-bold text-gray-700 flex items-center gap-2 pointer-events-none">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#006d37] animate-pulse" />
-            <span>
-              Bản đồ phòng trọ Hà Nội
-            </span>
+          {/* Map Display Layers Panel */}
+          <div className="absolute top-4 right-4 z-10 bg-white/95 backdrop-blur-md rounded-2xl border border-blue-100 shadow-xl w-[190px] overflow-hidden">
+            <div 
+              className="px-3.5 py-2.5 bg-blue-50 border-b border-blue-100 flex items-center justify-between cursor-pointer hover:bg-blue-100 transition-colors"
+              onClick={() => setIsLayerPanelOpen(!isLayerPanelOpen)}
+            >
+              <span className="text-xs font-black text-blue-700 tracking-wider uppercase">Lớp hiển thị</span>
+              <SlidersHorizontal className={`w-4 h-4 text-blue-600 transition-transform duration-300 ${isLayerPanelOpen ? 'rotate-180' : ''}`} />
+            </div>
+            
+            {isLayerPanelOpen && (
+              <div className="p-1.5 flex flex-col gap-0.5 animate-fadeIn">
+                <label className="flex items-center justify-between px-2.5 py-2 hover:bg-gray-50 rounded-xl cursor-pointer transition">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 flex items-center justify-center">
+                      <GraduationCap className="w-3 h-3 text-blue-600" />
+                    </div>
+                    <span className="text-[11px] font-medium text-gray-700">Trường Đại Học</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showUniversities}
+                    onChange={(e) => setShowUniversities(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded text-blue-600 focus:ring-blue-500 border-gray-300"
+                  />
+                </label>
+                
+                <label className="flex items-center justify-between px-2.5 py-2 hover:bg-gray-50 rounded-xl cursor-pointer transition">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
+                      <span className="text-[10px]">🏠</span>
+                    </div>
+                    <span className="text-[11px] font-medium text-gray-700">Phòng trọ</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showRooms}
+                    onChange={(e) => setShowRooms(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded text-[#00a854] focus:ring-[#00a854] border-gray-300"
+                  />
+                </label>
+
+                <label className="flex items-center justify-between px-2.5 py-2 hover:bg-gray-50 rounded-xl cursor-pointer transition">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
+                      <span className="text-[10px]">🚊</span>
+                    </div>
+                    <span className="text-[11px] font-medium text-gray-700">Ga Metro & Bus</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showMetroBus}
+                    onChange={(e) => setShowMetroBus(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded text-orange-500 focus:ring-orange-500 border-gray-300"
+                  />
+                </label>
+              </div>
+            )}
           </div>
 
           {/* Mobile Bottom Room Preview Card (Slide-up on marker tap) */}

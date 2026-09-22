@@ -1,3 +1,4 @@
+import { resolveUserIdToUuid } from './messages';
 import { supabase, isSupabaseConfigured } from '../supabase';
 
 export interface RoomFilters {
@@ -96,12 +97,29 @@ export async function createRoom(roomData: {
   }
 
   const roomTitle = roomData.title || roomData.name || 'Phòng trọ mới';
+  const cleanOwnerId = await resolveUserIdToUuid(roomData.owner_id);
+
+  // Đảm bảo building_id là UUID hợp lệ
+  let cleanBuildingId = roomData.building_id;
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!cleanBuildingId || !UUID_REGEX.test(cleanBuildingId.trim())) {
+    try {
+      const { data: bld } = await supabase.from('buildings').select('id').limit(1).maybeSingle();
+      cleanBuildingId = bld?.id || 'b0000000-0000-0000-0000-000000000001';
+    } catch {
+      cleanBuildingId = 'b0000000-0000-0000-0000-000000000001';
+    }
+  }
+
+  const imagesList = roomData.images && roomData.images.length > 0
+    ? roomData.images
+    : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'];
 
   const { data: room, error } = await supabase
     .from('rooms')
     .insert({
-      building_id: roomData.building_id,
-      owner_id: roomData.owner_id,
+      building_id: cleanBuildingId,
+      owner_id: cleanOwnerId,
       title: roomTitle,
       name: roomTitle,
       room_number: roomData.room_number || '101',
@@ -113,14 +131,34 @@ export async function createRoom(roomData: {
       room_type: roomData.room_type,
       amenities: roomData.amenities || [],
       description: roomData.description || '',
-      images: roomData.images || [],
+      images: imagesList,
       moderation_status: 'pending',
+      status: 'available',
       availability_status: 'available',
     })
     .select()
     .single();
 
-  if (error) throw error;
+  if (error) {
+    console.error('[RoomsAPI] Lỗi khi tạo phòng trên Supabase:', error);
+    throw error;
+  }
+
+  // Tự động đồng bộ vào bảng room_images
+  if (room?.id && imagesList.length > 0) {
+    try {
+      const imageRecords = imagesList.map((url, idx) => ({
+        room_id: room.id,
+        url,
+        order_index: idx,
+        is_cover: idx === 0,
+      }));
+      await supabase.from('room_images').insert(imageRecords);
+    } catch (imgErr) {
+      console.warn('[RoomsAPI] Lỗi sync room_images (không ảnh hưởng bài đăng phòng):', imgErr);
+    }
+  }
+
   return room;
 }
 

@@ -6,7 +6,6 @@ import {
   Heart,
   Bookmark,
   Clock,
-  Star,
   MapPin,
   ShieldCheck,
   Store,
@@ -18,6 +17,7 @@ import {
   LogOut,
   User as UserIcon,
   Building2,
+  FileText,
 } from 'lucide-react';
 
 interface AccountDropdownMenuProps {
@@ -313,13 +313,13 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </Link>
 
               <Link
-                to="/ve-chung-toi"
+                to="/quan-ly-bai-viet"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
-                  <Star className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Đánh giá từ tôi</span>
+                  <FileText className="w-4 h-4 text-gray-600 stroke-[2.2]" />
+                  <span>Quản lý bài viết</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>

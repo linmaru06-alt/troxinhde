@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { fetchUserProfileFromSupabase } from '../lib/supabaseAuthSync';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { RolePermissionSection } from '../components/profile/RolePermissionSection';
+import { EditProfileForm } from '../components/profile/EditProfileForm';
 import { AvatarUploader } from '../components/ui/AvatarUploader';
 import {
   User,
@@ -44,6 +46,43 @@ export const RenterProfilePage: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'blocked'>('profile');
 
+  // Fetch dữ liệu thật từ bảng profiles trên Supabase khi vào trang hoặc reload (F5)
+  useEffect(() => {
+    const userId = currentUser?.id;
+    if (!userId) return;
+
+    let isMounted = true;
+    async function loadLatestProfile() {
+      try {
+        const dbProfile = await fetchUserProfileFromSupabase(userId ?? '');
+        if (dbProfile && isMounted) {
+          const current = useAppStore.getState().currentUser;
+          if (!current) return;
+          setCurrentUser({
+            ...current,
+            name: dbProfile.name || current.name,
+            avatarUrl: dbProfile.avatar_url || current.avatarUrl,
+            phone: dbProfile.phone || current.phone,
+            phoneVerified: Boolean(dbProfile.phone_verified),
+            school: dbProfile.school || current.school,
+            year: dbProfile.year || current.year,
+            studentCardUrl: dbProfile.student_card_url || current.studentCardUrl,
+            socialLink: dbProfile.social_link || current.socialLink,
+            ownerApplicationStatus: dbProfile.owner_application_status || current.ownerApplicationStatus,
+            verified: Boolean(dbProfile.verified),
+          });
+        }
+      } catch (err) {
+        console.warn('[RenterProfilePage] Không thể tải dữ liệu profile:', err);
+      }
+    }
+
+    loadLatestProfile();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id, setCurrentUser]);
+
   if (!currentUser) {
     return (
       <div className="text-center py-20">
@@ -75,14 +114,14 @@ export const RenterProfilePage: React.FC = () => {
                 // Đồng bộ lên Supabase để không bị mất khi F5
                 try {
                   const { syncUserToSupabase } = await import('../lib/supabaseAuthSync');
-                  syncUserToSupabase({
-                    id: currentUser.id,
-                    name: currentUser.name,
-                    email: currentUser.email,
-                    phone: currentUser.phone,
-                    role: currentUser.role as any,
+                  await syncUserToSupabase({
+                    id: currentUser.id || '',
+                    name: currentUser.name || '',
+                    email: currentUser.email || undefined,
+                    phone: currentUser.phone || undefined,
+                    role: (currentUser.role || 'renter') as any,
                     avatar_url: urls[0],
-                    verified: currentUser.verified,
+                    verified: currentUser.verified ?? false,
                   });
                 } catch (err) {
                   console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);
@@ -179,6 +218,10 @@ export const RenterProfilePage: React.FC = () => {
       <div className="space-y-6">
         {activeTab === 'profile' && (
           <div className="space-y-6 animate-fadeIn">
+            {/* Form Cập nhật Hồ sơ Người dùng (Edit Profile Form) */}
+            <EditProfileForm />
+
+            {/* Vai trò & Quyền hạn */}
             <RolePermissionSection user={currentUser} />
             
             {/* Blocked Contacts */}

@@ -288,9 +288,9 @@ export const AdminModerationPage: React.FC = () => {
   const filteredRooms = rooms.filter((r) => {
     const mod = r.moderation_status || 'approved';
     const st = r.status || 'Còn trống';
-    if (activeRoomTab === 'pending') return mod === 'pending' || st === 'Chờ duyệt';
-    if (activeRoomTab === 'approved') return (mod === 'approved' && st !== 'hidden') || st === 'Còn trống';
-    if (activeRoomTab === 'rejected') return mod === 'rejected' || st === 'Bị từ chối' || st === 'hidden';
+    if (activeRoomTab === 'pending') return mod === 'pending' || st === 'Chờ duyệt' || st === 'pending';
+    if (activeRoomTab === 'approved') return (mod === 'approved' && st !== 'hidden') || st === 'Còn trống' || st === 'available';
+    if (activeRoomTab === 'rejected') return mod === 'rejected' || st === 'Bị từ chối' || st === 'hidden' || st === 'rejected';
     return true;
   });
 

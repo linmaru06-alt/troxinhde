@@ -28,14 +28,14 @@ export const OwnerProfilePage: React.FC = () => {
                   
                   try {
                     const { syncUserToSupabase } = await import('../lib/supabaseAuthSync');
-                    syncUserToSupabase({
-                      id: currentUser.id,
-                      name: currentUser.name,
-                      email: currentUser.email,
-                      phone: currentUser.phone,
-                      role: currentUser.role as any,
+                    await syncUserToSupabase({
+                      id: currentUser.id || '',
+                      name: currentUser.name || '',
+                      email: currentUser.email || undefined,
+                      phone: currentUser.phone || undefined,
+                      role: (currentUser.role || 'owner') as any,
                       avatar_url: urls[0],
-                      verified: currentUser.verified,
+                      verified: currentUser.verified ?? false,
                     });
                   } catch (err) {
                     console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);

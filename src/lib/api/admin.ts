@@ -258,7 +258,8 @@ export async function approveRoom(roomId: string, admin?: User | null) {
     .from('rooms')
     .update({
       moderation_status: 'approved',
-      status: 'Còn trống',
+      status: 'available',
+      availability_status: 'available',
       rejection_reason: null,
       updated_at: new Date().toISOString(),
     })
@@ -272,7 +273,7 @@ export async function approveRoom(roomId: string, admin?: User | null) {
     entity_type: 'room',
     entity_id: roomId,
     data_before: oldRoom ? { moderation_status: oldRoom.moderation_status, status: oldRoom.status } : null,
-    data_after: { moderation_status: 'approved', status: 'Còn trống' },
+    data_after: { moderation_status: 'approved', status: 'available' },
     admin,
   });
 
