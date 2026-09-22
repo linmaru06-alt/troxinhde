@@ -170,50 +170,51 @@ export const MapViewPage: React.FC = () => {
       <div className="bg-white border-b border-gray-200 z-20 shrink-0 shadow-xs relative">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 space-y-2">
           <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Link
-              to={`/tim-phong?${searchParams.toString()}`}
-              className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition"
-              title="Quay lại danh sách"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Link>
-            <div>
-              <h2 className="text-sm font-black text-gray-950 leading-tight flex items-center gap-1.5">
-                <span>Bản Đồ Nhà Trọ Đã Xác Minh</span>
-                <span className="bg-emerald-100 text-[#006d37] text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  {filteredRooms.length} phòng
-                </span>
-              </h2>
-              <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
-                Hiển thị mức giá thực tế và vị trí đã kiểm duyệt 100%
-              </p>
+            <div className="flex items-center gap-2">
+              <Link
+                to={`/tim-phong?${searchParams.toString()}`}
+                className="p-1.5 rounded-xl hover:bg-gray-100 text-gray-700 transition"
+                title="Quay lại danh sách"
+              >
+                <ArrowLeft className="w-5 h-5" />
+              </Link>
+              <div>
+                <h2 className="text-sm font-black text-gray-950 leading-tight flex items-center gap-1.5">
+                  <span>Bản Đồ Nhà Trọ Đã Xác Minh</span>
+                  <span className="bg-emerald-100 text-[#006d37] text-[10px] font-bold px-2 py-0.5 rounded-full">
+                    {filteredRooms.length} phòng
+                  </span>
+                </h2>
+                <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
+                  Hiển thị mức giá thực tế và vị trí đã kiểm duyệt 100%
+                </p>
+              </div>
             </div>
-          </div>
 
-          {/* Action Tools */}
-          <div className="flex items-center gap-2">
-            {/* GPS Location Button */}
-            <button
-              onClick={handleGetLocation}
-              disabled={isLocating}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
-                userLocation
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
-                  : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
-              }`}
-              title="Định vị vị trí hiện tại của bạn"
-            >
-              <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
-              <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
-            </button>
+            {/* Action Tools */}
+            <div className="flex items-center gap-2">
+              {/* GPS Location Button */}
+              <button
+                onClick={handleGetLocation}
+                disabled={isLocating}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-xl border transition ${
+                  userLocation
+                    ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
+                title="Định vị vị trí hiện tại của bạn"
+              >
+                <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-blue-600' : 'text-blue-600'}`} />
+                <span className="hidden sm:inline">{userLocation ? 'Đang bật GPS' : 'Vị trí của tôi'}</span>
+              </button>
 
 
-            <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
-              <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
-                Xem danh sách
-              </Button>
-            </Link>
+              <Link to={`/tim-phong?${searchParams.toString()}`} className="hidden md:block">
+                <Button variant="outline" size="sm" leftIcon={<List className="w-4 h-4 text-[#00a854]" />}>
+                  Xem danh sách
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
