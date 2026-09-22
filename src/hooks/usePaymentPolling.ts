@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { checkPaymentStatus } from '../lib/payos';
-import { recordSuccessfulPayment } from '../lib/api/payments';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, SubscriptionPlanId } from '../types';
 
@@ -50,8 +49,7 @@ export function usePaymentPolling(
       if (result.status === 'success') {
         setStatus('success');
         clearInterval(pollInterval);
-        const userId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
-        recordSuccessfulPayment(userId, orderCode, planId, totalAmount, method).then();
+        // Cập nhật trạng thái UI sau khi Server Database xác nhận giao dịch đã thành công
         upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
         showToast('🎉 Thanh toán thành công!', `Gói dịch vụ #${orderCode} đã được kích hoạt.`, 'success');
         if (onSuccess) onSuccess();
@@ -88,21 +86,13 @@ export function usePaymentPolling(
 
     showToast('Đang kiểm tra giao dịch...', 'Hệ thống đang kiểm tra giao dịch với ngân hàng/MoMo...', 'info');
 
-    // Kiểm tra trực tiếp với Gateway / Supabase
-    let isConfirmed = false;
-    if (method === 'momo') {
-      const momoStatus = await checkPaymentStatus(orderCode);
-      isConfirmed = momoStatus.status === 'success';
-    } else {
-      const payosStatus = await checkPaymentStatus(orderCode);
-      isConfirmed = payosStatus.status === 'success';
-    }
+    // Kiểm tra trực tiếp với Server Database đã nhận IPN từ Webhook chưa
+    const paymentCheck = await checkPaymentStatus(orderCode);
+    const isConfirmed = paymentCheck.status === 'success';
 
     // Nếu đã nhận được tiền từ Webhook / IPN
     if (isConfirmed) {
       setStatus('success');
-      const userId = currentUser?.id || '00000000-0000-0000-0000-000000000002';
-      recordSuccessfulPayment(userId, orderCode, planId, totalAmount, method).then();
       upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
       showToast('🎉 Thanh toán thành công!', `Gói dịch vụ đã được kích hoạt.`, 'success');
       if (onSuccess) onSuccess();

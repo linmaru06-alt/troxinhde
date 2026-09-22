@@ -44,8 +44,8 @@ interface PaymentViewData {
   payUrl?: string;
 }
 
-// Flag kiểm soát thanh toán: Tắt thanh toán tự động đến khi backend webhook được bảo mật hoàn toàn
-const IS_ONLINE_PAYMENT_ENABLED = false;
+// Cổng thanh toán trực tuyến chính thức: Đã hoàn thiện xác thực Webhook và RLS an toàn
+const IS_ONLINE_PAYMENT_ENABLED = true;
 
 export const CheckoutPage: React.FC = () => {
   const { planId } = useParams<{ planId: string }>();

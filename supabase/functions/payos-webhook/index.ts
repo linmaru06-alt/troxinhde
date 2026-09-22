@@ -45,16 +45,31 @@ serve(async (req) => {
       if (code === '00' && data?.orderCode) {
         const orderCode = String(data.orderCode);
 
-        // 1. Update transaction status
+        // 0. Kiểm tra chống xử lý trùng (Idempotency)
+        const { data: existingTx } = await supabase
+          .from('transactions')
+          .select('id, status')
+          .eq('order_code', orderCode)
+          .maybeSingle();
+
+        if (existingTx && (existingTx.status === 'success' || existingTx.status === 'paid')) {
+          return new Response(
+            JSON.stringify({ success: true, message: 'Transaction already processed' }),
+            { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+
+        // 1. Update transaction status sang paid / success
         const { data: tx } = await supabase
           .from('transactions')
           .update({
-            status: 'success',
+            status: 'paid',
+            paid_at: new Date().toISOString(),
             activated_at: new Date().toISOString(),
           })
           .eq('order_code', orderCode)
           .select()
-          .single();
+          .maybeSingle();
 
         if (tx) {
           // 2. If plan subscription -> update user subscription
