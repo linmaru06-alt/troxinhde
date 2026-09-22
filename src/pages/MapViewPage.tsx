@@ -167,8 +167,9 @@ export const MapViewPage: React.FC = () => {
   return (
     <div className="h-[calc(100dvh-70px)] lg:h-[calc(100dvh-76px)] flex flex-col overflow-hidden bg-gray-50 relative -mt-[1px]">
       {/* Top Map Filter Sub-bar */}
-      <div className="bg-white border-b border-gray-200 px-3 sm:px-4 py-2.5 space-y-2 z-20 shrink-0 shadow-xs">
-        <div className="flex items-center justify-between gap-3">
+      <div className="bg-white border-b border-gray-200 z-20 shrink-0 shadow-xs relative">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 space-y-2">
+          <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Link
               to={`/tim-phong?${searchParams.toString()}`}
@@ -218,8 +219,9 @@ export const MapViewPage: React.FC = () => {
       </div>
 
       {/* District Horizontal Scroll Bar */}
-      <div className="bg-emerald-50/70 border-b border-emerald-100/50 px-3 py-2 z-10 shrink-0 relative flex items-center shadow-xs">
-        <button 
+      <div className="bg-emerald-50/70 border-b border-emerald-100/50 z-10 shrink-0 relative shadow-xs overflow-hidden">
+        <div className="max-w-7xl mx-auto px-3 py-2 flex items-center relative">
+          <button 
           onClick={() => scrollDistricts('left')}
           className="absolute left-0 z-10 p-1.5 bg-emerald-50/90 backdrop-blur shadow-[2px_0_4px_rgba(0,0,0,0.05)] hover:bg-emerald-100 flex items-center justify-center border-r border-emerald-100/50"
         >
@@ -262,6 +264,7 @@ export const MapViewPage: React.FC = () => {
         >
           <ChevronRight className="w-5 h-5 text-gray-600" />
         </button>
+      </div>
       </div>
 
       {/* Main Split Layout */}
