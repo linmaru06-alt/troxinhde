@@ -310,6 +310,30 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/profile"
+              element={
+                <ProtectedRoute>
+                  <RenterProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile/edit"
+              element={
+                <ProtectedRoute>
+                  <RenterProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/ho-so/chinh-sua"
+              element={
+                <ProtectedRoute>
+                  <RenterProfilePage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="/da-luu"
               element={
                 <ProtectedRoute>

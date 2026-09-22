@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
-import { syncUserToSupabase, fetchUserProfileFromSupabase } from '../../lib/supabaseAuthSync';
+import { syncUserToSupabase, fetchUserProfileFromSupabase, updateUserProfile } from '../../lib/supabaseAuthSync';
 import { uploadToStorage } from '../../lib/storage';
 import { uploadImage } from '../../lib/cloudinary';
 import {
@@ -444,26 +444,27 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     const isStudentVerified = Boolean(studentCardUrl) || Boolean(currentUser.studentVerified);
     const targetStatus = customOwnerStatus !== undefined ? customOwnerStatus : (currentUser.ownerApplicationStatus || 'none');
 
+    // Trích xuất chính xác các giá trị người dùng đã điền
     const profileData = {
-      id: currentUser.id,
       name: name.trim(),
-      email: currentUser.email,
+      full_name: name.trim(),
       phone: phone.trim() || undefined,
-      role: currentUser.role as any,
-      avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
-      verified: isStudentVerified || currentUser.verified,
-      owner_application_status: targetStatus,
       school: finalSchool || undefined,
       year: year || undefined,
-      student_card_url: studentCardUrl || undefined,
       social_link: socialLink.trim() || undefined,
       facebook_link: socialLink.trim() || undefined,
+      avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
+      student_card_url: studentCardUrl || undefined,
+      verified: isStudentVerified || currentUser.verified,
       phone_verified: phoneVerified,
       student_verified: isStudentVerified,
+      owner_application_status: targetStatus,
+      role: currentUser.role as any,
+      app_role: (currentUser.role === 'user' ? 'renter' : currentUser.role) as any,
     };
 
-    // 1. Cập nhật thực tế xuống Supabase
-    const res = await syncUserToSupabase(profileData);
+    // 1. Gọi API updateUserProfile của Supabase
+    const res = await updateUserProfile(currentUser.id, profileData);
     if (!res.success && res.error) {
       throw new Error(res.error);
     }
@@ -488,7 +489,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     return updatedUser;
   };
 
-  // Xử lý Lưu thay đổi (Người thuê bình thường)
+  // Xử lý Lưu thay đổi (Người thuê bình thường) - onSubmit của form
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -505,10 +506,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     setIsSaving(true);
     try {
       await saveUserData();
-      showToast('Cập nhật hồ sơ thành công!', 'Thông tin cá nhân của bạn đã được đồng bộ lên Supabase.', 'success');
+      showToast('Cập nhật thông tin thành công', 'Thông tin hồ sơ của bạn đã được cập nhật vào cơ sở dữ liệu.', 'success');
       if (onSuccess) onSuccess();
     } catch (err: any) {
-      showToast('Lỗi khi cập nhật hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
+      showToast('Cập nhật thất bại', err?.message || 'Không thể lưu thay đổi vào cơ sở dữ liệu. Vui lòng thử lại sau.', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -1076,7 +1077,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             {isSaving ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
-                Đang lưu thay đổi...
+                Đang lưu...
               </>
             ) : (
               <>
