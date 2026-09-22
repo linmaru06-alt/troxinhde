@@ -5,9 +5,11 @@ import { initialUsers } from '../data/mockData';
 export interface SupabaseUserProfile {
   id: string;
   name: string;
+  full_name?: string;
   email?: string;
   phone?: string;
   role: 'user' | 'renter' | 'owner' | 'admin';
+  app_role?: 'renter' | 'owner' | 'admin';
   avatar_url?: string;
   verified?: boolean;
   auth_provider?: string;
@@ -48,9 +50,11 @@ export async function fetchUserProfileFromSupabase(
     return {
       id: data.id || userId,
       name: data.full_name || data.name || '',
+      full_name: data.full_name || data.name || '',
       email: data.email || undefined,
       phone: data.phone || undefined,
       role: (data.app_role || data.role || 'renter') as any,
+      app_role: (data.app_role || (data.role === 'user' ? 'renter' : data.role) || 'renter') as any,
       avatar_url: data.avatar_url || '/images/user-avatar.jpg',
       verified: Boolean(data.verified),
       owner_application_status: data.owner_application_status || 'none',
@@ -80,7 +84,7 @@ export async function fetchUserProfileFromSupabase(
  */
 export async function updateUserProfile(
   userId: string,
-  data: Partial<SupabaseUserProfile> | Record<string, any>
+  data: Partial<SupabaseUserProfile>
 ): Promise<{ success: boolean; data?: any; error?: string }> {
   if (!userId) {
     return { success: false, error: 'Không tìm thấy ID người dùng để cập nhật.' };
@@ -93,7 +97,7 @@ export async function updateUserProfile(
 
     if (data.name !== undefined) {
       updatePayload.name = data.name;
-      updatePayload.full_name = data.name;
+      updatePayload.full_name = data.full_name || data.name;
     } else if (data.full_name !== undefined) {
       updatePayload.name = data.full_name;
       updatePayload.full_name = data.full_name;
@@ -129,36 +133,26 @@ export async function updateUserProfile(
     }
     if (data.avatar_url !== undefined) {
       updatePayload.avatar_url = data.avatar_url || null;
-    } else if (data.avatarUrl !== undefined) {
-      updatePayload.avatar_url = data.avatarUrl || null;
     }
     if (data.student_card_url !== undefined) {
       updatePayload.student_card_url = data.student_card_url || null;
-    } else if (data.studentCardUrl !== undefined) {
-      updatePayload.student_card_url = data.studentCardUrl || null;
     }
     if (data.verified !== undefined) {
       updatePayload.verified = Boolean(data.verified);
     }
     if (data.phone_verified !== undefined) {
       updatePayload.phone_verified = Boolean(data.phone_verified);
-    } else if (data.phoneVerified !== undefined) {
-      updatePayload.phone_verified = Boolean(data.phoneVerified);
     }
     if (data.student_verified !== undefined) {
       updatePayload.student_verified = Boolean(data.student_verified);
-    } else if (data.studentVerified !== undefined) {
-      updatePayload.student_verified = Boolean(data.studentVerified);
     }
     if (data.owner_application_status !== undefined) {
       updatePayload.owner_application_status = data.owner_application_status;
-    } else if (data.ownerApplicationStatus !== undefined) {
-      updatePayload.owner_application_status = data.ownerApplicationStatus;
     }
     if (data.role !== undefined) {
       const roleVal = data.role === 'user' ? 'renter' : data.role;
       updatePayload.role = roleVal;
-      updatePayload.app_role = roleVal;
+      updatePayload.app_role = data.app_role || roleVal;
     }
     if (data.app_role !== undefined) {
       updatePayload.app_role = data.app_role;
@@ -220,9 +214,11 @@ export async function syncUserToSupabase(
   try {
     const updateRes = await updateUserProfile(profile.id, {
       name: profile.name,
+      full_name: profile.full_name || profile.name,
       email: profile.email,
       phone: profile.phone,
       role: profile.role,
+      app_role: profile.app_role || (profile.role === 'user' ? 'renter' : profile.role),
       avatar_url: profile.avatar_url,
       verified: profile.verified,
       owner_application_status: profile.owner_application_status,
@@ -423,9 +419,12 @@ export async function createSupabaseProfile(
   firebaseUid: string,
   data: {
     name: string;
+    full_name?: string;
     email?: string;
     phone?: string;
     role?: 'user' | 'renter' | 'owner' | 'admin';
+    app_role?: 'renter' | 'owner' | 'admin';
+    avatar_url?: string;
     avatarUrl?: string;
     isDemo?: boolean;
   }
@@ -434,16 +433,16 @@ export async function createSupabaseProfile(
   const cleanPhone = data.phone ? data.phone.replace(/\D/g, '') : null;
   const isSuperAdmin = cleanEmail === 'quan66934@gmail.com' || cleanEmail === 'admin@troxinh.vn';
   const role = isSuperAdmin ? 'admin' : (data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'renter');
-  const avatarUrl = data.avatarUrl || '/images/user-avatar.jpg';
+  const avatarUrl = data.avatar_url || data.avatarUrl || '/images/user-avatar.jpg';
 
   try {
     const profilePayload = {
       firebase_uid: firebaseUid,
-      full_name: data.name.trim(),
+      full_name: data.full_name || data.name.trim(),
       name: data.name.trim(),
       email: cleanEmail,
       phone: cleanPhone,
-      app_role: role,
+      app_role: data.app_role || role,
       role: role,
       avatar_url: avatarUrl,
       verified: true,
@@ -473,9 +472,11 @@ export async function createSupabaseProfile(
       data: {
         id: resProfile.id || firebaseUid,
         name: resProfile.full_name || resProfile.name || data.name.trim(),
+        full_name: resProfile.full_name || resProfile.name || data.name.trim(),
         email: resProfile.email || (cleanEmail ?? undefined),
         phone: resProfile.phone || (cleanPhone ?? undefined),
         role: (resProfile.app_role || resProfile.role || role) as any,
+        app_role: (resProfile.app_role || resProfile.role || role) as any,
         avatar_url: resProfile.avatar_url || avatarUrl,
         owner_application_status: resProfile.owner_application_status || (role === 'owner' ? 'approved' : 'none'),
         created_at: resProfile.created_at || new Date().toISOString(),
@@ -508,9 +509,11 @@ export async function getSupabaseUserByEmail(
     return {
       id: data.id,
       name: data.full_name || data.name || 'Người dùng Trọ Xinh',
+      full_name: data.full_name || data.name || 'Người dùng Trọ Xinh',
       email: data.email,
       phone: data.phone,
-      role: data.app_role || data.role || 'renter',
+      role: (data.app_role || data.role || 'renter') as any,
+      app_role: (data.app_role || data.role || 'renter') as any,
       avatar_url: data.avatar_url,
       verified: data.verified,
       owner_application_status: data.owner_application_status,
@@ -539,9 +542,11 @@ export async function getSupabaseUserByPhone(
     return {
       id: data.id,
       name: data.full_name || data.name || 'Người dùng Trọ Xinh',
+      full_name: data.full_name || data.name || 'Người dùng Trọ Xinh',
       email: data.email,
       phone: data.phone,
-      role: data.app_role || data.role || 'renter',
+      role: (data.app_role || data.role || 'renter') as any,
+      app_role: (data.app_role || data.role || 'renter') as any,
       avatar_url: data.avatar_url,
       verified: data.verified,
       owner_application_status: data.owner_application_status,
