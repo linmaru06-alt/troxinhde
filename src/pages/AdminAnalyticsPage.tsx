@@ -18,6 +18,18 @@ import {
   Globe,
   Sparkles,
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  BarChart,
+  Bar,
+  Cell
+} from 'recharts';
 
 export const AdminAnalyticsPage: React.FC = () => {
   const { showToast } = useAppStore();
@@ -190,34 +202,28 @@ export const AdminAnalyticsPage: React.FC = () => {
                 </div>
               </div>
               
-              {/* Fake Line Chart */}
-              <div className="h-48 relative w-full flex items-end">
-                <svg viewBox="0 0 100 40" preserveAspectRatio="none" className="w-full h-full text-blue-500 drop-shadow-md">
-                  <path 
-                    d="M0,35 Q10,25 20,30 T40,15 T60,20 T80,5 T100,10 L100,40 L0,40 Z" 
-                    fill="url(#blue-gradient)" 
-                    opacity="0.3" 
-                  />
-                  <path 
-                    d="M0,35 Q10,25 20,30 T40,15 T60,20 T80,5 T100,10" 
-                    fill="none" 
-                    stroke="currentColor" 
-                    strokeWidth="1.5" 
-                  />
-                  <defs>
-                    <linearGradient id="blue-gradient" x1="0" x2="0" y1="0" y2="1">
-                      <stop offset="0%" stopColor="currentColor" />
-                      <stop offset="100%" stopColor="transparent" />
-                    </linearGradient>
-                  </defs>
-                </svg>
-                {/* Lưới ngang */}
-                <div className="absolute inset-0 flex flex-col justify-between pointer-events-none opacity-10">
-                  <div className="w-full h-px bg-white"></div>
-                  <div className="w-full h-px bg-white"></div>
-                  <div className="w-full h-px bg-white"></div>
-                  <div className="w-full h-px bg-white"></div>
-                </div>
+              {/* Interactive Line Chart using Recharts */}
+              <div className="h-56 relative w-full mt-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={[
+                    { date: '25 thg 8', users: Math.round(metrics.totalUsers * 0.2), events: Math.round(metrics.totalBookings * 2) },
+                    { date: '31 thg 8', users: Math.round(metrics.totalUsers * 0.4), events: Math.round(metrics.totalBookings * 3) },
+                    { date: '6 thg 9', users: Math.round(metrics.totalUsers * 0.6), events: Math.round(metrics.totalBookings * 5) },
+                    { date: '12 thg 9', users: Math.round(metrics.totalUsers * 0.5), events: Math.round(metrics.totalBookings * 4) },
+                    { date: '18 thg 9', users: Math.round(metrics.totalUsers * 0.9), events: Math.round(metrics.totalBookings * 10) },
+                    { date: 'Hôm nay', users: metrics.totalUsers, events: metrics.totalBookings * 12 + metrics.totalUsers * 4 }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
+                    <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
+                    <YAxis stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
+                    <Tooltip 
+                      contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
+                      itemStyle={{ color: '#60a5fa' }}
+                    />
+                    <Line type="monotone" dataKey="users" name="Người dùng" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
+                    <Line type="monotone" dataKey="events" name="Sự kiện" stroke="#f97316" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
               </div>
             </div>
 
@@ -226,11 +232,29 @@ export const AdminAnalyticsPage: React.FC = () => {
               <div className="text-sm text-gray-400 font-medium mb-1">Số người dùng trong 30 phút qua</div>
               <div className="text-3xl font-bold mb-6">3</div>
               
-              {/* Fake Bar Chart */}
-              <div className="flex items-end gap-1 h-20 mb-6 border-b border-gray-700 pb-2">
-                {[2,4,1,5,8,3,6,9,4,7,2,5,3,8].map((val, i) => (
-                  <div key={i} className="flex-1 bg-blue-500 rounded-t-sm opacity-80" style={{ height: `${val * 10}%` }}></div>
-                ))}
+              {/* Interactive Bar Chart using Recharts */}
+              <div className="h-24 w-full mb-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={[
+                    { minute: '30p trước', users: 2 }, { minute: '28p', users: 4 }, { minute: '26p', users: 1 },
+                    { minute: '24p', users: 5 }, { minute: '22p', users: 8 }, { minute: '20p', users: 3 },
+                    { minute: '18p', users: 6 }, { minute: '16p', users: 9 }, { minute: '14p', users: 4 },
+                    { minute: '12p', users: 7 }, { minute: '10p', users: 2 }, { minute: '8p', users: 5 },
+                    { minute: '6p', users: 3 }, { minute: 'Vừa xong', users: 8 }
+                  ]}>
+                    <Tooltip 
+                      cursor={{ fill: '#374151' }}
+                      contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', fontSize: '12px' }}
+                    />
+                    <Bar dataKey="users" name="Người dùng" fill="#3b82f6" radius={[2, 2, 0, 0]}>
+                      {
+                        [2,4,1,5,8,3,6,9,4,7,2,5,3,8].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={index === 13 ? '#60a5fa' : '#3b82f6'} />
+                        ))
+                      }
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
               
               <div className="text-xs text-gray-400 font-medium mb-3 uppercase">Quốc gia hàng đầu</div>
