@@ -240,7 +240,6 @@ export const ChatPage: React.FC = () => {
     parsedContext?.status === 'Đã bán';
 
   const isItemHidden =
-    storeItem?.status === 'Bị ẩn' ||
     storeItem?.status === 'Bị từ chối' ||
     remoteItem?.status === 'hidden' ||
     remoteItem?.status === 'rejected' ||
