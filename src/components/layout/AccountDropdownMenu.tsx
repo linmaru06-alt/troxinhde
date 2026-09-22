@@ -6,7 +6,6 @@ import {
   Heart,
   Bookmark,
   Clock,
-  Star,
   MapPin,
   ShieldCheck,
   Store,

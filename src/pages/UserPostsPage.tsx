@@ -15,7 +15,7 @@ export const UserPostsPage: React.FC = () => {
 
   // Filter posts by current user
   const userRoommates = roommates.filter(post => post.userId === currentUser.id);
-  const userMarketplaceItems = marketplaceItems.filter(item => item.sellerId === currentUser.id);
+  const userMarketplaceItems = marketplaceItems.filter(item => item.userId === currentUser.id);
   const userRooms = rooms.filter(room => room.ownerId === currentUser.id);
 
   const getStatusBadge = (status?: string, verified?: boolean) => {
