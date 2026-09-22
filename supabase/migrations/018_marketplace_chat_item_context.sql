@@ -6,6 +6,9 @@
 ALTER TABLE public.conversations 
 ADD COLUMN IF NOT EXISTS last_item_id UUID REFERENCES public.marketplace_items(id) ON DELETE SET NULL;
 
+ALTER TABLE public.conversations 
+ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 ALTER TABLE public.messages 
 ADD COLUMN IF NOT EXISTS type TEXT DEFAULT 'text';
 
@@ -23,7 +26,7 @@ BEGIN
     SELECT 
       LEAST(participant_1, participant_2) AS p1,
       GREATEST(participant_1, participant_2) AS p2,
-      array_agg(id ORDER BY updated_at DESC, created_at DESC) AS conv_ids
+      array_agg(id ORDER BY created_at DESC) AS conv_ids
     FROM public.conversations
     GROUP BY LEAST(participant_1, participant_2), GREATEST(participant_1, participant_2)
     HAVING count(*) > 1

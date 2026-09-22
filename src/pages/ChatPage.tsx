@@ -442,10 +442,10 @@ export const ChatPage: React.FC = () => {
                     const isMe = isSameUserId(msg.sender_id, currentUser?.id);
                     const msgSenderName = isMe
                       ? (currentUser?.name || 'Bạn')
-                      : (msg.sender?.full_name || msg.sender?.name || (KNOWN_USER_NAMES[msg.sender_id]?.name) || otherName);
+                      : (msg.sender?.full_name || msg.sender?.name || (msg.sender_id ? KNOWN_USER_NAMES[msg.sender_id]?.name : undefined) || otherName);
                     const msgSenderAvatar = isMe
                       ? (currentUser?.avatarUrl || '/images/user-avatar.jpg')
-                      : (msg.sender?.avatar_url || (KNOWN_USER_NAMES[msg.sender_id]?.avatar) || otherAvatar);
+                      : (msg.sender?.avatar_url || (msg.sender_id ? KNOWN_USER_NAMES[msg.sender_id]?.avatar : undefined) || otherAvatar);
 
                     const timeStr = msg.created_at
                       ? new Date(msg.created_at).toLocaleTimeString([], {
