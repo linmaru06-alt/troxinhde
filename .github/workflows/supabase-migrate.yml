@@ -1,18 +1,21 @@
-name: Deploy Supabase Migrations
+name: Deploy Supabase Backend
 
 on:
   push:
     branches:
       - main
     paths:
-      - 'supabase/migrations/**'
-  # Cho phép bấm chạy bằng tay (Run workflow) từ giao diện GitHub Actions khi cần
+      - 'supabase/**'
   workflow_dispatch:
 
 jobs:
-  deploy-migrations:
-    name: Apply Database Migrations
+  deploy-backend:
+    name: Deploy Migrations & Edge Functions
     runs-on: ubuntu-latest
+
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
 
     steps:
       - name: Checkout repository
@@ -26,11 +29,18 @@ jobs:
       - name: Link Supabase Project
         run: |
           supabase link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
 
       - name: Push Database Migrations
         run: |
-          supabase db push --password ${{ secrets.SUPABASE_DB_PASSWORD }}
-        env:
-          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          supabase db push
+
+      - name: Deploy Edge Functions
+        run: |
+          supabase functions deploy payos-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy create-payment-link --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy create-momo-payment --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy momo-webhook --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy create-demo-token --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy send-email --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy send-push --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
+          supabase functions deploy get-recommendations --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}

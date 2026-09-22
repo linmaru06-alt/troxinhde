@@ -1,0 +1,44 @@
+# Supabase Project Configuration for TroXinh
+project_id = "nanhmbnpihlaojbwfebb"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public", "storage", "graphql_public"]
+
+# ==============================================================================
+# CẤU HÌNH SUPABASE EDGE FUNCTIONS
+# ==============================================================================
+
+# 1. payos-webhook: Webhook nhận callback chuyển khoản từ PayOS / Ngân hàng
+# Bắt buộc verify_jwt = false vì PayOS gọi server-to-server (không có JWT người dùng)
+[functions.payos-webhook]
+verify_jwt = false
+
+# 2. momo-webhook: Webhook nhận callback từ ví điện tử MoMo
+[functions.momo-webhook]
+verify_jwt = false
+
+# 3. create-payment-link: Tạo link thanh toán VietQR / PayOS
+[functions.create-payment-link]
+verify_jwt = false
+
+# 4. create-momo-payment: Tạo giao dịch thanh toán MoMo
+[functions.create-momo-payment]
+verify_jwt = false
+
+# 5. create-demo-token: Hỗ trợ tài khoản demo
+[functions.create-demo-token]
+verify_jwt = false
+
+# 6. send-email: Gửi email xác nhận đặt phòng / hợp đồng
+[functions.send-email]
+verify_jwt = false
+
+# 7. send-push: Gửi thông báo đẩy web push
+[functions.send-push]
+verify_jwt = false
+
+# 8. get-recommendations: Gợi ý phòng thông minh
+[functions.get-recommendations]
+verify_jwt = false
