@@ -84,10 +84,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       });
 
       // Đồng bộ vào Admin store
+      const adminTargetType: 'user' | 'marketplace' =
+        targetType === 'nguoi_dung' || targetType === 'user' || targetType === 'tin_nhan'
+          ? 'user'
+          : 'marketplace';
+
       addReport({
         targetId: targetId || 'target_item',
         targetTitle,
-        targetType: targetType === 'nguoi_dung' ? 'user' : 'marketplace',
+        targetType: adminTargetType,
         reporterName: currentUser?.name || 'Người dùng ẩn danh',
         reporterPhone: currentUser?.phone,
         reason: REPORT_REASON_LABELS[reasonCode],
@@ -114,8 +119,15 @@ export const ReportModal: React.FC<ReportModalProps> = ({
     }
   };
 
+  const modalTitle =
+    targetType === 'nguoi_dung' || targetType === 'user'
+      ? 'Báo Cáo Người Dùng'
+      : targetType === 'tin_nhan' || targetType === 'message'
+      ? 'Báo Cáo Tin Nhắn'
+      : 'Báo Cáo Vi Phạm';
+
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Báo Cáo Vi Phạm" maxWidth="md">
+    <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} maxWidth="md">
       {isSuccess ? (
         <div className="py-6 sm:py-8 text-center space-y-3">
           <div className="w-14 h-14 bg-emerald-100 text-[#006d37] rounded-full flex items-center justify-center mx-auto shadow-inner">

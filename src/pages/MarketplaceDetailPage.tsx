@@ -68,6 +68,8 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [showReport, setShowReport] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
   const [hasReported, setHasReported] = useState<boolean>(false);
+  const [showReportSeller, setShowReportSeller] = useState<boolean>(false);
+  const [hasReportedSeller, setHasReportedSeller] = useState<boolean>(false);
 
   const item = marketplaceItems.find((i) => i.id === id);
 
@@ -340,12 +342,14 @@ export const MarketplaceDetailPage: React.FC = () => {
     }
   };
 
-  // Kiểm tra người dùng đã báo cáo tin đăng này hay chưa
+  // Kiểm tra người dùng đã báo cáo tin đăng hoặc người bán này hay chưa
   useEffect(() => {
     if (currentUser && item) {
       setHasReported(hasUserReported(currentUser.id, 'tin_dang', item.id));
+      setHasReportedSeller(hasUserReported(currentUser.id, 'nguoi_dung', item.userId));
     } else {
       setHasReported(false);
+      setHasReportedSeller(false);
     }
   }, [currentUser, item]);
 
@@ -361,6 +365,19 @@ export const MarketplaceDetailPage: React.FC = () => {
       return;
     }
     setShowReport(true);
+  };
+
+  const handleReportSellerClick = () => {
+    if (!currentUser) {
+      const returnUrl = encodeURIComponent(location.pathname + location.search);
+      navigate(`/dang-nhap?returnUrl=${returnUrl}`);
+      return;
+    }
+    if (hasReportedSeller) {
+      showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho người bán này rồi.', 'info');
+      return;
+    }
+    setShowReportSeller(true);
   };
 
   return (
@@ -730,7 +747,25 @@ export const MarketplaceDetailPage: React.FC = () => {
                   className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-xs"
                 />
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900">{item.userName}</h4>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-gray-900">{item.userName}</h4>
+                    {!isOwner && (
+                      <button
+                        type="button"
+                        onClick={handleReportSellerClick}
+                        disabled={hasReportedSeller}
+                        className={`text-[11px] inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                          hasReportedSeller
+                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                            : 'text-gray-500 hover:text-rose-600 hover:bg-rose-50'
+                        }`}
+                        title={hasReportedSeller ? 'Bạn đã gửi báo cáo cho người bán này' : 'Báo cáo người bán'}
+                      >
+                        <Flag className="w-3 h-3" />
+                        <span>{hasReportedSeller ? 'Đã báo cáo' : 'Báo cáo người bán'}</span>
+                      </button>
+                    )}
+                  </div>
                   <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
                     ✓ Đã xác minh sinh viên
                   </p>
@@ -956,6 +991,17 @@ export const MarketplaceDetailPage: React.FC = () => {
         targetType="tin_dang"
         targetOwnerId={item.userId}
         onSuccess={() => setHasReported(true)}
+      />
+
+      {/* Report Seller Modal */}
+      <ReportModal
+        isOpen={showReportSeller}
+        onClose={() => setShowReportSeller(false)}
+        targetTitle={`Người bán: ${item.userName}`}
+        targetId={item.userId}
+        targetType="nguoi_dung"
+        targetOwnerId={item.userId}
+        onSuccess={() => setHasReportedSeller(true)}
       />
 
       {/* 6. Edit Marketplace Item Modal */}

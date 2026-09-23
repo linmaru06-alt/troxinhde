@@ -589,6 +589,109 @@ async function runAllReportTests() {
     assert.strictEqual(decodeURIComponent(returnUrl), '/cho-do-cu/item-quat-101?tab=detail');
   });
 
+  // Test 16: Báo cáo người bán / người dùng (nguoi_dung) và chặn tự báo cáo mình
+  await runTest('Báo cáo người bán / người dùng (nguoi_dung) và chặn tự báo cáo mình', async () => {
+    const buyerId = 'buyer_student_101';
+    const sellerId = 'seller_student_202';
+
+    // 1. Người mua báo cáo người bán thành công
+    const repSeller = await createReport({
+      reporter_id: buyerId,
+      target_type: 'nguoi_dung',
+      target_id: sellerId,
+      target_owner_id: sellerId,
+      reason: 'lua_dao',
+      description: 'Người bán không giao hàng đúng hẹn',
+    });
+    assert.ok(repSeller.id);
+    assert.strictEqual(repSeller.target_type, 'nguoi_dung');
+    assert.strictEqual(hasUserReported(buyerId, 'nguoi_dung', sellerId), true);
+
+    // 2. Chặn tự báo cáo chính mình
+    let threwSelf = false;
+    try {
+      await createReport({
+        reporter_id: sellerId,
+        target_type: 'nguoi_dung',
+        target_id: sellerId,
+        reason: 'spam',
+      });
+    } catch (err) {
+      threwSelf = true;
+      assert.strictEqual(err.message, REPORT_ERROR_MESSAGES.SELF_REPORT_USER);
+    }
+    assert.strictEqual(threwSelf, true, 'Người dùng không thể tự báo cáo chính mình');
+  });
+
+  // Test 17: Báo cáo tin nhắn (tin_nhan) của đối phương thành công
+  await runTest('Báo cáo tin nhắn (tin_nhan) của đối phương trong cuộc trò chuyện', async () => {
+    const reporterId = 'chat_buyer_user';
+    const otherId = 'chat_seller_user';
+    const messageId = 'msg_suspicious_content_001';
+
+    const repMsg = await createReport({
+      reporter_id: reporterId,
+      target_type: 'tin_nhan',
+      target_id: messageId,
+      target_owner_id: otherId,
+      reason: 'spam',
+      description: 'Gửi tin nhắn quảng cáo link độc hại',
+    });
+    assert.ok(repMsg.id);
+    assert.strictEqual(repMsg.target_type, 'tin_nhan');
+    assert.strictEqual(hasUserReported(reporterId, 'tin_nhan', messageId), true);
+  });
+
+  // Test 18: Không cho phép tự báo cáo tin nhắn của chính mình
+  await runTest('Không cho phép người dùng tự báo cáo tin nhắn của chính mình', async () => {
+    const myUserId = 'user_author_of_message';
+    const myMessageId = 'msg_sent_by_myself_002';
+
+    let threw = false;
+    try {
+      await createReport({
+        reporter_id: myUserId,
+        target_type: 'tin_nhan',
+        target_id: myMessageId,
+        target_owner_id: myUserId, // Người sở hữu tin nhắn chính là người gửi báo cáo
+        reason: 'khong_phu_hop',
+      });
+    } catch (err) {
+      threw = true;
+      assert.strictEqual(err.message, REPORT_ERROR_MESSAGES.SELF_REPORT_OWNER);
+    }
+    assert.strictEqual(threw, true, 'Hệ thống phải chặn không cho báo cáo tin nhắn của chính mình');
+  });
+
+  // Test 19: Chặn báo cáo trùng một tin nhắn
+  await runTest('Chặn báo cáo trùng lặp cho cùng một tin nhắn', async () => {
+    const reporterId = 'user_reporter_duplicate_check';
+    const msgId = 'msg_duplicate_target_003';
+
+    await createReport({
+      reporter_id: reporterId,
+      target_type: 'tin_nhan',
+      target_id: msgId,
+      target_owner_id: 'other_sender_id',
+      reason: 'spam',
+    });
+
+    let threw = false;
+    try {
+      await createReport({
+        reporter_id: reporterId,
+        target_type: 'tin_nhan',
+        target_id: msgId,
+        target_owner_id: 'other_sender_id',
+        reason: 'lua_dao',
+      });
+    } catch (err) {
+      threw = true;
+      assert.strictEqual(err.message, REPORT_ERROR_MESSAGES.DUPLICATE_REPORT);
+    }
+    assert.strictEqual(threw, true, 'Không được phép gửi 2 lần báo cáo cho cùng một tin nhắn');
+  });
+
   // ==============================================================
   // TỔNG KẾT
   // ==============================================================

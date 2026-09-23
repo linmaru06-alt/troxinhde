@@ -32,8 +32,11 @@ import {
   ShoppingBag,
   Sparkles,
   Tag,
+  Flag,
+  MoreVertical,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
+import { hasUserReported } from '../lib/api/reports';
 
 const ITEM_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7.5 4.27 9 5.15'/%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E";
@@ -321,6 +324,98 @@ export const ChatPage: React.FC = () => {
     knownOther?.avatar ||
     '/images/user-avatar.jpg';
   const otherPhone = otherParticipant?.phone;
+
+  // Header menu "..." và Báo cáo tin nhắn
+  const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState<boolean>(false);
+  const [reportingMessage, setReportingMessage] = useState<any | null>(null);
+  const [hasReportedUser, setHasReportedUser] = useState<boolean>(false);
+  const headerMenuRef = useRef<HTMLDivElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // Kiểm tra người dùng hiện tại đã báo cáo đối phương hay chưa
+  useEffect(() => {
+    if (currentUser?.id && otherId) {
+      setHasReportedUser(hasUserReported(currentUser.id, 'nguoi_dung', otherId));
+    } else {
+      setHasReportedUser(false);
+    }
+  }, [currentUser?.id, otherId, showReportModal]);
+
+  // Đóng dropdown khi click ra ngoài
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (headerMenuRef.current && !headerMenuRef.current.contains(e.target as Node)) {
+        setIsHeaderMenuOpen(false);
+      }
+    };
+    if (isHeaderMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isHeaderMenuOpen]);
+
+  // Bộ nhận diện cử chỉ Nhấn giữ (Long press) trên Mobile
+  const handleTouchStart = (e: React.TouchEvent, msg: any) => {
+    if (isSameUserId(msg.sender_id, currentUser?.id)) return;
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+    longPressTimerRef.current = setTimeout(() => {
+      if (navigator.vibrate) {
+        try {
+          navigator.vibrate(40);
+        } catch {}
+      }
+      handleTriggerReportMessage(msg);
+    }, 550);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartPosRef.current || !longPressTimerRef.current) return;
+    const touch = e.touches[0];
+    const dx = Math.abs(touch.clientX - touchStartPosRef.current.x);
+    const dy = Math.abs(touch.clientY - touchStartPosRef.current.y);
+    if (dx > 10 || dy > 10) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+    touchStartPosRef.current = null;
+  };
+
+  const handleTriggerReportMessage = (msg: any) => {
+    // 1. Chặn tuyệt đối nếu là tin nhắn của chính mình
+    if (isSameUserId(msg.sender_id, currentUser?.id)) {
+      showToast('Không thể báo cáo', 'Bạn không thể báo cáo tin nhắn của chính mình.', 'info');
+      return;
+    }
+
+    if (!currentUser) {
+      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để gửi báo cáo', 'warning');
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
+      return;
+    }
+
+    // 2. Kiểm tra đã báo cáo tin nhắn này chưa
+    if (hasUserReported(currentUser.id, 'tin_nhan', msg.id)) {
+      showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho tin nhắn này rồi.', 'info');
+      return;
+    }
+
+    setReportingMessage(msg);
+  };
 
   // 3. Xác định món đồ gắn kèm trong cuộc hội thoại (Chợ đồ cũ)
   const [remoteItem, setRemoteItem] = useState<any>(null);
@@ -775,43 +870,83 @@ export const ChatPage: React.FC = () => {
                     </Link>
                   )}
 
-                  {isBlocked ? (
+                  {/* Menu "..." tùy chọn hội thoại (Báo cáo người này, Chặn/Bỏ chặn) */}
+                  <div className="relative" ref={headerMenuRef}>
                     <button
                       type="button"
-                      onClick={() => otherId && unblockUser(otherId)}
-                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-emerald-50 text-[#006d37] hover:bg-emerald-100 text-xs font-bold transition cursor-pointer"
-                      title="Bỏ chặn người này"
+                      onClick={() => setIsHeaderMenuOpen((prev) => !prev)}
+                      className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-100 rounded-xl transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
+                      title="Tùy chọn cuộc trò chuyện"
+                      aria-label="Tùy chọn cuộc trò chuyện"
                     >
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                      <span>Bỏ chặn</span>
+                      <MoreVertical className="w-4 h-4" />
                     </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!currentUser) {
-                          showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để thực hiện chặn liên hệ', 'warning');
-                          return;
-                        }
-                        if (otherId && window.confirm(`Bạn có chắc muốn chặn liên hệ với ${otherName}? Sau khi chặn, hai bạn sẽ không thể gửi tin nhắn cho nhau.`)) {
-                          blockUser(otherId, otherName);
-                        }
-                      }}
-                      className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
-                      title="Chặn liên hệ người này"
-                    >
-                      <ShieldOff className="w-4 h-4" />
-                    </button>
-                  )}
 
-                  <button
-                    type="button"
-                    onClick={() => setShowReportModal(true)}
-                    className="p-2 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition tap-bounce min-h-[40px] min-w-[40px] flex items-center justify-center cursor-pointer"
-                    title="Báo cáo người dùng này"
-                  >
-                    <AlertTriangle className="w-4 h-4" />
-                  </button>
+                    {isHeaderMenuOpen && (
+                      <div className="absolute right-0 top-full mt-1.5 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-fadeIn text-xs">
+                        {/* 1. Báo cáo người này */}
+                        <button
+                          type="button"
+                          disabled={hasReportedUser}
+                          onClick={() => {
+                            setIsHeaderMenuOpen(false);
+                            if (!currentUser) {
+                              showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để gửi báo cáo', 'warning');
+                              navigate(`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
+                              return;
+                            }
+                            if (hasReportedUser) {
+                              showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho người dùng này rồi.', 'info');
+                              return;
+                            }
+                            setShowReportModal(true);
+                          }}
+                          className={`w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 transition cursor-pointer ${
+                            hasReportedUser
+                              ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
+                              : 'text-rose-600 hover:bg-rose-50 font-medium'
+                          }`}
+                        >
+                          <Flag className="w-4 h-4 shrink-0" />
+                          <span>{hasReportedUser ? 'Đã báo cáo người này' : 'Báo cáo người này'}</span>
+                        </button>
+
+                        {/* 2. Chặn / Bỏ chặn */}
+                        <div className="my-1 border-t border-gray-100" />
+                        {isBlocked ? (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsHeaderMenuOpen(false);
+                              otherId && unblockUser(otherId);
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 text-[#006d37] hover:bg-emerald-50 transition cursor-pointer font-medium"
+                          >
+                            <ShieldCheck className="w-4 h-4 shrink-0" />
+                            <span>Bỏ chặn người này</span>
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsHeaderMenuOpen(false);
+                              if (!currentUser) {
+                                showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để thực hiện chặn liên hệ', 'warning');
+                                return;
+                              }
+                              if (otherId && window.confirm(`Bạn có chắc muốn chặn liên hệ với ${otherName}? Sau khi chặn, hai bạn sẽ không thể gửi tin nhắn cho nhau.`)) {
+                                blockUser(otherId, otherName);
+                              }
+                            }}
+                            className="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 text-amber-700 hover:bg-amber-50 transition cursor-pointer font-medium"
+                          >
+                            <ShieldOff className="w-4 h-4 shrink-0" />
+                            <span>Chặn người này</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -998,8 +1133,8 @@ export const ChatPage: React.FC = () => {
                             </div>
                           </div>
                         ) : (
-                          /* Phần người nhận / đối phương gửi: Nằm bên TRÁI, có avatar + tên cụ thể + bong bóng trắng + thời gian */
-                          <div className="flex items-start gap-2 max-w-[85%] sm:max-w-[70%]">
+                          /* Phần người nhận / đối phương gửi: Nằm bên TRÁI, có avatar + tên cụ thể + bong bóng trắng + thời gian + báo cáo */
+                          <div className="flex items-start gap-2 max-w-[85%] sm:max-w-[70%] group relative">
                             <img
                               src={msgSenderAvatar}
                               alt={msgSenderName}
@@ -1009,13 +1144,33 @@ export const ChatPage: React.FC = () => {
                               <span className="text-[11px] font-bold text-gray-800 ml-1 mb-1 truncate">
                                 {msgSenderName}
                               </span>
-                              <div className="bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-2xs w-fit">
-                                <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
-                                  {msg.content}
-                                </p>
-                                <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
-                                  <span>{timeStr}</span>
+                              <div className="flex items-center gap-1.5 w-full">
+                                <div
+                                  onTouchStart={(e) => handleTouchStart(e, msg)}
+                                  onTouchMove={handleTouchMove}
+                                  onTouchEnd={handleTouchEnd}
+                                  onTouchCancel={handleTouchEnd}
+                                  className="bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-2xs w-fit select-none active:scale-[0.99] transition-transform"
+                                  title="Nhấn giữ trên điện thoại hoặc di chuột để báo cáo tin nhắn này"
+                                >
+                                  <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+                                    {msg.content}
+                                  </p>
+                                  <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
+                                    <span>{timeStr}</span>
+                                  </div>
                                 </div>
+
+                                {/* Nút icon Flag: Hiện khi Hover trên desktop và luôn hỗ trợ tap trên mobile */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleTriggerReportMessage(msg)}
+                                  className="opacity-0 group-hover:opacity-100 focus:opacity-100 p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition cursor-pointer shrink-0"
+                                  title="Báo cáo tin nhắn này"
+                                  aria-label="Báo cáo tin nhắn này"
+                                >
+                                  <Flag className="w-3.5 h-3.5" />
+                                </button>
                               </div>
                             </div>
                           </div>
@@ -1109,14 +1264,32 @@ export const ChatPage: React.FC = () => {
         </main>
       </div>
 
-      {/* Report Modal */}
+      {/* Report User Modal */}
       <ReportModal
         isOpen={showReportModal}
         onClose={() => setShowReportModal(false)}
         targetTitle={`Người dùng: ${otherName}`}
         targetId={otherId || ''}
-        targetType="user"
+        targetType="nguoi_dung"
+        targetOwnerId={otherId || ''}
+        onSuccess={() => setHasReportedUser(true)}
       />
+
+      {/* Report Message Modal */}
+      {reportingMessage && (
+        <ReportModal
+          isOpen={Boolean(reportingMessage)}
+          onClose={() => setReportingMessage(null)}
+          targetTitle={`Tin nhắn: "${reportingMessage.content.slice(0, 30)}${reportingMessage.content.length > 30 ? '...' : ''}"`}
+          targetId={reportingMessage.id}
+          targetType="tin_nhan"
+          targetOwnerId={reportingMessage.sender_id || otherId || ''}
+          onSuccess={() => {
+            setReportingMessage(null);
+            showToast('Đã gửi báo cáo tin nhắn', 'Cảm ơn bạn đã phản ánh tin nhắn vi phạm.', 'success');
+          }}
+        />
+      )}
     </div>
   );
 };
