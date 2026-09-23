@@ -270,6 +270,8 @@ export interface BookingRequest {
   createdAt: string;
 }
 
+export * from './report';
+
 export interface ReportItem {
   id: string;
   targetId: string;

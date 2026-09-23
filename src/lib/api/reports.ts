@@ -1,56 +1,299 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { isSameUserId, resolveDemoAlias } from '../demoAliases';
+import {
+  ReportTargetType,
+  ReportReasonCode,
+  ReportStatusCode,
+  REPORT_TARGET_LABELS,
+  REPORT_REASON_LABELS,
+  REPORT_STATUS_LABELS,
+  ReportRecord,
+} from '../../types/report';
 
-export interface CreateReportPayload {
-  reporter_id?: string;
-  target_type: string;
-  target_id: string;
-  reason: string;
-  description?: string;
-  reporter_name?: string;
-  reporter_phone?: string;
+export {
+  REPORT_TARGET_LABELS,
+  REPORT_REASON_LABELS,
+  REPORT_STATUS_LABELS,
+};
+export type {
+  ReportTargetType,
+  ReportReasonCode,
+  ReportStatusCode,
+  ReportRecord,
+};
+
+// Hằng số quy tắc nghiệp vụ
+export const MAX_REPORTS_PER_DAY = 10;
+export const MAX_REPORT_DESCRIPTION_LENGTH = 500;
+export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
+
+// Bảng thông báo lỗi chuẩn xác tiếng Việt
+export const REPORT_ERROR_MESSAGES = {
+  MISSING_REPORTER: 'Thiếu thông tin người gửi báo cáo',
+  MISSING_TARGET: 'Thiếu thông tin đối tượng báo cáo',
+  INVALID_TARGET_TYPE: 'Đối tượng báo cáo không hợp lệ (chỉ chấp nhận: tin_dang, nguoi_dung, tin_nhan)',
+  INVALID_REASON: 'Lý do báo cáo không hợp lệ (chỉ chấp nhận: lua_dao, hang_cam, sai_mo_ta, spam, khong_phu_hop, khac)',
+  SELF_REPORT_USER: 'Không thể tự báo cáo chính mình',
+  SELF_REPORT_OWNER: 'Không thể tự báo cáo tin đăng hoặc nội dung của chính mình',
+  DUPLICATE_REPORT: 'Bạn đã gửi báo cáo cho đối tượng này rồi',
+  DAILY_LIMIT_EXCEEDED: 'Bạn đã đạt giới hạn tối đa 10 báo cáo mỗi ngày',
+  OTHER_REASON_REQUIRES_DESCRIPTION: 'Lý do "Khác" bắt buộc phải có mô tả chi tiết',
+  DESCRIPTION_TOO_LONG: 'Mô tả báo cáo không được vượt quá 500 ký tự',
+  INVALID_STATUS: 'Trạng thái báo cáo không hợp lệ (chỉ chấp nhận: moi, dang_xu_ly, da_xu_ly, bac_bo)',
+};
+
+/**
+ * Bộ nhớ in-memory phục vụ môi trường kiểm thử và fallback offline
+ */
+const inMemoryReports: ReportRecord[] = [];
+
+export function clearReportsStorage(): void {
+  inMemoryReports.length = 0;
+  if (typeof localStorage !== 'undefined' && localStorage) {
+    try {
+      localStorage.removeItem('troxinh_reports_data');
+    } catch {}
+  }
 }
 
-export async function createReport(payload: CreateReportPayload) {
-  if (!isSupabaseConfigured) {
-    return {
-      id: `rep_${Date.now()}`,
-      ...payload,
-      status: 'pending',
-      created_at: new Date().toISOString(),
-    };
+function getStoredReports(): ReportRecord[] {
+  if (typeof localStorage !== 'undefined' && localStorage) {
+    try {
+      const raw = localStorage.getItem('troxinh_reports_data');
+      if (raw) return JSON.parse(raw);
+    } catch {}
+  }
+  return inMemoryReports;
+}
+
+function saveStoredReport(report: ReportRecord): void {
+  inMemoryReports.push(report);
+  if (typeof localStorage !== 'undefined' && localStorage) {
+    try {
+      localStorage.setItem('troxinh_reports_data', JSON.stringify(inMemoryReports));
+    } catch {}
+  }
+}
+
+/**
+ * Chuẩn hóa đối tượng báo cáo (hỗ trợ cả alias cũ nếu có)
+ */
+export function normalizeTargetType(type: string): ReportTargetType {
+  const clean = (type || '').trim().toLowerCase();
+  if (clean === 'tin_dang' || clean === 'room' || clean === 'roommate' || clean === 'marketplace' || clean === 'listing' || clean === 'post') {
+    return 'tin_dang';
+  }
+  if (clean === 'nguoi_dung' || clean === 'user' || clean === 'profile') {
+    return 'nguoi_dung';
+  }
+  if (clean === 'tin_nhan' || clean === 'message') {
+    return 'tin_nhan';
+  }
+  throw new Error(REPORT_ERROR_MESSAGES.INVALID_TARGET_TYPE);
+}
+
+/**
+ * Kiểm tra mã lý do hợp lệ
+ */
+export function isValidReasonCode(reason: string): reason is ReportReasonCode {
+  return ['lua_dao', 'hang_cam', 'sai_mo_ta', 'spam', 'khong_phu_hop', 'khac'].includes(reason);
+}
+
+/**
+ * Kiểm tra mã trạng thái hợp lệ
+ */
+export function isValidStatusCode(status: string): status is ReportStatusCode {
+  return ['moi', 'dang_xu_ly', 'da_xu_ly', 'bac_bo'].includes(status);
+}
+
+export interface CreateReportInput {
+  reporter_id?: string;
+  reporterId?: string;
+  target_type: string;
+  targetType?: string;
+  target_id: string;
+  targetId?: string;
+  target_owner_id?: string;
+  targetOwnerId?: string;
+  reason: string;
+  description?: string;
+  detail?: string;
+  reporter_name?: string;
+  reporter_phone?: string;
+  now?: number; // Dành cho time-travel trong testing
+}
+
+/**
+ * Kiểm tra toàn bộ quy tắc nghiệp vụ cho báo cáo:
+ * 1. Mỗi người báo cáo một đối tượng một lần
+ * 2. Không tự báo cáo mình / tin của mình
+ * 3. Tối đa 10 báo cáo mỗi ngày
+ * 4. Lý do "khac" bắt buộc mô tả
+ * 5. Mô tả tối đa 500 ký tự
+ */
+export function validateReport(
+  input: CreateReportInput,
+  existingReports: ReportRecord[] = getStoredReports(),
+): {
+  reporterId: string;
+  targetType: ReportTargetType;
+  targetId: string;
+  targetOwnerId?: string;
+  reason: ReportReasonCode;
+  description?: string;
+} {
+  const reporterId = (input.reporter_id || input.reporterId || '').trim();
+  if (!reporterId) {
+    throw new Error(REPORT_ERROR_MESSAGES.MISSING_REPORTER);
   }
 
-  // Đảm bảo reporter_id phải là UUID hợp lệ nếu có, nếu không thì null
-  const validReporterId =
-    payload.reporter_id &&
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(payload.reporter_id)
-      ? payload.reporter_id
-      : null;
-
-  let finalDescription = payload.description || '';
-  if (payload.reporter_phone) {
-    finalDescription = finalDescription
-      ? `${finalDescription} (SĐT người báo: ${payload.reporter_phone})`
-      : `SĐT người báo: ${payload.reporter_phone}`;
+  const rawTargetId = (input.target_id || input.targetId || '').trim();
+  if (!rawTargetId) {
+    throw new Error(REPORT_ERROR_MESSAGES.MISSING_TARGET);
   }
 
-  const { data, error } = await supabase
-    .from('reports')
-    .insert({
-      reporter_id: validReporterId,
-      target_type: payload.target_type,
-      target_id: payload.target_id,
-      reason: payload.reason,
-      description: finalDescription || null,
-      status: 'pending',
-    })
-    .select()
-    .single();
+  const targetType = normalizeTargetType(input.target_type || input.targetType || '');
+  const targetOwnerId = (input.target_owner_id || input.targetOwnerId || '').trim() || undefined;
 
-  if (error) {
-    console.error('[Reports API] Lỗi createReport:', error);
-    throw error;
+  // 1. Quy tắc: Không tự báo cáo mình / tin của mình
+  if (targetType === 'nguoi_dung') {
+    if (isSameUserId(reporterId, rawTargetId)) {
+      throw new Error(REPORT_ERROR_MESSAGES.SELF_REPORT_USER);
+    }
   }
 
-  return data;
+  if (targetOwnerId && isSameUserId(reporterId, targetOwnerId)) {
+    throw new Error(REPORT_ERROR_MESSAGES.SELF_REPORT_OWNER);
+  }
+
+  // 2. Quy tắc: Kiểm tra mã lý do
+  const rawReason = (input.reason || '').trim().toLowerCase();
+  if (!isValidReasonCode(rawReason)) {
+    throw new Error(REPORT_ERROR_MESSAGES.INVALID_REASON);
+  }
+  const reason: ReportReasonCode = rawReason;
+
+  const description = (input.description || input.detail || '').trim();
+
+  // 3. Quy tắc: Lý do "khac" bắt buộc mô tả
+  if (reason === 'khac' && !description) {
+    throw new Error(REPORT_ERROR_MESSAGES.OTHER_REASON_REQUIRES_DESCRIPTION);
+  }
+
+  // 4. Quy tắc: Mô tả tối đa 500 ký tự
+  if (description.length > MAX_REPORT_DESCRIPTION_LENGTH) {
+    throw new Error(REPORT_ERROR_MESSAGES.DESCRIPTION_TOO_LONG);
+  }
+
+  // 5. Quy tắc: Mỗi người báo cáo một đối tượng một lần
+  const alreadyReported = existingReports.some(
+    (r) =>
+      isSameUserId(r.reporter_id, reporterId) &&
+      r.target_type === targetType &&
+      r.target_id === rawTargetId,
+  );
+  if (alreadyReported) {
+    throw new Error(REPORT_ERROR_MESSAGES.DUPLICATE_REPORT);
+  }
+
+  // 6. Quy tắc: Tối đa 10 báo cáo mỗi ngày
+  const currentTime = input.now || Date.now();
+  const oneDayAgo = currentTime - ONE_DAY_MS;
+  const recentReportsCount = existingReports.filter(
+    (r) =>
+      isSameUserId(r.reporter_id, reporterId) &&
+      new Date(r.created_at).getTime() > oneDayAgo,
+  ).length;
+
+  if (recentReportsCount >= MAX_REPORTS_PER_DAY) {
+    throw new Error(REPORT_ERROR_MESSAGES.DAILY_LIMIT_EXCEEDED);
+  }
+
+  return {
+    reporterId,
+    targetType,
+    targetId: rawTargetId,
+    targetOwnerId,
+    reason,
+    description: description || undefined,
+  };
+}
+
+/**
+ * Tạo mới bản ghi báo cáo tuân thủ toàn bộ quy tắc nghiệp vụ
+ * Trạng thái khởi tạo luôn là 'moi'
+ */
+export async function createReport(payload: CreateReportInput): Promise<ReportRecord> {
+  const existingList = getStoredReports();
+  const validated = validateReport(payload, existingList);
+
+  const currentTime = payload.now ? new Date(payload.now).toISOString() : new Date().toISOString();
+  const reportRecord: ReportRecord = {
+    id: `rep_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`,
+    reporter_id: validated.reporterId,
+    target_type: validated.targetType,
+    target_id: validated.targetId,
+    target_owner_id: validated.targetOwnerId,
+    reason: validated.reason,
+    description: validated.description,
+    status: 'moi',
+    reporter_name: payload.reporter_name,
+    reporter_phone: payload.reporter_phone,
+    created_at: currentTime,
+    updated_at: currentTime,
+  };
+
+  // 1. Lưu vào bộ nhớ cục bộ
+  saveStoredReport(reportRecord);
+
+  // 2. Đồng bộ lên Supabase nếu có cấu hình
+  if (isSupabaseConfigured) {
+    try {
+      const validReporterId =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(validated.reporterId)
+          ? validated.reporterId
+          : resolveDemoAlias(validated.reporterId) || null;
+
+      await supabase.from('reports').insert({
+        reporter_id: validReporterId,
+        target_type: validated.targetType,
+        target_id: validated.targetId,
+        reason: validated.reason,
+        description: validated.description || null,
+        status: 'moi',
+        created_at: currentTime,
+      });
+    } catch (err) {
+      console.warn('[ReportsAPI] Không thể đồng bộ báo cáo lên Supabase:', err);
+    }
+  }
+
+  return reportRecord;
+}
+
+/**
+ * Cập nhật trạng thái báo cáo (chỉ chấp nhận: moi, dang_xu_ly, da_xu_ly, bac_bo)
+ */
+export function updateReportStatus(
+  reportId: string,
+  newStatus: ReportStatusCode,
+  adminNotes?: string,
+): ReportRecord {
+  if (!isValidStatusCode(newStatus)) {
+    throw new Error(REPORT_ERROR_MESSAGES.INVALID_STATUS);
+  }
+
+  const list = getStoredReports();
+  const report = list.find((r) => r.id === reportId);
+  if (!report) {
+    throw new Error('Không tìm thấy báo cáo cần cập nhật');
+  }
+
+  report.status = newStatus;
+  if (adminNotes !== undefined) {
+    report.admin_notes = adminNotes;
+  }
+  report.updated_at = new Date().toISOString();
+
+  return report;
 }
