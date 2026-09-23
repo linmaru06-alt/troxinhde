@@ -19,6 +19,7 @@ import {
   completePhoneRegistration,
 } from '../lib/authService';
 import { getSupabaseUserByPhone } from '../lib/supabaseAuthSync';
+import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -239,8 +240,13 @@ export const OtpVerificationPage: React.FC = () => {
             setIsLoading(false);
 
             if (returnUrl) {
-              navigate(decodeURIComponent(returnUrl), { replace: true });
-            } else if (res.user.role === 'owner') {
+              const decoded = decodeURIComponent(returnUrl);
+              if (isValidReturnUrl(decoded, res.user.role)) {
+                navigate(decoded, { replace: true });
+                return;
+              }
+            }
+            if (res.user.role === 'owner') {
               navigate('/chu-tro', { replace: true });
             } else {
               navigate('/tim-phong', { replace: true });
@@ -276,8 +282,14 @@ export const OtpVerificationPage: React.FC = () => {
           setIsLoading(false);
 
           if (returnUrl) {
-            navigate(decodeURIComponent(returnUrl), { replace: true });
-          } else if (existingUser?.role === 'owner' || role === 'owner') {
+            const decoded = decodeURIComponent(returnUrl);
+            const userRole = (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any;
+            if (isValidReturnUrl(decoded, userRole)) {
+              navigate(decoded, { replace: true });
+              return;
+            }
+          }
+          if (existingUser?.role === 'owner' || role === 'owner') {
             navigate('/chu-tro', { replace: true });
           } else {
             navigate('/tim-phong', { replace: true });
