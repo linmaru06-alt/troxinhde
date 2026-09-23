@@ -128,7 +128,7 @@ export const AdminUsersPage: React.FC = () => {
   // Mở khóa tài khoản
   const handleUnbanUser = async (user: User) => {
     try {
-      await unbanUserApi(user.id, currentUser);
+      await unbanUserApi(user.id, 'Quản trị viên mở khóa tài khoản', currentUser);
       showToast(`Đã mở khóa tài khoản ${user.name}!`, 'success');
       fetchUsersList();
     } catch (err: any) {

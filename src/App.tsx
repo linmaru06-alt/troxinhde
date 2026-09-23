@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
@@ -7,7 +7,7 @@ import { ToastContainer } from './components/ui/ToastContainer';
 import { PushPermissionToast } from './components/ui/PushPermissionToast';
 import { useAppStore } from './store/useAppStore';
 import { Button } from './components/ui/Button';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight, ShieldAlert, Home } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
 import { AuthModal } from './components/modals/AuthModal';
@@ -67,6 +67,7 @@ const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').the
 
 // Admin Pages
 const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
+const AdminReportsPage = React.lazy(() => import('./pages/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage })));
 const AdminModerationPage = React.lazy(() => import('./pages/AdminModerationPage').then((m) => ({ default: m.AdminModerationPage })));
 const AdminOwnerApplicationsPage = React.lazy(() => import('./pages/AdminOwnerApplicationsPage').then((m) => ({ default: m.AdminOwnerApplicationsPage })));
 const AdminUsersPage = React.lazy(() => import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
@@ -211,9 +212,52 @@ const OwnerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 // Route Guard for Admin Routes
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAppStore();
+  const location = useLocation();
 
-  if (!currentUser || currentUser.role !== 'admin') {
-    return <Navigate to="/dang-nhap?returnUrl=/admin" replace />;
+  if (!currentUser) {
+    const returnUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/dang-nhap?returnUrl=${returnUrl}`} replace />;
+  }
+
+  const isAdmin =
+    currentUser.app_role === 'admin' ||
+    currentUser.appRole === 'admin' ||
+    currentUser.role === 'admin' ||
+    (currentUser as any).admin_role === 'superadmin' ||
+    (currentUser as any).admin_role === 'super_admin';
+
+  if (!isAdmin) {
+    return (
+      <div className="flex-1 min-h-[calc(100vh-4rem)] flex items-center justify-center p-6 bg-gray-50">
+        <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm max-w-md w-full text-center space-y-5">
+          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-gray-900">Không có quyền truy cập</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Tài khoản của bạn ({currentUser.email || currentUser.name}) không có quyền quản trị viên để truy cập khu vực này.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/" className="w-full">
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                <Home className="w-4 h-4 mr-1.5" />
+                Về Trang chủ
+              </Button>
+            </Link>
+            <Link
+              to={`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname + location.search)}`}
+              className="w-full"
+            >
+              <Button variant="primary" size="sm" className="w-full text-xs">
+                Đổi tài khoản khác
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -514,6 +558,22 @@ export const App: React.FC = () => {
               element={
                 <AdminRoute>
                   <AdminDashboardPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/bao-cao"
+              element={
+                <AdminRoute>
+                  <AdminReportsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <AdminRoute>
+                  <AdminReportsPage />
                 </AdminRoute>
               }
             />

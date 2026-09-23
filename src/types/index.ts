@@ -8,6 +8,8 @@ export interface User {
   phone?: string;
   name: string;
   role: "user" | "owner" | "admin";
+  app_role?: "user" | "owner" | "admin" | "renter";
+  appRole?: string;
   avatarUrl: string;
   email?: string;
   school?: string;

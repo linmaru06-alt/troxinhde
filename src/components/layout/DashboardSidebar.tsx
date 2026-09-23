@@ -18,6 +18,7 @@ import {
   Activity,
   CreditCard,
   Crown,
+  ShieldAlert,
 } from 'lucide-react';
 
 interface NavLinkItem {
@@ -48,6 +49,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
 
   const adminLinks: NavLinkItem[] = [
     { to: '/admin', label: 'Tổng quan điều hành', icon: LayoutDashboard },
+    { to: '/admin/bao-cao', label: 'Báo cáo vi phạm', icon: ShieldAlert },
     { to: '/admin/kiem-duyet', label: 'Kiểm duyệt nội dung', icon: ShieldCheck },
     { to: '/admin/don-chu-tro', label: 'Đơn xin chủ trọ', icon: Building2, badge: pendingOwnerApps },
     { to: '/admin/nguoi-dung', label: 'Quản lý người dùng', icon: Users },

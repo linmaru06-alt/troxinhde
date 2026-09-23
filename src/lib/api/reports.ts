@@ -8,6 +8,7 @@ import {
   REPORT_REASON_LABELS,
   REPORT_STATUS_LABELS,
   ReportRecord,
+  GroupedReportItem,
 } from '../../types/report';
 
 export {
@@ -20,6 +21,7 @@ export type {
   ReportReasonCode,
   ReportStatusCode,
   ReportRecord,
+  GroupedReportItem,
 };
 
 // Hằng số quy tắc nghiệp vụ
@@ -472,12 +474,129 @@ export async function createReport(payload: CreateReportInput): Promise<ReportRe
 }
 
 /**
+ * Lấy toàn bộ báo cáo lưu trữ (dùng cho test và fallback offline)
+ */
+export function getAllStoredReports(): ReportRecord[] {
+  return [...getStoredReports()];
+}
+
+/**
+ * Gom các báo cáo cùng một đối tượng và tính số lượng báo cáo, số người báo cáo riêng biệt
+ */
+export function groupReportsByTarget(
+  reports: ReportRecord[],
+  extraMetadataMap?: Map<string, { target_owner?: any; target_content?: any }>,
+): GroupedReportItem[] {
+  const groupsMap = new Map<string, GroupedReportItem>();
+
+  for (const report of reports) {
+    const key = `${report.target_type}:${report.target_id}`;
+    let item = groupsMap.get(key);
+
+    if (!item) {
+      const extra = extraMetadataMap?.get(key);
+      item = {
+        target_type: report.target_type,
+        target_id: report.target_id,
+        target_owner_id: report.target_owner_id,
+        target_owner: extra?.target_owner,
+        target_content:
+          extra?.target_content ||
+          (report.content_snapshot ? { content_snapshot: report.content_snapshot } : undefined),
+        reports: [],
+        total_reports: 0,
+        distinct_reporters: 0,
+        status: report.status,
+        reasons: [],
+        latest_created_at: report.created_at,
+        earliest_created_at: report.created_at,
+        resolved_by: report.resolved_by,
+        resolved_by_name: report.resolved_by_name,
+        resolved_at: report.resolved_at,
+        admin_notes: report.admin_notes,
+        auto_moderated: report.auto_moderated,
+      };
+      groupsMap.set(key, item);
+    }
+
+    item.reports.push(report);
+    if (!item.reasons.includes(report.reason)) {
+      item.reasons.push(report.reason);
+    }
+
+    if (report.auto_moderated) {
+      item.auto_moderated = true;
+    }
+
+    // Cập nhật thông tin xử lý mới nhất nếu có
+    if (report.resolved_at && (!item.resolved_at || new Date(report.resolved_at).getTime() > new Date(item.resolved_at).getTime())) {
+      item.resolved_at = report.resolved_at;
+      item.resolved_by = report.resolved_by;
+      item.resolved_by_name = report.resolved_by_name;
+      item.admin_notes = report.admin_notes || item.admin_notes;
+    }
+
+    // Cập nhật mốc thời gian báo cáo
+    if (new Date(report.created_at).getTime() > new Date(item.latest_created_at).getTime()) {
+      item.latest_created_at = report.created_at;
+    }
+    if (new Date(report.created_at).getTime() < new Date(item.earliest_created_at).getTime()) {
+      item.earliest_created_at = report.created_at;
+    }
+  }
+
+  // Tính số lượng và trạng thái tổng thể của từng nhóm
+  const result: GroupedReportItem[] = [];
+  for (const item of groupsMap.values()) {
+    item.total_reports = item.reports.length;
+    const uniqueReporters = new Set<string>();
+    for (const r of item.reports) {
+      if (r.reporter_id) uniqueReporters.add(r.reporter_id.trim());
+    }
+    item.distinct_reporters = uniqueReporters.size;
+    if (item.distinct_reporters >= AUTO_MODERATION_REPORT_THRESHOLD && item.target_type === 'tin_dang') {
+      item.auto_moderated = true;
+    }
+
+    // Trạng thái tổng hợp:
+    // Nếu có ít nhất 1 báo cáo 'moi' -> 'moi'
+    // Ngược lại nếu có 'dang_xu_ly' -> 'dang_xu_ly'
+    // Ngược lại nếu tất cả là 'bac_bo' -> 'bac_bo'
+    // Còn lại -> 'da_xu_ly'
+    const hasMoi = item.reports.some((r) => r.status === 'moi');
+    const hasDangXuLy = item.reports.some((r) => r.status === 'dang_xu_ly');
+    const allBacBo = item.reports.length > 0 && item.reports.every((r) => r.status === 'bac_bo');
+
+    if (hasMoi) {
+      item.status = 'moi';
+    } else if (hasDangXuLy) {
+      item.status = 'dang_xu_ly';
+    } else if (allBacBo) {
+      item.status = 'bac_bo';
+    } else {
+      item.status = 'da_xu_ly';
+    }
+
+    result.push(item);
+  }
+
+  // Mặc định sắp xếp: mới nhất xếp đầu tiên
+  result.sort((a, b) => new Date(b.latest_created_at).getTime() - new Date(a.latest_created_at).getTime());
+
+  return result;
+}
+
+/**
  * Cập nhật trạng thái báo cáo (chỉ chấp nhận: moi, dang_xu_ly, da_xu_ly, bac_bo)
+ * Hỗ trợ lưu admin_notes, resolved_by, resolved_at
  */
 export function updateReportStatus(
   reportId: string,
   newStatus: ReportStatusCode,
   adminNotes?: string,
+  resolvedBy?: string,
+  resolvedByName?: string,
+  resolvedAt?: string,
 ): ReportRecord {
   if (!isValidStatusCode(newStatus)) {
     throw new Error(REPORT_ERROR_MESSAGES.INVALID_STATUS);
@@ -493,6 +612,13 @@ export function updateReportStatus(
   if (adminNotes !== undefined) {
     report.admin_notes = adminNotes;
   }
+  if (resolvedBy !== undefined) {
+    report.resolved_by = resolvedBy;
+  }
+  if (resolvedByName !== undefined) {
+    report.resolved_by_name = resolvedByName;
+  }
+  report.resolved_at = resolvedAt || (newStatus === 'da_xu_ly' || newStatus === 'bac_bo' ? new Date().toISOString() : undefined);
   report.updated_at = new Date().toISOString();
 
   return report;
