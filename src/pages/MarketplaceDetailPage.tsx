@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -30,9 +30,11 @@ import {
   Save,
   Check,
   RefreshCw,
+  Flag,
 } from 'lucide-react';
 import { findOrCreateConversation, isSameUserId } from '../lib/api/messages';
 import { updateMarketplaceItem as updateMarketplaceItemApi } from '../lib/api/marketplace';
+import { hasUserReported } from '../lib/api/reports';
 import {
   CONDITION_LABELS,
   MarketplaceConditionCode,
@@ -49,6 +51,7 @@ const CATEGORY_ICONS: Record<string, string> = {
 export const MarketplaceDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const {
     marketplaceItems,
@@ -64,6 +67,7 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
   const [showReport, setShowReport] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+  const [hasReported, setHasReported] = useState<boolean>(false);
 
   const item = marketplaceItems.find((i) => i.id === id);
 
@@ -336,6 +340,29 @@ export const MarketplaceDetailPage: React.FC = () => {
     }
   };
 
+  // Kiểm tra người dùng đã báo cáo tin đăng này hay chưa
+  useEffect(() => {
+    if (currentUser && item) {
+      setHasReported(hasUserReported(currentUser.id, 'tin_dang', item.id));
+    } else {
+      setHasReported(false);
+    }
+  }, [currentUser, item]);
+
+  const handleReportClick = () => {
+    if (!currentUser) {
+      // Chưa đăng nhập thì chuyển sang đăng nhập kèm returnUrl quay lại đúng trang này
+      const returnUrl = encodeURIComponent(location.pathname + location.search);
+      navigate(`/dang-nhap?returnUrl=${returnUrl}`);
+      return;
+    }
+    if (hasReported) {
+      showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho tin đăng này rồi.', 'info');
+      return;
+    }
+    setShowReport(true);
+  };
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       {/* 1. Breadcrumb Navigation */}
@@ -370,6 +397,23 @@ export const MarketplaceDetailPage: React.FC = () => {
             <Share2 className="w-3.5 h-3.5" />
             <span>Chia sẻ</span>
           </button>
+
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={handleReportClick}
+              disabled={hasReported}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition cursor-pointer ${
+                hasReported
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 hover:bg-rose-50 text-gray-700 hover:text-rose-600'
+              }`}
+              title={hasReported ? 'Bạn đã gửi báo cáo cho món đồ này' : 'Báo cáo tin đăng'}
+            >
+              <Flag className={`w-3.5 h-3.5 ${hasReported ? 'text-gray-400' : 'text-gray-500'}`} />
+              <span>{hasReported ? 'Đã báo cáo' : 'Báo cáo'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -787,15 +831,24 @@ export const MarketplaceDetailPage: React.FC = () => {
             </div>
 
             {/* Report link */}
-            <div className="text-center pt-1">
-              <button
-                onClick={() => setShowReport(true)}
-                className="text-xs text-gray-400 hover:text-rose-600 transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
-              >
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Báo cáo tin đăng vi phạm quy tắc chợ
-              </button>
-            </div>
+            {!isOwner && (
+              <div className="text-center pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={handleReportClick}
+                  disabled={hasReported}
+                  className={`text-xs transition inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full ${
+                    hasReported
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'text-gray-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
+                  }`}
+                  title={hasReported ? 'Bạn đã gửi báo cáo cho tin đăng này' : 'Báo cáo tin đăng'}
+                >
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>{hasReported ? 'Đã báo cáo' : 'Báo cáo'}</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -900,7 +953,9 @@ export const MarketplaceDetailPage: React.FC = () => {
         onClose={() => setShowReport(false)}
         targetTitle={`Món đồ: ${item.name}`}
         targetId={item.id}
-        targetType="marketplace"
+        targetType="tin_dang"
+        targetOwnerId={item.userId}
+        onSuccess={() => setHasReported(true)}
       />
 
       {/* 6. Edit Marketplace Item Modal */}

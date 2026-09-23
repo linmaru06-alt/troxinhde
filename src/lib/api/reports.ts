@@ -76,6 +76,29 @@ function saveStoredReport(report: ReportRecord): void {
 }
 
 /**
+ * Kiểm tra xem người dùng đã báo cáo đối tượng này hay chưa
+ */
+export function hasUserReported(
+  reporterId: string | undefined,
+  targetType: string,
+  targetId: string | undefined,
+): boolean {
+  if (!reporterId || !targetId) return false;
+  try {
+    const list = getStoredReports();
+    const normType = normalizeTargetType(targetType);
+    return list.some(
+      (r) =>
+        isSameUserId(r.reporter_id, reporterId) &&
+        r.target_type === normType &&
+        r.target_id === targetId,
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Chuẩn hóa đối tượng báo cáo (hỗ trợ cả alias cũ nếu có)
  */
 export function normalizeTargetType(type: string): ReportTargetType {

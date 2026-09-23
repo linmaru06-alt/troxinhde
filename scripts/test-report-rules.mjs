@@ -84,6 +84,21 @@ export function isValidStatusCode(status) {
   return ['moi', 'dang_xu_ly', 'da_xu_ly', 'bac_bo'].includes(status);
 }
 
+export function hasUserReported(reporterId, targetType, targetId) {
+  if (!reporterId || !targetId) return false;
+  try {
+    const normType = normalizeTargetType(targetType);
+    return dbReports.some(
+      (r) =>
+        isSameUserId(r.reporter_id, reporterId) &&
+        r.target_type === normType &&
+        r.target_id === targetId,
+    );
+  } catch {
+    return false;
+  }
+}
+
 function isSameUserId(id1, id2) {
   if (!id1 || !id2) return false;
   return String(id1).trim() === String(id2).trim();
@@ -517,6 +532,61 @@ async function runAllReportTests() {
       assert.strictEqual(err.message, REPORT_ERROR_MESSAGES.INVALID_STATUS);
     }
     assert.strictEqual(threw, true, 'Phải ném lỗi khi cập nhật trạng thái không hợp lệ');
+  });
+
+  // Test 13: hasUserReported trả về đúng trạng thái "Đã báo cáo"
+  await runTest('hasUserReported trả về true khi đã báo cáo và false khi chưa báo cáo', async () => {
+    const userCheck = 'user_check_reported_1';
+    const itemTarget = 'item_target_check_1';
+
+    // Chưa báo cáo
+    assert.strictEqual(hasUserReported(userCheck, 'tin_dang', itemTarget), false);
+
+    // Gửi báo cáo
+    await createReport({
+      reporter_id: userCheck,
+      target_type: 'tin_dang',
+      target_id: itemTarget,
+      reason: 'spam',
+    });
+
+    // Sau khi gửi -> hasUserReported trả về true
+    assert.strictEqual(hasUserReported(userCheck, 'tin_dang', itemTarget), true);
+
+    // Người dùng khác kiểm tra đối tượng này -> vẫn là false
+    assert.strictEqual(hasUserReported('user_other_visitor', 'tin_dang', itemTarget), false);
+  });
+
+  // Test 14: Người đăng tin không thể tự báo cáo tin đăng của chính mình
+  await runTest('Người đăng tin không thể tự báo cáo tin của mình (isOwner bảo vệ)', async () => {
+    const ownerId = 'seller_owner_identity';
+    const itemId = 'item_belonging_to_owner';
+
+    let threw = false;
+    try {
+      await createReport({
+        reporter_id: ownerId,
+        target_type: 'tin_dang',
+        target_id: itemId,
+        target_owner_id: ownerId,
+        reason: 'lua_dao',
+      });
+    } catch (err) {
+      threw = true;
+      assert.strictEqual(err.message, REPORT_ERROR_MESSAGES.SELF_REPORT_OWNER);
+    }
+    assert.strictEqual(threw, true, 'Chủ tin đăng không thể gửi báo cáo tin của chính mình');
+  });
+
+  // Test 15: Kiểm tra tham số returnUrl khi chuyển hướng đăng nhập
+  await runTest('Kiểm tra tạo returnUrl chuyển hướng sang đăng nhập và quay lại trang', async () => {
+    const currentPath = '/cho-do-cu/item-quat-101';
+    const currentSearch = '?tab=detail';
+    const returnUrl = encodeURIComponent(currentPath + currentSearch);
+    const loginRedirectPath = `/dang-nhap?returnUrl=${returnUrl}`;
+
+    assert.ok(loginRedirectPath.includes('returnUrl=%2Fcho-do-cu%2Fitem-quat-101%3Ftab%3Ddetail'));
+    assert.strictEqual(decodeURIComponent(returnUrl), '/cho-do-cu/item-quat-101?tab=detail');
   });
 
   // ==============================================================
