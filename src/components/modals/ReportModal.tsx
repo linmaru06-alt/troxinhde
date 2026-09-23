@@ -8,7 +8,7 @@ import {
   REPORT_REASON_LABELS,
   MAX_REPORT_DESCRIPTION_LENGTH,
 } from '../../lib/api/reports';
-import { CheckCircle2, ShieldAlert, AlertCircle, Flag } from 'lucide-react';
+import { CheckCircle2, ShieldAlert, AlertCircle, Flag, EyeOff, ShieldOff, Check } from 'lucide-react';
 
 export interface ReportModalProps {
   isOpen: boolean;
@@ -40,12 +40,22 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   contentSnapshot,
   onSuccess,
 }) => {
-  const { currentUser, addReport, showToast } = useAppStore();
+  const {
+    currentUser,
+    addReport,
+    showToast,
+    hiddenItemIds,
+    hideItem,
+    blockedUserIds,
+    blockUser,
+  } = useAppStore();
   const [reasonCode, setReasonCode] = useState<ReportReasonCode>('lua_dao');
   const [detail, setDetail] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
+  const [isHiding, setIsHiding] = useState<boolean>(false);
+  const [isBlocking, setIsBlocking] = useState<boolean>(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -53,6 +63,8 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       setDetail('');
       setErrorMessage('');
       setIsSuccess(false);
+      setIsHiding(false);
+      setIsBlocking(false);
     }
   }, [isOpen, targetId]);
 
@@ -113,11 +125,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       if (onSuccess) {
         onSuccess();
       }
-
-      setTimeout(() => {
-        setIsSuccess(false);
-        onClose();
-      }, 1800);
+      // Không tự đóng modal bằng setTimeout để người dùng xem và chọn Ẩn tin / Chặn người bán
     } catch (err: any) {
       setIsSubmitting(false);
       const msg = err?.message || 'Không thể gửi báo cáo vi phạm. Vui lòng thử lại sau!';
@@ -125,6 +133,31 @@ export const ReportModal: React.FC<ReportModalProps> = ({
       showToast('Gửi báo cáo thất bại', msg, 'error');
     }
   };
+
+  const handleHideThisItem = async () => {
+    if (!targetId || isHiding) return;
+    setIsHiding(true);
+    try {
+      await hideItem(targetId, targetTitle);
+    } finally {
+      setIsHiding(false);
+    }
+  };
+
+  const handleBlockThisSeller = async () => {
+    if (!targetOwnerId || isBlocking) return;
+    setIsBlocking(true);
+    try {
+      await blockUser(targetOwnerId, 'Người bán');
+    } finally {
+      setIsBlocking(false);
+    }
+  };
+
+  const isItemAlreadyHidden = Boolean(targetId && hiddenItemIds.includes(targetId));
+  const isSellerAlreadyBlocked = Boolean(targetOwnerId && blockedUserIds.includes(targetOwnerId));
+  const showSellerBlockOption = Boolean(targetOwnerId && targetOwnerId !== currentUser?.id);
+  const showHideItemOption = Boolean(targetId && targetType !== 'nguoi_dung' && targetType !== 'user');
 
   const modalTitle =
     targetType === 'nguoi_dung' || targetType === 'user'
@@ -136,16 +169,105 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   return (
     <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} maxWidth="md">
       {isSuccess ? (
-        <div className="py-6 sm:py-8 text-center space-y-3">
+        <div className="py-4 sm:py-6 text-center space-y-4 animate-fadeIn">
           <div className="w-14 h-14 bg-emerald-100 text-[#006d37] rounded-full flex items-center justify-center mx-auto shadow-inner">
             <CheckCircle2 className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <h4 className="text-base sm:text-lg font-bold text-gray-900">
-            Cảm ơn bạn đã gửi báo cáo!
-          </h4>
-          <p className="text-xs text-gray-600 max-w-sm mx-auto leading-relaxed px-2">
-            Phản ánh của bạn đã được ghi nhận. Ban Quản Trị Trọ Xinh sẽ kiểm tra và xử lý trong thời gian sớm nhất để bảo đảm an toàn cho cộng đồng.
-          </p>
+          <div className="space-y-1">
+            <h4 className="text-base sm:text-lg font-bold text-gray-900">
+              Cảm ơn bạn đã gửi báo cáo!
+            </h4>
+            <p className="text-xs text-gray-600 max-w-sm mx-auto leading-relaxed px-2">
+              Phản ánh của bạn đã được ghi nhận. Ban Quản Trị Trọ Xinh sẽ kiểm tra và xử lý trong thời gian sớm nhất.
+            </p>
+          </div>
+
+          {/* 2 Tùy chọn bảo vệ trải nghiệm: Ẩn tin & Chặn người bán */}
+          {(showHideItemOption || showSellerBlockOption) && (
+            <div className="bg-gray-50 border border-gray-200 rounded-2xl p-3.5 text-left space-y-3">
+              <p className="text-[11px] font-bold text-gray-700 uppercase tracking-wider">
+                Tùy chọn bảo vệ trải nghiệm của bạn:
+              </p>
+
+              {/* Tùy chọn 1: Ẩn tin này khỏi danh sách */}
+              {showHideItemOption && (
+                <div className="flex items-center justify-between gap-3 p-2.5 bg-white rounded-xl border border-gray-100 shadow-2xs">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center shrink-0 mt-0.5">
+                      <EyeOff className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="text-xs font-bold text-gray-900">Ẩn tin này khỏi danh sách của tôi</h5>
+                      <p className="text-[11px] text-gray-500 line-clamp-1">
+                        Tin đăng sẽ không còn hiển thị trong danh sách chợ đồ cũ của bạn.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isItemAlreadyHidden ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" /> Đã ẩn
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleHideThisItem}
+                        isLoading={isHiding}
+                        leftIcon={<EyeOff className="w-3.5 h-3.5" />}
+                      >
+                        Ẩn tin
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Tùy chọn 2: Chặn người bán */}
+              {showSellerBlockOption && (
+                <div className="flex items-center justify-between gap-3 p-2.5 bg-white rounded-xl border border-gray-100 shadow-2xs">
+                  <div className="flex items-start gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-rose-50 text-rose-700 flex items-center justify-center shrink-0 mt-0.5">
+                      <ShieldOff className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="text-xs font-bold text-gray-900">Chặn người bán này</h5>
+                      <p className="text-[11px] text-gray-500 line-clamp-1">
+                        Không thấy tin của người này và họ không thể nhắn tin cho bạn.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isSellerAlreadyBlocked ? (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed">
+                        <Check className="w-3.5 h-3.5 text-emerald-600" /> Đã chặn
+                      </span>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleBlockThisSeller}
+                        isLoading={isBlocking}
+                        leftIcon={<ShieldOff className="w-3.5 h-3.5 text-rose-600" />}
+                      >
+                        Chặn người bán
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="pt-2">
+            <Button type="button" variant="primary" size="md" fullWidth onClick={onClose}>
+              Hoàn Tất & Đóng
+            </Button>
+          </div>
         </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-4">

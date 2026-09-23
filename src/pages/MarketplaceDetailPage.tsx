@@ -403,7 +403,7 @@ export const MarketplaceDetailPage: React.FC = () => {
               leftIcon={<Edit className="w-3.5 h-3.5 text-[#006d37]" />}
               className="text-xs border-[#006d37]/40 text-[#006d37] hover:bg-emerald-50"
             >
-              {isRejected ? 'Sửa & Gửi Lại Duyệt' : 'Sửa Tin Này'}
+              {isRejected || isPending ? 'Sửa & Gửi Lại Duyệt' : 'Sửa Tin Này'}
             </Button>
           )}
 
@@ -492,23 +492,30 @@ export const MarketplaceDetailPage: React.FC = () => {
               </div>
               <div className="space-y-0.5">
                 <h3 className="text-base font-black text-amber-950">
-                  Tin đăng đang chờ Admin kiểm duyệt
+                  {item.rejectionReason?.toLowerCase().includes('xem xét lại') || item.rejectionReason?.toLowerCase().includes('phản ánh')
+                    ? 'Tin đăng đang được xem xét lại ⚠️'
+                    : 'Tin đăng đang chờ Admin kiểm duyệt ⏳'}
                 </h3>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  Tin này hiện chưa hiển thị công khai trên Chợ đồ cũ. Khi được Admin duyệt, tin sẽ tự động xuất hiện.
+                  {item.rejectionReason || 'Tin này hiện chưa hiển thị công khai trên Chợ đồ cũ. Khi được Admin duyệt, tin sẽ tự động xuất hiện.'}
                 </p>
+                {isOwner && (
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    💡 Bạn có thể kiểm tra lại thông tin món đồ, cập nhật hình ảnh/mô tả và bấm "Sửa & Gửi lại duyệt".
+                  </p>
+                )}
               </div>
             </div>
 
             {isOwner && (
               <Button
-                variant="outline"
+                variant="primary"
                 size="sm"
                 onClick={() => setIsEditModalOpen(true)}
                 leftIcon={<Edit className="w-3.5 h-3.5" />}
-                className="border-amber-400 text-amber-900 hover:bg-amber-100 text-xs shrink-0 font-bold"
+                className="bg-amber-600 hover:bg-amber-700 text-white border-none text-xs shrink-0 font-bold shadow-xs cursor-pointer"
               >
-                Sửa nội dung
+                Sửa & Gửi Lại Duyệt
               </Button>
             )}
           </div>
@@ -777,13 +784,17 @@ export const MarketplaceDetailPage: React.FC = () => {
                   // Người xem là người đăng: Thay bằng nút "Sửa tin" và "Đánh dấu đã bán"
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
-                      variant="outline"
+                      variant={isPending || isRejected ? "primary" : "outline"}
                       size="sm"
                       onClick={() => setIsEditModalOpen(true)}
                       leftIcon={<Edit className="w-3.5 h-3.5" />}
-                      className="border-[#006d37] text-[#006d37] hover:bg-emerald-50 text-xs font-bold"
+                      className={
+                        isPending || isRejected
+                          ? "bg-amber-600 hover:bg-amber-700 text-white border-none text-xs font-bold shadow-xs cursor-pointer"
+                          : "border-[#006d37] text-[#006d37] hover:bg-emerald-50 text-xs font-bold"
+                      }
                     >
-                      Sửa tin
+                      {isPending || isRejected ? 'Sửa & Gửi lại duyệt' : 'Sửa tin'}
                     </Button>
                     {isSold ? (
                       <Button

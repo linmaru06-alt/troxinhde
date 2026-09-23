@@ -239,6 +239,7 @@ export interface NotificationItem {
     | "system"
     | "rejected"
     | "rejection"
+    | "moderation"
     | "upgrade"
     | "action_required"
     | "owner_approved"

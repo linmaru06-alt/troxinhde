@@ -100,7 +100,15 @@ const CATEGORY_SHOWCASE = [
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { marketplaceItems, currentUser, addMarketplaceItem, resubmitMarketplaceItem, showToast } = useAppStore();
+  const {
+    marketplaceItems,
+    currentUser,
+    addMarketplaceItem,
+    resubmitMarketplaceItem,
+    showToast,
+    hiddenItemIds,
+    blockedUserIds,
+  } = useAppStore();
 
   const [viewMode, setViewMode] = useState<'public' | 'my_items'>('public');
 
@@ -437,6 +445,8 @@ export const MarketplaceListPage: React.FC = () => {
       sortBy: urlState.sortBy,
       viewMode,
       currentUserId: currentUser?.id,
+      hiddenItemIds,
+      blockedUserIds,
     });
   }, [
     marketplaceItems,
@@ -454,6 +464,8 @@ export const MarketplaceListPage: React.FC = () => {
     urlState.sortBy,
     viewMode,
     currentUser,
+    hiddenItemIds,
+    blockedUserIds,
   ]);
 
   // Phân trang: 12 sản phẩm/trang

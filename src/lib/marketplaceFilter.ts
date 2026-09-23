@@ -156,6 +156,8 @@ export interface MarketplaceFilterCriteria {
   sortBy?: MarketplaceSortOption;
   viewMode?: 'public' | 'my_items';
   currentUserId?: string;
+  hiddenItemIds?: string[]; // Danh sách ID các tin đã ẩn
+  blockedUserIds?: string[]; // Danh sách ID người dùng/người bán đã chặn
 }
 
 /**
@@ -496,6 +498,8 @@ export function filterMarketplaceItems(
     sortBy = 'newest',
     viewMode = 'public',
     currentUserId,
+    hiddenItemIds = [],
+    blockedUserIds = [],
   } = criteria;
 
   const priceValidation = validatePriceRange(minPrice, maxPrice);
@@ -519,6 +523,16 @@ export function filterMarketplaceItems(
         const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
         const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
         if (isPending || isRejected) return false;
+
+        // Loại bỏ tin bị ẩn khỏi danh sách của người dùng
+        if (hiddenItemIds.length > 0 && hiddenItemIds.includes(item.id)) {
+          return false;
+        }
+
+        // Loại bỏ tin của người bán bị chặn
+        if (blockedUserIds.length > 0 && item.userId && blockedUserIds.includes(item.userId)) {
+          return false;
+        }
       } else if (viewMode === 'my_items') {
         if (!currentUserId || item.userId !== currentUserId) return false;
       }

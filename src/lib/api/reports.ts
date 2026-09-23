@@ -27,6 +27,19 @@ export const MAX_REPORTS_PER_DAY = 10;
 export const MAX_REPORT_DESCRIPTION_LENGTH = 500;
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * HẰNG SỐ CẤU HÌNH NGƯỠNG TỰ ĐỘNG KIỂM DUYỆT (AUTO-MODERATION THRESHOLD)
+ * 
+ * QUAN TRỌNG VỀ KIẾN TRÚC & NGUỒN QUYẾT ĐỊNH (SINGLE SOURCE OF TRUTH):
+ * 1. Trigger PostgreSQL (public.handle_auto_moderation_on_reports trong migration 023)
+ *    là NGUỒN QUYẾT ĐỊNH THỰC SỰ (Single Source of Truth) tại tầng cơ sở dữ liệu production.
+ * 2. Hằng số AUTO_MODERATION_REPORT_THRESHOLD phía client chỉ phục vụ hiển thị giao diện,
+ *    phản hồi tức thì (optimistic UI) và chạy bộ kiểm thử offline.
+ * 3. BẮT BUỘC PHẢI ĐỔI ĐỒNG THỜI hằng số này cùng với biến c_auto_moderation_threshold
+ *    trong file migration 023_auto_moderation_reported_items.sql khi thay đổi ngưỡng nghiệp vụ.
+ */
+export const AUTO_MODERATION_REPORT_THRESHOLD = 3;
+
 // Bảng thông báo lỗi chuẩn xác tiếng Việt
 export const REPORT_ERROR_MESSAGES = {
   MISSING_REPORTER: 'Thiếu thông tin người gửi báo cáo',
@@ -272,6 +285,77 @@ export function validateReport(
   };
 }
 
+export interface AutoModerationEvaluation {
+  shouldTrigger: boolean;
+  distinctCount: number;
+  threshold: number;
+  targetId: string;
+  reporterIds: string[];
+}
+
+/**
+ * Đánh giá xem tin đăng có đạt ngưỡng báo cáo để tự động chuyển về chờ duyệt lại hay không
+ * Ngưỡng mặc định là 3 người báo cáo khác nhau (AUTO_MODERATION_REPORT_THRESHOLD)
+ * Chỉ tính các báo cáo có trạng thái 'moi' hoặc 'dang_xu_ly'
+ */
+export function evaluateAutoModeration(
+  targetId: string,
+  reports: ReportRecord[] = getStoredReports(),
+  threshold: number = AUTO_MODERATION_REPORT_THRESHOLD,
+): AutoModerationEvaluation {
+  const validReports = reports.filter(
+    (r) =>
+      r.target_id === targetId &&
+      r.target_type === 'tin_dang' &&
+      (r.status === 'moi' || r.status === 'dang_xu_ly') &&
+      Boolean(r.reporter_id && r.reporter_id.trim()),
+  );
+
+  const uniqueReporters = new Set<string>();
+  for (const r of validReports) {
+    uniqueReporters.add(r.reporter_id.trim());
+  }
+
+  return {
+    shouldTrigger: uniqueReporters.size >= threshold,
+    distinctCount: uniqueReporters.size,
+    threshold,
+    targetId,
+    reporterIds: Array.from(uniqueReporters),
+  };
+}
+
+export type AutoModerationListener = (data: {
+  targetId: string;
+  targetOwnerId?: string;
+  distinctCount: number;
+  threshold: number;
+}) => void;
+
+const autoModerationListeners = new Set<AutoModerationListener>();
+
+export function onAutoModerationTriggered(listener: AutoModerationListener): () => void {
+  autoModerationListeners.add(listener);
+  return () => {
+    autoModerationListeners.delete(listener);
+  };
+}
+
+export function notifyAutoModerationListeners(data: {
+  targetId: string;
+  targetOwnerId?: string;
+  distinctCount: number;
+  threshold: number;
+}): void {
+  for (const listener of autoModerationListeners) {
+    try {
+      listener(data);
+    } catch (err) {
+      console.warn('[ReportsAPI] Error in autoModerationListener:', err);
+    }
+  }
+}
+
 /**
  * Tạo mới bản ghi báo cáo tuân thủ toàn bộ quy tắc nghiệp vụ
  * Trạng thái khởi tạo luôn là 'moi'
@@ -300,7 +384,65 @@ export async function createReport(payload: CreateReportInput): Promise<ReportRe
   // 1. Lưu vào bộ nhớ cục bộ
   saveStoredReport(reportRecord);
 
-  // 2. Đồng bộ lên Supabase nếu có cấu hình
+  // 2. Kiểm tra tự động kiểm duyệt (Auto-moderation) khi đối tượng là tin đăng
+  if (validated.targetType === 'tin_dang') {
+    const autoMod = evaluateAutoModeration(
+      validated.targetId,
+      getStoredReports(),
+      AUTO_MODERATION_REPORT_THRESHOLD,
+    );
+
+    // Kiểm tra xem tin đăng này đã từng bị tự động kiểm duyệt trước đó chưa (tránh gửi thông báo trùng khi có báo cáo thứ 4, 5...)
+    const wasAlreadyModerated = existingList.some(
+      (r) => r.target_id === validated.targetId && r.target_type === 'tin_dang' && r.auto_moderated
+    );
+
+    if (autoMod.shouldTrigger) {
+      reportRecord.auto_moderated = true;
+
+      // Chỉ gửi thông báo và phát sự kiện lần đầu tiên khi tin chuyển trạng thái
+      if (!wasAlreadyModerated) {
+        // Thông báo cho các listener (như Zustand store để ẩn tin ngay trên UI)
+        notifyAutoModerationListeners({
+          targetId: validated.targetId,
+          targetOwnerId: validated.targetOwnerId,
+          distinctCount: autoMod.distinctCount,
+          threshold: autoMod.threshold,
+        });
+
+        // Đồng bộ chuyển trạng thái tin đăng và tạo thông báo trên Supabase
+        if (isSupabaseConfigured) {
+          try {
+            await supabase
+              .from('marketplace_items')
+              .update({
+                status: 'pending',
+                moderation_status: 'pending',
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', validated.targetId);
+
+            if (validated.targetOwnerId) {
+              await supabase.from('notifications').insert({
+                user_id: validated.targetOwnerId,
+                type: 'moderation',
+                title: 'Tin đăng đang được xem xét lại',
+                body: 'Tin đăng của bạn đang được xem xét lại do nhận được nhiều phản ánh từ cộng đồng và đã tạm thời được ẩn khỏi chợ.',
+                cta_url: `/cho-do-cu/${validated.targetId}?edit=true`,
+                cta_label: 'Sửa tin & gửi duyệt lại',
+                is_read: false,
+                created_at: new Date().toISOString(),
+              });
+            }
+          } catch (autoErr) {
+            console.warn('[ReportsAPI] Lỗi thực thi auto-moderation lên Supabase:', autoErr);
+          }
+        }
+      }
+    }
+  }
+
+  // 3. Đồng bộ lên Supabase nếu có cấu hình
   if (isSupabaseConfigured) {
     try {
       const validReporterId =

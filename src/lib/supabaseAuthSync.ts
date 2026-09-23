@@ -52,11 +52,25 @@ export async function fetchUserProfileFromSupabase(
       return null;
     }
 
+    let privEmail = (data as any).email;
+    let privStudentCard = (data as any).student_card_url;
+    try {
+      const { data: privData } = await supabase
+        .from('profile_private')
+        .select('email, student_card_url')
+        .eq('profile_id', data.id)
+        .maybeSingle();
+      if (privData) {
+        if (privData.email !== undefined && privData.email !== null) privEmail = privData.email;
+        if (privData.student_card_url !== undefined && privData.student_card_url !== null) privStudentCard = privData.student_card_url;
+      }
+    } catch {}
+
     return {
       id: data.id || userId,
       name: data.full_name || data.name || '',
       full_name: data.full_name || data.name || '',
-      email: data.email || undefined,
+      email: privEmail || undefined,
       phone: data.phone || undefined,
       role: (data.app_role || data.role || 'renter') as any,
       app_role: (data.app_role || (data.role === 'user' ? 'renter' : data.role) || 'renter') as any,
@@ -67,13 +81,13 @@ export async function fetchUserProfileFromSupabase(
       year: data.year || '',
       bio: data.bio || '',
       address: data.address || '',
-      student_card_url: data.student_card_url || '',
+      student_card_url: privStudentCard || '',
       social_link: data.social_link || data.facebook_link || data.zalo_link || '',
       facebook_link: data.facebook_link || data.social_link || '',
       zalo_link: data.zalo_link || '',
       phone_verified: Boolean(data.phone_verified || data.phone),
-      email_verified: Boolean(data.email_verified || data.email),
-      student_verified: Boolean(data.student_verified || data.student_card_url),
+      email_verified: Boolean(data.email_verified || privEmail),
+      student_verified: Boolean(data.student_verified || privStudentCard),
       created_at: data.created_at,
       updated_at: data.updated_at,
     };
@@ -140,9 +154,6 @@ export async function updateUserProfile(
     if (data.avatar_url !== undefined) {
       updatePayload.avatar_url = data.avatar_url || '/images/user-avatar.jpg';
     }
-    if (data.student_card_url !== undefined) {
-      updatePayload.student_card_url = data.student_card_url || null;
-    }
     if (data.verified !== undefined) {
       updatePayload.verified = Boolean(data.verified);
     }
@@ -161,9 +172,10 @@ export async function updateUserProfile(
       updatePayload.app_role = resolvedRole;
     }
 
-    // Tuyệt đối KHÔNG đưa cột id, email vào trong object updatePayload này
+    // Tuyệt đối KHÔNG đưa cột id, email, student_card_url vào trong object updatePayload của profiles
     delete (updatePayload as any).id;
     delete (updatePayload as any).email;
+    delete (updatePayload as any).student_card_url;
 
     // Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
     Object.keys(updatePayload).forEach((key) => {
@@ -178,6 +190,8 @@ export async function updateUserProfile(
     const cleanUserId = userId.trim();
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanUserId);
 
+    let savedProfileRecord: any = null;
+
     // 2. Gắn ID chính xác: Gọi API update theo đúng khóa
     if (isUUID) {
       const { data: updatedData, error: updateError } = await supabase
@@ -188,24 +202,28 @@ export async function updateUserProfile(
         .maybeSingle();
 
       if (!updateError && updatedData) {
-        return { success: true, data: updatedData };
+        savedProfileRecord = updatedData;
       }
     }
 
     // 3. Nếu cleanUserId là Firebase UID hoặc chưa tìm thấy theo id, thử theo firebase_uid
-    const { data: fbData, error: fbError } = await supabase
-      .from('profiles')
-      .update(updatePayload)
-      .eq('firebase_uid', cleanUserId)
-      .select()
-      .maybeSingle();
+    let fbError: any = null;
+    if (!savedProfileRecord) {
+      const fbResult = await supabase
+        .from('profiles')
+        .update(updatePayload)
+        .eq('firebase_uid', cleanUserId)
+        .select()
+        .maybeSingle();
 
-    if (!fbError && fbData) {
-      return { success: true, data: fbData };
+      fbError = fbResult.error;
+      if (!fbError && fbResult.data) {
+        savedProfileRecord = fbResult.data;
+      }
     }
 
     // 4. Tra cứu UUID thực tế của bản ghi profiles nếu cleanUserId là Firebase UID
-    if (!isUUID) {
+    if (!savedProfileRecord && !isUUID) {
       const { data: matchedProfile } = await supabase
         .from('profiles')
         .select('id')
@@ -221,12 +239,35 @@ export async function updateUserProfile(
           .maybeSingle();
 
         if (!reError && reUpdated) {
-          return { success: true, data: reUpdated };
-        }
-        if (reError) {
-          return { success: false, error: reError.message };
+          savedProfileRecord = reUpdated;
         }
       }
+    }
+
+    // 5. Cập nhật profile_private nếu có truyền email hoặc student_card_url
+    const finalProfileId = savedProfileRecord?.id || (isUUID ? cleanUserId : null);
+    if (finalProfileId && (data.student_card_url !== undefined || data.email !== undefined)) {
+      try {
+        const privPayload: Record<string, any> = {
+          profile_id: finalProfileId,
+          updated_at: new Date().toISOString(),
+        };
+        if (data.student_card_url !== undefined) {
+          privPayload.student_card_url = data.student_card_url ? data.student_card_url.trim() : null;
+        }
+        if (data.email !== undefined) {
+          privPayload.email = data.email ? data.email.trim().toLowerCase() : null;
+        }
+        await supabase
+          .from('profile_private')
+          .upsert(privPayload, { onConflict: 'profile_id' });
+      } catch (privErr) {
+        console.warn('[Supabase Sync] Lỗi cập nhật profile_private:', privErr);
+      }
+    }
+
+    if (savedProfileRecord) {
+      return { success: true, data: savedProfileRecord };
     }
 
     if (fbError && !isUUID) {
@@ -471,11 +512,10 @@ export async function createSupabaseProfile(
   const avatarUrl = data.avatar_url || data.avatarUrl || '/images/user-avatar.jpg';
 
   try {
-    const profilePayload = {
+    const profilePayload: Record<string, any> = {
       firebase_uid: firebaseUid,
       full_name: data.full_name || data.name.trim(),
       name: data.name.trim(),
-      email: cleanEmail,
       phone: cleanPhone,
       app_role: data.app_role || role,
       role: role,
@@ -498,6 +538,16 @@ export async function createSupabaseProfile(
         success: false,
         error: `Lỗi khởi tạo dữ liệu trên Supabase: ${profErr.message}`,
       };
+    }
+
+    if (createdProfile?.id && cleanEmail) {
+      try {
+        await supabase
+          .from('profile_private')
+          .upsert({ profile_id: createdProfile.id, email: cleanEmail }, { onConflict: 'profile_id' });
+      } catch (privErr) {
+        console.warn('[createSupabaseProfile] Lưu profile_private warning:', privErr);
+      }
     }
 
     const resProfile = createdProfile || profilePayload;
@@ -741,11 +791,10 @@ export async function handleUnifiedAuth(params: {
     const role = isSuperAdmin ? 'admin' : (params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'renter');
     const avatar = params.avatarUrl || '/images/user-avatar.jpg';
 
-    const newProfileRecord = {
+    const newProfileRecord: Record<string, any> = {
       firebase_uid: params.firebaseUid || `usr_${Date.now()}`,
       full_name: defaultName,
       name: defaultName,
-      email: cleanEmail || null,
       phone: cleanPhone || null,
       app_role: role,
       role: role,
@@ -764,6 +813,16 @@ export async function handleUnifiedAuth(params: {
 
     if (insertErr) {
       console.warn('[Unified Auth] Profiles insert warning:', insertErr.message);
+    }
+
+    if (createdProfile?.id && cleanEmail) {
+      try {
+        await supabase
+          .from('profile_private')
+          .upsert({ profile_id: createdProfile.id, email: cleanEmail }, { onConflict: 'profile_id' });
+      } catch (privErr) {
+        console.warn('[Unified Auth] Lưu profile_private warning:', privErr);
+      }
     }
 
     const savedProfile = createdProfile || newProfileRecord;

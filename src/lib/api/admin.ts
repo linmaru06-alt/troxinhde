@@ -387,7 +387,7 @@ export async function getUsers(): Promise<User[]> {
 
   const { data, error } = await supabase
     .from('profiles')
-    .select('*')
+    .select('*, profile_private(email, student_card_url)')
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -395,22 +395,25 @@ export async function getUsers(): Promise<User[]> {
     return [];
   }
 
-  return (data || []).map((p: any) => ({
-    id: p.id,
-    firebaseUid: p.firebase_uid || p.id,
-    name: p.full_name || p.name || 'Người dùng Trọ Xinh',
-    phone: p.phone || '',
-    email: p.email || '',
-    role: (p.role || 'user') as any,
-    avatarUrl: p.avatar_url || '/images/user-avatar.jpg',
-    verified: Boolean(p.verified),
-    isBanned: Boolean(p.is_banned),
-    bannedReason: p.banned_reason || undefined,
-    landlordVerified: Boolean(p.landlord_verified || p.owner_application_status === 'approved'),
-    adminRole: p.admin_role || undefined,
-    ownerApplicationStatus: p.owner_application_status || 'none',
-    createdAt: p.created_at || new Date().toISOString(),
-  }));
+  return (data || []).map((p: any) => {
+    const priv = Array.isArray(p.profile_private) ? p.profile_private[0] : (p.profile_private || {});
+    return {
+      id: p.id,
+      firebaseUid: p.firebase_uid || p.id,
+      name: p.full_name || p.name || 'Người dùng Trọ Xinh',
+      phone: p.phone || '',
+      email: priv?.email || p.email || '',
+      role: (p.role || 'user') as any,
+      avatarUrl: p.avatar_url || '/images/user-avatar.jpg',
+      verified: Boolean(p.verified),
+      isBanned: Boolean(p.is_banned),
+      bannedReason: p.banned_reason || undefined,
+      landlordVerified: Boolean(p.landlord_verified || p.owner_application_status === 'approved'),
+      adminRole: p.admin_role || undefined,
+      ownerApplicationStatus: p.owner_application_status || 'none',
+      createdAt: p.created_at || new Date().toISOString(),
+    };
+  });
 }
 
 /**

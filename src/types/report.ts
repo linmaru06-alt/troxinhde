@@ -67,4 +67,5 @@ export interface ReportRecord {
   reporter_phone?: string;
   created_at: string;
   updated_at?: string;
+  auto_moderated?: boolean;
 }

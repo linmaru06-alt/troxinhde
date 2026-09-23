@@ -261,7 +261,7 @@ export async function fetchMarketplaceItemsFromSupabase(): Promise<MarketplaceIt
 
       return {
         id: m.id,
-        userId: m.seller_id || seller.id || 'user_1',
+        userId: m.seller_id || m.user_id || seller.id || 'user_1',
         userName: seller.full_name || m.user_name || 'Sinh viên Trọ Xinh',
         userPhone: seller.phone || m.user_phone || '0912889900',
         userAvatar: seller.avatar_url || '/images/user-avatar.jpg',

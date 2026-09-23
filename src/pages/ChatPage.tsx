@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
 import { hasUserReported, getReportedTargetIds } from '../lib/api/reports';
+import { canMessage } from '../lib/api/blocksAndHides';
 
 const ITEM_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7.5 4.27 9 5.15'/%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E";
@@ -309,6 +310,29 @@ export const ChatPage: React.FC = () => {
     : activeConversation?.participant_1;
 
   const isBlocked = Boolean(otherId && blockedUserIds.includes(otherId));
+  const [canMessageOther, setCanMessageOther] = useState<boolean>(true);
+
+  useEffect(() => {
+    if (!otherId || !currentUser?.id) {
+      setCanMessageOther(true);
+      return;
+    }
+    if (isBlocked) {
+      setCanMessageOther(false);
+      return;
+    }
+
+    let isMounted = true;
+    canMessage(otherId).then((allowed) => {
+      if (isMounted) {
+        setCanMessageOther(allowed);
+      }
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [otherId, currentUser?.id, isBlocked]);
 
   const knownOther = otherId ? KNOWN_USER_NAMES[otherId] : null;
 
@@ -641,6 +665,10 @@ export const ChatPage: React.FC = () => {
       showToast('Không thể gửi tin nhắn', 'Bạn đã chặn người dùng này.', 'warning');
       return;
     }
+    if (!canMessageOther) {
+      showToast('Thông báo', 'Không thể gửi tin nhắn trong cuộc trò chuyện này.', 'warning');
+      return;
+    }
     const content = inputText.trim();
     if (!content || !activeConversationId) return;
 
@@ -662,6 +690,10 @@ export const ChatPage: React.FC = () => {
   const handleQuickReply = async (text: string) => {
     if (isBlocked) {
       showToast('Không thể gửi tin nhắn', 'Bạn đã chặn người dùng này.', 'warning');
+      return;
+    }
+    if (!canMessageOther) {
+      showToast('Thông báo', 'Không thể gửi tin nhắn trong cuộc trò chuyện này.', 'warning');
       return;
     }
     if (!activeConversationId || isSendingQuickReply) return;
@@ -774,7 +806,14 @@ export const ChatPage: React.FC = () => {
                     />
                     <div className="flex-1 overflow-hidden space-y-0.5">
                       <div className="flex items-center justify-between">
-                        <h4 className="text-xs font-bold text-gray-900 truncate">{name}</h4>
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <h4 className="text-xs font-bold text-gray-900 truncate">{name}</h4>
+                          {otherId && blockedUserIds.includes(otherId) && (
+                            <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold shrink-0">
+                              Đã chặn
+                            </span>
+                          )}
+                        </div>
                         {c.last_message_at && (
                           <span className="text-[10px] text-gray-400">
                             {new Date(c.last_message_at).toLocaleTimeString([], {
@@ -1269,6 +1308,15 @@ export const ChatPage: React.FC = () => {
                   >
                     Bấm vào đây để bỏ chặn và tiếp tục trò chuyện
                   </button>
+                </div>
+              ) : !canMessageOther ? (
+                <div
+                  className="p-4 bg-gray-50 border-t border-gray-200 text-center space-y-1"
+                  style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 0px))' }}
+                >
+                  <p className="text-xs text-gray-500 font-medium">
+                    Không thể gửi tin nhắn trong cuộc trò chuyện này.
+                  </p>
                 </div>
               ) : (
                 <>

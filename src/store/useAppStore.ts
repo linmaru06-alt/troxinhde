@@ -42,6 +42,20 @@ import {
   syncMarketplaceItemToSupabase,
 } from '../lib/supabaseDataService';
 import { toggleSaveRoom as apiToggleSaveRoom, getSavedRooms } from '../lib/api/rooms';
+import {
+  blockUser as apiBlockUser,
+  unblockUser as apiUnblockUser,
+  fetchBlockedUsers as apiFetchBlockedUsers,
+  hideMarketplaceItem as apiHideMarketplaceItem,
+  unhideMarketplaceItem as apiUnhideMarketplaceItem,
+  fetchHiddenItemIds as apiFetchHiddenItemIds,
+  fetchHiddenItems as apiFetchHiddenItems,
+  BlockedUserRecord,
+  HiddenItemRecord,
+} from '../lib/api/blocksAndHides';
+import { onAutoModerationTriggered } from '../lib/api/reports';
+
+export type { BlockedUserRecord, HiddenItemRecord };
 
 export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
   {
@@ -171,11 +185,18 @@ interface AppState {
   toggleSaveItem: (id: string) => boolean;
   syncSavedRooms: (userId: string) => Promise<void>;
 
-  // User Blocking
+  // User Blocking & Hidden Items
   blockedUserIds: string[];
-  blockUser: (targetUserId: string, targetUserName?: string) => void;
-  unblockUser: (targetUserId: string) => void;
+  hiddenItemIds: string[];
+  blockedUsersDetailed: BlockedUserRecord[];
+  hiddenItemsDetailed: HiddenItemRecord[];
+  blockUser: (targetUserId: string, targetUserName?: string) => Promise<void>;
+  unblockUser: (targetUserId: string) => Promise<void>;
   isUserBlocked: (targetUserId: string) => boolean;
+  hideItem: (targetItemId: string, targetItemTitle?: string) => Promise<void>;
+  unhideItem: (targetItemId: string) => Promise<void>;
+  isItemHidden: (targetItemId: string) => boolean;
+  syncBlocksAndHides: (userId: string) => Promise<void>;
 
   // Room & Building management
   addBuilding: (building: Omit<Building, 'id'>) => string;
@@ -196,6 +217,7 @@ interface AppState {
   approveMarketplaceItem: (itemId: string) => void;
   rejectMarketplaceItem: (itemId: string, reason: string) => void;
   resubmitMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
+  autoModerateMarketplaceItem: (itemId: string, ownerId?: string) => void;
 
   // Bookings
   createBooking: (booking: Omit<BookingRequest, 'id' | 'createdAt' | 'status'>) => string;
@@ -236,6 +258,9 @@ export const useAppStore = create<AppState>()(
       savedRoommateIds: [],
       savedItemIds: [],
       blockedUserIds: [],
+      hiddenItemIds: [],
+      blockedUsersDetailed: [],
+      hiddenItemsDetailed: [],
       bookings: [],
       localCreatedRooms: [],
       localCreatedBuildings: [],
@@ -438,6 +463,7 @@ export const useAppStore = create<AppState>()(
             avatar_url: found.avatarUrl,
           });
           get().syncSavedRooms(found.id);
+          get().syncBlocksAndHides(found.id);
           get().showToast(`Đăng nhập thành công`, `Chào mừng trở lại, ${found.name}!`, 'success');
           return true;
         }
@@ -463,6 +489,7 @@ export const useAppStore = create<AppState>()(
           avatar_url: newUser.avatarUrl,
         });
         get().syncSavedRooms(newUser.id);
+        get().syncBlocksAndHides(newUser.id);
         get().showToast(`Đăng nhập thành công`, `Chào mừng bạn đến với Trọ Xinh!`, 'success');
         return true;
       },
@@ -487,6 +514,7 @@ export const useAppStore = create<AppState>()(
         };
         set({ currentUser: userObj });
         get().syncSavedRooms(userObj.id);
+        get().syncBlocksAndHides(userObj.id);
         get().showToast('Đăng nhập thành công! ✨', `Chào mừng ${userObj.name} quay lại.`, 'success');
       },
 
@@ -513,6 +541,7 @@ export const useAppStore = create<AppState>()(
           avatar_url: newUser.avatarUrl,
         });
         get().syncSavedRooms(newUser.id);
+        get().syncBlocksAndHides(newUser.id);
         get().showToast(
           'Đăng ký tài khoản thành công! 🎉',
           `Chào mừng ${name} gia nhập cộng đồng Trọ Xinh.`,
@@ -705,30 +734,130 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      blockUser: (targetUserId, targetUserName) => {
-        const { blockedUserIds, showToast } = get();
+      blockUser: async (targetUserId, targetUserName) => {
+        const { blockedUserIds, showToast, currentUser } = get();
         if (!targetUserId) return;
         if (blockedUserIds.includes(targetUserId)) {
           showToast('Người dùng này đã nằm trong danh sách chặn', '', 'info');
           return;
         }
+
+        // Cập nhật lạc quan (optimistic) trên state
         set({ blockedUserIds: [...blockedUserIds, targetUserId] });
         showToast(
           'Đã chặn liên hệ thành công',
           `Bạn và ${targetUserName || 'người dùng này'} sẽ không thể gửi tin nhắn cho nhau.`,
           'warning'
         );
+
+        // Lưu bền vững vào Supabase
+        try {
+          const res = await apiBlockUser(targetUserId);
+          if (!res.success && res.error) {
+            console.warn('[blockUser] Lưu Supabase:', res.error);
+          }
+          if (currentUser?.id) {
+            const list = await apiFetchBlockedUsers(currentUser.id);
+            set({ blockedUsersDetailed: list });
+          }
+        } catch (err) {
+          console.warn('[blockUser] Lỗi khi đồng bộ Supabase:', err);
+        }
       },
 
-      unblockUser: (targetUserId) => {
-        const { blockedUserIds, showToast } = get();
-        set({ blockedUserIds: blockedUserIds.filter((id) => id !== targetUserId) });
+      unblockUser: async (targetUserId) => {
+        const { blockedUserIds, blockedUsersDetailed, showToast } = get();
+        if (!targetUserId) return;
+
+        set({
+          blockedUserIds: blockedUserIds.filter((id) => id !== targetUserId),
+          blockedUsersDetailed: blockedUsersDetailed.filter((u) => u.blocked_id !== targetUserId),
+        });
         showToast('Đã bỏ chặn người dùng', 'Bạn có thể tiếp tục liên hệ bình thường.', 'success');
+
+        try {
+          await apiUnblockUser(targetUserId);
+        } catch (err) {
+          console.warn('[unblockUser] Lỗi khi đồng bộ Supabase:', err);
+        }
       },
 
       isUserBlocked: (targetUserId) => {
         if (!targetUserId) return false;
         return get().blockedUserIds.includes(targetUserId);
+      },
+
+      hideItem: async (targetItemId, targetItemTitle) => {
+        const { hiddenItemIds, showToast, currentUser } = get();
+        if (!targetItemId) return;
+        if (hiddenItemIds.includes(targetItemId)) {
+          showToast('Tin này đã được ẩn khỏi danh sách của bạn', '', 'info');
+          return;
+        }
+
+        // Cập nhật lạc quan (optimistic) trên state
+        set({ hiddenItemIds: [...hiddenItemIds, targetItemId] });
+        showToast(
+          'Đã ẩn tin đăng',
+          `"${targetItemTitle || 'Tin đăng'}" sẽ không còn xuất hiện trong danh sách của bạn.`,
+          'info'
+        );
+
+        try {
+          const res = await apiHideMarketplaceItem(targetItemId);
+          if (!res.success && res.error) {
+            console.warn('[hideItem] Lưu Supabase:', res.error);
+          }
+          if (currentUser?.id) {
+            const list = await apiFetchHiddenItems(currentUser.id);
+            set({ hiddenItemsDetailed: list });
+          }
+        } catch (err) {
+          console.warn('[hideItem] Lỗi khi đồng bộ Supabase:', err);
+        }
+      },
+
+      unhideItem: async (targetItemId) => {
+        const { hiddenItemIds, hiddenItemsDetailed, showToast } = get();
+        if (!targetItemId) return;
+
+        set({
+          hiddenItemIds: hiddenItemIds.filter((id) => id !== targetItemId),
+          hiddenItemsDetailed: hiddenItemsDetailed.filter((i) => i.item_id !== targetItemId),
+        });
+        showToast('Đã bỏ ẩn tin đăng', 'Tin đăng sẽ xuất hiện trở lại trong danh sách.', 'success');
+
+        try {
+          await apiUnhideMarketplaceItem(targetItemId);
+        } catch (err) {
+          console.warn('[unhideItem] Lỗi khi đồng bộ Supabase:', err);
+        }
+      },
+
+      isItemHidden: (targetItemId) => {
+        if (!targetItemId) return false;
+        return get().hiddenItemIds.includes(targetItemId);
+      },
+
+      syncBlocksAndHides: async (userId) => {
+        if (!userId) return;
+        try {
+          const [blockedUsers, hiddenIds, hiddenItems] = await Promise.all([
+            apiFetchBlockedUsers(userId),
+            apiFetchHiddenItemIds(userId),
+            apiFetchHiddenItems(userId),
+          ]);
+
+          const blockedIds = blockedUsers.map((b) => b.blocked_id);
+          set({
+            blockedUserIds: Array.from(new Set([...get().blockedUserIds, ...blockedIds])),
+            blockedUsersDetailed: blockedUsers,
+            hiddenItemIds: Array.from(new Set([...get().hiddenItemIds, ...hiddenIds])),
+            hiddenItemsDetailed: hiddenItems,
+          });
+        } catch (err) {
+          console.warn('[syncBlocksAndHides] Lỗi đồng bộ Supabase:', err);
+        }
       },
 
       addBuilding: (data) => {
@@ -1041,6 +1170,47 @@ export const useAppStore = create<AppState>()(
         get().showToast('Đã gửi lại tin chờ duyệt! ⏳', 'Ban Quản Trị sẽ xem xét lại tin đăng của bạn', 'info');
       },
 
+      autoModerateMarketplaceItem: (itemId, ownerId) => {
+        set((state) => {
+          const item = state.marketplaceItems.find((m) => m.id === itemId);
+          // Nếu tin đã ở trạng thái chờ duyệt rồi thì không kích hoạt lại và không gửi thông báo trùng lặp
+          if (item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending')) {
+            return state;
+          }
+
+          const targetOwner = ownerId || item?.userId || '';
+          return {
+            marketplaceItems: state.marketplaceItems.map((m) =>
+              m.id === itemId
+                ? {
+                    ...m,
+                    status: 'Chờ duyệt',
+                    moderationStatus: 'pending',
+                    rejectionReason: 'Tạm ẩn để xem xét lại do nhận nhiều phản ánh vi phạm',
+                    updatedAt: new Date().toISOString(),
+                  }
+                : m
+            ),
+            notifications: targetOwner
+              ? [
+                  {
+                    id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+                    userId: targetOwner,
+                    type: 'moderation',
+                    title: 'Tin đăng đang được xem xét lại',
+                    body: `Tin đăng "${item?.name || 'của bạn'}" của bạn đang được xem xét lại do nhận được nhiều phản ánh từ cộng đồng và đã tạm thời được ẩn khỏi chợ.`,
+                    createdAt: new Date().toISOString(),
+                    read: false,
+                    ctaUrl: `/cho-do-cu/${itemId}?edit=true`,
+                    ctaLabel: 'Sửa tin & gửi duyệt lại',
+                  },
+                  ...state.notifications,
+                ]
+              : state.notifications,
+          };
+        });
+      },
+
       createBooking: (data) => {
         const newId = `bk_${Date.now()}`;
         const newBooking: BookingRequest = {
@@ -1286,6 +1456,7 @@ export const useAppStore = create<AppState>()(
         savedRoommateIds: state.savedRoommateIds,
         savedItemIds: state.savedItemIds,
         blockedUserIds: state.blockedUserIds,
+        hiddenItemIds: state.hiddenItemIds,
         bookings: state.bookings,
         ownerSubscription: state.ownerSubscription,
         localCreatedRooms: state.localCreatedRooms,
@@ -1296,3 +1467,8 @@ export const useAppStore = create<AppState>()(
     }
   )
 );
+
+// Đăng ký listener tự động kiểm duyệt tin đăng khi có báo cáo đủ ngưỡng
+onAutoModerationTriggered(({ targetId, targetOwnerId }) => {
+  useAppStore.getState().autoModerateMarketplaceItem(targetId, targetOwnerId);
+});

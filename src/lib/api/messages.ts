@@ -636,6 +636,9 @@ export async function sendMessage(
         .maybeSingle();
 
       if (error) {
+        if (error.message?.includes('P0005') || error.message?.includes('Không thể gửi tin nhắn') || error.message?.includes('blocked')) {
+          throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+        }
         if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
           throw new Error(`Lỗi gửi tin nhắn Supabase: ${error.message}`);
         }
@@ -651,6 +654,9 @@ export async function sendMessage(
           .then();
       }
     } catch (error: any) {
+      if (error?.message?.includes("Không thể gửi tin nhắn")) {
+        throw error;
+      }
       if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
         throw error;
       }
@@ -718,6 +724,8 @@ export interface FindOrCreateConversationOptions {
   currentUserId?: string;
   isTestEnv?: boolean;
   sellerIsBanned?: boolean;
+  isBlocked?: boolean;
+  blockedUserIds?: string[];
   now?: number;
 }
 
@@ -825,6 +833,14 @@ export async function findOrCreateConversation(
     }
   }
 
+  // 3.1. Kiểm tra quan hệ chặn liên hệ 2 chiều
+  if (
+    options?.isBlocked ||
+    (options?.blockedUserIds && (options.blockedUserIds.includes(cleanSellerId) || options.blockedUserIds.includes(cleanBuyerId)))
+  ) {
+    throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+  }
+
   const isDemoOrTest = options?.isTestEnv || isDemoUser(cleanBuyerId) || isDemoUser(cleanSellerId);
 
   // 4. YÊU CẦU 2: GỌI HÀM POSTGRES RPC TRÊN SUPABASE (SECURITY DEFINER)
@@ -837,6 +853,9 @@ export async function findOrCreateConversation(
       });
 
       if (error) {
+        if (error.message?.includes('P0005') || error.message?.includes('Không thể gửi tin nhắn')) {
+          throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+        }
         throw new Error(error.message || "Lỗi xử lý cuộc trò chuyện từ cơ sở dữ liệu.");
       }
 

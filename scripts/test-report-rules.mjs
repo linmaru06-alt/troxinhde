@@ -1,4 +1,6 @@
 import assert from 'node:assert';
+import fs from 'node:fs';
+import path from 'node:path';
 
 // ==============================================================================
 // ĐỊNH NGHĨA DỮ LIỆU & BẢNG NHÃN TIẾNG VIỆT CHO HỆ THỐNG BÁO CÁO (REPORT SYSTEM)
@@ -40,6 +42,9 @@ export const MAX_REPORTS_PER_DAY = 10;
 export const MAX_REPORT_DESCRIPTION_LENGTH = 500;
 export const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
+// Ngưỡng số người báo cáo khác nhau để tự động đưa tin về trạng thái chờ duyệt lại và ẩn khỏi chợ
+export const AUTO_MODERATION_REPORT_THRESHOLD = 3;
+
 // Bảng thông báo lỗi chuẩn xác tiếng Việt
 export const REPORT_ERROR_MESSAGES = {
   MISSING_REPORTER: 'Thiếu thông tin người gửi báo cáo',
@@ -55,11 +60,32 @@ export const REPORT_ERROR_MESSAGES = {
   INVALID_STATUS: 'Trạng thái báo cáo không hợp lệ (chỉ chấp nhận: moi, dang_xu_ly, da_xu_ly, bac_bo)',
 };
 
-// Bộ nhớ mô phỏng Database cho Báo cáo
+// Bộ nhớ mô phỏng Database cho Báo cáo, Tin đăng Chợ và Thông báo
 const dbReports = [];
+const dbMarketplaceItems = [];
+const dbNotifications = [];
 
 export function clearReportsStorage() {
   dbReports.length = 0;
+  dbMarketplaceItems.length = 0;
+  dbNotifications.length = 0;
+}
+
+export function registerMockMarketplaceItem(item) {
+  const existingIndex = dbMarketplaceItems.findIndex((m) => m.id === item.id);
+  if (existingIndex >= 0) {
+    dbMarketplaceItems[existingIndex] = { ...item };
+  } else {
+    dbMarketplaceItems.push({ ...item });
+  }
+}
+
+export function getMockMarketplaceItems() {
+  return dbMarketplaceItems;
+}
+
+export function getMockNotifications() {
+  return dbNotifications;
 }
 
 export function normalizeTargetType(type) {
@@ -209,6 +235,42 @@ export function validateReport(input, existingReports = dbReports) {
   };
 }
 
+export function evaluateAutoModeration(
+  targetId,
+  reports = dbReports,
+  threshold = AUTO_MODERATION_REPORT_THRESHOLD,
+) {
+  const validReports = reports.filter(
+    (r) =>
+      r.target_id === targetId &&
+      r.target_type === 'tin_dang' &&
+      (r.status === 'moi' || r.status === 'dang_xu_ly') &&
+      Boolean(r.reporter_id && r.reporter_id.trim()),
+  );
+
+  const uniqueReporters = new Set();
+  for (const r of validReports) {
+    uniqueReporters.add(r.reporter_id.trim());
+  }
+
+  return {
+    shouldTrigger: uniqueReporters.size >= threshold,
+    distinctCount: uniqueReporters.size,
+    threshold,
+    targetId,
+    reporterIds: Array.from(uniqueReporters),
+  };
+}
+
+export function mockFilterMarketplaceItems(items, viewMode = 'public') {
+  if (viewMode === 'public') {
+    return items.filter(
+      (item) => item.status !== 'Chờ duyệt' && item.moderationStatus !== 'pending' && item.status !== 'pending'
+    );
+  }
+  return items;
+}
+
 export async function createReport(payload) {
   const validated = validateReport(payload, dbReports);
 
@@ -230,7 +292,56 @@ export async function createReport(payload) {
   };
 
   dbReports.push(reportRecord);
+
+  // Tự động kiểm duyệt khi đối tượng là tin đăng
+  if (validated.targetType === 'tin_dang') {
+    const autoMod = evaluateAutoModeration(validated.targetId, dbReports, AUTO_MODERATION_REPORT_THRESHOLD);
+    
+    // Kiểm tra tin đã từng bị auto-moderate chưa (tránh gửi trùng lặp khi nhận thêm báo cáo thứ 4, 5...)
+    const wasAlreadyModerated = dbReports.filter((r) => r.target_id === validated.targetId && r.target_type === 'tin_dang').some((r) => r.auto_moderated);
+
+    if (autoMod.shouldTrigger) {
+      reportRecord.auto_moderated = true;
+
+      // Chỉ cập nhật và gửi thông báo LẦN ĐẦU TIÊN
+      if (!wasAlreadyModerated) {
+        // Cập nhật trạng thái tin đăng trong mock database
+        const foundItem = dbMarketplaceItems.find((m) => m.id === validated.targetId);
+        if (foundItem) {
+          foundItem.status = 'Chờ duyệt';
+          foundItem.moderationStatus = 'pending';
+          foundItem.rejectionReason = 'Tạm ẩn để xem xét lại do nhận nhiều phản ánh vi phạm';
+        }
+
+        // Gửi thông báo cho người đăng
+        const targetOwner = validated.targetOwnerId || foundItem?.userId;
+        if (targetOwner) {
+          dbNotifications.push({
+            id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+            userId: targetOwner,
+            type: 'moderation',
+            title: 'Tin đăng đang được xem xét lại',
+            body: `Tin đăng "${foundItem?.name || 'của bạn'}" của bạn đang được xem xét lại do nhận được nhiều phản ánh từ cộng đồng và đã tạm thời được ẩn khỏi chợ.`,
+            createdAt: currentTime,
+            read: false,
+            ctaUrl: `/cho-do-cu/${validated.targetId}?edit=true`,
+            ctaLabel: 'Sửa tin & gửi duyệt lại',
+          });
+        }
+      }
+    }
+  }
+
   return reportRecord;
+}
+
+export function approveMarketplaceItemMock(itemId) {
+  const item = dbMarketplaceItems.find((m) => m.id === itemId);
+  if (item) {
+    item.status = 'Còn trống';
+    item.moderationStatus = 'approved';
+    item.rejectionReason = undefined;
+  }
 }
 
 export function updateReportStatus(reportId, newStatus, adminNotes) {
@@ -786,6 +897,408 @@ async function runAllReportTests() {
     const formattedLong = formatPreview(longContent);
     assert.strictEqual(formattedLong.length, 83); // 80 ký tự + "..."
     assert.ok(formattedLong.endsWith('...'));
+  });
+
+  // ==============================================================
+  // NHÓM TEST QUY TẮC TỰ ĐỘNG KIỂM DUYỆT (AUTO-MODERATION) KHI NHẬN 3 BÁO CÁO
+  // ==============================================================
+
+  // Test 22: 3 báo cáo từ CÙNG MỘT NGƯỜI KHÔNG kích hoạt chuyển tin chờ duyệt lại và KHÔNG ẩn khỏi chợ
+  await runTest('3 báo cáo từ CÙNG MỘT NGƯỜI KHÔNG kích hoạt tự chuyển tin chờ duyệt', async () => {
+    clearReportsStorage();
+    const itemId = 'item_same_reporter_test';
+    const sellerId = 'seller_user_01';
+
+    // Đăng ký tin ban đầu ở trạng thái hoạt động công khai
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Nồi cơm điện Cuckoo',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // Giả lập 3 báo cáo từ cùng 1 người (cùng reporter_id)
+    const sameReporterId = 'spammer_user_001';
+    dbReports.push(
+      {
+        id: 'rep_same_1',
+        reporter_id: sameReporterId,
+        target_type: 'tin_dang',
+        target_id: itemId,
+        target_owner_id: sellerId,
+        reason: 'lua_dao',
+        status: 'moi',
+      },
+      {
+        id: 'rep_same_2',
+        reporter_id: sameReporterId,
+        target_type: 'tin_dang',
+        target_id: itemId,
+        target_owner_id: sellerId,
+        reason: 'sai_mo_ta',
+        status: 'moi',
+      },
+      {
+        id: 'rep_same_3',
+        reporter_id: sameReporterId,
+        target_type: 'tin_dang',
+        target_id: itemId,
+        target_owner_id: sellerId,
+        reason: 'spam',
+        status: 'dang_xu_ly',
+      },
+    );
+
+    // Đánh giá auto-moderation
+    const evaluation = evaluateAutoModeration(itemId, dbReports, AUTO_MODERATION_REPORT_THRESHOLD);
+    assert.strictEqual(evaluation.distinctCount, 1, 'Số người báo cáo khác nhau phải là 1');
+    assert.strictEqual(evaluation.shouldTrigger, false, '3 báo cáo từ 1 người KHÔNG được kích hoạt');
+
+    // Tin đăng vẫn giữ nguyên trạng thái công khai
+    const item = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(item.status, 'Còn trống');
+    assert.strictEqual(item.moderationStatus, 'approved');
+
+    // Tin vẫn hiển thị bình thường trên chợ
+    const visibleItems = mockFilterMarketplaceItems([item], 'public');
+    assert.strictEqual(visibleItems.length, 1, 'Tin vẫn xuất hiện trên chợ khi chưa đủ 3 người khác nhau báo cáo');
+
+    // Không có thông báo xem xét lại nào gửi đi
+    const notifs = getMockNotifications().filter((n) => n.userId === sellerId);
+    assert.strictEqual(notifs.length, 0, 'Không gửi thông báo xem xét lại khi chưa đủ điều kiện');
+  });
+
+  // Test 23: 2 người khác nhau báo cáo KHÔNG kích hoạt (distinct = 2 < 3)
+  await runTest('2 người khác nhau báo cáo KHÔNG kích hoạt tự chuyển tin chờ duyệt (distinct = 2 < 3)', async () => {
+    clearReportsStorage();
+    const itemId = 'item_two_reporters_test';
+    const sellerId = 'seller_user_02';
+
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Bàn học gấp gọn',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // Người thứ 1 gửi báo cáo
+    await createReport({
+      reporter_id: 'user_reporter_alpha',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      target_owner_id: sellerId,
+      reason: 'sai_mo_ta',
+    });
+
+    // Người thứ 2 gửi báo cáo
+    await createReport({
+      reporter_id: 'user_reporter_beta',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      target_owner_id: sellerId,
+      reason: 'spam',
+    });
+
+    const evaluation = evaluateAutoModeration(itemId, dbReports, AUTO_MODERATION_REPORT_THRESHOLD);
+    assert.strictEqual(evaluation.distinctCount, 2);
+    assert.strictEqual(evaluation.shouldTrigger, false);
+
+    const item = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(item.status, 'Còn trống');
+    assert.strictEqual(item.moderationStatus, 'approved');
+
+    const visibleItems = mockFilterMarketplaceItems([item], 'public');
+    assert.strictEqual(visibleItems.length, 1);
+    assert.strictEqual(getMockNotifications().length, 0);
+  });
+
+  // Test 24: 3 người khác nhau báo cáo (trạng thái moi hoặc dang_xu_ly) KÍCH HOẠT tự chuyển tin về chờ duyệt và ẩn khỏi chợ
+  await runTest('3 người khác nhau báo cáo KÍCH HOẠT chuyển tin về chờ duyệt, ẩn khỏi chợ và gửi thông báo', async () => {
+    clearReportsStorage();
+    const itemId = 'item_three_distinct_reporters';
+    const sellerId = 'seller_user_03';
+
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Tai nghe Bluetooth Sony',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // Người 1 báo cáo
+    await createReport({
+      reporter_id: 'reporter_01',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      target_owner_id: sellerId,
+      reason: 'lua_dao',
+    });
+
+    // Người 2 báo cáo
+    await createReport({
+      reporter_id: 'reporter_02',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      target_owner_id: sellerId,
+      reason: 'sai_mo_ta',
+    });
+
+    // Người 3 báo cáo -> Đạt ngưỡng 3 người khác nhau!
+    const rep3 = await createReport({
+      reporter_id: 'reporter_03',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      target_owner_id: sellerId,
+      reason: 'khong_phu_hop',
+    });
+
+    assert.strictEqual(rep3.auto_moderated, true, 'Bản ghi báo cáo thứ 3 phải đánh dấu auto_moderated = true');
+
+    // 1. Kiểm tra trạng thái tin đăng tự động chuyển sang Chờ duyệt lại
+    const item = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(item.status, 'Chờ duyệt', 'Tin đăng phải chuyển về trạng thái Chờ duyệt');
+    assert.strictEqual(item.moderationStatus, 'pending', 'Trạng thái kiểm duyệt phải là pending');
+
+    // 2. Kiểm tra tin bị ẩn khỏi Chợ đồ cũ (filter public trả về rỗng)
+    const publicItems = mockFilterMarketplaceItems([item], 'public');
+    assert.strictEqual(publicItems.length, 0, 'Tin đăng phải tự động bị ẩn khỏi chợ đồ cũ');
+
+    // 3. Kiểm tra gửi thông báo cho người đăng
+    const notifications = getMockNotifications().filter((n) => n.userId === sellerId);
+    assert.strictEqual(notifications.length, 1, 'Phải tạo chính xác 1 thông báo gửi cho người đăng tin');
+    assert.strictEqual(notifications[0].title, 'Tin đăng đang được xem xét lại');
+    assert.ok(
+      notifications[0].body.toLowerCase().includes('tin đang được xem xét lại') ||
+      notifications[0].body.toLowerCase().includes('đang được xem xét lại'),
+      'Nội dung thông báo phải có cụm "tin đang được xem xét lại"'
+    );
+  });
+
+  // Test 25: Báo cáo có trạng thái bac_bo hoặc da_xu_ly KHÔNG được tính vào ngưỡng 3 báo cáo
+  await runTest('Báo cáo có trạng thái bac_bo hoặc da_xu_ly KHÔNG tính vào ngưỡng auto-moderation', async () => {
+    clearReportsStorage();
+    const itemId = 'item_status_filter_test';
+    const sellerId = 'seller_user_04';
+
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Quạt đứng Senko',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // Báo cáo 1: trạng thái moi (hợp lệ)
+    dbReports.push({
+      id: 'rep_valid_1',
+      reporter_id: 'user_valid_1',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      status: 'moi',
+    });
+
+    // Báo cáo 2: trạng thái dang_xu_ly (hợp lệ)
+    dbReports.push({
+      id: 'rep_valid_2',
+      reporter_id: 'user_valid_2',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      status: 'dang_xu_ly',
+    });
+
+    // Báo cáo 3: trạng thái bac_bo (bị bác bỏ, không được tính)
+    dbReports.push({
+      id: 'rep_dismissed_3',
+      reporter_id: 'user_dismissed_3',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      status: 'bac_bo',
+    });
+
+    // Báo cáo 4: trạng thái da_xu_ly (đã duyệt/giải quyết xong, không tính)
+    dbReports.push({
+      id: 'rep_resolved_4',
+      reporter_id: 'user_resolved_4',
+      target_type: 'tin_dang',
+      target_id: itemId,
+      status: 'da_xu_ly',
+    });
+
+    const evaluation = evaluateAutoModeration(itemId, dbReports, AUTO_MODERATION_REPORT_THRESHOLD);
+    assert.strictEqual(evaluation.distinctCount, 2, 'Chỉ tính 2 báo cáo có trạng thái moi hoặc dang_xu_ly');
+    assert.strictEqual(evaluation.shouldTrigger, false, 'Chưa đủ 3 báo cáo hợp lệ nên không kích hoạt');
+  });
+
+  // Test 26: Ngưỡng kích hoạt dễ dàng cấu hình qua hằng số AUTO_MODERATION_REPORT_THRESHOLD
+  await runTest('Ngưỡng AUTO_MODERATION_REPORT_THRESHOLD dễ dàng thay đổi và có hiệu lực ngay', async () => {
+    clearReportsStorage();
+    const itemId = 'item_custom_threshold_test';
+
+    // Tạo 2 báo cáo từ 2 người khác nhau
+    const customReports = [
+      {
+        id: 'rep_c1',
+        reporter_id: 'user_custom_1',
+        target_type: 'tin_dang',
+        target_id: itemId,
+        status: 'moi',
+      },
+      {
+        id: 'rep_c2',
+        reporter_id: 'user_custom_2',
+        target_type: 'tin_dang',
+        target_id: itemId,
+        status: 'moi',
+      },
+    ];
+
+    // Với ngưỡng mặc định = 3 -> distinct 2 < 3 -> shouldTrigger false
+    const evalDefault = evaluateAutoModeration(itemId, customReports, AUTO_MODERATION_REPORT_THRESHOLD);
+    assert.strictEqual(evalDefault.threshold, 3);
+    assert.strictEqual(evalDefault.shouldTrigger, false);
+
+    // Khi cấu hình ngưỡng = 2 -> distinct 2 >= 2 -> shouldTrigger true!
+    const evalCustom2 = evaluateAutoModeration(itemId, customReports, 2);
+    assert.strictEqual(evalCustom2.threshold, 2);
+    assert.strictEqual(evalCustom2.shouldTrigger, true);
+
+    // Khi cấu hình ngưỡng = 5 -> distinct 2 < 5 -> shouldTrigger false
+    const evalCustom5 = evaluateAutoModeration(itemId, customReports, 5);
+    assert.strictEqual(evalCustom5.threshold, 5);
+    assert.strictEqual(evalCustom5.shouldTrigger, false);
+  });
+
+  // Test 27 (Điểm 1): So khớp giá trị ngưỡng giữa TypeScript code và Migration PostgreSQL
+  await runTest('So khớp ngưỡng AUTO_MODERATION_REPORT_THRESHOLD và c_auto_moderation_threshold trong migration SQL', async () => {
+    const migrationPath = path.resolve('supabase/migrations/023_auto_moderation_reported_items.sql');
+    assert.ok(fs.existsSync(migrationPath), 'File migration 023 phải tồn tại');
+
+    const migrationContent = fs.readFileSync(migrationPath, 'utf8');
+    const match = migrationContent.match(/c_auto_moderation_threshold\s+CONSTANT\s+INTEGER\s*:=\s*(\d+);/i);
+    assert.ok(match, 'Phải tìm thấy khai báo hằng số c_auto_moderation_threshold trong file SQL');
+
+    const sqlThreshold = parseInt(match[1], 10);
+    assert.strictEqual(
+      AUTO_MODERATION_REPORT_THRESHOLD,
+      sqlThreshold,
+      `Hằng số TypeScript (${AUTO_MODERATION_REPORT_THRESHOLD}) phải khớp hoàn toàn với hằng số PostgreSQL (${sqlThreshold})`
+    );
+  });
+
+  // Test 28 (Điểm 2): Khi admin bác bỏ bớt báo cáo khiến số lượng tụt dưới ngưỡng -> Tin KHÔNG tự khôi phục
+  await runTest('Admin bác bỏ bớt báo cáo khiến số lượng tụt dưới ngưỡng -> Tin KHÔNG tự khôi phục', async () => {
+    clearReportsStorage();
+    const itemId = 'item_no_auto_restore_test';
+    const sellerId = 'seller_user_dismiss_test';
+
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Nồi chiên không dầu Philips',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // 3 người khác nhau gửi báo cáo -> Kích hoạt tự ẩn
+    const r1 = await createReport({ reporter_id: 'user_rep_1', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'lua_dao' });
+    const r2 = await createReport({ reporter_id: 'user_rep_2', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'sai_mo_ta' });
+    const r3 = await createReport({ reporter_id: 'user_rep_3', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'spam' });
+
+    const itemAfterReports = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(itemAfterReports.status, 'Chờ duyệt', 'Tin phải ở trạng thái Chờ duyệt');
+    assert.strictEqual(itemAfterReports.moderationStatus, 'pending');
+
+    // Admin bác bỏ 1 báo cáo (r1 chuyển sang 'bac_bo')
+    updateReportStatus(r1.id, 'bac_bo', 'Báo cáo không đúng sự thật sau khi kiểm tra');
+
+    // Số báo cáo hợp lệ tụt xuống còn 2 (< 3)
+    const evalAfterDismiss = evaluateAutoModeration(itemId, dbReports, AUTO_MODERATION_REPORT_THRESHOLD);
+    assert.strictEqual(evalAfterDismiss.distinctCount, 2, 'Số báo cáo hợp lệ còn 2');
+    assert.strictEqual(evalAfterDismiss.shouldTrigger, false);
+
+    // Xác nhận: Tin KHÔNG ĐƯỢC TỰ KHÔI PHỤC, vẫn giữ nguyên trạng thái Chờ duyệt
+    const itemAfterDismiss = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(itemAfterDismiss.status, 'Chờ duyệt', 'Tin vẫn phải ở trạng thái Chờ duyệt, KHÔNG tự khôi phục');
+    assert.strictEqual(itemAfterDismiss.moderationStatus, 'pending', 'moderationStatus vẫn phải là pending');
+
+    // Tin vẫn bị ẩn khỏi chợ
+    const visibleOnMarket = mockFilterMarketplaceItems([itemAfterDismiss], 'public');
+    assert.strictEqual(visibleOnMarket.length, 0, 'Tin vẫn phải bị ẩn khỏi chợ đồ cũ');
+
+    // Chỉ khi Admin chủ động bấm duyệt lại thủ công thì tin mới được khôi phục
+    approveMarketplaceItemMock(itemId);
+    const itemAfterAdminApprove = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(itemAfterAdminApprove.status, 'Còn trống', 'Chỉ khôi phục khi Admin duyệt lại thủ công');
+    assert.strictEqual(itemAfterAdminApprove.moderationStatus, 'approved');
+  });
+
+  // Test 29 (Điểm 3): Tin đã bị tự ẩn rồi, nhận thêm báo cáo thứ 4, 5 -> Không ẩn lại và không gửi thông báo trùng
+  await runTest('Tin đã bị tự ẩn rồi, nhận thêm báo cáo thứ 4, 5 -> Không gửi thông báo trùng cho người đăng', async () => {
+    clearReportsStorage();
+    const itemId = 'item_no_duplicate_notifications';
+    const sellerId = 'seller_user_duplicate_test';
+
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Bàn phím cơ DareU',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // Báo cáo 1, 2, 3 -> Kích hoạt tự ẩn
+    await createReport({ reporter_id: 'user_u1', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'lua_dao' });
+    await createReport({ reporter_id: 'user_u2', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'sai_mo_ta' });
+    await createReport({ reporter_id: 'user_u3', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'spam' });
+
+    // Lúc này đã có chính xác 1 thông báo được tạo
+    const notifsAfter3 = getMockNotifications().filter((n) => n.userId === sellerId);
+    assert.strictEqual(notifsAfter3.length, 1, 'Sau 3 báo cáo đầu tiên chỉ có 1 thông báo');
+
+    // Nhận thêm báo cáo thứ 4 từ user khác
+    await createReport({ reporter_id: 'user_u4', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'khong_phu_hop' });
+
+    // Nhận thêm báo cáo thứ 5 từ user khác
+    await createReport({ reporter_id: 'user_u5', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'khac', description: 'Nghi vấn lừa đảo cọc' });
+
+    // Số lượng thông báo gửi cho người bán VẪN CHỈ LÀ 1 (không gửi thông báo trùng lặp)
+    const notifsAfter5 = getMockNotifications().filter((n) => n.userId === sellerId);
+    assert.strictEqual(notifsAfter5.length, 1, 'Không gửi thông báo trùng lặp khi có báo cáo thứ 4, 5');
+
+    // Trạng thái tin vẫn là Chờ duyệt
+    const itemFinal = getMockMarketplaceItems().find((m) => m.id === itemId);
+    assert.strictEqual(itemFinal.status, 'Chờ duyệt');
+    assert.strictEqual(itemFinal.moderationStatus, 'pending');
+  });
+
+  // Test 30 (Điểm 4): Người đăng có tin bị tự ẩn: Thông báo dẫn thẳng tới tin đó kèm ?edit=true và nút sửa tin
+  await runTest('Thông báo dẫn thẳng tới tin đăng kèm ?edit=true và nút Sửa tin & gửi duyệt lại', async () => {
+    clearReportsStorage();
+    const itemId = 'item_edit_flow_test';
+    const sellerId = 'seller_user_edit_flow';
+
+    registerMockMarketplaceItem({
+      id: itemId,
+      name: 'Giáo trình Giải tích 1',
+      userId: sellerId,
+      status: 'Còn trống',
+      moderationStatus: 'approved',
+    });
+
+    // 3 báo cáo kích hoạt auto-moderation
+    await createReport({ reporter_id: 'user_e1', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'lua_dao' });
+    await createReport({ reporter_id: 'user_e2', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'sai_mo_ta' });
+    await createReport({ reporter_id: 'user_e3', target_type: 'tin_dang', target_id: itemId, target_owner_id: sellerId, reason: 'spam' });
+
+    const notifs = getMockNotifications().filter((n) => n.userId === sellerId);
+    assert.strictEqual(notifs.length, 1);
+    
+    // Kiểm tra ctaUrl có tham số ?edit=true
+    assert.strictEqual(notifs[0].ctaUrl, `/cho-do-cu/${itemId}?edit=true`, 'Đường dẫn ctaUrl phải dẫn thẳng tới tin và kèm ?edit=true');
+    assert.strictEqual(notifs[0].ctaLabel, 'Sửa tin & gửi duyệt lại', 'Nhãn nút phải là "Sửa tin & gửi duyệt lại"');
   });
 
   // ==============================================================

@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { RolePermissionSection } from '../components/profile/RolePermissionSection';
 import { EditProfileForm } from '../components/profile/EditProfileForm';
 import { AvatarUploader } from '../components/ui/AvatarUploader';
+import { BlockedAndHiddenManager } from '../components/profile/BlockedAndHiddenManager';
 import {
   User,
   Phone,
@@ -28,6 +29,7 @@ import {
   AlertCircle,
   Bell,
   Settings,
+  EyeOff,
 } from 'lucide-react';
 
 export const RenterProfilePage: React.FC = () => {
@@ -35,6 +37,7 @@ export const RenterProfilePage: React.FC = () => {
     currentUser,
     setCurrentUser,
     savedRoomIds,
+    hiddenItemIds,
     bookings,
     updateBookingStatus,
     logout,
@@ -44,7 +47,7 @@ export const RenterProfilePage: React.FC = () => {
   } = useAppStore();
   const navigate = useNavigate();
 
-  const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'blocked'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'blocked_and_hidden'>('profile');
 
   // Fetch dữ liệu thật từ bảng profiles trên Supabase khi vào trang hoặc reload (F5)
   useEffect(() => {
@@ -192,6 +195,19 @@ export const RenterProfilePage: React.FC = () => {
           )}
         </button>
         <button
+          onClick={() => setActiveTab('blocked_and_hidden')}
+          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            activeTab === 'blocked_and_hidden' ? 'bg-[#00a854] text-white shadow-xs' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+          }`}
+        >
+          <EyeOff className="w-4 h-4" /> Tin Ẩn & Chặn
+          {(hiddenItemIds.length > 0 || blockedUserIds.length > 0) && (
+            <span className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === 'blocked_and_hidden' ? 'bg-white text-[#00a854]' : 'bg-gray-100 text-gray-700 font-bold'}`}>
+              {hiddenItemIds.length + blockedUserIds.length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => navigate('/da-luu')}
           className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold transition-all text-gray-600 hover:bg-gray-50 hover:text-rose-600`}
         >
@@ -218,53 +234,31 @@ export const RenterProfilePage: React.FC = () => {
             {/* Vai trò & Quyền hạn */}
             <RolePermissionSection user={currentUser} />
             
-            {/* Blocked Contacts */}
-            <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 space-y-4 shadow-sm">
-              <div className="flex items-center justify-between pb-3 border-b border-gray-100">
-                <div>
-                  <h2 className="text-lg font-black text-gray-950 flex items-center gap-2">
-                    <ShieldOff className="w-5 h-5 text-amber-600" />
-                    Liên Hệ Đang Chặn ({blockedUserIds.length})
-                  </h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Danh sách tài khoản bạn đã chặn trong tính năng tìm bạn ở ghép và tin nhắn
-                  </p>
-                </div>
+            {/* Lối tắt tới mục Quản Lý Tin Đã Ẩn & Người Đã Chặn */}
+            <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900 flex items-center gap-2">
+                  <ShieldOff className="w-4 h-4 text-amber-600" />
+                  Tin Đã Ẩn & Người Đã Chặn ({hiddenItemIds.length + blockedUserIds.length})
+                </h3>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Đang ẩn {hiddenItemIds.length} tin đăng và chặn {blockedUserIds.length} người dùng/người bán.
+                </p>
               </div>
-
-              {blockedUserIds.length === 0 ? (
-                <p className="text-xs text-gray-400 py-2">Bạn chưa chặn liên hệ nào.</p>
-              ) : (
-                <div className="divide-y divide-gray-100">
-                  {blockedUserIds.map((userId) => {
-                    const matchedRoommate = roommates.find((r) => r.userId === userId);
-                    const displayName = matchedRoommate?.userName || `Người dùng #${userId.slice(0, 8)}`;
-                    return (
-                      <div key={userId} className="py-3 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-9 h-9 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center font-bold text-xs shrink-0">
-                            {displayName.charAt(0).toUpperCase()}
-                          </div>
-                          <div className="min-w-0">
-                            <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate">{displayName}</h4>
-                            <p className="text-[11px] text-gray-400 truncate">ID: {userId.slice(0, 12)}...</p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => unblockUser(userId)}
-                          leftIcon={<ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />}
-                        >
-                          Bỏ chặn
-                        </Button>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setActiveTab('blocked_and_hidden')}
+              >
+                Quản lý danh sách →
+              </Button>
             </div>
           </div>
+        )}
+
+        {activeTab === 'blocked_and_hidden' && (
+          <BlockedAndHiddenManager />
         )}
 
         {activeTab === 'bookings' && (

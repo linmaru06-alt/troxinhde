@@ -35,8 +35,12 @@ export async function getRooms(filters?: RoomFilters) {
       is_boosted,
       boost_badge,
       created_at,
-      buildings(id, name, district, address, lat, lng, electricity_price, water_price),
-      profiles!owner_id(id, full_name, phone, avatar_url, app_role)
+      owner_id,
+      owner_name,
+      owner_avatar,
+      owner_phone,
+      show_phone,
+      buildings(id, name, district, address, lat, lng, electricity_price, water_price)
     `)
     .eq('moderation_status', 'approved')
     .neq('availability_status', 'rented');
@@ -56,7 +60,17 @@ export async function getRooms(filters?: RoomFilters) {
 
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
-  return data || [];
+  
+  return (data || []).map((r: any) => ({
+    ...r,
+    profiles: {
+      id: r.owner_id,
+      full_name: r.owner_name || 'Chủ trọ',
+      avatar_url: r.owner_avatar || '/images/user-avatar.jpg',
+      phone: r.owner_phone || '',
+      app_role: 'owner',
+    },
+  }));
 }
 
 export async function getRoomById(id: string) {
@@ -66,14 +80,24 @@ export async function getRoomById(id: string) {
     .from('rooms')
     .select(`
       *,
-      buildings(*),
-      profiles!owner_id(*)
+      buildings(*)
     `)
     .eq('id', id)
     .maybeSingle();
 
   if (error) throw error;
-  return data;
+  if (!data) return null;
+
+  return {
+    ...data,
+    profiles: {
+      id: data.owner_id,
+      full_name: data.owner_name || data.profiles?.full_name || 'Chủ trọ',
+      avatar_url: data.owner_avatar || data.profiles?.avatar_url || '/images/user-avatar.jpg',
+      phone: data.owner_phone || data.profiles?.phone || '',
+      app_role: 'owner',
+    },
+  };
 }
 
 export async function createRoom(roomData: {
@@ -91,6 +115,7 @@ export async function createRoom(roomData: {
   amenities?: string[];
   description?: string;
   images?: string[];
+  show_phone?: boolean;
 }) {
   if (!isSupabaseConfigured) {
     return { id: `room_${Date.now()}`, ...roomData };

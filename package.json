@@ -8,7 +8,7 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
-    "test": "node scripts/test-find-or-create-conversation.mjs && node scripts/test-report-rules.mjs",
+    "test": "node scripts/test-find-or-create-conversation.mjs && node scripts/test-report-rules.mjs && node scripts/test-user-blocks-and-hidden-items.mjs",
     "test:reports": "node scripts/test-report-rules.mjs",
     "test:all": "node scripts/run-all-tests.mjs",
     "test:auth": "node scripts/test-unified-auth.mjs",
