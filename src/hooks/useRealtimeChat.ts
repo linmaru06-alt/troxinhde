@@ -218,6 +218,7 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
           err?.message || 'Vui lòng bấm Thử lại để gửi lại tin nhắn.',
           'warning'
         );
+        throw err;
       }
     },
     [conversationId, currentUser, showToast]

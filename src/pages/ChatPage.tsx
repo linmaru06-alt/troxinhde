@@ -30,6 +30,7 @@ import {
   ShieldAlert,
   ChevronRight,
   ShoppingBag,
+  Sparkles,
   Tag,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
@@ -66,7 +67,15 @@ export const ChatPage: React.FC = () => {
   const [inputText, setInputText] = useState<string>('');
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
+  const [hideQuickReplies, setHideQuickReplies] = useState<boolean>(false);
+  const [isSendingQuickReply, setIsSendingQuickReply] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Đặt lại hiển thị gợi ý khi chuyển sang cuộc trò chuyện khác
+  useEffect(() => {
+    setHideQuickReplies(false);
+    setIsSendingQuickReply(false);
+  }, [activeConversationId]);
 
   // 0. Kiểm tra đăng nhập khi vào /tin-nhan: Nếu chưa đăng nhập -> Chuyển sang /dang-nhap kèm returnUrl an toàn
   useEffect(() => {
@@ -425,11 +434,62 @@ export const ChatPage: React.FC = () => {
       ? 'hidden'
       : 'available';
 
-  const quickReplies = [
+  // 1. Kiểm tra tin nhắn thật từ cả hai phía (bỏ qua tin hệ thống và item_context)
+  const hasAnyRealMessage = chatMessages.some((m) => {
+    if (!m.sender_id) return false;
+    if (m.type === 'system' || m.type === 'item_context') return false;
+    return true;
+  });
+
+  // 2. Xác định chủ món đồ: Chỉ hiện gợi ý cho người mua, không hiện cho chủ món đồ
+  const itemSellerId =
+    storeItem?.userId ||
+    storeItem?.sellerId ||
+    remoteItem?.seller_id ||
+    remoteItem?.user_id ||
+    (parsedContext as any)?.sellerId;
+
+  const isOwnerOfItem = Boolean(
+    itemSellerId && currentUser?.id && isSameUserId(itemSellerId, currentUser.id)
+  );
+
+  // 5. Kiểm tra deliveryMethods: Nếu tin đăng có dữ liệu và không bao gồm tai_truong thì ẩn gợi ý "Mình nhận ở trường/KTX được không?"
+  const itemDeliveryMethods: string[] =
+    storeItem?.deliveryMethods ||
+    remoteItem?.deliveryMethods ||
+    remoteItem?.delivery_methods ||
+    [];
+
+  const hasDeliveryMethods =
+    Array.isArray(itemDeliveryMethods) && itemDeliveryMethods.length > 0;
+  const allowsTaiTruong =
+    !hasDeliveryMethods || itemDeliveryMethods.includes('tai_truong');
+
+  // Danh sách nút gợi ý cho Chợ đồ cũ
+  const itemQuickReplies = [
+    'Món này còn không bạn?',
+    'Có bớt được không?',
+    ...(allowsTaiTruong ? ['Mình nhận ở trường/KTX được không?'] : []),
+  ];
+
+  // Gợi ý cho phòng trọ thông thường
+  const roomQuickReplies = [
     'Phòng này còn trống không ạ?',
     'Chiều nay mình có thể qua xem phòng được không?',
     'Cho mình hỏi giá điện nước đã bao gồm chưa ạ?',
   ];
+
+  const currentQuickReplies = attachedItemId ? itemQuickReplies : roomQuickReplies;
+
+  // Điều kiện hiển thị gợi ý:
+  // - Chưa có tin nhắn thật nào từ cả hai phía (nếu người bán đã nhắn trước thì không hiện)
+  // - Chỉ hiện cho người mua, không hiện cho chủ món đồ
+  // - Chưa bị ẩn do đã gửi thành công
+  const shouldShowQuickReplies =
+    !hasAnyRealMessage &&
+    !isOwnerOfItem &&
+    !hideQuickReplies &&
+    currentQuickReplies.length > 0;
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -441,6 +501,7 @@ export const ChatPage: React.FC = () => {
     if (!content || !activeConversationId) return;
 
     setInputText('');
+    setHideQuickReplies(true);
     await realtimeSendMessage(content);
 
     // Cập nhật preview tin nhắn cuối trong danh sách conversations
@@ -453,20 +514,39 @@ export const ChatPage: React.FC = () => {
     );
   };
 
+  // 3. Chỉ ẩn gợi ý sau khi gửi thành công; gửi lỗi thì hiện lại kèm thông báo lỗi. Vô hiệu hóa nút trong lúc đang gửi.
   const handleQuickReply = async (text: string) => {
     if (isBlocked) {
       showToast('Không thể gửi tin nhắn', 'Bạn đã chặn người dùng này.', 'warning');
       return;
     }
-    if (!activeConversationId) return;
-    await realtimeSendMessage(text);
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeConversationId
-          ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
-          : c
-      )
-    );
+    if (!activeConversationId || isSendingQuickReply) return;
+
+    setIsSendingQuickReply(true);
+
+    try {
+      await realtimeSendMessage(text);
+      // Gửi thành công -> Ẩn gợi ý
+      setHideQuickReplies(true);
+      setConversations((prev) =>
+        prev.map((c) =>
+          c.id === activeConversationId
+            ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
+            : c
+        )
+      );
+    } catch (err: any) {
+      console.error('[ChatPage] Lỗi gửi gợi ý tin nhắn:', err);
+      // Gửi lỗi -> Hiện lại kèm thông báo lỗi
+      setHideQuickReplies(false);
+      showToast(
+        'Gửi tin nhắn thất bại',
+        err?.message || 'Không thể gửi tin nhắn nhanh. Vui lòng thử lại.',
+        'error'
+      );
+    } finally {
+      setIsSendingQuickReply(false);
+    }
   };
 
   const handleSelectConversation = (id: string) => {
@@ -570,6 +650,10 @@ export const ChatPage: React.FC = () => {
                           const raw = c.last_message;
                           if (!raw) return 'Bắt đầu cuộc trò chuyện...';
                           const trimmed = raw.trim();
+                          // 4. Đảm bảo tin cảnh báo an toàn không hiển thị ở dòng xem trước tin cuối trong sidebar
+                          if (trimmed.includes('Nên gặp ở nơi công cộng') || trimmed.includes('kiểm tra đồ trước khi chuyển tiền')) {
+                            return 'Bắt đầu cuộc trò chuyện...';
+                          }
                           if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
                             try {
                               const parsed = JSON.parse(trimmed);
@@ -812,6 +896,18 @@ export const ChatPage: React.FC = () => {
 
               {/* Vùng hiển thị tin nhắn (Scroll Area) */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {/* Tin nhắn hệ thống hướng dẫn an toàn ở đầu hội thoại món đồ */}
+                {attachedItemId && (
+                  <div className="flex justify-center my-1.5 w-full">
+                    <div className="bg-amber-50 border border-amber-200 text-amber-900 text-xs px-3.5 py-1.5 rounded-full shadow-2xs max-w-[92%] sm:max-w-[85%] text-center flex items-center justify-center gap-1.5 animate-fadeIn">
+                      <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span className="font-medium text-xs">
+                        Nên gặp ở nơi công cộng trong trường và kiểm tra đồ trước khi chuyển tiền.
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 {isMessagesLoading ? (
                   <div className="py-12 text-center text-gray-400 space-y-2">
                     <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#006d37]" />
@@ -950,19 +1046,27 @@ export const ChatPage: React.FC = () => {
                 </div>
               ) : (
                 <>
-                  {/* Gợi ý tin nhắn phản hồi nhanh */}
-                  <div className="px-3 py-2 bg-white border-t border-gray-100 flex items-center gap-2 overflow-x-auto no-scrollbar">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase shrink-0">Gợi ý:</span>
-                    {quickReplies.map((r, i) => (
-                      <button
-                        key={i}
-                        onClick={() => handleQuickReply(r)}
-                        className="text-xs px-3 py-1.5 min-h-[32px] bg-gray-100 hover:bg-emerald-50 hover:text-[#006d37] rounded-xl transition shrink-0 font-medium tap-bounce cursor-pointer"
-                      >
-                        {r}
-                      </button>
-                    ))}
-                  </div>
+                  {/* 6. Gợi ý tin nhắn phản hồi nhanh: Không tràn ngang trên mobile, có thể xuống dòng (flex-wrap) */}
+                  {shouldShowQuickReplies && (
+                    <div className="px-3 py-2 bg-white border-t border-gray-100 flex flex-wrap items-center gap-1.5 sm:gap-2 animate-fadeIn">
+                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide shrink-0 flex items-center gap-1">
+                        <Sparkles className="w-3 h-3 text-[#006d37]" /> Gợi ý:
+                      </span>
+                      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1">
+                        {currentQuickReplies.map((r, i) => (
+                          <button
+                            key={i}
+                            type="button"
+                            disabled={isSendingQuickReply}
+                            onClick={() => handleQuickReply(r)}
+                            className="text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] bg-emerald-50/80 hover:bg-[#006d37] text-[#006d37] hover:text-white border border-emerald-200/80 rounded-xl transition-all font-medium tap-bounce cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed whitespace-normal text-left sm:text-center leading-tight"
+                          >
+                            {r}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Hộp nhập tin nhắn */}
                   <form
