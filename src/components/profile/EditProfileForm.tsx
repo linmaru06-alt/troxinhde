@@ -448,17 +448,18 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     const targetStatus = customOwnerStatus !== undefined ? customOwnerStatus : (currentUser.ownerApplicationStatus || 'none');
     const userRole = (currentUser.role === 'user' ? 'renter' : currentUser.role) || 'renter';
 
-    // 1. Lọc Payload: Object này CHỈ được chứa các trường (columns) thực sự có trong bảng profiles
+    // 1. Tạo biến payload được map (ánh xạ) thủ công từng trường một, chuẩn snake_case khớp 100% schema Supabase
+    // Tuyệt đối KHÔNG truyền thẳng object form data hoặc biến UI, KHÔNG chứa id, email
     const updatePayload: Record<string, any> = {
-      full_name: name.trim() || currentUser.name || 'Người dùng Trọ Xinh',
-      name: name.trim() || currentUser.name || 'Người dùng Trọ Xinh',
-      phone: phone.trim() ? phone.trim() : null,
+      full_name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
+      name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
+      phone: phone ? phone.trim() : null,
       avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
-      school: finalSchool ? finalSchool : null,
-      year: year ? year : null,
-      social_link: socialLink.trim() ? socialLink.trim() : null,
-      facebook_link: socialLink.trim() ? socialLink.trim() : null,
-      student_card_url: studentCardUrl ? studentCardUrl : null,
+      school: finalSchool ? finalSchool.trim() : null,
+      year: year ? year.trim() : null,
+      social_link: socialLink ? socialLink.trim() : null,
+      facebook_link: socialLink ? socialLink.trim() : null,
+      student_card_url: studentCardUrl ? studentCardUrl.trim() : null,
       verified: isStudentVerified || Boolean(currentUser.verified),
       phone_verified: Boolean(phoneVerified),
       student_verified: Boolean(isStudentVerified),
@@ -468,19 +469,27 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       updated_at: new Date().toISOString(),
     };
 
-    // 2. Tuyệt đối KHÔNG đưa cột id vào trong object updatePayload này
+    // 2. Tuyệt đối KHÔNG đưa cột id, email hay biến UI vào trong updatePayload
     delete (updatePayload as any).id;
+    delete (updatePayload as any).email;
 
-    // 3. Debug console.log payload để kiểm tra dữ liệu gửi đi
+    // 3. Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
+    Object.keys(updatePayload).forEach((key) => {
+      if (updatePayload[key] === undefined) {
+        delete updatePayload[key];
+      }
+    });
+
+    // 4. Debug console.log payload để kiểm tra dữ liệu gửi đi
     console.log("Update Payload:", updatePayload);
 
-    // 4. Gắn ID chính xác và gọi API cập nhật hồ sơ
+    // 5. Gắn ID chính xác và gọi API cập nhật hồ sơ
     const res = await updateUserProfile(currentUser.id, updatePayload);
     if (!res.success && res.error) {
       throw new Error(res.error);
     }
 
-    // 5. Cập nhật Zustand App Store ngay lập tức
+    // 6. Cập nhật Zustand App Store ngay lập tức
     const updatedUser = {
       ...currentUser,
       name: updatePayload.name,

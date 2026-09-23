@@ -161,8 +161,16 @@ export async function updateUserProfile(
       updatePayload.app_role = resolvedRole;
     }
 
-    // Tuyệt đối KHÔNG đưa cột id vào trong object updatePayload này
+    // Tuyệt đối KHÔNG đưa cột id, email vào trong object updatePayload này
     delete (updatePayload as any).id;
+    delete (updatePayload as any).email;
+
+    // Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
+    Object.keys(updatePayload).forEach((key) => {
+      if (updatePayload[key] === undefined) {
+        delete updatePayload[key];
+      }
+    });
 
     // Log payload ra console để debug dữ liệu
     console.log("Update Payload:", updatePayload);
