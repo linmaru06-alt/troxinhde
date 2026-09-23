@@ -841,7 +841,16 @@ export const useAppStore = create<AppState>()(
       },
 
       addRoommatePost: (data) => {
-        const newId = data.id || `rm_${Date.now()}`;
+        const generateUUID = () => {
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            return crypto.randomUUID();
+          }
+          return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+          });
+        };
+        const newId = data.id || generateUUID();
         const newPost: RoommatePost = {
           ...data,
           id: newId,
@@ -852,7 +861,9 @@ export const useAppStore = create<AppState>()(
           localCreatedRoommates: [newPost, ...state.localCreatedRoommates.filter((r) => r.id !== newId)],
         }));
         // Sync lên Supabase Cloud
-        syncRoommatePostToSupabase(newPost).catch(console.warn);
+        import('../lib/supabaseDataService').then(({ syncRoommatePostToSupabase }) => {
+          syncRoommatePostToSupabase(newPost).catch(console.warn);
+        });
         return newId;
       },
 

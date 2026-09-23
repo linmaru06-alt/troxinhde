@@ -318,7 +318,6 @@ export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<bo
   const payload = {
     id: post.id,
     poster_id: validPosterId,
-    original_user_id: post.userId, // Preserve original userId (e.g. 'user_1') for Demo accounts
     room_id: (post.linkedRoomId && post.linkedRoomId.length === 36) ? post.linkedRoomId : null,
     nickname: post.userName,
     age: post.userAge || 20,
