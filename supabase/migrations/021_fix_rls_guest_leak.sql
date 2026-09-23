@@ -133,6 +133,7 @@ CREATE TRIGGER trg_new_profile_private
 
 -- 4. DENORMALIZE THÔNG TIN LIÊN HỆ CÔNG KHAI VÀO 3 BẢNG TIN ĐĂNG + REVIEWS
 -- 4.1. Bảng marketplace_items:
+ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS seller_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS seller_name TEXT;
 ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS seller_avatar TEXT;
 ALTER TABLE public.marketplace_items ADD COLUMN IF NOT EXISTS seller_phone TEXT;
@@ -148,7 +149,7 @@ SET
     ELSE COALESCE(p.phone, m.seller_phone, m.contact_phone)
   END
 FROM public.profiles p
-WHERE (m.user_id = p.id OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') AND m.seller_id = p.id));
+WHERE m.seller_id = p.id;
 
 -- 4.2. Bảng rooms:
 ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS owner_name TEXT;
@@ -205,18 +206,15 @@ SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
-  v_uid UUID;
   v_phone TEXT;
   v_name TEXT;
   v_avatar TEXT;
 BEGIN
-  v_uid := COALESCE(NEW.user_id, (CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') THEN NEW.seller_id ELSE NULL END));
-  
-  IF v_uid IS NOT NULL THEN
+  IF NEW.seller_id IS NOT NULL THEN
     SELECT full_name, avatar_url, phone
     INTO v_name, v_avatar, v_phone
     FROM public.profiles
-    WHERE id = v_uid;
+    WHERE id = NEW.seller_id;
     
     NEW.seller_name := COALESCE(v_name, NEW.seller_name, 'Sinh viên Trọ Xinh');
     NEW.seller_avatar := COALESCE(v_avatar, NEW.seller_avatar, '/images/user-avatar.jpg');
@@ -350,7 +348,7 @@ BEGIN
         WHEN (show_phone IS TRUE OR show_phone IS NULL) AND status NOT IN ('sold', 'hidden', 'rejected', 'Đã bán', 'Đã ẩn', 'Bị từ chối') THEN NEW.phone
         ELSE NULL 
       END
-    WHERE (user_id = NEW.id OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') AND seller_id = NEW.id));
+    WHERE seller_id = NEW.id;
     
     -- Cập nhật rooms
     UPDATE public.rooms
@@ -402,7 +400,7 @@ AS $$
 BEGIN
   UPDATE public.marketplace_items
   SET seller_phone = NULL, seller_name = 'Người dùng đã xóa tài khoản'
-  WHERE (user_id = OLD.id OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') AND seller_id = OLD.id));
+  WHERE seller_id = OLD.id;
 
   UPDATE public.rooms
   SET owner_phone = NULL, owner_name = 'Chủ phòng đã xóa tài khoản'
@@ -595,22 +593,22 @@ CREATE POLICY "Public view marketplace items" ON public.marketplace_items
 
 CREATE POLICY "Owners or admins insert marketplace items" ON public.marketplace_items
   FOR INSERT WITH CHECK (
-    user_id = public.current_profile_id()
-    OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') AND seller_id = public.current_profile_id())
+    seller_id = public.current_profile_id()
     OR public.is_admin()
   );
 
 CREATE POLICY "Owners or admins update marketplace items" ON public.marketplace_items
   FOR UPDATE USING (
-    user_id = public.current_profile_id()
-    OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') AND seller_id = public.current_profile_id())
+    seller_id = public.current_profile_id()
+    OR public.is_admin()
+  ) WITH CHECK (
+    seller_id = public.current_profile_id()
     OR public.is_admin()
   );
 
 CREATE POLICY "Owners or admins delete marketplace items" ON public.marketplace_items
   FOR DELETE USING (
-    user_id = public.current_profile_id()
-    OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'marketplace_items' AND column_name = 'seller_id') AND seller_id = public.current_profile_id())
+    seller_id = public.current_profile_id()
     OR public.is_admin()
   );
 

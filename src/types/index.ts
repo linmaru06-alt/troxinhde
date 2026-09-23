@@ -156,8 +156,10 @@ export type MarketplaceDeliveryMethodCode = 'tai_truong' | 'giao_tan_noi' | 'tu_
 
 export interface MarketplaceItem {
   id: string;
-  userId: string;
+  seller_id?: string;
   sellerId?: string;
+  userId?: string;
+  user_id?: string;
   userName: string;
   userPhone?: string;
   userAvatar: string;
@@ -170,6 +172,7 @@ export interface MarketplaceItem {
   location: string;
   district: string;
   images: string[];
+  image_urls?: string[];
   description: string;
   deliveryMethods?: MarketplaceDeliveryMethodCode[];
   isNegotiable?: boolean;
@@ -177,7 +180,9 @@ export interface MarketplaceItem {
   moderationStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   createdAt: string;
+  created_at?: string;
   updatedAt?: string;
+  updated_at?: string;
 }
 
 export interface Message {

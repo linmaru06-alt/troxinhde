@@ -164,7 +164,7 @@ BEGIN
   END IF;
 
   -- 2. Lấy thông tin người bán và món đồ từ DB theo p_item_id
-  SELECT user_id, title, price, images
+  SELECT seller_id, title, price, images
   INTO v_seller_id, v_title, v_price, v_images
   FROM public.marketplace_items
   WHERE id = p_item_id;
