@@ -54,6 +54,67 @@ export function clearLocalChatCache(): void {
   inMemoryStore.clear();
 }
 
+export const MARKETPLACE_CONVERSATION_RATE_LIMIT = 10;
+export const MARKETPLACE_CONVERSATION_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 giờ
+export const MARKETPLACE_RATE_LIMIT_ERROR_MSG = "Bạn thao tác quá nhanh, thử lại sau";
+export const SELLER_BANNED_ERROR_MSG = "Tài khoản người bán hiện đang bị tạm khóa hoặc ngừng hoạt động.";
+
+export function checkMarketplaceConversationRateLimit(
+  buyerId: string,
+  now: number = Date.now(),
+): void {
+  if (!buyerId) return;
+  const cleanId = resolveDemoAlias(buyerId) || buyerId;
+  const key = `troxinh_mp_conv_rate_${cleanId}`;
+  let timestamps: number[] = [];
+  try {
+    const raw = safeGetStorage(key);
+    if (raw) {
+      timestamps = JSON.parse(raw);
+    }
+  } catch {}
+
+  const windowStart = now - MARKETPLACE_CONVERSATION_RATE_WINDOW_MS;
+  const recent = timestamps.filter((t) => typeof t === "number" && t > windowStart);
+  if (recent.length >= MARKETPLACE_CONVERSATION_RATE_LIMIT) {
+    throw new Error(MARKETPLACE_RATE_LIMIT_ERROR_MSG);
+  }
+}
+
+export function recordMarketplaceNewConversation(
+  buyerId: string,
+  now: number = Date.now(),
+): void {
+  if (!buyerId) return;
+  const cleanId = resolveDemoAlias(buyerId) || buyerId;
+  const key = `troxinh_mp_conv_rate_${cleanId}`;
+  let timestamps: number[] = [];
+  try {
+    const raw = safeGetStorage(key);
+    if (raw) {
+      timestamps = JSON.parse(raw);
+    }
+  } catch {}
+
+  const windowStart = now - MARKETPLACE_CONVERSATION_RATE_WINDOW_MS;
+  const recent = timestamps.filter((t) => typeof t === "number" && t > windowStart);
+  recent.push(now);
+  safeSetStorage(key, JSON.stringify(recent));
+}
+
+export function clearMarketplaceConversationRateLimits(): void {
+  inMemoryStore.forEach((_, key) => {
+    if (key.startsWith("troxinh_mp_conv_rate_")) {
+      inMemoryStore.delete(key);
+      try {
+        if (typeof localStorage !== "undefined" && localStorage) {
+          localStorage.removeItem(key);
+        }
+      } catch {}
+    }
+  });
+}
+
 export function getConversationMeta(
   convId: string,
 ): ConversationMeta | null {
@@ -651,9 +712,13 @@ export interface FindOrCreateConversationOptions {
     user_id?: string;
     sellerId?: string;
     images?: string[];
+    sellerIsBanned?: boolean;
+    is_banned?: boolean;
   };
   currentUserId?: string;
   isTestEnv?: boolean;
+  sellerIsBanned?: boolean;
+  now?: number;
 }
 
 export interface FindOrCreateConversationResult {
@@ -685,16 +750,20 @@ export function formatItemContextSummary(
 
 /**
  * Tìm hoặc khởi tạo cuộc hội thoại cho Chợ đồ cũ sinh viên trong hệ thống chat chung:
- * 1. Không gửi tin nhắn thay mặt người mua: Ngữ cảnh món đồ là tin nhắn hệ thống (type: 'item_context', lưu item_id),
+ * 1. Giới hạn tần suất: mỗi người mở tối đa 10 hội thoại mới về chợ đồ cũ trong 1 giờ.
+ *    Vượt quá báo: "Bạn thao tác quá nhanh, thử lại sau".
+ * 2. Người bán bị khóa tài khoản hoặc ngừng hoạt động thì không mở được hội thoại mới
+ *    và hiển thị thông báo rõ ràng.
+ * 3. Không gửi tin nhắn thay mặt người mua: Ngữ cảnh món đồ là tin nhắn hệ thống (type: 'item_context', lưu item_id),
  *    hiển thị dạng thẻ, bỏ câu "Món này còn không bạn?".
- * 2. Chèn ngữ cảnh khi last_item_id khác itemId đang hỏi (kể cả quay lại món đã hỏi trước đó), không dựa vào discussed_items.
- * 3. Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId;
+ * 4. Chèn ngữ cảnh khi last_item_id khác itemId đang hỏi (kể cả quay lại món đã hỏi trước đó), không dựa vào discussed_items.
+ * 5. Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId;
  *    báo lỗi nếu sellerId không phải chủ món đồ hoặc món không tồn tại;
  *    buyerId phải là người dùng đang đăng nhập.
- * 4. Chống trùng: sắp xếp cặp id trước khi lưu (p1 < p2), ràng buộc unique cho cặp người dùng;
+ * 6. Chống trùng: sắp xếp cặp id trước khi lưu (p1 < p2), ràng buộc unique cho cặp người dùng;
  *    insert bị trùng do race condition thì tự động lấy hội thoại đã có.
- * 5. Fallback safeStorage chỉ dùng khi ở chế độ demo/test; môi trường thật lỗi Supabase thì ném lỗi rõ ràng.
- * 6. Trả về object thuần { id, conversationId, isNew, contextInserted, itemId, lastItemId }.
+ * 7. Fallback safeStorage chỉ dùng khi ở chế độ demo/test; môi trường thật lỗi Supabase thì ném lỗi rõ ràng.
+ * 8. Trả về object thuần { id, conversationId, isNew, contextInserted, itemId, lastItemId }.
  */
 export async function findOrCreateConversation(
   buyerId: string,
@@ -724,9 +793,41 @@ export async function findOrCreateConversation(
     throw new Error("Không thể tự nhắn tin cho chính mình.");
   }
 
+  // 3. Kiểm tra tài khoản người bán bị khóa
+  if (
+    options?.sellerIsBanned ||
+    options?.mockItem?.sellerIsBanned ||
+    options?.mockItem?.is_banned
+  ) {
+    throw new Error(SELLER_BANNED_ERROR_MSG);
+  }
+
+  if (isSupabaseConfigured && cleanSellerId) {
+    try {
+      const { data: sellerProf } = await supabase
+        .from("profiles")
+        .select("id, is_banned, banned_until")
+        .eq("id", cleanSellerId)
+        .maybeSingle();
+
+      if (sellerProf?.is_banned) {
+        const isBannedNow =
+          !sellerProf.banned_until ||
+          new Date(sellerProf.banned_until).getTime() > (options?.now || Date.now());
+        if (isBannedNow) {
+          throw new Error(SELLER_BANNED_ERROR_MSG);
+        }
+      }
+    } catch (profErr: any) {
+      if (profErr?.message === SELLER_BANNED_ERROR_MSG) {
+        throw profErr;
+      }
+    }
+  }
+
   const isDemoOrTest = options?.isTestEnv || isDemoUser(cleanBuyerId) || isDemoUser(cleanSellerId);
 
-  // 3. YÊU CẦU 2: GỌI HÀM POSTGRES RPC TRÊN SUPABASE (SECURITY DEFINER)
+  // 4. YÊU CẦU 2: GỌI HÀM POSTGRES RPC TRÊN SUPABASE (SECURITY DEFINER)
   // Trong môi trường thật, toàn bộ transaction (xác thực, kiểm tra chủ món đồ, chống trùng, khóa dòng, chèn tin)
   // được thực thi trong 1 giao dịch nguyên tử (atomic transaction) trên Postgres.
   if (isSupabaseConfigured && !isDemoOrTest) {
@@ -741,17 +842,21 @@ export async function findOrCreateConversation(
 
       if (data && typeof data === "object") {
         const convId = data.conversationId || data.id;
+        const isNewConv = Boolean(data.isNew);
+        if (isNewConv) {
+          recordMarketplaceNewConversation(cleanBuyerId, options?.now);
+        }
         return {
           id: convId,
           conversationId: convId,
-          isNew: Boolean(data.isNew),
+          isNew: isNewConv,
           contextInserted: Boolean(data.contextInserted),
           itemId: data.itemId || cleanItemId,
           lastItemId: data.lastItemId || cleanItemId,
         };
       }
     } catch (rpcErr: any) {
-      // Yêu cầu 6: Môi trường thật lỗi Supabase thì ném lỗi rõ ràng, không fallback che giấu
+      // Môi trường thật lỗi Supabase thì ném lỗi rõ ràng, không fallback che giấu
       throw rpcErr;
     }
   }
@@ -792,6 +897,9 @@ export async function findOrCreateConversation(
   }
 
   if (!existingConvId) {
+    // Kiểm tra giới hạn: mỗi người mở tối đa 10 hội thoại mới trong 1 giờ
+    checkMarketplaceConversationRateLimit(cleanBuyerId, options?.now);
+
     isNew = true;
     existingConvId =
       typeof crypto !== "undefined" && crypto.randomUUID
@@ -811,6 +919,8 @@ export async function findOrCreateConversation(
       unread_count_p2: 0,
       created_at: new Date().toISOString(),
     });
+
+    recordMarketplaceNewConversation(cleanBuyerId, options?.now);
   }
 
   const shouldInsertContext = isNew || (currentLastItemId !== cleanItemId);
