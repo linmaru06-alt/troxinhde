@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
@@ -17,7 +17,11 @@ import {
 
 export const NotificationsPage: React.FC = () => {
   const { notifications, markNotificationRead, markAllNotificationsRead, currentUser } = useAppStore();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'system'>('all');
+
+  const isOwner = currentUser?.role === 'owner' || location.pathname.startsWith('/chu-tro');
+  const isAdmin = !isOwner && (currentUser?.role === 'admin' || location.pathname.startsWith('/admin'));
 
   const filteredNotifs = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.read;
@@ -39,9 +43,6 @@ export const NotificationsPage: React.FC = () => {
         return <Bell className="w-5 h-5 text-[#006d37]" />;
     }
   };
-
-  const isOwner = currentUser?.role === 'owner';
-  const isAdmin = currentUser?.role === 'admin';
 
   const content = (
     <div className="space-y-6">
@@ -148,7 +149,7 @@ export const NotificationsPage: React.FC = () => {
     </div>
   );
 
-  // If Owner or Admin, wrap inside DashboardSidebar layout
+  // If Owner or Admin or under /chu-tro, wrap inside DashboardSidebar layout
   if (isOwner || isAdmin) {
     return (
       <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
