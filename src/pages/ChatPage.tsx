@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
-import { getConversations, isSameUserId, KNOWN_USER_NAMES } from '../lib/api/messages';
+import { getConversations, getConversationMeta, isSameUserId, KNOWN_USER_NAMES } from '../lib/api/messages';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
 import { formatCurrency } from '../components/ui/Cards';
 import { Conversation } from '../types';
@@ -177,8 +177,12 @@ export const ChatPage: React.FC = () => {
     } catch {}
   }
 
+  const savedMeta = activeConversationId ? getConversationMeta(activeConversationId) : null;
+
   const attachedItemId =
+    activeConversation?.item_id ||
     activeConversation?.last_item_id ||
+    savedMeta?.last_item_id ||
     latestContextMsg?.item_id ||
     parsedContext?.itemId ||
     null;
@@ -207,12 +211,15 @@ export const ChatPage: React.FC = () => {
     storeItem?.name ||
     storeItem?.title ||
     remoteItem?.title ||
+    remoteItem?.name ||
+    savedMeta?.last_item_name ||
     parsedContext?.title ||
     'Món đồ thanh lý';
 
   const rawPrice =
     storeItem?.price ??
     remoteItem?.price ??
+    savedMeta?.last_item_price ??
     parsedContext?.price;
 
   const isFree =
@@ -229,21 +236,28 @@ export const ChatPage: React.FC = () => {
   const pinnedImage =
     storeItem?.images?.[0] ||
     remoteItem?.image_urls?.[0] ||
+    (Array.isArray(remoteItem?.images) ? remoteItem?.images[0] : null) ||
     parsedContext?.image ||
     '';
 
   // Xác định nhãn trạng thái (Đang bán / Đã bán / Đã ẩn)
+  const rawStatus =
+    storeItem?.status ||
+    remoteItem?.status ||
+    parsedContext?.status ||
+    '';
+
   const isItemSold =
-    storeItem?.status === 'Đã bán' ||
-    remoteItem?.status === 'sold' ||
-    remoteItem?.status === 'Đã bán' ||
-    parsedContext?.status === 'Đã bán';
+    rawStatus === 'Đã bán' ||
+    rawStatus === 'sold';
 
   const isItemHidden =
-    storeItem?.status === 'Bị từ chối' ||
-    remoteItem?.status === 'hidden' ||
-    remoteItem?.status === 'rejected' ||
-    Boolean((storeItem as any)?.isHidden);
+    rawStatus === 'Đã ẩn' ||
+    rawStatus === 'hidden' ||
+    rawStatus === 'Bị từ chối' ||
+    rawStatus === 'rejected' ||
+    Boolean((storeItem as any)?.isHidden) ||
+    Boolean((remoteItem as any)?.is_hidden);
 
   const itemStatusType: 'sold' | 'hidden' | 'available' = isItemSold
     ? 'sold'
@@ -535,17 +549,20 @@ export const ChatPage: React.FC = () => {
               {attachedItemId && (
                 <Link
                   to={`/cho-do-cu/${attachedItemId}`}
-                  className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/50 transition-all group cursor-pointer shrink-0"
+                  className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group cursor-pointer shrink-0 z-10"
                   title="Bấm để xem chi tiết món đồ"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    {/* Thumbnail ảnh sản phẩm (có placeholder fallback) */}
+                    {/* Thumbnail ảnh sản phẩm (có placeholder fallback khi ảnh lỗi) */}
                     <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
                       <img
                         src={pinnedImage || ITEM_PLACEHOLDER}
                         alt={pinnedTitle}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = ITEM_PLACEHOLDER;
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== ITEM_PLACEHOLDER) {
+                            target.src = ITEM_PLACEHOLDER;
+                          }
                         }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -554,7 +571,7 @@ export const ChatPage: React.FC = () => {
                     {/* Tên & Giá sản phẩm */}
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
                           Món đồ
                         </span>
                         <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-[#006d37] transition-colors">
@@ -567,20 +584,20 @@ export const ChatPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Nhãn trạng thái & Nút xem chi tiết */}
+                  {/* Nhãn trạng thái (Đang bán / Đã bán / Đã ẩn) & Nút xem chi tiết */}
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {itemStatusType === 'sold' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                         Đã bán
                       </span>
                     ) : itemStatusType === 'hidden' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                         Đã ẩn
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Đang bán
                       </span>
