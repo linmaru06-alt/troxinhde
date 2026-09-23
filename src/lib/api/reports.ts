@@ -99,6 +99,30 @@ export function hasUserReported(
 }
 
 /**
+ * Lấy danh sách (Set) các target_id mà người dùng đã báo cáo cho một loại đối tượng
+ * Giúp giao diện tải một lần thay vì gọi hasUserReported cho từng phần tử
+ */
+export function getReportedTargetIds(
+  reporterId: string | undefined,
+  targetType: string,
+): Set<string> {
+  if (!reporterId) return new Set();
+  try {
+    const list = getStoredReports();
+    const normType = normalizeTargetType(targetType);
+    const result = new Set<string>();
+    for (const r of list) {
+      if (isSameUserId(r.reporter_id, reporterId) && r.target_type === normType) {
+        result.add(r.target_id);
+      }
+    }
+    return result;
+  } catch {
+    return new Set();
+  }
+}
+
+/**
  * Chuẩn hóa đối tượng báo cáo (hỗ trợ cả alias cũ nếu có)
  */
 export function normalizeTargetType(type: string): ReportTargetType {
@@ -141,6 +165,8 @@ export interface CreateReportInput {
   reason: string;
   description?: string;
   detail?: string;
+  content_snapshot?: string;
+  targetContentSnapshot?: string;
   reporter_name?: string;
   reporter_phone?: string;
   now?: number; // Dành cho time-travel trong testing
@@ -164,6 +190,7 @@ export function validateReport(
   targetOwnerId?: string;
   reason: ReportReasonCode;
   description?: string;
+  contentSnapshot?: string;
 } {
   const reporterId = (input.reporter_id || input.reporterId || '').trim();
   if (!reporterId) {
@@ -232,6 +259,8 @@ export function validateReport(
     throw new Error(REPORT_ERROR_MESSAGES.DAILY_LIMIT_EXCEEDED);
   }
 
+  const contentSnapshot = (input.content_snapshot || input.targetContentSnapshot || '').trim();
+
   return {
     reporterId,
     targetType,
@@ -239,6 +268,7 @@ export function validateReport(
     targetOwnerId,
     reason,
     description: description || undefined,
+    contentSnapshot: contentSnapshot || undefined,
   };
 }
 
@@ -259,6 +289,7 @@ export async function createReport(payload: CreateReportInput): Promise<ReportRe
     target_owner_id: validated.targetOwnerId,
     reason: validated.reason,
     description: validated.description,
+    content_snapshot: validated.contentSnapshot,
     status: 'moi',
     reporter_name: payload.reporter_name,
     reporter_phone: payload.reporter_phone,
@@ -277,12 +308,16 @@ export async function createReport(payload: CreateReportInput): Promise<ReportRe
           ? validated.reporterId
           : resolveDemoAlias(validated.reporterId) || null;
 
+      const combinedDescription = validated.contentSnapshot
+        ? `[Bản sao nội dung lúc báo cáo: "${validated.contentSnapshot}"]\n${validated.description || ''}`.trim()
+        : validated.description || null;
+
       await supabase.from('reports').insert({
         reporter_id: validReporterId,
         target_type: validated.targetType,
         target_id: validated.targetId,
         reason: validated.reason,
-        description: validated.description || null,
+        description: combinedDescription,
         status: 'moi',
         created_at: currentTime,
       });

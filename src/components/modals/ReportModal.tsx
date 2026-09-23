@@ -17,6 +17,7 @@ export interface ReportModalProps {
   targetId?: string;
   targetType?: string;
   targetOwnerId?: string;
+  contentSnapshot?: string;
   onSuccess?: () => void;
 }
 
@@ -36,6 +37,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
   targetId,
   targetType = 'tin_dang',
   targetOwnerId,
+  contentSnapshot,
   onSuccess,
 }) => {
   const { currentUser, addReport, showToast } = useAppStore();
@@ -77,6 +79,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         target_type: targetType,
         target_id: targetId || 'target_item',
         target_owner_id: targetOwnerId,
+        content_snapshot: contentSnapshot,
         reason: reasonCode,
         description: detail.trim(),
         reporter_name: currentUser?.name || 'Người dùng ẩn danh',
@@ -89,6 +92,10 @@ export const ReportModal: React.FC<ReportModalProps> = ({
           ? 'user'
           : 'marketplace';
 
+      const combinedAdminDetail = contentSnapshot
+        ? `[Bản sao nội dung: "${contentSnapshot}"]\n${detail.trim()}`.trim()
+        : detail.trim();
+
       addReport({
         targetId: targetId || 'target_item',
         targetTitle,
@@ -96,7 +103,7 @@ export const ReportModal: React.FC<ReportModalProps> = ({
         reporterName: currentUser?.name || 'Người dùng ẩn danh',
         reporterPhone: currentUser?.phone,
         reason: REPORT_REASON_LABELS[reasonCode],
-        detail: detail.trim(),
+        detail: combinedAdminDetail,
       });
 
       setIsSubmitting(false);

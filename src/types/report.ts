@@ -60,6 +60,7 @@ export interface ReportRecord {
   target_owner_id?: string;
   reason: ReportReasonCode;
   description?: string;
+  content_snapshot?: string;
   status: ReportStatusCode;
   admin_notes?: string;
   reporter_name?: string;

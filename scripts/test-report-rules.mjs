@@ -99,6 +99,22 @@ export function hasUserReported(reporterId, targetType, targetId) {
   }
 }
 
+export function getReportedTargetIds(reporterId, targetType) {
+  if (!reporterId) return new Set();
+  try {
+    const normType = normalizeTargetType(targetType);
+    const result = new Set();
+    for (const r of dbReports) {
+      if (isSameUserId(r.reporter_id, reporterId) && r.target_type === normType) {
+        result.add(r.target_id);
+      }
+    }
+    return result;
+  } catch {
+    return new Set();
+  }
+}
+
 function isSameUserId(id1, id2) {
   if (!id1 || !id2) return false;
   return String(id1).trim() === String(id2).trim();
@@ -180,6 +196,8 @@ export function validateReport(input, existingReports = dbReports) {
     throw new Error(REPORT_ERROR_MESSAGES.DAILY_LIMIT_EXCEEDED);
   }
 
+  const contentSnapshot = (input.content_snapshot || input.targetContentSnapshot || '').trim();
+
   return {
     reporterId,
     targetType,
@@ -187,6 +205,7 @@ export function validateReport(input, existingReports = dbReports) {
     targetOwnerId,
     reason,
     description: description || undefined,
+    contentSnapshot: contentSnapshot || undefined,
   };
 }
 
@@ -202,6 +221,7 @@ export async function createReport(payload) {
     target_owner_id: validated.targetOwnerId,
     reason: validated.reason,
     description: validated.description,
+    content_snapshot: validated.contentSnapshot,
     status: 'moi',
     reporter_name: payload.reporter_name,
     reporter_phone: payload.reporter_phone,
@@ -690,6 +710,82 @@ async function runAllReportTests() {
       assert.strictEqual(err.message, REPORT_ERROR_MESSAGES.DUPLICATE_REPORT);
     }
     assert.strictEqual(threw, true, 'Không được phép gửi 2 lần báo cáo cho cùng một tin nhắn');
+  });
+
+  // Test 20: Tải một lần getReportedTargetIds trả về Set các target_id đã báo cáo
+  await runTest('Tải một lần getReportedTargetIds trả về Set các tin nhắn đã báo cáo', async () => {
+    const userBatch = 'user_batch_loader';
+    const msg1 = 'batch_msg_01';
+    const msg2 = 'batch_msg_02';
+
+    // Ban đầu tập hợp rỗng
+    const initialSet = getReportedTargetIds(userBatch, 'tin_nhan');
+    assert.strictEqual(initialSet.size, 0);
+
+    // Gửi báo cáo msg1
+    await createReport({
+      reporter_id: userBatch,
+      target_type: 'tin_nhan',
+      target_id: msg1,
+      target_owner_id: 'sender_other_1',
+      reason: 'spam',
+    });
+
+    // Gửi báo cáo msg2
+    await createReport({
+      reporter_id: userBatch,
+      target_type: 'tin_nhan',
+      target_id: msg2,
+      target_owner_id: 'sender_other_2',
+      reason: 'lua_dao',
+    });
+
+    // Lấy lại danh sách -> Set có chứa cả 2 id
+    const resultSet = getReportedTargetIds(userBatch, 'tin_nhan');
+    assert.strictEqual(resultSet.size, 2);
+    assert.strictEqual(resultSet.has(msg1), true);
+    assert.strictEqual(resultSet.has(msg2), true);
+    assert.strictEqual(resultSet.has('batch_msg_other_not_reported'), false);
+  });
+
+  // Test 21: Lưu kèm bản sao nội dung tin nhắn (content_snapshot) và xử lý preview 80 ký tự / [Hình ảnh]
+  await runTest('Lưu kèm bản sao nội dung tin nhắn và format preview tối đa 80 ký tự', async () => {
+    const reporter = 'user_snapshot_tester';
+    const longContent = 'Đây là nội dung tin nhắn rất dài nhằm mục đích kiểm tra xem hệ thống có cắt tối đa đúng 80 ký tự hay không và thêm dấu ba chấm vào cuối chuỗi văn bản.';
+    const rawImageMsg = 'https://example.com/uploads/photo123.jpg';
+
+    // 1. Kiểm tra lưu content_snapshot
+    const rep = await createReport({
+      reporter_id: reporter,
+      target_type: 'tin_nhan',
+      target_id: 'msg_snapshot_test_01',
+      target_owner_id: 'sender_suspicious',
+      content_snapshot: longContent,
+      reason: 'khong_phu_hop',
+      description: 'Nội dung phản cảm',
+    });
+
+    assert.strictEqual(rep.content_snapshot, longContent, 'Bản sao nội dung tin nhắn phải được lưu nguyên vẹn');
+
+    // 2. Kiểm tra hàm preview tin nhắn
+    const formatPreview = (text, type = 'text') => {
+      if (type === 'image' || !text?.trim()) return '[Hình ảnh]';
+      const clean = text.trim();
+      if (/^https?:\/\/.*\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(clean)) return '[Hình ảnh]';
+      if (clean.length <= 80) return clean;
+      return clean.slice(0, 80) + '...';
+    };
+
+    assert.strictEqual(formatPreview(rawImageMsg), '[Hình ảnh]');
+    assert.strictEqual(formatPreview('', 'image'), '[Hình ảnh]');
+    assert.strictEqual(formatPreview('   '), '[Hình ảnh]');
+
+    const shortText = 'Xin chào bạn nhé!';
+    assert.strictEqual(formatPreview(shortText), 'Xin chào bạn nhé!');
+
+    const formattedLong = formatPreview(longContent);
+    assert.strictEqual(formattedLong.length, 83); // 80 ký tự + "..."
+    assert.ok(formattedLong.endsWith('...'));
   });
 
   // ==============================================================
