@@ -1,3 +1,5 @@
+export * from './supabase';
+
 export type UserRole = "guest" | "user" | "owner" | "admin" | "renter";
 export type AdminRole = "super_admin" | "moderator" | "support" | "finance";
 
@@ -13,7 +15,10 @@ export interface User {
   avatarUrl: string;
   email?: string;
   school?: string;
+  university?: string;
   year?: string;
+  student_year?: string;
+  studentYear?: string;
   bio?: string;
   address?: string;
   rating?: number;

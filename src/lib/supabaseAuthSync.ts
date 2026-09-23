@@ -16,6 +16,8 @@ export interface SupabaseUserProfile {
   owner_application_status?: 'none' | 'pending' | 'approved' | 'rejected';
   school?: string;
   year?: string;
+  university?: string;
+  student_year?: string;
   bio?: string;
   address?: string;
   student_card_url?: string;
@@ -66,6 +68,9 @@ export async function fetchUserProfileFromSupabase(
       }
     } catch {}
 
+    const schoolVal = data.university || data.school || '';
+    const yearVal = data.student_year || data.year || '';
+
     return {
       id: data.id || userId,
       name: data.full_name || data.name || '',
@@ -77,8 +82,10 @@ export async function fetchUserProfileFromSupabase(
       avatar_url: data.avatar_url || '/images/user-avatar.jpg',
       verified: Boolean(data.verified),
       owner_application_status: data.owner_application_status || 'none',
-      school: data.school || '',
-      year: data.year || '',
+      school: schoolVal,
+      university: schoolVal,
+      year: yearVal,
+      student_year: yearVal,
       bio: data.bio || '',
       address: data.address || '',
       student_card_url: privStudentCard || '',
@@ -127,11 +134,15 @@ export async function updateUserProfile(
     if (data.phone !== undefined) {
       updatePayload.phone = data.phone ? data.phone.trim() : null;
     }
-    if (data.school !== undefined) {
-      updatePayload.school = data.school ? data.school.trim() : null;
+    if (data.school !== undefined || data.university !== undefined) {
+      const universityVal = (data.university || data.school) ? (data.university || data.school).trim() : null;
+      updatePayload.school = universityVal;
+      updatePayload.university = universityVal;
     }
-    if (data.year !== undefined) {
-      updatePayload.year = data.year ? data.year.trim() : null;
+    if (data.year !== undefined || data.student_year !== undefined) {
+      const yearVal = (data.student_year || data.year) ? (data.student_year || data.year).trim() : null;
+      updatePayload.year = yearVal;
+      updatePayload.student_year = yearVal;
     }
     if (data.bio !== undefined) {
       updatePayload.bio = data.bio ? data.bio.trim() : null;
@@ -288,6 +299,9 @@ export async function syncUserToSupabase(
   profile: SupabaseUserProfile
 ): Promise<{ success: boolean; data?: SupabaseUserProfile; error?: string }> {
   try {
+    const finalUniversity = (profile.university || profile.school || '').trim() || null;
+    const finalStudentYear = (profile.student_year || profile.year || '').trim() || null;
+
     const updateRes = await updateUserProfile(profile.id, {
       name: profile.name,
       full_name: profile.full_name || profile.name,
@@ -298,8 +312,10 @@ export async function syncUserToSupabase(
       avatar_url: profile.avatar_url,
       verified: profile.verified,
       owner_application_status: profile.owner_application_status,
-      school: profile.school,
-      year: profile.year,
+      school: finalUniversity,
+      university: finalUniversity,
+      year: finalStudentYear,
+      student_year: finalStudentYear,
       bio: profile.bio,
       address: profile.address,
       student_card_url: profile.student_card_url,
@@ -315,6 +331,10 @@ export async function syncUserToSupabase(
         success: true,
         data: {
           ...profile,
+          school: finalUniversity || profile.school,
+          university: finalUniversity || profile.university,
+          year: finalStudentYear || profile.year,
+          student_year: finalStudentYear || profile.student_year,
           id: updateRes.data?.id || profile.id,
         },
       };
@@ -331,8 +351,10 @@ export async function syncUserToSupabase(
       avatar_url: profile.avatar_url || '/images/user-avatar.jpg',
       verified: profile.verified ?? true,
       owner_application_status: profile.owner_application_status || 'none',
-      school: profile.school || null,
-      year: profile.year || null,
+      school: finalUniversity,
+      university: finalUniversity,
+      year: finalStudentYear,
+      student_year: finalStudentYear,
       bio: profile.bio || null,
       address: profile.address || null,
       student_card_url: profile.student_card_url || null,
@@ -362,6 +384,9 @@ export async function syncUserToSupabase(
       return { success: false, error: error.message, data: profile };
     }
 
+    const returnSchool = data?.university || data?.school || finalUniversity || profile.school;
+    const returnYear = data?.student_year || data?.year || finalStudentYear || profile.year;
+
     return {
       success: true,
       data: {
@@ -373,8 +398,10 @@ export async function syncUserToSupabase(
         avatar_url: data?.avatar_url || profile.avatar_url,
         verified: data?.verified ?? true,
         owner_application_status: data?.owner_application_status || 'none',
-        school: data?.school || profile.school,
-        year: data?.year || profile.year,
+        school: returnSchool,
+        university: returnSchool,
+        year: returnYear,
+        student_year: returnYear,
         student_card_url: data?.student_card_url || profile.student_card_url,
         social_link: data?.social_link || profile.social_link,
         phone_verified: Boolean(data?.phone_verified ?? profile.phone_verified),

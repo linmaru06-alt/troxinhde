@@ -61,14 +61,18 @@ export const RenterProfilePage: React.FC = () => {
         if (dbProfile && isMounted) {
           const current = useAppStore.getState().currentUser;
           if (!current) return;
+          const dbSchool = dbProfile.university || dbProfile.school || current.school;
+          const dbYear = dbProfile.student_year || dbProfile.year || current.year;
           setCurrentUser({
             ...current,
             name: dbProfile.name || current.name,
             avatarUrl: dbProfile.avatar_url || current.avatarUrl,
             phone: dbProfile.phone || current.phone,
             phoneVerified: Boolean(dbProfile.phone_verified),
-            school: dbProfile.school || current.school,
-            year: dbProfile.year || current.year,
+            school: dbSchool,
+            university: dbSchool,
+            year: dbYear,
+            student_year: dbYear,
             studentCardUrl: dbProfile.student_card_url || current.studentCardUrl,
             socialLink: dbProfile.social_link || current.socialLink,
             ownerApplicationStatus: dbProfile.owner_application_status || current.ownerApplicationStatus,
@@ -136,7 +140,7 @@ export const RenterProfilePage: React.FC = () => {
             
             <p className="text-sm text-gray-600 font-medium flex items-center justify-center sm:justify-start gap-1.5">
               <School className="w-4 h-4 text-[#00a854]" />
-              {currentUser.school || 'Sinh viên đại học'} • {currentUser.year || 'Năm 3'}
+              {currentUser.university || currentUser.school || 'Sinh viên đại học'} • {currentUser.student_year || currentUser.year || 'Năm 3'}
             </p>
 
             {/* Explicit Verification Status Cards */}

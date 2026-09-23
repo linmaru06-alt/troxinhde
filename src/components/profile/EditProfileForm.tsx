@@ -177,7 +177,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             setStudentCardUrl(dbProfile.student_card_url || '');
             setSocialLink(dbProfile.social_link || dbProfile.facebook_link || '');
 
-            const dbSchool = dbProfile.school || '';
+            const dbSchool = dbProfile.university || dbProfile.school || '';
             if (UNIVERSITY_OPTIONS.includes(dbSchool)) {
               setSchool(dbSchool);
               setCustomSchool('');
@@ -189,7 +189,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               setCustomSchool('');
             }
 
-            setYear(dbProfile.year || '');
+            const dbYear = dbProfile.student_year || dbProfile.year || '';
+            setYear(dbYear);
 
             // Đồng bộ lại currentUser trong zustand store với dữ liệu thật từ DB
             setCurrentUser({
@@ -198,8 +199,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               avatarUrl: dbProfile.avatar_url || currentUser.avatarUrl,
               phone: dbProfile.phone || currentUser.phone,
               phoneVerified: Boolean(dbProfile.phone_verified),
-              school: dbProfile.school || currentUser.school,
-              year: dbProfile.year || currentUser.year,
+              school: dbSchool || currentUser.school,
+              university: dbSchool || currentUser.university,
+              year: dbYear || currentUser.year,
+              student_year: dbYear || currentUser.student_year,
               studentCardUrl: dbProfile.student_card_url || currentUser.studentCardUrl,
               socialLink: dbProfile.social_link || currentUser.socialLink,
               ownerApplicationStatus: dbProfile.owner_application_status || currentUser.ownerApplicationStatus,
@@ -456,7 +459,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       phone: phone ? phone.trim() : null,
       avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
       school: finalSchool ? finalSchool.trim() : null,
+      university: finalSchool ? finalSchool.trim() : null,
       year: year ? year.trim() : null,
+      student_year: year ? year.trim() : null,
       social_link: socialLink ? socialLink.trim() : null,
       facebook_link: socialLink ? socialLink.trim() : null,
       student_card_url: studentCardUrl ? studentCardUrl.trim() : null,
@@ -495,7 +500,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       name: updatePayload.name,
       avatarUrl: updatePayload.avatar_url,
       school: finalSchool,
+      university: finalSchool,
       year: year,
+      student_year: year,
       phone: updatePayload.phone || '',
       phoneVerified: phoneVerified,
       studentCardUrl: studentCardUrl,
