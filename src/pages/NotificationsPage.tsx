@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -15,8 +15,12 @@ import {
 } from 'lucide-react';
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useAppStore();
+  const { notifications, markNotificationRead, markAllNotificationsRead, currentUser } = useAppStore();
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'system'>('all');
+
+  if (currentUser?.role === 'owner') {
+    return <Navigate to="/chu-tro/thong-bao" replace />;
+  }
 
   const filteredNotifs = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.read;
