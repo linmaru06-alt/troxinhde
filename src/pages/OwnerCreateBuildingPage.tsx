@@ -82,10 +82,8 @@ export const OwnerCreateBuildingPage: React.FC = () => {
       reviewCount: 0,
       description,
       geo,
-      nearbyUniversities: [{ name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 }],
-    });
-
-    navigate(`/toa-nha/${id}`);
+    showToast('Tạo hồ sơ tòa nhà thành công! 🏢', 'Bây giờ bạn có thể bắt đầu thêm phòng cho tòa nhà này.', 'success');
+    navigate('/chu-tro/toa-nha');
   };
 
   return (

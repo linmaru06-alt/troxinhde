@@ -82,13 +82,20 @@ export const OwnerBuildingListPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between pt-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
                     <span className="text-xs text-amber-500 font-bold">★ {bld.rating} ({bld.reviewCount} đánh giá)</span>
-                    <Link to={`/toa-nha/${bld.id}`}>
-                      <Button variant="outline" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                        Xem Trang Công Khai
-                      </Button>
-                    </Link>
+                    <div className="flex items-center gap-1.5">
+                      <Link to={`/chu-tro/phong/tao-moi/${bld.id}`}>
+                        <Button variant="outline" size="sm" leftIcon={<PlusCircle className="w-3.5 h-3.5" />}>
+                          Đăng phòng
+                        </Button>
+                      </Link>
+                      <Link to={`/chu-tro/toa-nha/${bld.id}`}>
+                        <Button variant="primary" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
+                          Quản lý tòa
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 </div>
               </div>

@@ -49,12 +49,20 @@ export const LoginPage: React.FC = () => {
 
     showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
 
-    if (returnUrl) {
-      navigate(decodeURIComponent(returnUrl));
-    } else if (user.role === 'owner') {
-      navigate('/chu-tro');
+    if (user.role === 'owner' || roleParam === 'owner') {
+      if (returnUrl && returnUrl.startsWith('/chu-tro')) {
+        navigate(decodeURIComponent(returnUrl));
+      } else {
+        navigate('/chu-tro');
+      }
     } else if (user.role === 'admin') {
-      navigate('/admin');
+      if (returnUrl && returnUrl.startsWith('/admin')) {
+        navigate(decodeURIComponent(returnUrl));
+      } else {
+        navigate('/admin');
+      }
+    } else if (returnUrl && !returnUrl.startsWith('/dang-nhap') && !returnUrl.startsWith('/dang-ky')) {
+      navigate(decodeURIComponent(returnUrl));
     } else {
       navigate('/tim-phong');
     }

@@ -28,16 +28,18 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications, ownerApplications } = useAppStore();
+  const { logout, currentUser, notifications, ownerApplications, bookings = [] } = useAppStore();
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
   const unreadMessages = 0;
   const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;
+  const pendingBookings = (bookings || []).filter((b) => b.status === 'Chờ chủ trọ xác nhận').length;
 
   const ownerLinks: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan & Phòng', icon: LayoutDashboard },
     { to: '/chu-tro/toa-nha', label: 'Tòa nhà của tôi', icon: Building2 },
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
+    { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
     { to: '/chu-tro/quan-ly-goi', label: 'Gói dịch vụ & Hóa đơn', icon: Crown },
     { to: '/chu-tro/tin-nhan', label: 'Tin nhắn khách thuê', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/thong-bao', label: 'Trung tâm thông báo', icon: Bell, badge: unreadNotifs },

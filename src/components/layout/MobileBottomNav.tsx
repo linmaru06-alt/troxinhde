@@ -49,9 +49,9 @@ export const MobileBottomNav: React.FC = () => {
   // 2. Owner tabs (5 items): Tổng quan · Phòng · Lịch hẹn · Tin nhắn · Tài khoản
   const ownerTabs: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan', icon: LayoutDashboard },
-    { to: '/chu-tro/toa-nha', label: 'Phòng', icon: Building2 },
-    { to: '/lich-hen', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).length },
-    { to: '/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
+    { to: '/chu-tro/toa-nha', label: 'Phòng & Tòa', icon: Building2 },
+    { to: '/chu-tro/lich-hen', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).filter(b => b.status === 'Chờ chủ trọ xác nhận').length },
+    { to: '/chu-tro/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/toi', label: 'Tài khoản', icon: UserIcon },
   ];
 

@@ -56,6 +56,24 @@ export const AuthModal: React.FC = () => {
     closeAuthModal();
   };
 
+  const handleAuthSuccess = (user: any) => {
+    loginWithSocialUser({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      role: user.role,
+      avatarUrl: user.avatarUrl,
+    });
+    showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
+    handleClose();
+    if (user.role === 'owner') {
+      navigate('/chu-tro');
+    } else if (user.role === 'admin') {
+      navigate('/admin');
+    }
+  };
+
   // 1. Social Login: Google
   const handleGoogleLogin = async () => {
     setErrorMsg('');
@@ -63,16 +81,7 @@ export const AuthModal: React.FC = () => {
     try {
       const res = await loginWithGoogle('renter');
       if (res.success && res.user) {
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-        showToast('Đăng nhập thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        handleAuthSuccess(res.user);
       } else {
         setErrorMsg(res.error || 'Đăng nhập Google không thành công.');
       }
@@ -90,16 +99,7 @@ export const AuthModal: React.FC = () => {
     try {
       const res = await loginWithFacebook('renter');
       if (res.success && res.user) {
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-        showToast('Đăng nhập Facebook thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        handleAuthSuccess(res.user);
       } else {
         setErrorMsg(res.error || 'Đăng nhập Facebook không thành công.');
       }
@@ -117,16 +117,7 @@ export const AuthModal: React.FC = () => {
     try {
       const res = await loginWithApple('renter');
       if (res.success && res.user) {
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-        showToast('Đăng nhập Apple thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        handleAuthSuccess(res.user);
       } else {
         setErrorMsg(res.error || 'Đăng nhập Apple không thành công.');
       }
@@ -175,16 +166,7 @@ export const AuthModal: React.FC = () => {
     try {
       const res = await loginWithEmailPassword(identifier.trim().toLowerCase(), password);
       if (res.success && res.user) {
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-        showToast('Đăng nhập thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        handleAuthSuccess(res.user);
       } else {
         setErrorMsg(res.error || 'Email hoặc mật khẩu không chính xác.');
       }
@@ -216,16 +198,7 @@ export const AuthModal: React.FC = () => {
         );
 
         if (res.success && res.user) {
-          loginWithSocialUser({
-            id: res.user.id,
-            name: res.user.name,
-            email: res.user.email,
-            phone: res.user.phone,
-            role: res.user.role,
-            avatarUrl: res.user.avatarUrl,
-          });
-          showToast('Xác thực thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-          handleClose();
+          handleAuthSuccess(res.user);
         } else {
           setErrorMsg(res.error || 'Lỗi khi xác thực tài khoản.');
         }
@@ -245,20 +218,7 @@ export const AuthModal: React.FC = () => {
     try {
       const res = await loginWithDemoAccount(role);
       if (res.success && res.user) {
-        loginWithSocialUser({
-          id: res.user.id,
-          name: res.user.name,
-          email: res.user.email,
-          phone: res.user.phone,
-          role: res.user.role,
-          avatarUrl: res.user.avatarUrl,
-        });
-        showToast(
-          'Đăng nhập tài khoản mẫu thành công! 🎉',
-          `Bạn đang đăng nhập với quyền ${role === 'admin' ? 'Ban Quản Trị' : role === 'owner' ? 'Chủ Trọ' : 'Người Thuê'}`,
-          'success'
-        );
-        handleClose();
+        handleAuthSuccess(res.user);
       }
     } finally {
       setIsLoading(false);

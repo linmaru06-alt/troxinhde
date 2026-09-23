@@ -56,10 +56,13 @@ const PaymentResultPage = React.lazy(() => import('./pages/PaymentResultPage').t
 const OwnerOnboardingPage = React.lazy(() => import('./pages/OwnerOnboardingPage').then((m) => ({ default: m.OwnerOnboardingPage })));
 const OwnerDashboardPage = React.lazy(() => import('./pages/OwnerDashboardPage').then((m) => ({ default: m.OwnerDashboardPage })));
 const OwnerBuildingListPage = React.lazy(() => import('./pages/OwnerBuildingListPage').then((m) => ({ default: m.OwnerBuildingListPage })));
+const OwnerBuildingDetailPage = React.lazy(() => import('./pages/OwnerBuildingDetailPage').then((m) => ({ default: m.OwnerBuildingDetailPage })));
 const OwnerCreateBuildingPage = React.lazy(() => import('./pages/OwnerCreateBuildingPage').then((m) => ({ default: m.OwnerCreateBuildingPage })));
 const OwnerCreateRoomPage = React.lazy(() => import('./pages/OwnerCreateRoomPage').then((m) => ({ default: m.OwnerCreateRoomPage })));
 const OwnerRoomDetailPage = React.lazy(() => import('./pages/OwnerRoomDetailPage').then((m) => ({ default: m.OwnerRoomDetailPage })));
 const OwnerChatPage = React.lazy(() => import('./pages/OwnerChatPage').then((m) => ({ default: m.OwnerChatPage })));
+const OwnerBookingsPage = React.lazy(() => import('./pages/OwnerBookingsPage').then((m) => ({ default: m.OwnerBookingsPage })));
+const OwnerNotificationsPage = React.lazy(() => import('./pages/OwnerNotificationsPage').then((m) => ({ default: m.OwnerNotificationsPage })));
 const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
 const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
@@ -393,7 +396,7 @@ export const App: React.FC = () => {
               path="/chu-tro/toa-nha/:id"
               element={
                 <OwnerRoute>
-                  <BuildingDetailPage />
+                  <OwnerBuildingDetailPage />
                 </OwnerRoute>
               }
             />
@@ -437,12 +440,19 @@ export const App: React.FC = () => {
                 </OwnerRoute>
               }
             />
-            <Route path="/chu-tro/lich-hen" element={<Navigate to="/lich-hen" replace />} />
+            <Route
+              path="/chu-tro/lich-hen"
+              element={
+                <OwnerRoute>
+                  <OwnerBookingsPage />
+                </OwnerRoute>
+              }
+            />
             <Route
               path="/chu-tro/thong-bao"
               element={
                 <OwnerRoute>
-                  <NotificationsPage />
+                  <OwnerNotificationsPage />
                 </OwnerRoute>
               }
             />
