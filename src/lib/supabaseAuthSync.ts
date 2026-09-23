@@ -35,13 +35,18 @@ export interface SupabaseUserProfile {
 export async function fetchUserProfileFromSupabase(
   userId?: string
 ): Promise<SupabaseUserProfile | null> {
-  if (!userId) return null;
+  if (!userId || userId === 'undefined' || userId.trim() === '') return null;
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .or(`id.eq.${userId},firebase_uid.eq.${userId}`)
-      .maybeSingle();
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId.trim());
+    
+    let query = supabase.from('profiles').select('*');
+    if (isUUID) {
+      query = query.or(`id.eq.${userId},firebase_uid.eq.${userId}`);
+    } else {
+      query = query.eq('firebase_uid', userId);
+    }
+
+    const { data, error } = await query.maybeSingle();
 
     if (error || !data) {
       return null;
@@ -80,27 +85,26 @@ export async function fetchUserProfileFromSupabase(
 
 /**
  * Cập nhật trực tiếp thông tin hồ sơ trong bảng `profiles` trên Supabase
- * Sử dụng Supabase client: supabase.from('profiles').update(updateData).eq('id', userId)
+ * Sử dụng Supabase client: supabase.from('profiles').update(updatePayload).eq('id', targetUserId)
  */
 export async function updateUserProfile(
   userId: string,
   data: any
 ): Promise<{ success: boolean; data?: any; error?: string }> {
-  if (!userId) {
+  if (!userId || userId === 'undefined' || userId.trim() === '') {
     return { success: false, error: 'Không tìm thấy ID người dùng để cập nhật.' };
   }
 
   try {
+    // 1. Lọc Payload: CHỈ chứa các trường (columns) thực sự có trong bảng profiles
     const updatePayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
-    if (data.name !== undefined) {
-      updatePayload.name = data.name;
-      updatePayload.full_name = data.full_name || data.name;
-    } else if (data.full_name !== undefined) {
-      updatePayload.name = data.full_name;
-      updatePayload.full_name = data.full_name;
+    if (data.name !== undefined || data.full_name !== undefined) {
+      const resolvedName = (data.full_name || data.name || '').trim();
+      updatePayload.name = resolvedName;
+      updatePayload.full_name = resolvedName;
     }
 
     if (data.email !== undefined) {
@@ -110,29 +114,31 @@ export async function updateUserProfile(
       updatePayload.phone = data.phone ? data.phone.trim() : null;
     }
     if (data.school !== undefined) {
-      updatePayload.school = data.school || null;
+      updatePayload.school = data.school ? data.school.trim() : null;
     }
     if (data.year !== undefined) {
-      updatePayload.year = data.year || null;
+      updatePayload.year = data.year ? data.year.trim() : null;
     }
     if (data.bio !== undefined) {
-      updatePayload.bio = data.bio || null;
+      updatePayload.bio = data.bio ? data.bio.trim() : null;
     }
     if (data.address !== undefined) {
-      updatePayload.address = data.address || null;
+      updatePayload.address = data.address ? data.address.trim() : null;
     }
     if (data.social_link !== undefined) {
-      updatePayload.social_link = data.social_link || null;
-      updatePayload.facebook_link = data.social_link || null;
-    }
-    if (data.facebook_link !== undefined) {
-      updatePayload.facebook_link = data.facebook_link || null;
+      const sLink = data.social_link ? data.social_link.trim() : null;
+      updatePayload.social_link = sLink;
+      updatePayload.facebook_link = sLink;
+    } else if (data.facebook_link !== undefined) {
+      const fbLink = data.facebook_link ? data.facebook_link.trim() : null;
+      updatePayload.facebook_link = fbLink;
+      updatePayload.social_link = fbLink;
     }
     if (data.zalo_link !== undefined) {
-      updatePayload.zalo_link = data.zalo_link || null;
+      updatePayload.zalo_link = data.zalo_link ? data.zalo_link.trim() : null;
     }
     if (data.avatar_url !== undefined) {
-      updatePayload.avatar_url = data.avatar_url || null;
+      updatePayload.avatar_url = data.avatar_url || '/images/user-avatar.jpg';
     }
     if (data.student_card_url !== undefined) {
       updatePayload.student_card_url = data.student_card_url || null;
@@ -149,33 +155,48 @@ export async function updateUserProfile(
     if (data.owner_application_status !== undefined) {
       updatePayload.owner_application_status = data.owner_application_status;
     }
-    if (data.role !== undefined) {
-      const roleVal = data.role === 'user' ? 'renter' : data.role;
-      updatePayload.role = roleVal;
-      updatePayload.app_role = data.app_role || roleVal;
-    }
-    if (data.app_role !== undefined) {
-      updatePayload.app_role = data.app_role;
-      updatePayload.role = data.app_role;
+    if (data.role !== undefined || data.app_role !== undefined) {
+      const resolvedRole = data.app_role || (data.role === 'user' ? 'renter' : data.role) || 'renter';
+      updatePayload.role = resolvedRole;
+      updatePayload.app_role = resolvedRole;
     }
 
-    // 1. Cập nhật theo khóa ID trong bảng profiles
-    const { data: updatedData, error: updateError } = await supabase
-      .from('profiles')
-      .update(updatePayload)
-      .eq('id', userId)
-      .select()
-      .maybeSingle();
+    // Tuyệt đối KHÔNG đưa cột id, email vào trong object updatePayload này
+    delete (updatePayload as any).id;
+    delete (updatePayload as any).email;
 
-    if (!updateError && updatedData) {
-      return { success: true, data: updatedData };
+    // Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
+    Object.keys(updatePayload).forEach((key) => {
+      if (updatePayload[key] === undefined) {
+        delete updatePayload[key];
+      }
+    });
+
+    // Log payload ra console để debug dữ liệu
+    console.log("Update Payload:", updatePayload);
+
+    const cleanUserId = userId.trim();
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanUserId);
+
+    // 2. Gắn ID chính xác: Gọi API update theo đúng khóa
+    if (isUUID) {
+      const { data: updatedData, error: updateError } = await supabase
+        .from('profiles')
+        .update(updatePayload)
+        .eq('id', cleanUserId)
+        .select()
+        .maybeSingle();
+
+      if (!updateError && updatedData) {
+        return { success: true, data: updatedData };
+      }
     }
 
-    // 2. Thử cập nhật theo firebase_uid nếu userId là Firebase UID
+    // 3. Nếu cleanUserId là Firebase UID hoặc chưa tìm thấy theo id, thử theo firebase_uid
     const { data: fbData, error: fbError } = await supabase
       .from('profiles')
       .update(updatePayload)
-      .eq('firebase_uid', userId)
+      .eq('firebase_uid', cleanUserId)
       .select()
       .maybeSingle();
 
@@ -183,19 +204,33 @@ export async function updateUserProfile(
       return { success: true, data: fbData };
     }
 
-    // 3. Nếu vẫn chưa cập nhật được, thử filter OR
-    const { data: orData, error: orError } = await supabase
-      .from('profiles')
-      .update(updatePayload)
-      .or(`id.eq.${userId},firebase_uid.eq.${userId}`)
-      .select()
-      .maybeSingle();
+    // 4. Tra cứu UUID thực tế của bản ghi profiles nếu cleanUserId là Firebase UID
+    if (!isUUID) {
+      const { data: matchedProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('firebase_uid', cleanUserId)
+        .maybeSingle();
 
-    if (orError) {
-      return { success: false, error: orError.message };
+      if (matchedProfile?.id) {
+        const { data: reUpdated, error: reError } = await supabase
+          .from('profiles')
+          .update(updatePayload)
+          .eq('id', matchedProfile.id)
+          .select()
+          .maybeSingle();
+
+        if (!reError && reUpdated) {
+          return { success: true, data: reUpdated };
+        }
+        if (reError) {
+          return { success: false, error: reError.message };
+        }
+      }
     }
-    if (orData) {
-      return { success: true, data: orData };
+
+    if (fbError && !isUUID) {
+      return { success: false, error: fbError.message };
     }
 
     return { success: false, error: 'Không tìm thấy hồ sơ người dùng trong hệ thống để cập nhật.' };

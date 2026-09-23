@@ -438,50 +438,70 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   // HÀM UPDATE DATA THỰC TẾ XUỐNG SUPABASE
   // =========================================================================
   const saveUserData = async (customOwnerStatus?: 'none' | 'pending' | 'approved' | 'rejected') => {
-    if (!currentUser) throw new Error('Chưa đăng nhập');
+    // Kiểm tra currentUser.id có bị undefined hoặc rỗng không trước khi gọi API
+    if (!currentUser || !currentUser.id || currentUser.id === 'undefined' || currentUser.id.trim() === '') {
+      throw new Error('Chưa đăng nhập hoặc không tìm thấy ID tài khoản người dùng.');
+    }
 
     const finalSchool = school === 'Khác / Đã đi làm' && customSchool.trim() ? customSchool.trim() : school;
     const isStudentVerified = Boolean(studentCardUrl) || Boolean(currentUser.studentVerified);
     const targetStatus = customOwnerStatus !== undefined ? customOwnerStatus : (currentUser.ownerApplicationStatus || 'none');
+    const userRole = (currentUser.role === 'user' ? 'renter' : currentUser.role) || 'renter';
 
-    // Trích xuất chính xác các giá trị người dùng đã điền
-    const profileData = {
-      name: name.trim(),
-      full_name: name.trim(),
-      phone: phone.trim() || undefined,
-      school: finalSchool || undefined,
-      year: year || undefined,
-      social_link: socialLink.trim() || undefined,
-      facebook_link: socialLink.trim() || undefined,
+    // 1. Tạo biến payload được map (ánh xạ) thủ công từng trường một, chuẩn snake_case khớp 100% schema Supabase
+    // Tuyệt đối KHÔNG truyền thẳng object form data hoặc biến UI, KHÔNG chứa id, email
+    const updatePayload: Record<string, any> = {
+      full_name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
+      name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
+      phone: phone ? phone.trim() : null,
       avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
-      student_card_url: studentCardUrl || undefined,
-      verified: isStudentVerified || currentUser.verified,
-      phone_verified: phoneVerified,
-      student_verified: isStudentVerified,
+      school: finalSchool ? finalSchool.trim() : null,
+      year: year ? year.trim() : null,
+      social_link: socialLink ? socialLink.trim() : null,
+      facebook_link: socialLink ? socialLink.trim() : null,
+      student_card_url: studentCardUrl ? studentCardUrl.trim() : null,
+      verified: isStudentVerified || Boolean(currentUser.verified),
+      phone_verified: Boolean(phoneVerified),
+      student_verified: Boolean(isStudentVerified),
       owner_application_status: targetStatus,
-      role: currentUser.role as any,
-      app_role: (currentUser.role === 'user' ? 'renter' : currentUser.role) as any,
+      role: userRole,
+      app_role: userRole,
+      updated_at: new Date().toISOString(),
     };
 
-    // 1. Gọi API updateUserProfile của Supabase
-    const res = await updateUserProfile(currentUser.id, profileData);
+    // 2. Tuyệt đối KHÔNG đưa cột id, email hay biến UI vào trong updatePayload
+    delete (updatePayload as any).id;
+    delete (updatePayload as any).email;
+
+    // 3. Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
+    Object.keys(updatePayload).forEach((key) => {
+      if (updatePayload[key] === undefined) {
+        delete updatePayload[key];
+      }
+    });
+
+    // 4. Debug console.log payload để kiểm tra dữ liệu gửi đi
+    console.log("Update Payload:", updatePayload);
+
+    // 5. Gắn ID chính xác và gọi API cập nhật hồ sơ
+    const res = await updateUserProfile(currentUser.id, updatePayload);
     if (!res.success && res.error) {
       throw new Error(res.error);
     }
 
-    // 2. Cập nhật Zustand App Store ngay lập tức
+    // 6. Cập nhật Zustand App Store ngay lập tức
     const updatedUser = {
       ...currentUser,
-      name: profileData.name,
-      avatarUrl: profileData.avatar_url,
+      name: updatePayload.name,
+      avatarUrl: updatePayload.avatar_url,
       school: finalSchool,
       year: year,
-      phone: profileData.phone,
+      phone: updatePayload.phone || '',
       phoneVerified: phoneVerified,
       studentCardUrl: studentCardUrl,
-      socialLink: profileData.social_link,
+      socialLink: updatePayload.social_link || '',
       studentVerified: isStudentVerified,
-      verified: profileData.verified,
+      verified: updatePayload.verified,
       ownerApplicationStatus: targetStatus,
     };
 

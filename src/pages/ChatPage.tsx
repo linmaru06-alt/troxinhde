@@ -1,9 +1,16 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
-import { getConversations, isSameUserId, KNOWN_USER_NAMES } from '../lib/api/messages';
+import {
+  getConversations,
+  getConversationMeta,
+  findOrCreateConversation,
+  isSameUserId,
+  KNOWN_USER_NAMES,
+} from '../lib/api/messages';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
+import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 import { formatCurrency } from '../components/ui/Cards';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
@@ -33,7 +40,25 @@ const ITEM_PLACEHOLDER =
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems } = useAppStore();
+
+  // Đọc tham số Deep Link cho Chợ đồ cũ
+  const rawNguoiBan = searchParams.get('nguoiBan') || searchParams.get('sellerId');
+  const rawMonDo = searchParams.get('monDo') || searchParams.get('itemId');
+  const hasDeepLinkParams = searchParams.has('nguoiBan') || searchParams.has('monDo');
+
+  const [deepLinkState, setDeepLinkState] = useState<{
+    isLoading: boolean;
+    error: {
+      title: string;
+      message: string;
+    } | null;
+  }>({
+    isLoading: Boolean(hasDeepLinkParams),
+    error: null,
+  });
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
@@ -42,6 +67,141 @@ export const ChatPage: React.FC = () => {
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 0. Kiểm tra đăng nhập khi vào /tin-nhan: Nếu chưa đăng nhập -> Chuyển sang /dang-nhap kèm returnUrl an toàn
+  useEffect(() => {
+    if (!currentUser) {
+      const currentTarget = location.pathname + location.search;
+      if (isValidReturnUrl(currentTarget)) {
+        navigate(`/dang-nhap?returnUrl=${encodeURIComponent(currentTarget)}`, { replace: true });
+      } else {
+        navigate('/dang-nhap', { replace: true });
+      }
+    }
+  }, [currentUser, location.pathname, location.search, navigate]);
+
+  // 0.1 Xử lý Deep Link /tin-nhan?nguoiBan=...&monDo=...
+  useEffect(() => {
+    if (!currentUser?.id || !hasDeepLinkParams) return;
+
+    let isMounted = true;
+
+    const resolveDeepLink = async () => {
+      setDeepLinkState({ isLoading: true, error: null });
+
+      // 1. Kiểm tra thiếu tham số
+      if (!rawNguoiBan || !rawMonDo) {
+        if (!isMounted) return;
+        setDeepLinkState({
+          isLoading: false,
+          error: {
+            title: 'Liên kết không đầy đủ thông tin',
+            message: 'Đường dẫn trò chuyện thiếu mã người bán hoặc mã món đồ cần kết nối.',
+          },
+        });
+        return;
+      }
+
+      const sellerId = rawNguoiBan.trim();
+      const itemId = rawMonDo.trim();
+
+      // 2. Chặn tự nhắn tin cho chính mình
+      if (isSameUserId(sellerId, currentUser.id)) {
+        if (!isMounted) return;
+        setDeepLinkState({
+          isLoading: false,
+          error: {
+            title: 'Không thể tự nhắn tin cho chính mình',
+            message: 'Đây là món đồ do tài khoản của bạn đăng bán. Bạn có thể kiểm tra danh sách tin nhắn từ người mua khác ở bên trái.',
+          },
+        });
+        return;
+      }
+
+      // 3. Kiểm tra món đồ trong DB hoặc store
+      let matchedItem: any = marketplaceItems.find((m) => m.id === itemId);
+      if (!matchedItem) {
+        try {
+          matchedItem = await getMarketplaceItemById(itemId);
+        } catch (fetchErr) {
+          console.warn('[ChatPage] Không thể tra cứu món đồ qua API:', fetchErr);
+        }
+      }
+
+      // Món đồ không tồn tại
+      if (!matchedItem) {
+        if (!isMounted) return;
+        setDeepLinkState({
+          isLoading: false,
+          error: {
+            title: 'Món đồ không tồn tại hoặc đã bị xóa',
+            message: 'Món đồ bạn đang tìm kiếm không còn tồn tại trên hệ thống hoặc đã được người bán gỡ xuống.',
+          },
+        });
+        return;
+      }
+
+      // Kiểm tra người bán có khớp với món đồ không (nếu có thông tin)
+      const itemSellerId = matchedItem.seller_id || matchedItem.userId || matchedItem.sellerId;
+      if (itemSellerId && !isSameUserId(itemSellerId, sellerId)) {
+        if (!isMounted) return;
+        setDeepLinkState({
+          isLoading: false,
+          error: {
+            title: 'Thông tin người bán không chính xác',
+            message: 'Người bán trong liên kết không trùng khớp với người đăng món đồ này.',
+          },
+        });
+        return;
+      }
+
+      // 4. Mở hoặc khởi tạo hội thoại
+      try {
+        const result = await findOrCreateConversation(
+          currentUser.id,
+          sellerId,
+          itemId,
+          {
+            mockItem: {
+              id: itemId,
+              title: matchedItem.title || matchedItem.name,
+              price: matchedItem.price,
+              user_id: itemSellerId || sellerId,
+              images: matchedItem.image_urls || matchedItem.images,
+            },
+            currentUserId: currentUser.id,
+          }
+        );
+
+        if (!isMounted) return;
+        setDeepLinkState({ isLoading: false, error: null });
+
+        // Cập nhật danh sách conversations và chuyển hướng về URL chuẩn
+        const updatedList = await getConversations(currentUser.id);
+        if (isMounted) {
+          setConversations(updatedList);
+          setActiveConversationId(result.conversationId);
+          navigate(`/tin-nhan/${result.conversationId}`, { replace: true });
+        }
+      } catch (convErr: any) {
+        console.error('[ChatPage] Lỗi khởi tạo cuộc trò chuyện qua deep link:', convErr);
+        if (!isMounted) return;
+        setDeepLinkState({
+          isLoading: false,
+          error: {
+            title: 'Không thể kết nối cuộc trò chuyện',
+            message: convErr?.message || 'Đã có lỗi xảy ra khi tạo cuộc trò chuyện với người bán. Vui lòng thử lại sau.',
+          },
+        });
+      }
+    };
+
+    resolveDeepLink();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id, hasDeepLinkParams, rawNguoiBan, rawMonDo, marketplaceItems, navigate]);
 
   // Theo dõi viewport chiều cao cho bàn phím ảo trên di động
   useEffect(() => {
@@ -77,7 +237,7 @@ export const ChatPage: React.FC = () => {
       .then((data) => {
         if (!isMounted) return;
         setConversations(data);
-        if (!activeConversationId && data.length > 0) {
+        if (!activeConversationId && data.length > 0 && !hasDeepLinkParams) {
           const firstId = conversationId || data[0].id;
           setActiveConversationId(firstId);
         }
@@ -177,8 +337,12 @@ export const ChatPage: React.FC = () => {
     } catch {}
   }
 
+  const savedMeta = activeConversationId ? getConversationMeta(activeConversationId) : null;
+
   const attachedItemId =
+    activeConversation?.item_id ||
     activeConversation?.last_item_id ||
+    savedMeta?.last_item_id ||
     latestContextMsg?.item_id ||
     parsedContext?.itemId ||
     null;
@@ -207,12 +371,15 @@ export const ChatPage: React.FC = () => {
     storeItem?.name ||
     storeItem?.title ||
     remoteItem?.title ||
+    remoteItem?.name ||
+    savedMeta?.last_item_name ||
     parsedContext?.title ||
     'Món đồ thanh lý';
 
   const rawPrice =
     storeItem?.price ??
     remoteItem?.price ??
+    savedMeta?.last_item_price ??
     parsedContext?.price;
 
   const isFree =
@@ -229,21 +396,28 @@ export const ChatPage: React.FC = () => {
   const pinnedImage =
     storeItem?.images?.[0] ||
     remoteItem?.image_urls?.[0] ||
+    (Array.isArray(remoteItem?.images) ? remoteItem?.images[0] : null) ||
     parsedContext?.image ||
     '';
 
   // Xác định nhãn trạng thái (Đang bán / Đã bán / Đã ẩn)
+  const rawStatus =
+    storeItem?.status ||
+    remoteItem?.status ||
+    parsedContext?.status ||
+    '';
+
   const isItemSold =
-    storeItem?.status === 'Đã bán' ||
-    remoteItem?.status === 'sold' ||
-    remoteItem?.status === 'Đã bán' ||
-    parsedContext?.status === 'Đã bán';
+    rawStatus === 'Đã bán' ||
+    rawStatus === 'sold';
 
   const isItemHidden =
-    storeItem?.status === 'Bị từ chối' ||
-    remoteItem?.status === 'hidden' ||
-    remoteItem?.status === 'rejected' ||
-    Boolean((storeItem as any)?.isHidden);
+    rawStatus === 'Đã ẩn' ||
+    rawStatus === 'hidden' ||
+    rawStatus === 'Bị từ chối' ||
+    rawStatus === 'rejected' ||
+    Boolean((storeItem as any)?.isHidden) ||
+    Boolean((remoteItem as any)?.is_hidden);
 
   const itemStatusType: 'sold' | 'hidden' | 'available' = isItemSold
     ? 'sold'
@@ -313,7 +487,7 @@ export const ChatPage: React.FC = () => {
         {/* Cột trái: Danh sách cuộc trò chuyện thật từ Supabase */}
         <aside
           className={`w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0 ${
-            conversationId ? 'hidden md:flex' : 'flex'
+            (conversationId || hasDeepLinkParams) ? 'hidden md:flex' : 'flex'
           }`}
         >
           <div className="p-4 border-b border-gray-100 flex items-center justify-between">
@@ -415,8 +589,51 @@ export const ChatPage: React.FC = () => {
         </aside>
 
         {/* Cột phải: Vùng trò chuyện chi tiết */}
-        <main className={`flex-1 flex flex-col bg-gray-50/50 ${!conversationId && 'hidden md:flex'}`}>
-          {activeConversation ? (
+        <main className={`flex-1 flex flex-col bg-gray-50/50 ${(!conversationId && !hasDeepLinkParams) ? 'hidden md:flex' : 'flex'}`}>
+          {deepLinkState.isLoading ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 text-center bg-gray-50/50">
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-emerald-100 shadow-md max-w-sm w-full space-y-4 text-center animate-scaleUp">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center">
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Đang mở cuộc trò chuyện...</h3>
+                  <p className="text-xs text-gray-500 mt-1">Đang chuẩn bị cuộc trao đổi về món đồ thanh lý.</p>
+                </div>
+              </div>
+            </div>
+          ) : deepLinkState.error ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gray-50/50">
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-amber-200/80 shadow-md max-w-md w-full space-y-4 text-center animate-scaleUp">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                  <AlertCircle className="w-7 h-7" />
+                </div>
+                <div className="space-y-1.5">
+                  <h3 className="text-base font-bold text-gray-900">{deepLinkState.error.title}</h3>
+                  <p className="text-xs text-gray-600 leading-relaxed">{deepLinkState.error.message}</p>
+                </div>
+                <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+                  <Link
+                    to="/cho-do-cu"
+                    className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-2xl bg-[#006d37] text-white text-xs font-bold hover:bg-[#005a2e] transition shadow-xs cursor-pointer"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Về Chợ Đồ Cũ</span>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDeepLinkState({ isLoading: false, error: null });
+                      navigate('/tin-nhan', { replace: true });
+                    }}
+                    className="w-full sm:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-2xl bg-gray-100 text-gray-700 text-xs font-semibold hover:bg-gray-200 transition cursor-pointer"
+                  >
+                    Hộp thư tin nhắn
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : activeConversation ? (
             <>
               {/* Header của đoạn chat */}
               <div className="p-3 bg-white border-b border-gray-200 flex items-center justify-between z-10 shadow-2xs">
@@ -535,17 +752,20 @@ export const ChatPage: React.FC = () => {
               {attachedItemId && (
                 <Link
                   to={`/cho-do-cu/${attachedItemId}`}
-                  className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/50 transition-all group cursor-pointer shrink-0"
+                  className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group cursor-pointer shrink-0 z-10"
                   title="Bấm để xem chi tiết món đồ"
                 >
                   <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                    {/* Thumbnail ảnh sản phẩm (có placeholder fallback) */}
+                    {/* Thumbnail ảnh sản phẩm (có placeholder fallback khi ảnh lỗi) */}
                     <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
                       <img
                         src={pinnedImage || ITEM_PLACEHOLDER}
                         alt={pinnedTitle}
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = ITEM_PLACEHOLDER;
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== ITEM_PLACEHOLDER) {
+                            target.src = ITEM_PLACEHOLDER;
+                          }
                         }}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       />
@@ -554,7 +774,7 @@ export const ChatPage: React.FC = () => {
                     {/* Tên & Giá sản phẩm */}
                     <div className="min-w-0 flex-1 space-y-0.5">
                       <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
                           Món đồ
                         </span>
                         <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-[#006d37] transition-colors">
@@ -567,20 +787,20 @@ export const ChatPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Nhãn trạng thái & Nút xem chi tiết */}
+                  {/* Nhãn trạng thái (Đang bán / Đã bán / Đã ẩn) & Nút xem chi tiết */}
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
                     {itemStatusType === 'sold' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                         Đã bán
                       </span>
                     ) : itemStatusType === 'hidden' ? (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
                         Đã ẩn
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 text-[10px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                         Đang bán
                       </span>
