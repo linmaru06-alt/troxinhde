@@ -106,10 +106,18 @@ export async function getCurrentUser() {
 
 export async function updateProfile(userId: string, updates: Record<string, any>) {
   if (!isSupabaseConfigured) return updates;
+  if (!userId || userId === 'undefined') {
+    throw new Error('ID người dùng không hợp lệ');
+  }
+
+  const updatePayload: Record<string, any> = { ...updates, updated_at: new Date().toISOString() };
+  delete updatePayload.id;
+
+  console.log("Update Payload:", updatePayload);
 
   const { data, error } = await supabase
     .from('profiles')
-    .update({ ...updates, updated_at: new Date().toISOString() })
+    .update(updatePayload)
     .eq('id', userId)
     .select()
     .single();
