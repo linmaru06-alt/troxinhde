@@ -1024,7 +1024,7 @@ export const useAppStore = create<AppState>()(
           notifications: [
             {
               id: `notif_${Date.now()}`,
-              userId: data.userId,
+              userId: data.userId ?? data.seller_id ?? data.sellerId ?? '',
               type: 'system',
               title: 'Tin đăng thanh lý đang chờ duyệt ⏳',
               body: `Món đồ "${data.name}" đã được gửi và đang chờ Ban Quản Trị kiểm duyệt trước khi hiển thị công khai.`,
@@ -1079,7 +1079,7 @@ export const useAppStore = create<AppState>()(
               ? [
                   {
                     id: `notif_${Date.now()}`,
-                    userId: item.userId,
+                    userId: item.userId ?? item.seller_id ?? item.sellerId ?? '',
                     type: 'approval',
                     title: 'Tin đăng thanh lý đã được duyệt! 🎉',
                     body: `Món đồ "${item.name}" đã được kiểm duyệt và hiển thị công khai trên Chợ đồ cũ sinh viên.`,
@@ -1115,7 +1115,7 @@ export const useAppStore = create<AppState>()(
               ? [
                   {
                     id: `notif_${Date.now()}`,
-                    userId: item.userId,
+                    userId: item.userId ?? item.seller_id ?? item.sellerId ?? '',
                     type: 'rejected',
                     title: 'Tin đăng thanh lý bị từ chối ⚠️',
                     body: `Lý do: ${reason}. Vui lòng sửa lại thông tin và gửi duyệt lại.`,
@@ -1153,7 +1153,7 @@ export const useAppStore = create<AppState>()(
               ? [
                   {
                     id: `notif_${Date.now()}`,
-                    userId: item.userId,
+                    userId: item.userId ?? item.seller_id ?? item.sellerId ?? '',
                     type: 'system',
                     title: 'Đã gửi lại tin đăng thanh lý ⏳',
                     body: `Món đồ "${updatedName}" đã được cập nhật và gửi lại để Ban Quản Trị kiểm duyệt.`,

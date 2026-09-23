@@ -471,7 +471,8 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isChatLoading, setIsChatLoading] = React.useState(false);
 
-  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, item.userId));
+  const sellerUserId = item.userId ?? item.seller_id ?? item.sellerId ?? '';
+  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, sellerUserId));
   const isSold = item.status === 'Đã bán';
   const isPending = Boolean(item.status === 'Chờ duyệt' || item.moderationStatus === 'pending');
   const isRejected = Boolean(item.status === 'Bị từ chối' || item.moderationStatus === 'rejected');
@@ -526,7 +527,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
       return;
     }
-    if (isSameUserId(currentUser.id, item.userId)) {
+    if (isSameUserId(currentUser.id, sellerUserId)) {
       showToast('Đây là món đồ của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
       return;
     }
@@ -535,14 +536,14 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
     try {
       const result = await findOrCreateConversation(
         currentUser.id,
-        item.userId,
+        sellerUserId,
         item.id,
         {
           mockItem: {
             id: item.id,
             title: item.name,
             price: item.price,
-            user_id: item.userId,
+            user_id: sellerUserId,
             images: item.images,
           },
           currentUserId: currentUser.id,

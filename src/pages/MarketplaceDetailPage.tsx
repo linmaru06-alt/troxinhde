@@ -72,9 +72,10 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [hasReportedSeller, setHasReportedSeller] = useState<boolean>(false);
 
   const item = marketplaceItems.find((i) => i.id === id);
+  const sellerUserId = item?.userId ?? item?.seller_id ?? item?.sellerId ?? '';
 
   // Phân quyền và trạng thái kiểm duyệt
-  const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, item.userId));
+  const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, sellerUserId));
   const isAdmin = currentUser && (currentUser.role === 'admin' || (currentUser as any).app_role === 'admin');
   const isSold = item?.status === 'Đã bán';
   const isPending = Boolean(item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending'));
@@ -306,12 +307,13 @@ export const MarketplaceDetailPage: React.FC = () => {
   };
 
   const handleContactSeller = async () => {
+    if (!item) return;
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
       return;
     }
-    if (currentUser.id === item.userId) {
+    if (isSameUserId(currentUser.id, sellerUserId)) {
       showToast('Đây là món đồ của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
       return;
     }
@@ -320,14 +322,14 @@ export const MarketplaceDetailPage: React.FC = () => {
     try {
       const result = await findOrCreateConversation(
         currentUser.id,
-        item.userId,
+        sellerUserId,
         item.id,
         {
           mockItem: {
             id: item.id,
             title: item.name,
             price: item.price,
-            user_id: item.userId,
+            user_id: sellerUserId,
             images: item.images,
           },
           currentUserId: currentUser.id,
@@ -346,12 +348,12 @@ export const MarketplaceDetailPage: React.FC = () => {
   useEffect(() => {
     if (currentUser && item) {
       setHasReported(hasUserReported(currentUser.id, 'tin_dang', item.id));
-      setHasReportedSeller(hasUserReported(currentUser.id, 'nguoi_dung', item.userId));
+      setHasReportedSeller(hasUserReported(currentUser.id, 'nguoi_dung', sellerUserId));
     } else {
       setHasReported(false);
       setHasReportedSeller(false);
     }
-  }, [currentUser, item]);
+  }, [currentUser, item, sellerUserId]);
 
   const handleReportClick = () => {
     if (!currentUser) {
@@ -1000,7 +1002,7 @@ export const MarketplaceDetailPage: React.FC = () => {
         targetTitle={`Món đồ: ${item.name}`}
         targetId={item.id}
         targetType="tin_dang"
-        targetOwnerId={item.userId}
+        targetOwnerId={sellerUserId}
         onSuccess={() => setHasReported(true)}
       />
 
@@ -1009,9 +1011,9 @@ export const MarketplaceDetailPage: React.FC = () => {
         isOpen={showReportSeller}
         onClose={() => setShowReportSeller(false)}
         targetTitle={`Người bán: ${item.userName}`}
-        targetId={item.userId}
+        targetId={sellerUserId}
         targetType="nguoi_dung"
-        targetOwnerId={item.userId}
+        targetOwnerId={sellerUserId}
         onSuccess={() => setHasReportedSeller(true)}
       />
 

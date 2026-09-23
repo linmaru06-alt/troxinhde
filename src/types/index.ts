@@ -240,7 +240,7 @@ export interface Conversation {
 
 export interface NotificationItem {
   id: string;
-  userId: string;
+  userId?: string;
   title: string;
   body: string;
   type:
