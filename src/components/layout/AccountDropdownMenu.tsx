@@ -3,12 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../types';
 import {
-  Heart,
   Bookmark,
   Clock,
   MapPin,
   ShieldCheck,
-  Sparkles,
   TicketPercent,
   Settings,
   Headphones,
@@ -281,20 +279,8 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
-                  <Heart className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Tin đã lưu</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/tim-kiem"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
                   <Bookmark className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Tìm kiếm đã lưu</span>
+                  <span>Mục đã lưu</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
@@ -407,25 +393,13 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
             <span className="text-xs font-semibold text-gray-500 px-1 block">Ưu đãi, khuyến mãi</span>
             <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
               <Link
-                to="/ve-chung-toi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Sparkles className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Trọ Xinh ưu đãi</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/ve-chung-toi"
+                to="/vouchers"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
                   <TicketPercent className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Ưu đãi của tôi</span>
+                  <span>Kho Voucher / Ưu đãi</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>

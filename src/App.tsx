@@ -377,8 +377,21 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="/vouchers" element={<Navigate to="/ve-chung-toi" replace />} />
+            <Route path="/offers" element={<Navigate to="/ve-chung-toi" replace />} />
+            <Route path="/uu-dai" element={<Navigate to="/ve-chung-toi" replace />} />
+            <Route path="/kho-voucher" element={<Navigate to="/ve-chung-toi" replace />} />
+
             <Route
               path="/da-luu"
+              element={
+                <ProtectedRoute>
+                  <SavedRoomsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/saved-items"
               element={
                 <ProtectedRoute>
                   <SavedRoomsPage />
