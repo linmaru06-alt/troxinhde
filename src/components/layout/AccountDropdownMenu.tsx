@@ -8,7 +8,6 @@ import {
   Clock,
   MapPin,
   ShieldCheck,
-  Store,
   Sparkles,
   TicketPercent,
   Settings,
@@ -399,20 +398,6 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   <span>Lịch sử giao dịch</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/chu-tro/toa-nha"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Store className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Cửa hàng / chuyên trang</span>
-                </div>
-                <span className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Tạo ngay
-                </span>
               </Link>
             </div>
           </div>
