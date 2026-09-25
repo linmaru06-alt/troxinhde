@@ -118,7 +118,7 @@ export const Navbar: React.FC = () => {
     if (currentUser?.role === 'owner') {
       navigate('/chu-tro/phong/tao-moi');
     } else {
-      navigate('/nang-cap-chu-tro');
+      navigate('/landlord-registration');
     }
   };
 

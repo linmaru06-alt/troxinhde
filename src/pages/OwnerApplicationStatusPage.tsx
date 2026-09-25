@@ -97,7 +97,7 @@ export const OwnerApplicationStatusPage: React.FC = () => {
           </div>
 
           <div className="flex justify-center gap-3">
-            <Link to="/nang-cap-chu-tro">
+            <Link to="/landlord-registration">
               <Button variant="primary" size="md" leftIcon={<RotateCcw className="w-4 h-4" />}>
                 Chỉnh Sửa & Gửi Lại Đơn
               </Button>
@@ -113,7 +113,7 @@ export const OwnerApplicationStatusPage: React.FC = () => {
           <p className="text-xs text-gray-500">
             Nộp đơn ngay để bắt đầu đăng tin và quản lý tòa nhà trên Trọ Xinh.
           </p>
-          <Link to="/nang-cap-chu-tro">
+          <Link to="/landlord-registration">
             <Button variant="primary" size="md">
               Nộp Đơn Ngay
             </Button>

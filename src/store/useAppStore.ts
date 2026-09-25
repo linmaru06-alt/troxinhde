@@ -673,7 +673,7 @@ export const useAppStore = create<AppState>()(
                 title: 'Hồ sơ nâng cấp Chủ Trọ bị từ chối ❌',
                 body: `Lý do: ${reason}. Vui lòng bổ sung hồ sơ và gửi lại.`,
                 read: false,
-                actionLink: '/nang-cap-chu-tro',
+                actionLink: '/landlord-registration',
                 createdAt: new Date().toISOString(),
               },
               ...state.notifications,

@@ -131,11 +131,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [isUploadingCard, setIsUploadingCard] = useState<boolean>(false);
   const [isDragOver, setIsDragOver] = useState<boolean>(false);
   const [isSaving, setIsSaving] = useState<boolean>(false);
-  const [isUpgrading, setIsUpgrading] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormErrors>({});
-
-  // Popup Modal thông báo gửi hồ sơ chủ trọ thành công
-  const [showPendingSuccessModal, setShowPendingSuccessModal] = useState<boolean>(false);
 
   // Modal / Trạng thái xác thực SĐT mini
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState<boolean>(false);
@@ -368,9 +364,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   };
 
   // =========================================================================
-  // 1. VALIDATION DÀNH CHO NÚT "LƯU THAY ĐỔI" (Người thuê thông thường)
+  // VALIDATION DÀNH CHO FORM CẬP NHẬT HỒ SƠ CÁ NHÂN CƠ BẢN
   // =========================================================================
-  const validateForRenter = (): boolean => {
+  const validateForm = (): boolean => {
     const newErrors: FormErrors = {};
 
     if (!name.trim()) {
@@ -388,47 +384,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     setErrors(newErrors);
 
     if (Object.keys(newErrors).length > 0) {
-      const firstField = Object.keys(newErrors)[0] as keyof FormErrors;
-      scrollToFirstError(firstField);
-      return false;
-    }
-
-    return true;
-  };
-
-  // =========================================================================
-  // 2. VALIDATION DÀNH CHO NÚT "ĐĂNG KÝ LÀM CHỦ TRỌ" (Owner Upgrade)
-  // =========================================================================
-  const validateForOwnerUpgrade = (): boolean => {
-    const newErrors: FormErrors = {};
-
-    if (!name.trim()) {
-      newErrors.name = 'Vui lòng nhập Họ và tên chủ trọ';
-    }
-
-    if (!phone.trim()) {
-      newErrors.phone = 'Vui lòng nhập Số điện thoại để đăng ký làm chủ trọ';
-    } else if (phone.replace(/\D/g, '').length < 9) {
-      newErrors.phone = 'Số điện thoại không đúng định dạng (tối thiểu 9 số)';
-    }
-
-    if (!studentCardUrl.trim()) {
-      newErrors.studentCard = 'Vui lòng tải lên ảnh Thẻ sinh viên hoặc CCCD để xác thực danh tính chủ trọ';
-    }
-
-    if (!socialLink.trim() || !validateSocialUrl(socialLink)) {
-      newErrors.socialLink = 'Vui lòng nhập đúng đường dẫn Facebook hoặc Zalo';
-    }
-
-    setErrors(newErrors);
-
-    if (Object.keys(newErrors).length > 0) {
-      showToast(
-        'Vui lòng bổ sung SĐT, Ảnh xác minh và Link MXH để đăng ký làm chủ trọ',
-        'Hồ sơ chủ trọ yêu cầu đầy đủ thông tin định danh và kênh liên lạc trực tiếp.',
-        'error'
-      );
-
       const firstField = Object.keys(newErrors)[0] as keyof FormErrors;
       scrollToFirstError(firstField);
       return false;
@@ -516,11 +471,11 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     return updatedUser;
   };
 
-  // Xử lý Lưu thay đổi (Người thuê bình thường) - onSubmit của form
+  // Xử lý Lưu thay đổi (Cập nhật hồ sơ cá nhân cơ bản) - onSubmit của form
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForRenter()) {
+    if (!validateForm()) {
       showToast('Vui lòng kiểm tra lại thông tin!', '', 'error');
       return;
     }
@@ -542,41 +497,21 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
   };
 
-  // Xử lý Đăng ký làm chủ trọ (PENDING_HOST)
-  const handleOwnerUpgradeClick = async (e: React.MouseEvent) => {
+  // Xử lý Đăng ký làm chủ trọ: Chuyển hướng trực tiếp sang route /landlord-registration
+  const handleOwnerUpgradeClick = (e: React.MouseEvent) => {
     e.preventDefault();
 
     if (isPendingHost) {
-      showToast('Hồ sơ của bạn đang được xét duyệt', 'Quản trị viên đang thẩm định trong vòng 24h.', 'info');
+      navigate('/landlord-registration/trang-thai');
       return;
     }
 
     if (!currentUser) {
-      showToast('Vui lòng đăng nhập để đăng ký làm chủ trọ', '', 'error');
-      navigate('/dang-nhap?returnUrl=/nang-cap-chu-tro');
+      navigate('/dang-nhap?returnUrl=/landlord-registration');
       return;
     }
 
-    if (!validateForOwnerUpgrade()) {
-      return;
-    }
-
-    setIsUpgrading(true);
-    try {
-      await saveUserData('pending');
-
-      showToast(
-        'Hồ sơ của bạn đã được gửi.',
-        'Quản trị viên sẽ kiểm tra tính xác thực của ảnh thẻ và mạng xã hội trước khi cấp quyền Chủ trọ trong vòng 24h.',
-        'success'
-      );
-
-      setShowPendingSuccessModal(true);
-    } catch (err: any) {
-      showToast('Lỗi khi gửi hồ sơ đăng ký', err?.message || 'Vui lòng thử lại sau', 'error');
-    } finally {
-      setIsUpgrading(false);
-    }
+    navigate('/landlord-registration');
   };
 
   if (isLoadingProfile) {
@@ -778,9 +713,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               <span className="flex items-center gap-1.5">
                 <Phone className="w-4 h-4 text-[#00a854]" />
                 Số điện thoại
-                <span className="text-[11px] font-normal text-gray-500">
-                  (Tùy chọn cho Người thuê • <strong className="text-amber-700">Bắt buộc cho Chủ trọ</strong>)
-                </span>
               </span>
               {phoneVerified ? (
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
@@ -867,8 +799,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             <span>
               Xác minh sinh viên / CCCD (Mặt trước Thẻ SV hoặc CCCD)
             </span>
-            <span className="text-[11px] font-normal text-gray-500">
-              (Tùy chọn cho Người thuê • <strong className="text-amber-700">Bắt buộc cho Chủ trọ</strong>)
+            <span className="text-[11px] font-normal text-gray-400">
+              (Tùy chọn)
             </span>
           </label>
 
@@ -940,7 +872,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                   Đã tải lên mặt trước thẻ
                 </div>
                 <p className="text-xs text-gray-600 font-medium">
-                  Hồ sơ đang ở trạng thái xác thực danh tính sinh viên / đối tác.
+                  Hồ sơ đang ở trạng thái xác thực danh tính sinh viên.
                 </p>
                 <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
                   <button
@@ -975,7 +907,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#00a854] shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-950 font-medium">
-              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong> hoặc hoàn tất hồ sơ Chủ trọ. Thông tin được mã hóa bảo mật tuyệt đối.
+              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong>. Thông tin được mã hóa bảo mật tuyệt đối.
             </p>
           </div>
         </div>
@@ -987,8 +919,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               <Link2 className="w-4 h-4 text-blue-600" />
               Mạng xã hội
             </span>
-            <span className="text-[11px] font-normal text-gray-500">
-              (Tùy chọn cho Người thuê • <strong className="text-amber-700">Bắt buộc cho Chủ trọ</strong>)
+            <span className="text-[11px] font-normal text-gray-400">
+              (Tùy chọn)
             </span>
           </label>
           <div className="relative">
@@ -1056,22 +988,17 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             <button
               type="button"
               onClick={handleOwnerUpgradeClick}
-              disabled={isPendingHost || isUpgrading || isSaving}
+              disabled={isSaving}
               className={`w-full sm:w-auto px-5 py-3 rounded-2xl font-bold text-xs sm:text-sm shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 shrink-0 ${
                 isPendingHost
-                  ? 'bg-amber-100 text-amber-800 border border-amber-300 cursor-not-allowed shadow-none'
+                  ? 'bg-amber-100 text-amber-800 border border-amber-300 hover:bg-amber-200 cursor-pointer'
                   : 'bg-emerald-700 hover:bg-emerald-800 text-white hover:shadow-lg cursor-pointer'
               }`}
             >
-              {isUpgrading ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Đang xử lý gửi hồ sơ...
-                </>
-              ) : isPendingHost ? (
+              {isPendingHost ? (
                 <>
                   <Clock className="w-4 h-4 text-amber-600" />
-                  Đang chờ duyệt hồ sơ
+                  Xem trạng thái xét duyệt
                 </>
               ) : (
                 <>
@@ -1089,7 +1016,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             <button
               type="button"
               onClick={onCancel}
-              disabled={isSaving || isUpgrading}
+              disabled={isSaving}
               className="w-full sm:w-auto px-6 py-3.5 rounded-2xl border border-gray-300 text-gray-700 hover:bg-gray-100 font-bold text-sm transition active:scale-95 text-center cursor-pointer"
             >
               Hủy bỏ
@@ -1098,7 +1025,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
           <button
             type="submit"
-            disabled={isSaving || isUpgrading || isUploadingAvatar || isUploadingCard}
+            disabled={isSaving || isUploadingAvatar || isUploadingCard}
             className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSaving ? (
@@ -1115,44 +1042,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           </button>
         </div>
       </div>
-
-      {/* ========================================================================= */}
-      {/* POPUP THÔNG BÁO GỬI HỒ SƠ CHỦ TRỌ THÀNH CÔNG */}
-      {/* ========================================================================= */}
-      {showPendingSuccessModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
-          <div className="bg-white rounded-3xl p-6 sm:p-8 max-w-md w-full space-y-6 shadow-2xl border border-gray-100 text-center animate-scaleUp">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-3xl flex items-center justify-center mx-auto shadow-xs">
-              <CheckCircle2 className="w-9 h-9" />
-            </div>
-
-            <div className="space-y-2">
-              <h3 className="text-xl font-black text-gray-950">Gửi Hồ Sơ Thành Công!</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">
-                Hồ sơ của bạn đã được gửi. Quản trị viên sẽ kiểm tra tính xác thực của ảnh thẻ và mạng xã hội trước khi cấp quyền Chủ trọ trong vòng <strong>24h</strong>.
-              </p>
-            </div>
-
-            <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-200 text-xs text-left space-y-1.5 text-gray-600">
-              <div className="flex items-center gap-2 font-bold text-gray-800">
-                <Clock className="w-4 h-4 text-amber-600" />
-                Trạng thái: <span className="text-amber-700">Đang chờ xét duyệt (PENDING_HOST)</span>
-              </div>
-              <p className="text-[11px] text-gray-500">
-                Bạn sẽ nhận được thông báo ngay khi hồ sơ được phê duyệt hoàn tất.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setShowPendingSuccessModal(false)}
-              className="w-full py-3.5 rounded-2xl bg-[#00a854] hover:bg-[#009247] text-white font-bold text-sm shadow-md transition cursor-pointer active:scale-95"
-            >
-              Đã hiểu & Đóng
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* ========================================================================= */}
       {/* MODAL XÁC THỰC SỐ ĐIỆN THOẠI (OTP) */}

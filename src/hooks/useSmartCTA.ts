@@ -176,7 +176,7 @@ export function useSmartCTA(context: CTAContext, extraPayload?: any): SmartCTARe
       if (ownerApplicationStatus === 'pending') {
         return {
           label: 'Đang xét duyệt...',
-          action: () => navigate('/nang-cap-chu-tro/trang-thai'),
+          action: () => navigate('/landlord-registration/trang-thai'),
           disabled: true,
           tooltip: 'Đơn của bạn đang được xem xét trong 24h',
         };
@@ -184,14 +184,14 @@ export function useSmartCTA(context: CTAContext, extraPayload?: any): SmartCTARe
       if (ownerApplicationStatus === 'rejected') {
         return {
           label: 'Gửi lại đơn đăng ký',
-          action: () => navigate('/nang-cap-chu-tro'),
+          action: () => navigate('/landlord-registration'),
           disabled: false,
           tooltip: null,
         };
       }
       return {
         label: 'Đăng ký làm Chủ trọ',
-        action: () => navigate('/nang-cap-chu-tro'),
+        action: () => navigate('/landlord-registration'),
         disabled: false,
         tooltip: null,
       };
@@ -216,7 +216,7 @@ export function useSmartCTA(context: CTAContext, extraPayload?: any): SmartCTARe
       }
       return {
         label: 'Đăng ký làm Chủ trọ',
-        action: () => navigate('/nang-cap-chu-tro'),
+        action: () => navigate('/landlord-registration'),
         disabled: false,
         tooltip: null,
       };

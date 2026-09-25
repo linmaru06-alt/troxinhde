@@ -239,7 +239,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <Link to="/nang-cap-chu-tro">
+            <Link to="/landlord-registration">
               <button className="px-6 py-3 bg-gray-950 hover:bg-black text-white font-black rounded-2xl text-xs sm:text-sm shadow-md transition">
                 Đăng ký làm chủ trọ
               </button>

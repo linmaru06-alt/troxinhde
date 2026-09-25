@@ -90,7 +90,7 @@ export const RolePermissionSection: React.FC<RolePermissionSectionProps> = ({ us
             <p>Dự kiến phản hồi từ Ban Quản Trị trong vòng <strong>24 giờ làm việc</strong>.</p>
             <div className="pt-1">
               <Link
-                to="/nang-cap-chu-tro/trang-thai"
+                to="/landlord-registration/trang-thai"
                 className="font-bold text-amber-800 hover:underline inline-flex items-center gap-1"
               >
                 Xem chi tiết trạng thái đơn đăng ký →
@@ -110,7 +110,7 @@ export const RolePermissionSection: React.FC<RolePermissionSectionProps> = ({ us
             </div>
             <p>Lý do: {user.ownerApplicationRejectionReason || 'Thông tin giấy tờ hoặc CCCD chưa rõ ràng.'}</p>
             <div className="pt-2">
-              <Link to="/nang-cap-chu-tro">
+              <Link to="/landlord-registration">
                 <Button variant="primary" size="sm" rightIcon={<ArrowRight className="w-3.5 h-3.5" />}>
                   Gửi Lại Đơn Đăng Ký
                 </Button>

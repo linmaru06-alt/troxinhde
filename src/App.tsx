@@ -178,7 +178,7 @@ const OwnerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (currentUser.role !== 'owner') {
     if (currentUser.ownerApplicationStatus === 'pending') {
-      return <Navigate to="/nang-cap-chu-tro/trang-thai" replace />;
+      return <Navigate to="/landlord-registration/trang-thai" replace />;
     }
 
     return (
@@ -196,7 +196,7 @@ const OwnerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <Button
             variant="primary"
             size="md"
-            onClick={() => (window.location.href = '/nang-cap-chu-tro')}
+            onClick={() => (window.location.href = '/landlord-registration')}
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
             Nộp Hồ Sơ Nâng Cấp Ngay (24h)
@@ -446,6 +446,9 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="/landlord-registration" element={<OwnerUpgradePage />} />
+            <Route path="/landlord-registration/trang-thai" element={<OwnerApplicationStatusPage />} />
+            <Route path="/landlord-registration/status" element={<OwnerApplicationStatusPage />} />
             <Route path="/nang-cap-chu-tro" element={<OwnerUpgradePage />} />
             <Route path="/nang-cap-chu-tro/trang-thai" element={<OwnerApplicationStatusPage />} />
 
