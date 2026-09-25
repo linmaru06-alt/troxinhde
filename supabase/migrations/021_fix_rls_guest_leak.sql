@@ -146,7 +146,7 @@ SET
   seller_avatar = COALESCE(p.avatar_url, m.seller_avatar, '/images/user-avatar.jpg'),
   seller_phone = CASE 
     WHEN m.status IN ('sold', 'hidden', 'rejected', 'Đã bán', 'Đã ẩn', 'Bị từ chối') THEN NULL
-    ELSE COALESCE(p.phone, m.seller_phone, m.contact_phone)
+    ELSE COALESCE(p.phone, m.seller_phone)
   END
 FROM public.profiles p
 WHERE m.seller_id = p.id;
@@ -169,6 +169,7 @@ FROM public.profiles p
 WHERE r.owner_id = p.id;
 
 -- 4.3. Bảng roommate_posts:
+ALTER TABLE public.roommate_posts ADD COLUMN IF NOT EXISTS poster_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE public.roommate_posts ADD COLUMN IF NOT EXISTS poster_name TEXT;
 ALTER TABLE public.roommate_posts ADD COLUMN IF NOT EXISTS poster_avatar TEXT;
 ALTER TABLE public.roommate_posts ADD COLUMN IF NOT EXISTS poster_phone TEXT;
@@ -180,12 +181,13 @@ SET
   poster_avatar = COALESCE(p.avatar_url, r.poster_avatar, '/images/user-avatar.jpg'),
   poster_phone = CASE 
     WHEN r.status IN ('closed', 'hidden', 'Đã ghép', 'Đã ẩn') THEN NULL
-    ELSE COALESCE(p.phone, r.poster_phone, r.contact_phone)
+    ELSE COALESCE(p.phone, r.poster_phone)
   END
 FROM public.profiles p
-WHERE (r.user_id = p.id OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'roommate_posts' AND column_name = 'poster_id') AND r.poster_id = p.id));
+WHERE r.poster_id = p.id;
 
 -- 4.4. Bảng reviews:
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
 ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS reviewer_name TEXT;
 ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS reviewer_avatar TEXT;
 
@@ -194,7 +196,7 @@ SET
   reviewer_name = COALESCE(p.full_name, p.name, rev.reviewer_name, 'Khách thuê Trọ Xinh'),
   reviewer_avatar = COALESCE(p.avatar_url, rev.reviewer_avatar, '/images/user-avatar.jpg')
 FROM public.profiles p
-WHERE (rev.reviewer_id = p.id OR rev.user_id = p.id);
+WHERE rev.reviewer_id = p.id;
 
 
 -- 5. TRIGGERS TỰ ĐỘNG HÓA DENORMALIZE & BẢO VỆ SỐ ĐIỆN THOẠI
@@ -223,10 +225,8 @@ BEGIN
     IF (NEW.show_phone IS TRUE OR NEW.show_phone IS NULL) AND
        NEW.status NOT IN ('sold', 'hidden', 'rejected', 'Đã bán', 'Đã ẩn', 'Bị từ chối') THEN
       NEW.seller_phone := v_phone;
-      NEW.contact_phone := v_phone;
     ELSE
       NEW.seller_phone := NULL;
-      NEW.contact_phone := NULL;
     END IF;
   END IF;
   
@@ -289,18 +289,15 @@ SECURITY DEFINER
 SET search_path = public, auth, pg_temp
 AS $$
 DECLARE
-  v_uid UUID;
   v_phone TEXT;
   v_name TEXT;
   v_avatar TEXT;
 BEGIN
-  v_uid := COALESCE(NEW.user_id, (CASE WHEN EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'roommate_posts' AND column_name = 'poster_id') THEN NEW.poster_id ELSE NULL END));
-  
-  IF v_uid IS NOT NULL THEN
+  IF NEW.poster_id IS NOT NULL THEN
     SELECT full_name, avatar_url, phone
     INTO v_name, v_avatar, v_phone
     FROM public.profiles
-    WHERE id = v_uid;
+    WHERE id = NEW.poster_id;
     
     NEW.poster_name := COALESCE(v_name, NEW.poster_name, 'Thành viên Trọ Xinh');
     NEW.poster_avatar := COALESCE(v_avatar, NEW.poster_avatar, '/images/user-avatar.jpg');
@@ -308,10 +305,8 @@ BEGIN
     IF (NEW.show_phone IS TRUE OR NEW.show_phone IS NULL) AND
        NEW.status NOT IN ('closed', 'hidden', 'Đã ghép', 'Đã ẩn') THEN
       NEW.poster_phone := v_phone;
-      NEW.contact_phone := v_phone;
     ELSE
       NEW.poster_phone := NULL;
-      NEW.contact_phone := NULL;
     END IF;
   END IF;
   
@@ -370,14 +365,14 @@ BEGIN
         WHEN (show_phone IS TRUE OR show_phone IS NULL) AND status NOT IN ('closed', 'hidden', 'Đã ghép', 'Đã ẩn') THEN NEW.phone
         ELSE NULL 
       END
-    WHERE (user_id = NEW.id OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'roommate_posts' AND column_name = 'poster_id') AND poster_id = NEW.id));
+    WHERE poster_id = NEW.id;
     
     -- Cập nhật reviews
     UPDATE public.reviews
     SET 
       reviewer_name = COALESCE(NEW.full_name, NEW.name, reviewer_name),
       reviewer_avatar = COALESCE(NEW.avatar_url, reviewer_avatar)
-    WHERE (reviewer_id = NEW.id OR user_id = NEW.id);
+    WHERE reviewer_id = NEW.id;
   END IF;
   
   RETURN NEW;
@@ -408,7 +403,7 @@ BEGIN
 
   UPDATE public.roommate_posts
   SET poster_phone = NULL, poster_name = 'Người dùng đã xóa tài khoản'
-  WHERE (user_id = OLD.id OR (EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'roommate_posts' AND column_name = 'poster_id') AND poster_id = OLD.id));
+  WHERE poster_id = OLD.id;
 
   RETURN OLD;
 END;
