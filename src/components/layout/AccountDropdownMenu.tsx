@@ -294,18 +294,6 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </Link>
 
               <Link
-                to="/da-luu"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Lịch sử xem tin</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
                 to="/quan-ly-bai-viet"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
