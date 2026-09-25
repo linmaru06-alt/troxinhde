@@ -78,6 +78,14 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
 }) => {
   const navigate = useNavigate();
 
+  const isLandlord =
+    currentUser?.role === 'owner' ||
+    currentUser?.app_role === 'owner' ||
+    (currentUser as any)?.role === 'landlord' ||
+    (currentUser as any)?.app_role === 'landlord' ||
+    currentUser?.role === 'admin' ||
+    currentUser?.app_role === 'admin';
+
   if (!isOpen) return null;
 
   const handleAction = (callback: () => void) => {
@@ -346,33 +354,37 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
 
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
-                    PRO
-                  </span>
-                  <span>Gói PRO</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/chu-tro"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+              {isLandlord && (
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
+                      PRO
+                    </span>
+                    <span>Gói PRO</span>
                   </div>
-                  <span>Kênh Đối Tác</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              )}
+
+              {isLandlord && (
+                <Link
+                  to="/chu-tro"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Kênh Đối Tác</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              )}
 
               <Link
                 to="/chu-tro/quan-ly-goi"
