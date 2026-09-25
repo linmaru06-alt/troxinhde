@@ -112,16 +112,38 @@ export const OwnerUpgradePage: React.FC = () => {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!buildingName.trim() || !address.trim() || !cccdNumber.trim()) {
-      showToast('Vui lòng điền đủ các trường bắt buộc', '', 'error');
+      showToast('Vui lòng điền đủ các trường bắt buộc', 'Tên cơ sở, địa chỉ và số CCCD không được để trống.', 'error');
+      return;
+    }
+
+    if (!currentUser) {
+      showToast('Vui lòng đăng nhập để gửi hồ sơ', '', 'error');
+      navigate('/dang-nhap?returnUrl=/landlord-registration');
       return;
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const { submitOwnerApplicationApi } = await import('../lib/api/ownerUpgrade');
+      const res = await submitOwnerApplicationApi({
+        buildingName,
+        address,
+        district,
+        totalRooms: Number(totalRooms) || 1,
+        cccdNumber,
+        legalDocsNote,
+        user: currentUser,
+      });
+
+      if (!res.success && res.error) {
+        showToast('Không thể gửi hồ sơ lên hệ thống', res.error, 'error');
+        return;
+      }
+
+      // Đồng bộ trạng thái đơn vào Store cục bộ
       submitOwnerApplication({
         buildingName,
         address,
@@ -131,7 +153,16 @@ export const OwnerUpgradePage: React.FC = () => {
         legalDocsNote,
       });
       setIsSuccess(true);
-    }, 400);
+      showToast(
+        'Đã gửi hồ sơ nâng cấp thành công!',
+        'Ban Quản Trị Trọ Xinh đã nhận được hồ sơ và sẽ thẩm định trong vòng 24h.',
+        'success'
+      );
+    } catch (err: any) {
+      showToast('Lỗi khi gửi hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { OwnerApplication } from '../types';
+import { getAllOwnerApplicationsAdmin } from '../lib/api/ownerUpgrade';
+import { approveOwnerApplication as approveOwnerApplicationCloud, rejectOwnerApplication as rejectOwnerApplicationCloud } from '../lib/api/admin';
 import {
   Building2,
   Search,
@@ -19,11 +21,15 @@ import {
   FileCheck,
   ChevronRight,
   AlertTriangle,
+  RefreshCw,
+  Loader2,
 } from 'lucide-react';
 
 export const AdminOwnerApplicationsPage: React.FC = () => {
-  const { ownerApplications, approveOwnerApplication, rejectOwnerApplication } = useAppStore();
+  const { ownerApplications, approveOwnerApplication, rejectOwnerApplication, currentUser, showToast } = useAppStore();
 
+  const [applications, setApplications] = useState<OwnerApplication[]>(ownerApplications);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [filterTab, setFilterTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
   const [search, setSearch] = useState<string>('');
   const [selectedApp, setSelectedApp] = useState<OwnerApplication | null>(null);
@@ -33,8 +39,38 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
   const [rejectReason, setRejectReason] = useState<string>('Ảnh CCCD không rõ hoặc không hợp lệ');
   const [customRejectNote, setCustomRejectNote] = useState<string>('');
   const [showConfirmApprove, setShowConfirmApprove] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const filteredApps = ownerApplications.filter((app) => {
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const cloudApps = await getAllOwnerApplicationsAdmin();
+      if (cloudApps && cloudApps.length > 0) {
+        // Merge cloud apps với local store nếu có đơn chưa sync
+        const map = new Map<string, OwnerApplication>();
+        cloudApps.forEach((a) => map.set(a.id, a));
+        ownerApplications.forEach((a) => {
+          if (!map.has(a.id)) {
+            map.set(a.id, a);
+          }
+        });
+        setApplications(Array.from(map.values()));
+      } else {
+        setApplications(ownerApplications);
+      }
+    } catch (err) {
+      console.warn('[AdminOwnerApplicationsPage] Lỗi tải dữ liệu cloud:', err);
+      setApplications(ownerApplications);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [ownerApplications]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const filteredApps = applications.filter((app) => {
     if (filterTab !== 'all' && app.status !== filterTab) return false;
     if (
       search &&
@@ -47,24 +83,78 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
     return true;
   });
 
-  const pendingCount = ownerApplications.filter((a) => a.status === 'pending').length;
+  const pendingCount = applications.filter((a) => a.status === 'pending').length;
 
-  const handleApprove = (id: string) => {
-    approveOwnerApplication(id);
-    setShowConfirmApprove(false);
-    // Update local selectedApp if open
-    if (selectedApp?.id === id) {
-      setSelectedApp({ ...selectedApp, status: 'approved', reviewedAt: new Date().toISOString() });
+  const handleApprove = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      const app = applications.find((a) => a.id === id);
+      const userId = app?.userId || id;
+
+      // 1. Cập nhật trên Supabase Cloud
+      try {
+        await approveOwnerApplicationCloud(id, userId, currentUser);
+      } catch (cloudErr) {
+        console.warn('[Admin] Lỗi cập nhật cloud, tiếp tục cập nhật store:', cloudErr);
+      }
+
+      // 2. Cập nhật Store cục bộ
+      approveOwnerApplication(id);
+
+      // 3. Cập nhật state trang hiện tại
+      setApplications((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: 'approved', reviewedAt: new Date().toISOString() } : a))
+      );
+
+      setShowConfirmApprove(false);
+      if (selectedApp?.id === id) {
+        setSelectedApp({ ...selectedApp, status: 'approved', reviewedAt: new Date().toISOString() });
+      }
+
+      showToast('Đã phê duyệt hồ sơ chủ trọ thành công!', `Tài khoản ${app?.userName || ''} đã được cấp quyền Chủ trọ.`, 'success');
+    } catch (err: any) {
+      showToast('Lỗi khi phê duyệt hồ sơ', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleReject = (e: React.FormEvent) => {
+  const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedApp) return;
     const finalReason = customRejectNote ? `${rejectReason}: ${customRejectNote}` : rejectReason;
-    rejectOwnerApplication(selectedApp.id, finalReason);
-    setIsRejectFormOpen(false);
-    setSelectedApp({ ...selectedApp, status: 'rejected', rejectionReason: finalReason, reviewedAt: new Date().toISOString() });
+
+    setIsProcessing(true);
+    try {
+      // 1. Cập nhật trên Supabase Cloud
+      try {
+        await rejectOwnerApplicationCloud(selectedApp.id, selectedApp.userId, finalReason, currentUser);
+      } catch (cloudErr) {
+        console.warn('[Admin] Lỗi cập nhật cloud, tiếp tục cập nhật store:', cloudErr);
+      }
+
+      // 2. Cập nhật Store cục bộ
+      rejectOwnerApplication(selectedApp.id, finalReason);
+
+      // 3. Cập nhật state trang hiện tại
+      setApplications((prev) =>
+        prev.map((a) => (a.id === selectedApp.id ? { ...a, status: 'rejected', rejectionReason: finalReason, reviewedAt: new Date().toISOString() } : a))
+      );
+
+      setIsRejectFormOpen(false);
+      setSelectedApp({
+        ...selectedApp,
+        status: 'rejected',
+        rejectionReason: finalReason,
+        reviewedAt: new Date().toISOString(),
+      });
+
+      showToast('Đã từ chối hồ sơ', `Lý do: ${finalReason}`, 'info');
+    } catch (err: any) {
+      showToast('Lỗi khi từ chối hồ sơ', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -82,6 +172,17 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
               Thẩm định hồ sơ, xác minh CCCD và cấp quyền đối tác cho chủ cơ sở nhà trọ
             </p>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            isLoading={isLoading}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+            className="self-start sm:self-auto"
+          >
+            Làm mới danh sách
+          </Button>
         </div>
 
         {/* Filter Bar & Search */}
@@ -409,10 +510,10 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
               Bạn đang nâng cấp <strong>{selectedApp.userName}</strong> thành Đối Tác Chủ Trọ TroXinh. Hành động này sẽ kích hoạt quyền đăng phòng và quản lý tòa nhà.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowConfirmApprove(false)}>
+              <Button variant="outline" size="sm" className="flex-1" disabled={isProcessing} onClick={() => setShowConfirmApprove(false)}>
                 Hủy
               </Button>
-              <Button variant="primary" size="sm" className="flex-1" onClick={() => handleApprove(selectedApp.id)}>
+              <Button variant="primary" size="sm" className="flex-1" isLoading={isProcessing} onClick={() => handleApprove(selectedApp.id)}>
                 Xác Nhận Duyệt
               </Button>
             </div>

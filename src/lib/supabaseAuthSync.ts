@@ -344,7 +344,6 @@ export async function syncUserToSupabase(
     const payload: any = {
       full_name: profile.name,
       name: profile.name,
-      email: profile.email ? profile.email.trim().toLowerCase() : null,
       phone: profile.phone ? profile.phone.replace(/\D/g, '') : null,
       app_role: profile.role === 'user' ? 'renter' : profile.role || 'renter',
       role: profile.role || 'renter',

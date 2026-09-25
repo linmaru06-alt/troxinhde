@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
+import { getMyOwnerApplication } from '../lib/api/ownerUpgrade';
 import {
   Clock,
   CheckCircle2,
@@ -16,9 +17,36 @@ import {
 
 export const OwnerApplicationStatusPage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAppStore();
+  const { currentUser, setCurrentUser } = useAppStore();
+  const [cloudStatus, setCloudStatus] = useState<'none' | 'pending' | 'approved' | 'rejected' | null>(null);
 
-  const status = currentUser?.ownerApplicationStatus || 'none';
+  useEffect(() => {
+    let isMounted = true;
+    async function syncStatus() {
+      if (!currentUser?.id) return;
+      try {
+        const app = await getMyOwnerApplication(currentUser.id);
+        if (app && isMounted) {
+          setCloudStatus(app.status);
+          if (app.status !== currentUser.ownerApplicationStatus) {
+            setCurrentUser({
+              ...currentUser,
+              ownerApplicationStatus: app.status,
+              role: app.status === 'approved' ? 'owner' : currentUser.role,
+            });
+          }
+        }
+      } catch (err) {
+        console.warn('[OwnerApplicationStatusPage] Lỗi đồng bộ trạng thái cloud:', err);
+      }
+    }
+    syncStatus();
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
+
+  const status = cloudStatus || currentUser?.ownerApplicationStatus || 'none';
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 space-y-8 animate-fadeIn">
