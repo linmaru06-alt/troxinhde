@@ -60,7 +60,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
   const links = role === 'owner' ? ownerLinks : adminLinks;
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)] p-4 flex flex-col justify-between hidden md:flex shrink-0">
+    <aside className="w-64 bg-white border-r border-gray-200 sticky top-16 h-[calc(100vh-4rem)] p-4 flex flex-col justify-between hidden md:flex shrink-0 z-20 overflow-y-auto">
       <div>
         {/* User Badge */}
         <div className="flex items-center gap-3 p-3 bg-emerald-50/70 rounded-2xl mb-6">

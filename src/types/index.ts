@@ -36,12 +36,30 @@ export interface OwnerApplication {
   userName: string;
   userPhone: string;
   userEmail?: string;
+  // 1. Personal / Org info
+  fullName?: string;
+  organizationType?: 'personal' | 'business';
+  taxOrCccdNumber?: string;
+  cccdNumber: string;
+  cccdIssueDate?: string;
+  cccdIssuePlace?: string;
+  phoneVerified?: boolean;
+  permanentAddress?: string;
+  // 2. KYC Verification
+  cccdImageUrl?: string;
+  cccdFrontUrl?: string;
+  cccdBackUrl?: string;
+  portraitWithCccdUrl?: string;
+  businessDocUrl?: string;
+  // 3. Payment Account
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  // Facility / Property info
   buildingName: string;
   address: string;
   district: string;
   totalRooms: number;
-  cccdNumber: string;
-  cccdImageUrl?: string;
   legalDocsNote?: string;
   status: 'pending' | 'approved' | 'rejected';
   rejectionReason?: string;

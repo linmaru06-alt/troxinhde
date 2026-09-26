@@ -143,11 +143,27 @@ interface AppState {
 
   // Owner Upgrade Applications
   submitOwnerApplication: (data: {
+    fullName?: string;
+    organizationType?: 'personal' | 'business';
+    taxOrCccdNumber?: string;
+    cccdNumber: string;
+    cccdIssueDate?: string;
+    cccdIssuePlace?: string;
+    phoneVerified?: boolean;
+    permanentAddress?: string;
+    phone?: string;
+    email?: string;
+    cccdFrontUrl?: string;
+    cccdBackUrl?: string;
+    portraitWithCccdUrl?: string;
+    businessDocUrl?: string;
+    bankName?: string;
+    bankAccountNumber?: string;
+    bankAccountName?: string;
     buildingName: string;
     address: string;
     district: string;
     totalRooms: number;
-    cccdNumber: string;
     legalDocsNote?: string;
   }) => string;
   approveOwnerApplication: (applicationId: string) => void;
@@ -487,14 +503,28 @@ export const useAppStore = create<AppState>()(
         const newApp: OwnerApplication = {
           id: appId,
           userId: currentUser?.id || 'user_guest',
-          userName: currentUser?.name || 'Khách',
-          userPhone: currentUser?.phone || '0987654321',
-          userEmail: currentUser?.email,
+          userName: data.fullName || currentUser?.name || 'Khách',
+          userPhone: data.phone || currentUser?.phone || '0987654321',
+          userEmail: data.email || currentUser?.email,
+          fullName: data.fullName || currentUser?.name,
+          organizationType: data.organizationType || 'personal',
+          taxOrCccdNumber: data.taxOrCccdNumber || data.cccdNumber,
+          cccdNumber: data.cccdNumber,
+          cccdIssueDate: data.cccdIssueDate,
+          cccdIssuePlace: data.cccdIssuePlace,
+          phoneVerified: data.phoneVerified ?? true,
+          permanentAddress: data.permanentAddress || data.address,
+          cccdFrontUrl: data.cccdFrontUrl,
+          cccdBackUrl: data.cccdBackUrl,
+          portraitWithCccdUrl: data.portraitWithCccdUrl,
+          businessDocUrl: data.businessDocUrl,
+          bankName: data.bankName,
+          bankAccountNumber: data.bankAccountNumber,
+          bankAccountName: data.bankAccountName,
           buildingName: data.buildingName,
           address: data.address,
           district: data.district,
           totalRooms: data.totalRooms,
-          cccdNumber: data.cccdNumber,
           legalDocsNote: data.legalDocsNote,
           status: 'pending',
           createdAt: new Date().toISOString(),
