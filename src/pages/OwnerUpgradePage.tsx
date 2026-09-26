@@ -334,7 +334,7 @@ export const OwnerUpgradePage: React.FC = () => {
             <span>Biểu Mẫu Tiêu Chuẩn Nâng Cấp Chủ Trọ</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-            Đăng Ký Tài Khoản Chủ Trọ & Người Cho Thuê
+            Đăng Ký Trở Thành Chủ Trọ Đối Tác Trọ Xinh
           </h1>
           <p className="text-emerald-100 text-xs sm:text-sm leading-relaxed">
             Xác thực danh tính chủ nhà, bảo vệ giao dịch minh bạch, tiếp cận 50.000+ sinh viên văn minh và kích hoạt phần mềm quản lý tòa nhà miễn phí.
