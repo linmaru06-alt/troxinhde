@@ -36,7 +36,8 @@ import { MarketplaceItem, MarketplaceConditionCode, MarketplaceDeliveryMethodCod
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
-import { createMarketplaceItem } from '../lib/api/marketplace';
+import { useMarketplaceItemMutations } from '../hooks/queries/useMarketplace';
+import { getItemAvailability, MarketplaceItemInput } from '../lib/marketplaceStatus';
 import {
   filterMarketplaceItems,
   validatePriceRange,
@@ -103,12 +104,14 @@ export const MarketplaceListPage: React.FC = () => {
   const {
     marketplaceItems,
     currentUser,
-    addMarketplaceItem,
-    resubmitMarketplaceItem,
     showToast,
     hiddenItemIds,
     blockedUserIds,
+    marketplaceLoadError,
+    refreshMarketplaceItems,
   } = useAppStore();
+  const { createItem, updateItem } = useMarketplaceItemMutations();
+  const [isRetryingLoad, setIsRetryingLoad] = useState<boolean>(false);
 
   const [viewMode, setViewMode] = useState<'public' | 'my_items'>('public');
 
@@ -233,7 +236,7 @@ export const MarketplaceListPage: React.FC = () => {
   const [resubmitDeliveryMethods, setResubmitDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(['tai_truong']);
   const [resubmitDeliveryError, setResubmitDeliveryError] = useState<string | null>(null);
   const [resubmitIsNegotiable, setResubmitIsNegotiable] = useState<boolean>(false);
-  const [isResubmitting, setIsResubmitting] = useState<boolean>(false);
+  const isResubmitting = updateItem.isPending;
 
   const handleOpenResubmitModal = (itemToEdit: MarketplaceItem) => {
     setResubmittingItem(itemToEdit);
@@ -494,7 +497,7 @@ export const MarketplaceListPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const isSubmitting = createItem.isPending;
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -515,53 +518,25 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
-    const sellerId =
-      currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
-        ? currentUser.id
-        : '00000000-0000-0000-0000-000000000003';
+    if (!currentUser || isSubmitting) return;
 
-    const catMap: Record<string, string> = {
-      'Nội thất': 'furniture',
-      'Đồ điện tử': 'electronics',
-      'Sách vở': 'books',
-      'Đồ gia dụng': 'household',
+    const input: MarketplaceItemInput = {
+      name: title.trim(),
+      price: pricingType === 'Miễn phí' ? 0 : Number(price),
+      pricingType,
+      category,
+      condition,
+      location,
+      district,
+      images,
+      description: description.trim() || 'Đồ thanh lý sinh viên chính chủ.',
+      deliveryMethods,
+      isNegotiable,
     };
 
-    setIsSubmitting(true);
     try {
-      try {
-        await createMarketplaceItem({
-          seller_id: sellerId,
-          title: title.trim(),
-          price: pricingType === 'Miễn phí' ? 0 : Number(price),
-          is_free: pricingType === 'Miễn phí',
-          category: (catMap[category] as any) || 'other',
-          district,
-          description: description || 'Đồ thanh lý sinh viên chính chủ.',
-          image_urls: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
-        });
-      } catch (apiErr) {
-        console.warn('[API marketplace fallback]:', apiErr);
-      }
-
-      // Lưu tin vào store với trạng thái "Chờ duyệt"
-      addMarketplaceItem({
-        userId: currentUser?.id || 'user_1',
-        userName: currentUser?.name || 'Người dùng Trọ Xinh',
-        userPhone: currentUser?.phone || '',
-        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
-        name: title.trim(),
-        price: pricingType === 'Miễn phí' ? 0 : Number(price),
-        pricingType,
-        category,
-        condition,
-        location,
-        district,
-        images: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
-        description: description || 'Đồ thanh lý sinh viên chính chủ.',
-        deliveryMethods,
-        isNegotiable,
-      });
+      // Máy chủ luôn đưa tin mới vào trạng thái chờ duyệt
+      await createItem.mutateAsync({ sellerId: currentUser.id, input });
 
       // Xóa bản nháp sau khi đăng thành công
       localStorage.removeItem(DRAFT_KEY);
@@ -578,13 +553,11 @@ export const MarketplaceListPage: React.FC = () => {
       const errorMsg = err?.message || 'Không thể đăng tin lúc này. Dữ liệu của bạn đã được giữ nguyên.';
       setSubmitError(errorMsg);
       showToast('Lỗi khi đăng tin', errorMsg, 'error');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   // Xử lý gửi lại tin sau khi chỉnh sửa
-  const handleResubmitSubmit = (e: React.FormEvent) => {
+  const handleResubmitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resubmittingItem) return;
 
@@ -603,31 +576,46 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
-    setIsResubmitting(true);
+    if (isResubmitting) return;
     try {
-      resubmitMarketplaceItem(resubmittingItem.id, {
-        name: resubmitTitle.trim(),
-        price: resubmitPricingType === 'Miễn phí' ? 0 : Number(resubmitPrice),
-        pricingType: resubmitPricingType,
-        category: resubmitCategory,
-        condition: resubmitCondition,
-        location: resubmitLocation,
-        district: resubmitDistrict,
-        description: resubmitDescription.trim(),
-        images: resubmitImages,
-        deliveryMethods: resubmitDeliveryMethods,
-        isNegotiable: resubmitIsNegotiable,
+      await updateItem.mutateAsync({
+        id: resubmittingItem.id,
+        input: {
+          name: resubmitTitle.trim(),
+          price: resubmitPricingType === 'Miễn phí' ? 0 : Number(resubmitPrice),
+          pricingType: resubmitPricingType,
+          category: resubmitCategory,
+          condition: resubmitCondition,
+          location: resubmitLocation,
+          district: resubmitDistrict,
+          description: resubmitDescription.trim(),
+          images: resubmitImages,
+          deliveryMethods: resubmitDeliveryMethods,
+          isNegotiable: resubmitIsNegotiable,
+        },
       });
 
       setResubmitModalOpen(false);
       setResubmittingItem(null);
       showToast('Đã gửi lại duyệt thành công! 🚀', 'Tin đăng đã được cập nhật và chuyển vào danh sách chờ Admin kiểm duyệt lại.', 'success');
     } catch (err: any) {
-      showToast('Lỗi khi gửi lại duyệt', err?.message || 'Không thể gửi lại tin lúc này', 'error');
-    } finally {
-      setIsResubmitting(false);
+      showToast('Lỗi khi gửi lại duyệt', err?.message || 'Không thể gửi lại tin lúc này. Dữ liệu đã được giữ nguyên.', 'error');
     }
   };
+
+  const handleRetryLoad = async () => {
+    setIsRetryingLoad(true);
+    try {
+      await refreshMarketplaceItems();
+    } finally {
+      setIsRetryingLoad(false);
+    }
+  };
+
+  const publicItemCount = useMemo(
+    () => marketplaceItems.filter((i) => ['available', 'sold'].includes(getItemAvailability(i))).length,
+    [marketplaceItems]
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
@@ -694,7 +682,7 @@ export const MarketplaceListPage: React.FC = () => {
             <Layers className="w-4 h-4" />
             <span>Tất cả đồ thanh lý</span>
             <span className={`text-[11px] px-2 py-0.5 rounded-full ${viewMode === 'public' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
-              {marketplaceItems.filter(i => i.status !== 'Chờ duyệt' && i.moderationStatus !== 'pending' && i.status !== 'Bị từ chối' && i.moderationStatus !== 'rejected').length}
+              {publicItemCount}
             </span>
           </button>
 
@@ -1208,6 +1196,25 @@ export const MarketplaceListPage: React.FC = () => {
         </div>
       </div>
 
+      {marketplaceLoadError && (
+        <div role="alert" className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-800">
+          <span className="flex items-start gap-1.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Không thể tải danh sách chợ đồ cũ: {marketplaceLoadError}</span>
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetryLoad}
+            disabled={isRetryingLoad}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRetryingLoad ? 'animate-spin' : ''}`} />}
+            className="border-rose-300 text-rose-700 hover:bg-rose-100 shrink-0"
+          >
+            {isRetryingLoad ? 'Đang tải lại...' : 'Thử lại'}
+          </Button>
+        </div>
+      )}
+
       {/* Items Grid */}
       {filteredItems.length === 0 ? (
         <EmptyState
@@ -1280,7 +1287,7 @@ export const MarketplaceListPage: React.FC = () => {
                         </div>
                       )}
 
-                      {!isRejected && !isPending && item.status !== 'Đã bán' && (
+                      {getItemAvailability(item) === 'available' && (
                         <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-[11px] text-emerald-800">
                           <span className="flex items-center gap-1 font-semibold">
                             <CheckCircle2 className="w-3.5 h-3.5 text-[#006d37]" />

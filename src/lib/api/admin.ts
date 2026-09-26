@@ -1487,27 +1487,33 @@ export async function getAllMarketplaceItemsAdmin() {
  * Phê duyệt tin đăng đồ cũ
  */
 export async function approveMarketplaceItem(itemId: string, admin?: User | null) {
-  if (!isSupabaseConfigured) return true;
+  if (!isSupabaseConfigured) {
+    throw new Error('Chưa cấu hình kết nối máy chủ dữ liệu (Supabase).');
+  }
+
+  const { data: oldItem } = await supabase
+    .from('marketplace_items')
+    .select('*')
+    .eq('id', itemId)
+    .maybeSingle();
+
+  const { data: updatedRows, error } = await supabase
+    .from('marketplace_items')
+    .update({
+      status: 'available',
+      moderation_status: 'approved',
+      rejection_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', itemId)
+    .select('id');
+
+  if (error) throw new Error(error.message || 'Không thể phê duyệt tin đăng');
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error('Không thể phê duyệt: tin không tồn tại hoặc tài khoản không có quyền quản trị.');
+  }
 
   try {
-    const { data: oldItem } = await supabase
-      .from('marketplace_items')
-      .select('*')
-      .eq('id', itemId)
-      .maybeSingle();
-
-    const { error } = await supabase
-      .from('marketplace_items')
-      .update({
-        status: 'available',
-        moderation_status: 'approved',
-        rejection_reason: null,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', itemId);
-
-    if (error) throw error;
-
     await logAdminAudit({
       action: 'approve_marketplace_item',
       entity_type: 'marketplace_item',
@@ -1533,7 +1539,8 @@ export async function approveMarketplaceItem(itemId: string, admin?: User | null
       }
     }
   } catch (err) {
-    console.warn('[Admin API] approveMarketplaceItem error:', err);
+    // Tin đã được duyệt; lỗi ghi nhật ký/thông báo không làm hỏng thao tác chính
+    console.warn('[Admin API] approveMarketplaceItem audit/notification error:', err);
   }
 
   return true;
@@ -1543,27 +1550,33 @@ export async function approveMarketplaceItem(itemId: string, admin?: User | null
  * Từ chối tin đăng đồ cũ kèm lý do
  */
 export async function rejectMarketplaceItem(itemId: string, reason: string, admin?: User | null) {
-  if (!isSupabaseConfigured) return true;
+  if (!isSupabaseConfigured) {
+    throw new Error('Chưa cấu hình kết nối máy chủ dữ liệu (Supabase).');
+  }
+
+  const { data: oldItem } = await supabase
+    .from('marketplace_items')
+    .select('*')
+    .eq('id', itemId)
+    .maybeSingle();
+
+  const { data: updatedRows, error } = await supabase
+    .from('marketplace_items')
+    .update({
+      status: 'rejected',
+      moderation_status: 'rejected',
+      rejection_reason: reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', itemId)
+    .select('id');
+
+  if (error) throw new Error(error.message || 'Không thể từ chối tin đăng');
+  if (!updatedRows || updatedRows.length === 0) {
+    throw new Error('Không thể từ chối: tin không tồn tại hoặc tài khoản không có quyền quản trị.');
+  }
 
   try {
-    const { data: oldItem } = await supabase
-      .from('marketplace_items')
-      .select('*')
-      .eq('id', itemId)
-      .maybeSingle();
-
-    const { error } = await supabase
-      .from('marketplace_items')
-      .update({
-        status: 'rejected',
-        moderation_status: 'rejected',
-        rejection_reason: reason,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', itemId);
-
-    if (error) throw error;
-
     await logAdminAudit({
       action: 'reject_marketplace_item',
       entity_type: 'marketplace_item',
@@ -1590,7 +1603,8 @@ export async function rejectMarketplaceItem(itemId: string, reason: string, admi
       }
     }
   } catch (err) {
-    console.warn('[Admin API] rejectMarketplaceItem error:', err);
+    // Tin đã bị từ chối; lỗi ghi nhật ký/thông báo không làm hỏng thao tác chính
+    console.warn('[Admin API] rejectMarketplaceItem audit/notification error:', err);
   }
 
   return true;

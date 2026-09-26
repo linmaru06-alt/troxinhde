@@ -215,8 +215,8 @@ export const AdminModerationPage: React.FC = () => {
   // Xử lý kiểm duyệt Chợ Đồ Cũ
   const handleApproveMarketplace = async (item: any) => {
     try {
-      approveMarketplaceItem(item.id);
       await approveMarketplaceItemApi(item.id, currentUser);
+      approveMarketplaceItem(item.id);
       showToast('Đã phê duyệt tin đăng thanh lý! 🎉', 'Tin đăng đã được công khai trên chợ.', 'success');
       fetchData();
     } catch (err: any) {
@@ -233,8 +233,8 @@ export const AdminModerationPage: React.FC = () => {
       entityName: item.name || item.title,
       onConfirm: async (reason: string) => {
         try {
-          rejectMarketplaceItem(item.id, reason);
           await rejectMarketplaceItemApi(item.id, reason, currentUser);
+          rejectMarketplaceItem(item.id, reason);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast('Đã từ chối tin đăng!', 'Lý do từ chối đã được gửi cho người đăng.', 'info');
           fetchData();

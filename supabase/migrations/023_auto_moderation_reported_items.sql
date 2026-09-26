@@ -54,7 +54,7 @@ BEGIN
         updated_at = now()
     WHERE id = v_target_uuid
       AND (status <> 'pending' OR moderation_status <> 'pending')
-    RETURNING id, title, user_id INTO v_updated_id, v_item_title, v_owner_id;
+    RETURNING id, title, seller_id INTO v_updated_id, v_item_title, v_owner_id;
 
     -- Nếu tin vừa được chuyển trạng thái sang chờ duyệt lại -> Gửi thông báo cho người đăng
     IF v_updated_id IS NOT NULL AND v_owner_id IS NOT NULL THEN

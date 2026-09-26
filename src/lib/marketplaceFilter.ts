@@ -524,6 +524,9 @@ export function filterMarketplaceItems(
         const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
         if (isPending || isRejected) return false;
 
+        // Tin bị ẩn hoặc người bán đã đóng không hiện trên chợ (vẫn mở được qua liên kết/chat)
+        if (item.status === 'Đã ẩn' || item.isHidden || item.status === 'Đã đóng') return false;
+
         // Loại bỏ tin bị ẩn khỏi danh sách của người dùng
         if (hiddenItemIds.length > 0 && hiddenItemIds.includes(item.id)) {
           return false;

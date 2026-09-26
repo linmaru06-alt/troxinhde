@@ -176,9 +176,12 @@ export interface MarketplaceItem {
   description: string;
   deliveryMethods?: MarketplaceDeliveryMethodCode[];
   isNegotiable?: boolean;
-  status?: "Còn hàng" | "Đã bán" | "Chờ duyệt" | "Bị từ chối" | "Đã duyệt";
+  status?: "Còn hàng" | "Đã bán" | "Đã đóng" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn" | "Đã duyệt";
   moderationStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
+  isHidden?: boolean;
+  showPhone?: boolean;
+  closedAt?: string;
   createdAt: string;
   created_at?: string;
   updatedAt?: string;

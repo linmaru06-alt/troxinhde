@@ -146,6 +146,8 @@ const AppCloudDataLoader: React.FC = () => {
         } catch (err) {
           console.warn('[Auth] Lỗi đồng bộ profile Firebase:', err);
         }
+        // Tải lại chợ đồ cũ bằng phiên Firebase để người bán thấy cả tin chờ duyệt của mình
+        useAppStore.getState().refreshMarketplaceItems();
       } else {
         // Nếu không có Firebase user và không phải tài khoản demo đang đăng nhập
         if (currentUser && !currentUser.isDemoAccount && !currentUser.id.startsWith('demo_')) {

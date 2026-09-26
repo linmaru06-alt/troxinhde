@@ -248,7 +248,7 @@ BEGIN
       rejection_reason = trim(p_reason),
       updated_at = now()
   WHERE id = p_target_id
-  RETURNING user_id, title INTO v_seller_id, v_item_title;
+  RETURNING seller_id, title INTO v_seller_id, v_item_title;
 
   UPDATE public.reports
   SET status = 'da_xu_ly',
@@ -309,7 +309,7 @@ BEGIN
       rejection_reason = NULL,
       updated_at = now()
   WHERE id = p_target_id
-  RETURNING user_id, title INTO v_seller_id, v_item_title;
+  RETURNING seller_id, title INTO v_seller_id, v_item_title;
 
   UPDATE public.reports
   SET status = 'da_xu_ly',

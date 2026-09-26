@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../types';
-import { normalizeCondition } from './marketplaceFilter';
+import { fetchMarketplaceItems } from './api/marketplace';
 
 /**
  * ==============================================================================
@@ -225,62 +225,9 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
 }
 
 // 4. TẢI CHỢ ĐỒ CŨ SINH VIÊN TỪ SUPABASE
+// Tải danh sách chợ đồ cũ; lỗi được ném ra để store hiển thị trên giao diện
 export async function fetchMarketplaceItemsFromSupabase(): Promise<MarketplaceItem[]> {
-  try {
-    const { data: mkData, error: mkErr } = await supabase
-      .from('marketplace_items')
-      .select('*, profiles:seller_id(*)')
-      .order('created_at', { ascending: false });
-
-    if (mkErr) {
-      console.warn('[Supabase] Không thể tải marketplace_items:', mkErr.message);
-      return [];
-    }
-
-    if (!mkData || mkData.length === 0) return [];
-
-    const categoryMap: Record<string, string> = {
-      furniture: 'Nội thất',
-      electronics: 'Đồ điện tử',
-      books: 'Sách vở',
-      household: 'Đồ gia dụng',
-      other: 'Đồ gia dụng',
-    };
-
-    const conditionMap: Record<string, string> = {
-      new90: 'Mới 99%',
-      used: 'Còn dùng tốt',
-      needs_repair: 'Đã qua sử dụng',
-    };
-
-    return mkData.map((m: any) => {
-      const seller = m.profiles || {};
-      const images = Array.isArray(m.image_urls) && m.image_urls.length > 0
-        ? m.image_urls
-        : (Array.isArray(m.images) && m.images.length > 0 ? m.images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800']);
-
-      return {
-        id: m.id,
-        userId: m.seller_id || m.user_id || seller.id || 'user_1',
-        userName: seller.full_name || m.user_name || 'Sinh viên Trọ Xinh',
-        userPhone: seller.phone || m.user_phone || '0912889900',
-        userAvatar: seller.avatar_url || '/images/user-avatar.jpg',
-        name: m.title || m.name || 'Món đồ thanh lý',
-        price: Number(m.price) || 0,
-        pricingType: (m.is_free || m.price === 0 ? 'Miễn phí' : 'Giá rẻ') as any,
-        category: (categoryMap[m.category] || m.category || 'Nội thất') as any,
-        condition: normalizeCondition(conditionMap[m.condition] || m.condition) || 'con_tot',
-        images,
-        location: m.location || m.district || 'Hà Nội',
-        district: m.district || 'Quận Cầu Giấy',
-        description: m.description || '',
-        createdAt: m.created_at || new Date().toISOString(),
-      };
-    });
-  } catch (err) {
-    console.error('[Supabase] Lỗi khi fetch marketplace items:', err);
-    return [];
-  }
+  return fetchMarketplaceItems();
 }
 
 // 5. GHI / ĐỒNG BỘ PHÒNG TRỌ MỚI LÊN SUPABASE
@@ -356,31 +303,4 @@ export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<bo
   }
 
   return true;
-}
-
-// 7. GHI / ĐỒNG BỘ MÓN ĐỒ CHỢ SINH VIÊN LÊN SUPABASE
-export async function syncMarketplaceItemToSupabase(item: MarketplaceItem): Promise<boolean> {
-  try {
-    const payload = {
-      title: item.name,
-      price: item.price,
-      is_free: item.pricingType === 'Miễn phí',
-      category: item.category === 'Đồ điện tử' ? 'electronics' : item.category === 'Sách vở' ? 'books' : 'furniture',
-      condition: item.condition === 'nhu_moi' ? 'new90' : item.condition === 'da_cu' ? 'needs_repair' : 'used',
-      district: item.district,
-      description: item.description,
-      image_urls: item.images,
-      status: 'available',
-    };
-
-    const { error } = await supabase.from('marketplace_items').insert(payload);
-    if (error) {
-      console.warn('[Supabase] Sync marketplace item error:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[Supabase] Lỗi khi sync marketplace item:', err);
-    return false;
-  }
 }

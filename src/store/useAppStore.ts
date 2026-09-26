@@ -39,7 +39,6 @@ import {
   fetchMarketplaceItemsFromSupabase,
   syncRoomToSupabase,
   syncRoommatePostToSupabase,
-  syncMarketplaceItemToSupabase,
 } from '../lib/supabaseDataService';
 import { toggleSaveRoom as apiToggleSaveRoom, getSavedRooms } from '../lib/api/rooms';
 import {
@@ -165,7 +164,6 @@ interface AppState {
   localCreatedRooms: Room[];
   localCreatedBuildings: Building[];
   localCreatedRoommates: RoommatePost[];
-  localCreatedItems: MarketplaceItem[];
 
   // Owner Upgrade Applications
   submitOwnerApplication: (data: {
@@ -211,13 +209,14 @@ interface AppState {
   // Community & Marketplace
   addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
   removeRoommatePost: (id: string) => void;
-  addMarketplaceItem: (item: Omit<MarketplaceItem, 'id' | 'createdAt'>) => string;
+  // Bộ nhớ đệm hiển thị: chỉ cập nhật bằng dữ liệu máy chủ đã xác nhận
+  upsertMarketplaceItem: (item: MarketplaceItem) => void;
   removeMarketplaceItem: (id: string) => void;
-  updateMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
   approveMarketplaceItem: (itemId: string) => void;
   rejectMarketplaceItem: (itemId: string, reason: string) => void;
-  resubmitMarketplaceItem: (itemId: string, updates: Partial<MarketplaceItem>) => void;
   autoModerateMarketplaceItem: (itemId: string, ownerId?: string) => void;
+  marketplaceLoadError: string | null;
+  refreshMarketplaceItems: () => Promise<void>;
 
   // Bookings
   createBooking: (booking: Omit<BookingRequest, 'id' | 'createdAt' | 'status'>) => string;
@@ -265,7 +264,7 @@ export const useAppStore = create<AppState>()(
       localCreatedRooms: [],
       localCreatedBuildings: [],
       localCreatedRoommates: [],
-      localCreatedItems: [],
+      marketplaceLoadError: null,
       reports: [
         {
           id: 'rep_1',
@@ -1009,166 +1008,71 @@ export const useAppStore = create<AppState>()(
         get().showToast('Đã xóa bài viết', 'Bài viết tìm bạn cùng phòng của bạn đã được xóa thành công', 'success');
       },
 
-      addMarketplaceItem: (data) => {
-        const newId = `item_${Date.now()}`;
-        const newItem: MarketplaceItem = {
-          ...data,
-          id: newId,
-          status: 'Chờ duyệt',
-          moderationStatus: 'pending',
-          createdAt: new Date().toISOString(),
-        };
-        set((state) => ({
-          marketplaceItems: [newItem, ...state.marketplaceItems],
-          localCreatedItems: [newItem, ...state.localCreatedItems],
-          notifications: [
-            {
-              id: `notif_${Date.now()}`,
-              userId: data.userId ?? data.seller_id ?? data.sellerId ?? '',
-              type: 'system',
-              title: 'Tin đăng thanh lý đang chờ duyệt ⏳',
-              body: `Món đồ "${data.name}" đã được gửi và đang chờ Ban Quản Trị kiểm duyệt trước khi hiển thị công khai.`,
-              createdAt: new Date().toISOString(),
-              read: false,
-              ctaUrl: '/cho-do-cu',
-              ctaLabel: 'Xem tin đăng',
-            },
-            ...state.notifications,
-          ],
-        }));
-        // Sync lên Supabase Cloud
-        syncMarketplaceItemToSupabase(newItem).catch(console.warn);
-        get().showToast('Đã gửi tin chờ duyệt! ⏳', 'Tin đăng sẽ được Ban Quản Trị kiểm duyệt trước khi hiển thị công khai', 'info');
-        return newId;
+      upsertMarketplaceItem: (item) => {
+        set((state) => {
+          const exists = state.marketplaceItems.some((m) => m.id === item.id);
+          return {
+            marketplaceItems: exists
+              ? state.marketplaceItems.map((m) => (m.id === item.id ? item : m))
+              : [item, ...state.marketplaceItems],
+          };
+        });
       },
 
       removeMarketplaceItem: (id) => {
         set((state) => ({
           marketplaceItems: state.marketplaceItems.filter((i) => i.id !== id),
-          localCreatedItems: state.localCreatedItems.filter((i) => i.id !== id),
         }));
-        // TODO: Call API to delete item if needed
-        get().showToast('Đã xóa bài đăng', 'Bài đăng đồ cũ đã được xóa thành công', 'success');
       },
 
-      updateMarketplaceItem: (itemId, updates) => {
+      refreshMarketplaceItems: async () => {
+        if (!isSupabaseConfigured) return;
+        try {
+          const items = await fetchMarketplaceItemsFromSupabase();
+          set((state) => ({
+            marketplaceItems: items.length > 0 ? items : (isDev ? state.marketplaceItems : []),
+            marketplaceLoadError: null,
+          }));
+        } catch (err: any) {
+          console.warn('[useAppStore] Không thể tải chợ đồ cũ:', err);
+          set({ marketplaceLoadError: err?.message || 'Không thể tải danh sách chợ đồ cũ' });
+        }
+      },
+
+      // Chỉ gọi sau khi máy chủ đã duyệt thành công; thông báo cho người bán do máy chủ tạo
+      approveMarketplaceItem: (itemId) => {
         set((state) => ({
           marketplaceItems: state.marketplaceItems.map((m) =>
-            m.id === itemId ? { ...m, ...updates } : m
+            m.id === itemId
+              ? {
+                  ...m,
+                  status: 'Còn hàng',
+                  moderationStatus: 'approved',
+                  rejectionReason: undefined,
+                  updatedAt: new Date().toISOString(),
+                }
+              : m
           ),
         }));
-        get().showToast('Cập nhật món đồ thành công!', 'Thông tin sản phẩm đã được lưu lại', 'success');
       },
 
-      approveMarketplaceItem: (itemId) => {
-        set((state) => {
-          const item = state.marketplaceItems.find((m) => m.id === itemId);
-          return {
-            marketplaceItems: state.marketplaceItems.map((m) =>
-              m.id === itemId
-                ? {
-                    ...m,
-                    status: 'Còn hàng',
-                    moderationStatus: 'approved',
-                    rejectionReason: undefined,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : m
-            ),
-            notifications: item
-              ? [
-                  {
-                    id: `notif_${Date.now()}`,
-                    userId: item.userId ?? item.seller_id ?? item.sellerId ?? '',
-                    type: 'approval',
-                    title: 'Tin đăng thanh lý đã được duyệt! 🎉',
-                    body: `Món đồ "${item.name}" đã được kiểm duyệt và hiển thị công khai trên Chợ đồ cũ sinh viên.`,
-                    createdAt: new Date().toISOString(),
-                    read: false,
-                    ctaUrl: `/cho-do-cu/${itemId}`,
-                    ctaLabel: 'Xem tin đăng',
-                  },
-                  ...state.notifications,
-                ]
-              : state.notifications,
-          };
-        });
-        get().showToast('Đã duyệt tin đăng thanh lý!', 'Sản phẩm đã hiển thị công khai trên Chợ đồ cũ', 'success');
-      },
-
+      // Chỉ gọi sau khi máy chủ đã từ chối thành công; thông báo cho người bán do máy chủ tạo
       rejectMarketplaceItem: (itemId, reason) => {
-        set((state) => {
-          const item = state.marketplaceItems.find((m) => m.id === itemId);
-          return {
-            marketplaceItems: state.marketplaceItems.map((m) =>
-              m.id === itemId
-                ? {
-                    ...m,
-                    status: 'Bị từ chối',
-                    moderationStatus: 'rejected',
-                    rejectionReason: reason,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : m
-            ),
-            notifications: item
-              ? [
-                  {
-                    id: `notif_${Date.now()}`,
-                    userId: item.userId ?? item.seller_id ?? item.sellerId ?? '',
-                    type: 'rejected',
-                    title: 'Tin đăng thanh lý bị từ chối ⚠️',
-                    body: `Lý do: ${reason}. Vui lòng sửa lại thông tin và gửi duyệt lại.`,
-                    createdAt: new Date().toISOString(),
-                    read: false,
-                    ctaUrl: '/cho-do-cu',
-                    ctaLabel: 'Sửa tin đăng',
-                  },
-                  ...state.notifications,
-                ]
-              : state.notifications,
-          };
-        });
-        get().showToast('Đã từ chối tin đăng!', `Lý do: ${reason}`, 'info');
+        set((state) => ({
+          marketplaceItems: state.marketplaceItems.map((m) =>
+            m.id === itemId
+              ? {
+                  ...m,
+                  status: 'Bị từ chối',
+                  moderationStatus: 'rejected',
+                  rejectionReason: reason,
+                  updatedAt: new Date().toISOString(),
+                }
+              : m
+          ),
+        }));
       },
 
-      resubmitMarketplaceItem: (itemId, updates) => {
-        set((state) => {
-          const item = state.marketplaceItems.find((m) => m.id === itemId);
-          const updatedName = updates.name || item?.name || 'Món đồ';
-          return {
-            marketplaceItems: state.marketplaceItems.map((m) =>
-              m.id === itemId
-                ? {
-                    ...m,
-                    ...updates,
-                    status: 'Chờ duyệt',
-                    moderationStatus: 'pending',
-                    rejectionReason: undefined,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : m
-            ),
-            notifications: item
-              ? [
-                  {
-                    id: `notif_${Date.now()}`,
-                    userId: item.userId ?? item.seller_id ?? item.sellerId ?? '',
-                    type: 'system',
-                    title: 'Đã gửi lại tin đăng thanh lý ⏳',
-                    body: `Món đồ "${updatedName}" đã được cập nhật và gửi lại để Ban Quản Trị kiểm duyệt.`,
-                    createdAt: new Date().toISOString(),
-                    read: false,
-                    ctaUrl: '/cho-do-cu',
-                    ctaLabel: 'Xem tin đăng',
-                  },
-                  ...state.notifications,
-                ]
-              : state.notifications,
-          };
-        });
-        get().showToast('Đã gửi lại tin chờ duyệt! ⏳', 'Ban Quản Trị sẽ xem xét lại tin đăng của bạn', 'info');
-      },
 
       autoModerateMarketplaceItem: (itemId, ownerId) => {
         set((state) => {
@@ -1361,12 +1265,16 @@ export const useAppStore = create<AppState>()(
 
       fetchInitialCloudData: async () => {
         try {
-          const [cloudRooms, cloudBuildings, cloudRoommates, cloudItems] = await Promise.all([
+          const [cloudRooms, cloudBuildings, cloudRoommates, cloudItemsResult] = await Promise.all([
             fetchRoomsFromSupabase(),
             fetchBuildingsFromSupabase(),
             fetchRoommatesFromSupabase(),
-            fetchMarketplaceItemsFromSupabase(),
+            // Lỗi chợ đồ cũ không được làm mất dữ liệu phòng; lỗi được hiển thị riêng trên trang chợ
+            fetchMarketplaceItemsFromSupabase()
+              .then((items) => ({ items, error: null as string | null }))
+              .catch((err: any) => ({ items: [] as MarketplaceItem[], error: (err?.message || 'Không thể tải danh sách chợ đồ cũ') as string | null })),
           ]);
+          const cloudItems = cloudItemsResult.items;
 
           set((state) => {
             const existingUserPosts = state.roommates.filter(
@@ -1395,17 +1303,12 @@ export const useAppStore = create<AppState>()(
               ...cloudRoommates,
             ];
 
-            const localItems = state.localCreatedItems || [];
-            const mergedItems = [
-              ...localItems.filter((li) => !cloudItems.some((ci) => ci.id === li.id)),
-              ...cloudItems,
-            ];
-
             return {
               rooms: mergedRooms.length > 0 ? mergedRooms : (isDev ? state.rooms : []),
               buildings: mergedBuildings.length > 0 ? mergedBuildings : (isDev ? state.buildings : []),
               roommates: mergedRoommates,
-              marketplaceItems: mergedItems.length > 0 ? mergedItems : (isDev ? state.marketplaceItems : []),
+              marketplaceItems: cloudItems.length > 0 ? cloudItems : (isDev ? state.marketplaceItems : []),
+              marketplaceLoadError: cloudItemsResult.error,
             };
           });
         } catch (err) {
@@ -1462,7 +1365,6 @@ export const useAppStore = create<AppState>()(
         localCreatedRooms: state.localCreatedRooms,
         localCreatedBuildings: state.localCreatedBuildings,
         localCreatedRoommates: state.localCreatedRoommates,
-        localCreatedItems: state.localCreatedItems,
       }),
     }
   )

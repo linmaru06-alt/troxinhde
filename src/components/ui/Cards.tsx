@@ -4,7 +4,8 @@ import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { CONDITION_LABELS, MarketplaceConditionCode } from '../../lib/marketplaceFilter';
 import { useAppStore } from '../../store/useAppStore';
 import { findOrCreateConversation, isSameUserId } from '../../lib/api/messages';
-import { updateMarketplaceItem as updateMarketplaceItemApi } from '../../lib/api/marketplace';
+import { AVAILABILITY_LABELS, getItemAvailability } from '../../lib/marketplaceStatus';
+import { MARKETPLACE_STATUS_TOASTS, useMarketplaceItemMutations } from '../../hooks/queries/useMarketplace';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -466,32 +467,30 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
-  const { currentUser, removeMarketplaceItem, updateMarketplaceItem, showToast } = useAppStore();
+  const { currentUser, showToast } = useAppStore();
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isChatLoading, setIsChatLoading] = React.useState(false);
+  const { setStatus, deleteItem } = useMarketplaceItemMutations();
 
   const sellerUserId = item.userId ?? item.seller_id ?? item.sellerId ?? '';
   const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, sellerUserId));
-  const isSold = item.status === 'Đã bán';
-  const isPending = Boolean(item.status === 'Chờ duyệt' || item.moderationStatus === 'pending');
-  const isRejected = Boolean(item.status === 'Bị từ chối' || item.moderationStatus === 'rejected');
-  const isHidden = Boolean((item as any).isHidden);
-  const isUnavailable = Boolean(isSold || isPending || isRejected || isHidden);
+  const availability = getItemAvailability(item);
+  const isSold = availability === 'sold';
+  const isClosed = availability === 'closed';
+  const isAvailable = availability === 'available';
+  const isUnavailable = !isAvailable;
+  const unavailableReason = isUnavailable ? AVAILABILITY_LABELS[availability] : '';
+  const isStatusSaving = setStatus.isPending;
 
-  const unavailableReason = isSold
-    ? 'Đã bán'
-    : isPending
-      ? 'Chờ duyệt'
-      : isRejected
-        ? 'Bị từ chối'
-        : isHidden
-          ? 'Đang ẩn'
-          : '';
-
-  const handleConfirmDelete = () => {
-    removeMarketplaceItem(item.id);
-    setShowDeleteConfirm(false);
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteItem.mutateAsync(item.id);
+      setShowDeleteConfirm(false);
+      showToast('Đã xóa tin đăng', 'Tin đã được gỡ khỏi chợ. Lịch sử trò chuyện và báo cáo liên quan vẫn được giữ lại.', 'success');
+    } catch (err: any) {
+      showToast('Không thể xóa tin', err?.message || 'Vui lòng thử lại sau', 'error');
+    }
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -500,21 +499,17 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
     setShowDeleteConfirm(true);
   };
 
-  const handleMarkAsSold = async (e: React.MouseEvent) => {
+  const handleChangeStatus = async (e: React.MouseEvent, nextStatus: 'sold' | 'available') => {
     e.preventDefault();
     e.stopPropagation();
-    if (!isOwner) return;
+    if (!isOwner || isStatusSaving) return;
 
     try {
-      updateMarketplaceItem(item.id, { status: 'Đã bán' });
-      try {
-        await updateMarketplaceItemApi(item.id, { status: 'sold' });
-      } catch {
-        // Fallback
-      }
-      showToast('Đã đánh dấu đã bán! 🎉', 'Món đồ đã được chuyển sang trạng thái Đã bán.', 'success');
+      await setStatus.mutateAsync({ id: item.id, status: nextStatus });
+      const toast = MARKETPLACE_STATUS_TOASTS[nextStatus];
+      showToast(toast.title, toast.description, 'success');
     } catch (err: any) {
-      showToast('Lỗi thao tác', err?.message || 'Không thể đánh dấu đã bán', 'error');
+      showToast('Không thể cập nhật trạng thái', err?.message || 'Vui lòng thử lại sau', 'error');
     }
   };
 
@@ -611,11 +606,11 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
           {CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}
         </div>
 
-        {/* 3b. Trạng thái Đã bán / Chờ duyệt / Bị từ chối */}
-        {item.status === 'Đã bán' && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-            <span className="bg-rose-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider border-2 border-white/30">
-              Đã bán
+        {/* 3b. Trạng thái Đã bán / Đã đóng / Chờ duyệt / Bị từ chối */}
+        {(isSold || isClosed) && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 pointer-events-none">
+            <span className={`${isSold ? 'bg-rose-600' : 'bg-slate-700'} text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider border-2 border-white/30`}>
+              {isSold ? 'Đã bán' : 'Đã đóng'}
             </span>
           </div>
         )}
@@ -655,10 +650,20 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
 
         {/* 5b. Trạng thái còn hàng / đã bán / chờ duyệt / bị từ chối */}
         <div className="flex items-center gap-1.5 mt-1">
-          {item.status === 'Đã bán' ? (
+          {isSold ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
+              Đã bán
+            </span>
+          ) : isClosed ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full" />
               Đã đóng
+            </span>
+          ) : availability === 'hidden' ? (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
+              Đang ẩn
             </span>
           ) : item.status === 'Chờ duyệt' || item.moderationStatus === 'pending' ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full">
@@ -692,36 +697,40 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
         {/* 7. Action Bar: Nhắn người bán / Sửa tin & Đánh dấu đã bán */}
         <div className="pt-2.5 mt-0.5 border-t border-gray-100 flex flex-col gap-1">
           {isOwner ? (
-            <div className="grid grid-cols-2 gap-1.5 w-full">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  navigate(`/cho-do-cu/${item.id}?edit=true`);
-                }}
-                className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
-              >
-                <Edit className="w-3 h-3" />
-                Sửa tin
-              </button>
-              {isSold ? (
+            <div className={`grid ${isAvailable ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5 w-full`}>
+              {isSold || isClosed ? (
                 <button
                   type="button"
-                  disabled
-                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-semibold text-gray-400 bg-gray-100 border border-gray-200 cursor-not-allowed opacity-75"
+                  onClick={(e) => handleChangeStatus(e, 'available')}
+                  disabled={isStatusSaving}
+                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                 >
-                  <Check className="w-3 h-3" />
-                  Đã bán
+                  <RefreshCw className={`w-3 h-3 ${isStatusSaving ? 'animate-spin' : ''}`} />
+                  {isStatusSaving ? 'Đang mở lại...' : 'Mở lại tin'}
                 </button>
               ) : (
                 <button
                   type="button"
-                  onClick={handleMarkAsSold}
-                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-colors shadow-xs cursor-pointer"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    navigate(`/cho-do-cu/${item.id}?edit=true`);
+                  }}
+                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
                 >
-                  <Check className="w-3 h-3" />
-                  Đã bán
+                  <Edit className="w-3 h-3" />
+                  Sửa tin
+                </button>
+              )}
+              {isAvailable && (
+                <button
+                  type="button"
+                  onClick={(e) => handleChangeStatus(e, 'sold')}
+                  disabled={isStatusSaving}
+                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-colors shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-wait"
+                >
+                  {isStatusSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                  {isStatusSaving ? 'Đang lưu...' : 'Đã bán'}
                 </button>
               )}
             </div>
@@ -760,10 +769,11 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleConfirmDelete}
         title="Xóa bài đăng đồ cũ"
-        description="Bạn có chắc chắn muốn xóa món đồ này không? Hành động này không thể hoàn tác."
+        description="Tin sẽ bị gỡ khỏi chợ và không thể khôi phục. Lịch sử trò chuyện và báo cáo liên quan vẫn được giữ lại. Nếu chỉ không muốn bán nữa, hãy dùng Đóng tin."
         confirmText="Xóa bài đăng"
         cancelText="Hủy"
         variant="destructive"
+        isLoading={deleteItem.isPending}
       />
     </Link>
   );

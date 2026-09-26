@@ -10,6 +10,7 @@ import {
   KNOWN_USER_NAMES,
 } from '../lib/api/messages';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
+import { getItemAvailability } from '../lib/marketplaceStatus';
 import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 import { formatCurrency } from '../components/ui/Cards';
 import { Conversation } from '../types';
@@ -492,6 +493,8 @@ export const ChatPage: React.FC = () => {
 
   // 3. Xác định món đồ gắn kèm trong cuộc hội thoại (Chợ đồ cũ)
   const [remoteItem, setRemoteItem] = useState<any>(null);
+  // Món đồ đã xóa hoặc người xem không còn quyền xem (bị ẩn/chờ duyệt lại)
+  const [remoteItemMissing, setRemoteItemMissing] = useState<boolean>(false);
 
   // Tìm tin nhắn ngữ cảnh món đồ gần nhất
   const latestContextMsg = chatMessages
@@ -529,17 +532,24 @@ export const ChatPage: React.FC = () => {
     : null;
 
   useEffect(() => {
+    setRemoteItemMissing(false);
     if (!attachedItemId) {
       setRemoteItem(null);
       return;
     }
     // Nếu trong store chưa có, fetch thêm từ Supabase API
     if (!storeItem) {
+      let cancelled = false;
       getMarketplaceItemById(attachedItemId)
         .then((res) => {
+          if (cancelled) return;
           if (res) setRemoteItem(res);
+          else setRemoteItemMissing(true);
         })
-        .catch(() => {});
+        .catch((err) => console.warn('[ChatPage] Không thể tải trạng thái món đồ:', err));
+      return () => {
+        cancelled = true;
+      };
     }
   }, [attachedItemId, storeItem]);
 
@@ -561,7 +571,7 @@ export const ChatPage: React.FC = () => {
 
   const isFree =
     storeItem?.pricingType === 'Miễn phí' ||
-    remoteItem?.is_free ||
+    remoteItem?.pricingType === 'Miễn phí' ||
     rawPrice === 0;
 
   const pinnedPriceDisplay = isFree
@@ -577,30 +587,18 @@ export const ChatPage: React.FC = () => {
     parsedContext?.image ||
     '';
 
-  // Xác định nhãn trạng thái (Đang bán / Đã bán / Đã ẩn)
-  const rawStatus =
-    storeItem?.status ||
-    remoteItem?.status ||
-    parsedContext?.status ||
-    '';
-
-  const isItemSold =
-    rawStatus === 'Đã bán' ||
-    rawStatus === 'sold';
-
-  const isItemHidden =
-    rawStatus === 'Đã ẩn' ||
-    rawStatus === 'hidden' ||
-    rawStatus === 'Bị từ chối' ||
-    rawStatus === 'rejected' ||
-    Boolean((storeItem as any)?.isHidden) ||
-    Boolean((remoteItem as any)?.is_hidden);
-
-  const itemStatusType: 'sold' | 'hidden' | 'available' = isItemSold
-    ? 'sold'
-    : isItemHidden
+  // Xác định nhãn trạng thái (Đang bán / Đã bán / Đã đóng / Không khả dụng)
+  const pinnedItemSource = storeItem || remoteItem;
+  const pinnedAvailability = pinnedItemSource
+    ? getItemAvailability(pinnedItemSource)
+    : remoteItemMissing
       ? 'hidden'
       : 'available';
+
+  const itemStatusType: 'sold' | 'closed' | 'hidden' | 'available' =
+    pinnedAvailability === 'sold' || pinnedAvailability === 'closed' || pinnedAvailability === 'available'
+      ? pinnedAvailability
+      : 'hidden';
 
   // 1. Kiểm tra tin nhắn thật từ cả hai phía (bỏ qua tin hệ thống và item_context)
   const hasAnyRealMessage = chatMessages.some((m) => {
@@ -1097,10 +1095,15 @@ export const ChatPage: React.FC = () => {
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
                         Đã bán
                       </span>
+                    ) : itemStatusType === 'closed' ? (
+                      <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-full shrink-0">
+                        <span className="w-1.5 h-1.5 rounded-full bg-slate-500" />
+                        Đã đóng
+                      </span>
                     ) : itemStatusType === 'hidden' ? (
                       <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
-                        Đã ẩn
+                        Không khả dụng
                       </span>
                     ) : (
                       <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full shrink-0">
