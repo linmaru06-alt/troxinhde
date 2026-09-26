@@ -349,6 +349,9 @@ export const App: React.FC = () => {
               }
             />
             <Route path="/nang-cap-chu-tro" element={<OwnerUpgradePage />} />
+            <Route path="/landlord-registration" element={<OwnerUpgradePage />} />
+            <Route path="/dang-ky-chu-tro" element={<OwnerUpgradePage />} />
+            <Route path="/dang-ky-cho-thue" element={<OwnerUpgradePage />} />
             <Route path="/nang-cap-chu-tro/trang-thai" element={<OwnerApplicationStatusPage />} />
 
             {/* Owner SaaS Features (Protected) */}
