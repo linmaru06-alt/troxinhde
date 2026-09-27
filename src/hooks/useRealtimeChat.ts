@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { Message } from '../types';
-import { getMessages, sendMessage as sendMessageApi } from '../lib/api/messages';
+import { getMessages, sendMessage as sendMessageApi, markConversationAsRead } from '../lib/api/messages';
 
 export interface UseRealtimeChatReturn {
   messages: Message[];
@@ -27,7 +27,7 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
     activeConversationIdRef.current = conversationId;
   }, [conversationId]);
 
-  // 1. Tải lịch sử tin nhắn thật từ Supabase khi mở conversation
+  // 1. Tải lịch sử tin nhắn thật từ Supabase khi mở conversation & đánh dấu đã đọc
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
@@ -41,6 +41,18 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
       .then((data) => {
         if (isMounted) {
           setMessages(data);
+          // Đánh dấu toàn bộ tin nhắn trong hội thoại là đã đọc
+          if (currentUser?.id) {
+            markConversationAsRead(conversationId, currentUser.id).then();
+            // Cập nhật ngay trạng thái đã đọc cho các thông báo liên quan trong store
+            useAppStore.setState((state) => ({
+              notifications: (state.notifications || []).map((n) =>
+                (n.ctaUrl && n.ctaUrl.includes(`/tin-nhan/${conversationId}`))
+                  ? { ...n, read: true }
+                  : n
+              ),
+            }));
+          }
         }
       })
       .catch((err) => {
@@ -113,6 +125,36 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
 
             return [...prev, incomingMsg];
           });
+
+          // Nếu tin nhắn do đối phương gửi và mình đang mở hội thoại này, tự động đánh dấu đã đọc
+          if (currentUser?.id && incomingMsg.sender_id !== currentUser.id) {
+            markConversationAsRead(conversationId, currentUser.id).then();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload: any) => {
+          const updatedRow = payload.new;
+          if (!updatedRow) return;
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === updatedRow.id
+                ? {
+                    ...m,
+                    is_read: Boolean(updatedRow.is_read),
+                    content: updatedRow.content,
+                  }
+                : m
+            )
+          );
         }
       )
       .subscribe((status) => {

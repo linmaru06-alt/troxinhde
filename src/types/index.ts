@@ -226,6 +226,7 @@ export interface Conversation {
   last_message_at?: string | null;
   unread_count_p1?: number;
   unread_count_p2?: number;
+  unread_count?: number;
   created_at?: string;
   other_name?: string;
   other_avatar?: string;
