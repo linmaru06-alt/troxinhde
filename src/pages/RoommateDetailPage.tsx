@@ -17,7 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
-import { getOrCreateConversation } from '../lib/api/messages';
+import { getOrCreateConversation, saveConversationMeta } from '../lib/api/messages';
 import { getRoommatePostById } from '../lib/api/roommates';
 import type { RoommatePost } from '../types';
 
@@ -168,7 +168,13 @@ export const RoommateDetailPage: React.FC = () => {
           otherAvatar: post.userAvatar || '/images/user-avatar.jpg',
         }
       );
-      navigate(`/tin-nhan/${convId}`);
+      saveConversationMeta(convId, {
+        other_name: post.userName || 'Thành viên Trọ Xinh',
+        other_avatar: post.userAvatar || '/images/user-avatar.jpg',
+        roommate_id: post.id,
+        roommate_post: post,
+      });
+      navigate(`/tin-nhan/${convId}?roommateId=${encodeURIComponent(post.id)}`);
     } catch (err: any) {
       console.error('[RoommateDetail] Lỗi mở chat:', err);
       showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');

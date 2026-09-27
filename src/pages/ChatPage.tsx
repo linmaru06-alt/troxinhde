@@ -5,6 +5,7 @@ import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import {
   getConversations,
   getConversationMeta,
+  saveConversationMeta,
   findOrCreateConversation,
   isSameUserId,
   KNOWN_USER_NAMES,
@@ -12,6 +13,7 @@ import {
 } from '../lib/api/messages';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
+import { getRoommatePostById } from '../lib/api/roommates';
 import { getItemAvailability } from '../lib/marketplaceStatus';
 import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 import { formatCurrency } from '../components/ui/Cards';
@@ -40,6 +42,7 @@ import {
   Search,
   X,
   Calendar,
+  Users,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
 import { hasUserReported, getReportedTargetIds } from '../lib/api/reports';
@@ -55,10 +58,13 @@ export const ChatPage: React.FC = () => {
   const location = useLocation();
   const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems, rooms = [] } = useAppStore();
 
-  // Đọc tham số Deep Link cho Chợ đồ cũ
+  // Đọc tham số Deep Link cho Chợ đồ cũ & Ở ghép
   const rawNguoiBan = searchParams.get('nguoiBan') || searchParams.get('sellerId');
   const rawMonDo = searchParams.get('monDo') || searchParams.get('itemId');
+  const rawRoommateId = searchParams.get('roommateId') || searchParams.get('oGhep');
   const hasDeepLinkParams = searchParams.has('nguoiBan') || searchParams.has('monDo');
+
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'rooms' | 'marketplace' | 'roommates'>('all');
 
   const [deepLinkState, setDeepLinkState] = useState<{
     isLoading: boolean;
@@ -627,6 +633,44 @@ export const ChatPage: React.FC = () => {
     ? (rooms || []).find((r) => r.id === attachedRoomId) || activeConversation?.rooms
     : activeConversation?.rooms;
 
+  const attachedRoommateId =
+    rawRoommateId ||
+    savedMeta?.roommate_id ||
+    (activeConversation as any)?.roommate_id ||
+    null;
+
+  const [roommatePost, setRoommatePost] = useState<any>(savedMeta?.roommate_post || null);
+
+  useEffect(() => {
+    if (!attachedRoommateId) {
+      setRoommatePost(null);
+      return;
+    }
+    if (savedMeta?.roommate_post && savedMeta.roommate_post.id === attachedRoommateId) {
+      setRoommatePost(savedMeta.roommate_post);
+      return;
+    }
+    let cancelled = false;
+    getRoommatePostById(attachedRoommateId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res) {
+          setRoommatePost(res);
+          if (activeConversationId) {
+            saveConversationMeta(activeConversationId, {
+              roommate_id: res.id,
+              roommate_post: res,
+            });
+          }
+        }
+      })
+      .catch((err) => console.warn('[ChatPage] Không thể tải thông tin bài ở ghép:', err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachedRoommateId, activeConversationId, savedMeta]);
+
   const storeItem = attachedItemId
     ? marketplaceItems.find((m) => m.id === attachedItemId)
     : null;
@@ -745,15 +789,32 @@ export const ChatPage: React.FC = () => {
     'Cho mình hỏi giá điện nước đã bao gồm chưa ạ?',
   ];
 
-  const currentQuickReplies = attachedItemId ? itemQuickReplies : roomQuickReplies;
+  // Gợi ý cho bài đăng tìm bạn ở ghép
+  const roommateQuickReplies = [
+    'Chào bạn, bạn đã tìm được phòng trọ ưng ý chưa?',
+    'Mình cũng đang tìm bạn ở ghép khu này, bạn học trường nào vậy?',
+    'Giờ giấc sinh hoạt và thói quen của bạn thế nào ạ?',
+    'Cuối tuần này chúng mình gặp nhau uống nước trao đổi nhé!',
+  ];
+
+  const currentQuickReplies = attachedItemId
+    ? itemQuickReplies
+    : roommatePost
+    ? roommateQuickReplies
+    : roomQuickReplies;
+
+  const isPosterOfRoommate = Boolean(
+    roommatePost?.userId && currentUser?.id && isSameUserId(roommatePost.userId, currentUser.id)
+  );
 
   // Điều kiện hiển thị gợi ý:
   // - Chưa có tin nhắn thật nào từ cả hai phía (nếu người bán đã nhắn trước thì không hiện)
-  // - Chỉ hiện cho người mua, không hiện cho chủ món đồ
+  // - Chỉ hiện cho người mua / người hỏi, không hiện cho chủ bài đăng
   // - Chưa bị ẩn do đã gửi thành công
   const shouldShowQuickReplies =
     !hasAnyRealMessage &&
     !isOwnerOfItem &&
+    !isPosterOfRoommate &&
     !hideQuickReplies &&
     currentQuickReplies.length > 0;
 
@@ -854,17 +915,61 @@ export const ChatPage: React.FC = () => {
     }
   };
 
+  const filterCounts = React.useMemo(() => {
+    let unread = 0;
+    let roomsCount = 0;
+    let marketplaceCount = 0;
+    let roommatesCount = 0;
+
+    conversations.forEach((c) => {
+      const isMe = isSameUserId(c.participant_1, currentUser?.id);
+      const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+      if (unreadCount > 0) unread++;
+
+      const meta = getConversationMeta(c.id);
+      if (c.room_id || c.rooms) roomsCount++;
+      if (c.item_id || c.last_item_id || meta?.last_item_id) marketplaceCount++;
+      if ((c as any).roommate_id || meta?.roommate_id) roommatesCount++;
+    });
+
+    return {
+      all: conversations.length,
+      unread,
+      rooms: roomsCount,
+      marketplace: marketplaceCount,
+      roommates: roommatesCount,
+    };
+  }, [conversations, currentUser?.id]);
+
   const filteredConversations = conversations.filter((c) => {
-    if (!convSearch.trim()) return true;
-    const q = convSearch.toLowerCase().trim();
+    // 1. Lọc theo ô tìm kiếm
+    if (convSearch.trim()) {
+      const q = convSearch.toLowerCase().trim();
+      const isMe = isSameUserId(c.participant_1, currentUser?.id);
+      const other = isMe ? c.p2 : c.p1;
+      const otherId = isMe ? c.participant_2 : c.participant_1;
+      const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+      const name = (c.other_name || other?.full_name || other?.name || known?.name || '').toLowerCase();
+      const room = (c.rooms?.name || c.rooms?.title || '').toLowerCase();
+      const lastMsg = (c.last_message || '').toLowerCase();
+      if (!name.includes(q) && !room.includes(q) && !lastMsg.includes(q)) {
+        return false;
+      }
+    }
+
+    // 2. Lọc theo tab danh mục
     const isMe = isSameUserId(c.participant_1, currentUser?.id);
-    const other = isMe ? c.p2 : c.p1;
-    const otherId = isMe ? c.participant_2 : c.participant_1;
-    const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
-    const name = (c.other_name || other?.full_name || other?.name || known?.name || '').toLowerCase();
-    const room = (c.rooms?.name || c.rooms?.title || '').toLowerCase();
-    const lastMsg = (c.last_message || '').toLowerCase();
-    return name.includes(q) || room.includes(q) || lastMsg.includes(q);
+    const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+    const meta = getConversationMeta(c.id);
+    const hasRoom = Boolean(c.room_id || c.rooms);
+    const hasItem = Boolean(c.item_id || c.last_item_id || meta?.last_item_id);
+    const hasRoommate = Boolean((c as any).roommate_id || meta?.roommate_id);
+
+    if (inboxFilter === 'unread') return unreadCount > 0;
+    if (inboxFilter === 'rooms') return hasRoom;
+    if (inboxFilter === 'marketplace') return hasItem;
+    if (inboxFilter === 'roommates') return hasRoommate;
+    return true;
   });
 
   return (
@@ -918,6 +1023,48 @@ export const ChatPage: React.FC = () => {
             </div>
           </div>
 
+          {/* Thanh Tab phân loại danh bạ hộp thư */}
+          <div className="px-2.5 py-2 border-b border-gray-100 bg-gray-50/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+            {[
+              { id: 'all' as const, label: 'Tất cả', count: filterCounts.all },
+              { id: 'unread' as const, label: 'Chưa đọc', count: filterCounts.unread, isAlert: true },
+              { id: 'rooms' as const, label: 'Phòng trọ', count: filterCounts.rooms, icon: Home },
+              { id: 'marketplace' as const, label: 'Đồ cũ', count: filterCounts.marketplace, icon: ShoppingBag },
+              { id: 'roommates' as const, label: 'Ở ghép', count: filterCounts.roommates, icon: Users },
+            ].map((tab) => {
+              const isActive = inboxFilter === tab.id;
+              const IconComp = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setInboxFilter(tab.id)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold flex items-center gap-1 shrink-0 transition-all cursor-pointer select-none tap-bounce ${
+                    isActive
+                      ? 'bg-[#006d37] text-white shadow-2xs font-bold'
+                      : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200/80'
+                  }`}
+                >
+                  {IconComp && <IconComp className="w-3 h-3" />}
+                  <span>{tab.label}</span>
+                  {tab.count > 0 && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold leading-none ${
+                        isActive
+                          ? 'bg-white/25 text-white'
+                          : tab.isAlert
+                          ? 'bg-rose-500 text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {tab.count > 99 ? '99+' : tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
           <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
             {isConvLoading ? (
               <div className="p-8 text-center text-gray-400 space-y-2">
@@ -937,8 +1084,20 @@ export const ChatPage: React.FC = () => {
                 <Search className="w-7 h-7 mx-auto text-gray-300" />
                 <p className="text-xs font-semibold">Không tìm thấy cuộc trò chuyện</p>
                 <p className="text-[11px] text-gray-400">
-                  Thử tìm kiếm với từ khóa khác.
+                  {inboxFilter !== 'all' ? 'Không có tin nhắn nào trong mục này.' : 'Thử tìm kiếm với từ khóa khác.'}
                 </p>
+                {inboxFilter !== 'all' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInboxFilter('all');
+                      setConvSearch('');
+                    }}
+                    className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer pt-1 block mx-auto"
+                  >
+                    Xem tất cả cuộc trò chuyện
+                  </button>
+                )}
               </div>
             ) : (
               filteredConversations.map((c) => {
@@ -960,6 +1119,7 @@ export const ChatPage: React.FC = () => {
                 const isActive = c.id === activeConversationId;
                 const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
                 const hasUnread = unreadCount > 0;
+                const cMeta = getConversationMeta(c.id);
 
                 return (
                   <div
@@ -1004,11 +1164,19 @@ export const ChatPage: React.FC = () => {
                           </span>
                         )}
                       </div>
-                      {(c.rooms?.name || c.rooms?.title) && (
+                      {(c.rooms?.name || c.rooms?.title) ? (
                         <p className="text-[10px] text-[#006d37] font-semibold truncate flex items-center gap-1">
                           <Home className="w-3 h-3 shrink-0" /> {c.rooms.name || c.rooms.title}
                         </p>
-                      )}
+                      ) : (c.item_id || c.last_item_id || cMeta?.last_item_name) ? (
+                        <p className="text-[10px] text-amber-700 font-semibold truncate flex items-center gap-1">
+                          <ShoppingBag className="w-3 h-3 shrink-0 text-amber-600" /> {cMeta?.last_item_name || 'Đồ cũ thanh lý'}
+                        </p>
+                      ) : ((c as any).roommate_id || cMeta?.roommate_id) ? (
+                        <p className="text-[10px] text-indigo-700 font-semibold truncate flex items-center gap-1">
+                          <Users className="w-3 h-3 shrink-0 text-indigo-600" /> Tìm bạn ở ghép
+                        </p>
+                      ) : null}
                       <div className="flex items-center justify-between gap-1">
                         <p className={`text-xs truncate leading-snug flex-1 ${hasUnread ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
                           {(() => {
@@ -1365,6 +1533,81 @@ export const ChatPage: React.FC = () => {
                     <Link
                       to={`/phong/${attachedRoom.id || attachedRoomId}`}
                       className="p-1.5 text-gray-400 group-hover:text-[#006d37] group-hover:translate-x-0.5 transition-transform"
+                      title="Xem chi tiết"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Thẻ ghim Bạn ở ghép gắn kèm phía trên khung chat */}
+              {!attachedItemId && (!attachedRoom || (!attachedRoom.name && !attachedRoom.title)) && roommatePost && (
+                <div className="bg-white/95 backdrop-blur-xs border-b border-indigo-100 hover:border-indigo-300 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-indigo-50/30 transition-all group shrink-0 z-10">
+                  <Link
+                    to={`/roommate/${roommatePost.id}`}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                    title="Bấm để xem chi tiết bài đăng tìm bạn ở ghép"
+                  >
+                    {/* Thumbnail ảnh đại diện */}
+                    <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-indigo-50 border border-indigo-200 shrink-0">
+                      <img
+                        src={roommatePost.userAvatar || '/images/user-avatar.jpg'}
+                        alt={roommatePost.userName || 'Bạn cùng phòng'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/images/user-avatar.jpg';
+                        }}
+                      />
+                    </div>
+
+                    {/* Tên, trường & ngân sách */}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded shrink-0">
+                          Tìm ở ghép
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
+                          {roommatePost.userName || roommatePost.title || 'Tìm bạn ở ghép'}
+                        </h4>
+                        {roommatePost.userGender && (
+                          <span className="text-[9px] sm:text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded font-medium shrink-0">
+                            {roommatePost.userGender}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-black text-indigo-600">
+                          {formatCurrency(roommatePost.budgetShare || 0)}/tháng
+                        </span>
+                        {roommatePost.userSchool && (
+                          <span className="text-[11px] text-gray-500 truncate hidden sm:inline">
+                            • {roommatePost.userSchool}
+                          </span>
+                        )}
+                        {roommatePost.district && (
+                          <span className="text-[11px] text-gray-400 truncate hidden md:inline">
+                            • {roommatePost.district}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Nút Xem bài đăng & Xem chi tiết */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <Link
+                      to={`/roommate/${roommatePost.id}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition shadow-2xs tap-bounce"
+                      title="Xem bài đăng tìm bạn ở ghép"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Xem bài đăng</span>
+                    </Link>
+                    <Link
+                      to={`/roommate/${roommatePost.id}`}
+                      className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-transform"
                       title="Xem chi tiết"
                     >
                       <ChevronRight className="w-4 h-4" />
