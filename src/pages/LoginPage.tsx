@@ -49,20 +49,8 @@ export const LoginPage: React.FC = () => {
 
     showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
 
-    if (returnUrl) {
-      const decodedUrl = decodeURIComponent(returnUrl);
-      if (isValidReturnUrl(decodedUrl, user.role)) {
-        navigate(decodedUrl);
-        return;
-      }
-    }
-
-    if (user.role === 'owner') {
-      navigate('/chu-tro');
-    } else if (user.role === 'admin') {
-      navigate('/admin');
-    } else {
-      navigate('/tim-phong');
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
     }
   };
 

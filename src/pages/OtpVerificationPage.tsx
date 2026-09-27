@@ -239,17 +239,8 @@ export const OtpVerificationPage: React.FC = () => {
 
             setIsLoading(false);
 
-            if (returnUrl) {
-              const decoded = decodeURIComponent(returnUrl);
-              if (isValidReturnUrl(decoded, res.user.role)) {
-                navigate(decoded, { replace: true });
-                return;
-              }
-            }
-            if (res.user.role === 'owner') {
-              navigate('/chu-tro', { replace: true });
-            } else {
-              navigate('/tim-phong', { replace: true });
+            if (typeof window !== 'undefined') {
+              window.location.href = '/';
             }
           } else {
             setIsLoading(false);
@@ -281,18 +272,8 @@ export const OtpVerificationPage: React.FC = () => {
           showToast('Đăng nhập thành công! 👋', `Chào mừng ${userName}`, 'success');
           setIsLoading(false);
 
-          if (returnUrl) {
-            const decoded = decodeURIComponent(returnUrl);
-            const userRole = (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any;
-            if (isValidReturnUrl(decoded, userRole)) {
-              navigate(decoded, { replace: true });
-              return;
-            }
-          }
-          if (existingUser?.role === 'owner' || role === 'owner') {
-            navigate('/chu-tro', { replace: true });
-          } else {
-            navigate('/tim-phong', { replace: true });
+          if (typeof window !== 'undefined') {
+            window.location.href = '/';
           }
         }
       } catch (err: any) {

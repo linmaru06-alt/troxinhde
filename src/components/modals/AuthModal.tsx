@@ -52,6 +52,13 @@ export const AuthModal: React.FC = () => {
     closeAuthModal();
   };
 
+  const finishAuthAndRedirectHome = () => {
+    handleClose();
+    if (typeof window !== 'undefined') {
+      window.location.href = '/';
+    }
+  };
+
   // 1. Social Login: Google
   const handleGoogleLogin = async () => {
     setErrorMsg('');
@@ -70,7 +77,7 @@ export const AuthModal: React.FC = () => {
           isDemoAccount: Boolean(res.user.isDemoAccount),
         });
         showToast('Đăng nhập thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        finishAuthAndRedirectHome();
       } else {
         setErrorMsg(res.error || 'Đăng nhập Google không thành công.');
       }
@@ -99,7 +106,7 @@ export const AuthModal: React.FC = () => {
           isDemoAccount: Boolean(res.user.isDemoAccount),
         });
         showToast('Đăng nhập Facebook thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        finishAuthAndRedirectHome();
       } else {
         setErrorMsg(res.error || 'Đăng nhập Facebook không thành công.');
       }
@@ -128,7 +135,7 @@ export const AuthModal: React.FC = () => {
           isDemoAccount: Boolean(res.user.isDemoAccount),
         });
         showToast('Đăng nhập Apple thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        finishAuthAndRedirectHome();
       } else {
         setErrorMsg(res.error || 'Đăng nhập Apple không thành công.');
       }
@@ -188,7 +195,7 @@ export const AuthModal: React.FC = () => {
           isDemoAccount: Boolean(res.user.isDemoAccount),
         });
         showToast('Đăng nhập thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
-        handleClose();
+        finishAuthAndRedirectHome();
       } else {
         setErrorMsg(res.error || 'Email hoặc mật khẩu không chính xác.');
       }
@@ -220,7 +227,7 @@ export const AuthModal: React.FC = () => {
           `Bạn đang đăng nhập với quyền ${role === 'admin' ? 'Ban Quản Trị' : role === 'owner' ? 'Chủ Trọ' : 'Người Thuê'}`,
           'success'
         );
-        handleClose();
+        finishAuthAndRedirectHome();
       }
     } finally {
       setIsLoading(false);

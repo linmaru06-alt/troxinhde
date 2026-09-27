@@ -544,8 +544,16 @@ export const useAppStore = create<AppState>()(
       logout: () => {
         signOut().catch(() => {});
         logoutAuth().catch(() => {});
-        set({ currentUser: null });
-        get().showToast('Đã đăng xuất', 'Hẹn gặp lại bạn!', 'info');
+        set({
+          currentUser: null,
+          savedRoomIds: [],
+          savedRoommateIds: [],
+          savedItemIds: [],
+          bookings: [],
+        });
+        if (typeof window !== 'undefined') {
+          window.location.href = '/';
+        }
       },
 
       // OWNER UPGRADE WORKFLOW
