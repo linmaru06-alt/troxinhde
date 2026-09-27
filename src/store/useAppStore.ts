@@ -18,15 +18,7 @@ import {
   PaymentTransaction,
   OwnerSubscription,
 } from '../types';
-import {
-  initialUsers,
-  initialOwnerApplications,
-  initialBuildings,
-  initialRooms,
-  initialRoommates,
-  initialMarketplaceItems,
-  initialNotifications,
-} from '../data/mockData';
+import { initialUsers } from '../data/demoUsers';
 import { signOut } from '../lib/api/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { logoutAuth } from '../lib/authService';
@@ -247,12 +239,12 @@ export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
       currentUser: null, // Default guest unauthenticated state
-      ownerApplications: isDev ? initialOwnerApplications : [],
-      rooms: isDev ? initialRooms : [],
-      buildings: isDev ? initialBuildings : [],
-      roommates: isDev ? initialRoommates : [],
-      marketplaceItems: isDev ? initialMarketplaceItems : [],
-      notifications: isDev ? initialNotifications : [],
+      ownerApplications: [],
+      rooms: [],
+      buildings: [],
+      roommates: [],
+      marketplaceItems: [],
+      notifications: [],
       savedRoomIds: [],
       savedRoommateIds: [],
       savedItemIds: [],
@@ -989,9 +981,7 @@ export const useAppStore = create<AppState>()(
           localCreatedRoommates: [newPost, ...state.localCreatedRoommates.filter((r) => r.id !== newId)],
         }));
         // Sync lên Supabase Cloud
-        import('../lib/supabaseDataService').then(({ syncRoommatePostToSupabase }) => {
-          syncRoommatePostToSupabase(newPost).catch(console.warn);
-        });
+        syncRoommatePostToSupabase(newPost).catch(console.warn);
         return newId;
       },
 
@@ -1304,36 +1294,34 @@ export const useAppStore = create<AppState>()(
             ];
 
             return {
-              rooms: mergedRooms.length > 0 ? mergedRooms : (isDev ? state.rooms : []),
-              buildings: mergedBuildings.length > 0 ? mergedBuildings : (isDev ? state.buildings : []),
+              rooms: mergedRooms,
+              buildings: mergedBuildings,
               roommates: mergedRoommates,
-              marketplaceItems: cloudItems.length > 0 ? cloudItems : (isDev ? state.marketplaceItems : []),
+              marketplaceItems: cloudItems,
               marketplaceLoadError: cloudItemsResult.error,
             };
           });
         } catch (err) {
           console.warn('[useAppStore] Không thể tải dữ liệu cloud:', err);
-          if (!isDev) {
-            // Không che lỗi API bằng mock data ở production
-            set({
-              rooms: [],
-              buildings: [],
-              roommates: [],
-              marketplaceItems: [],
-            });
-          }
+          set({
+            rooms: [],
+            buildings: [],
+            roommates: [],
+            marketplaceItems: [],
+          });
         }
       },
 
-      resetAllData: () => {
+      resetAllData: async () => {
+        const mock = await import('../data/mockData');
         set({
           currentUser: initialUsers[0],
-          ownerApplications: initialOwnerApplications,
-          rooms: initialRooms,
-          buildings: initialBuildings,
-          roommates: initialRoommates,
-          marketplaceItems: initialMarketplaceItems,
-          notifications: initialNotifications,
+          ownerApplications: mock.initialOwnerApplications,
+          rooms: mock.initialRooms,
+          buildings: mock.initialBuildings,
+          roommates: mock.initialRoommates,
+          marketplaceItems: mock.initialMarketplaceItems,
+          notifications: mock.initialNotifications,
           savedRoomIds: ['room_1', 'room_2'],
           savedRoommateIds: ['rm_1'],
           savedItemIds: ['item_1'],

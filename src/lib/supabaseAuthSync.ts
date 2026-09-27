@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { auth, fetchSignInMethodsForEmail } from './firebase';
-import { initialUsers } from '../data/mockData';
+import { initialUsers } from '../data/demoUsers';
 
 export interface SupabaseUserProfile {
   id: string;

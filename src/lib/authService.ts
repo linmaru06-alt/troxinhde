@@ -21,7 +21,7 @@ import {
   handleUnifiedAuth,
   UnifiedAuthResult,
 } from './supabaseAuthSync';
-import { initialUsers } from '../data/mockData';
+import { initialUsers } from '../data/demoUsers';
 
 declare global {
   interface Window {

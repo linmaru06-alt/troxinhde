@@ -723,6 +723,9 @@ export async function sendMessage(
         if (error.message?.includes('P0005') || error.message?.includes('Không thể gửi tin nhắn') || error.message?.includes('blocked')) {
           throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
         }
+        if (error.message?.includes('No suitable key') || (error as any).code === 'PGRST301') {
+          throw new Error("Supabase chưa bật Firebase Third-Party Auth. Vui lòng thêm Firebase Project ID (troxinh-eb) vào Supabase Dashboard.");
+        }
         if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
           throw new Error(`Lỗi gửi tin nhắn Supabase: ${error.message}`);
         }

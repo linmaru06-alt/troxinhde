@@ -1,0 +1,19 @@
+# Trọ Xinh — Nền Tảng Phòng Trọ, Ở Ghép & Chợ Đồ Cũ Sinh Viên
+
+> Trọ Xinh là nền tảng số kết nối trực tiếp chủ trọ và người thuê phòng, người tìm bạn ở ghép, cùng chợ thanh lý đồ dùng sinh viên minh bạch, an toàn tại Hà Nội.
+
+## Các Dịch Vụ Chính
+- **Tìm Phòng Trọ & Căn Hộ Mini**: Hơn 1.000+ phòng trọ khép kín, chung cư mini, studio có gác xép, không chung chủ, giá tốt tại các quận Cầu Giấy, Đống Đa, Thanh Xuân, Nam Từ Liêm, Bắc Từ Liêm, Hai Bà Trưng, Ba Đình, Hà Đông.
+- **Tìm Bạn Ở Ghép**: Cộng đồng sinh viên kết nối tìm bạn cùng phòng tương thích theo lối sống, thói quen sinh hoạt và trường đại học.
+- **Chợ Đồ Cũ Sinh Viên**: Thanh lý và trao đổi đồ dùng chuyển trọ (bàn học, tủ quần áo, đệm, tủ lạnh, quạt, bếp ga, nồi cơm điện...) giá hạt dẻ.
+- **Hợp Đồng Đặt Cọc Trực Tuyến**: Quy trình xác nhận đặt cọc minh bạch, có biên nhận điện tử và mã QR thanh toán an toàn.
+
+## Địa Bàn Hoạt Động Trọng Điểm
+- **Khu vực đại học**: Gần ĐH Quốc gia Hà Nội, ĐH Bách Khoa Hà Nội, ĐH Kinh tế Quốc dân, ĐH Ngoại Thương, ĐH Sư Phạm Hà Nội, Học viện Ngân Hàng, Học viện Bưu chính Viễn thông.
+- **Giao thông công cộng**: Tuyến Metro Cát Linh - Hà Đông, Tuyến Metro Nhổn - Ga Hà Nội, các tuyến xe bus nội đô.
+
+## Đường Dẫn Tham Khảo
+- Danh sách phòng trọ: https://troxinh.vn/rooms
+- Tìm bạn ở ghép: https://troxinh.vn/roommates
+- Chợ đồ cũ sinh viên: https://troxinh.vn/marketplace
+- Đăng tin cho thuê / tìm người ở ghép: https://troxinh.vn/post
