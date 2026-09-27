@@ -60,7 +60,10 @@ CREATE POLICY "Users can update own roommate posts"
   USING (
     poster_id = (SELECT public.current_profile_id())
     OR (SELECT public.is_admin())
-    OR true
+  )
+  WITH CHECK (
+    poster_id = (SELECT public.current_profile_id())
+    OR (SELECT public.is_admin())
   );
 
 -- Chủ bài đăng hoặc Admin: được phép xóa bài đăng
@@ -70,7 +73,6 @@ CREATE POLICY "Users can delete own roommate posts"
   USING (
     poster_id = (SELECT public.current_profile_id())
     OR (SELECT public.is_admin())
-    OR true
   );
 
 -- ------------------------------------------------------------------------------
@@ -100,7 +102,22 @@ CREATE POLICY "Owners insert rooms"
 DROP POLICY IF EXISTS "Owners update rooms" ON public.rooms;
 CREATE POLICY "Owners update rooms" 
   ON public.rooms FOR UPDATE 
-  USING (true);
+  USING (
+    owner_id = (SELECT public.current_profile_id())
+    OR (SELECT public.is_admin())
+  )
+  WITH CHECK (
+    owner_id = (SELECT public.current_profile_id())
+    OR (SELECT public.is_admin())
+  );
+
+DROP POLICY IF EXISTS "Owners delete rooms" ON public.rooms;
+CREATE POLICY "Owners delete rooms" 
+  ON public.rooms FOR DELETE 
+  USING (
+    owner_id = (SELECT public.current_profile_id())
+    OR (SELECT public.is_admin())
+  );
 
 -- Kích hoạt ngay toàn bộ các phòng trọ đang bị kẹt ở trạng thái pending/chờ duyệt
 UPDATE public.rooms 

@@ -143,22 +143,7 @@ export async function submitOwnerApplicationApi(
       }
     }
 
-    // 3. Đồng bộ trạng thái trên bảng users (nếu có tài khoản)
-    if (user.id) {
-      try {
-        await supabase
-          .from('users')
-          .update({
-            owner_application_status: 'pending',
-            updated_at: new Date().toISOString(),
-          })
-          .eq('id', user.id);
-      } catch (userErr) {
-        // Ignored fallback
-      }
-    }
-
-    // 4. Ghi Audit Log lên Supabase (audit_logs luôn cho phép ghi để không mất vết đơn)
+    // 3. Ghi Audit Log lên Supabase (audit_logs luôn cho phép ghi để không mất vết đơn)
     try {
       await logAdminAudit({
         action: 'submit_owner_application',
