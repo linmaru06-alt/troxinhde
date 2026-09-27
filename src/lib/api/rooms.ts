@@ -157,7 +157,7 @@ export async function createRoom(roomData: {
       amenities: roomData.amenities || [],
       description: roomData.description || '',
       images: imagesList,
-      moderation_status: 'pending',
+      moderation_status: 'approved',
       status: 'available',
       availability_status: 'available',
     })

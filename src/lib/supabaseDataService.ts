@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../types';
 import { fetchMarketplaceItems } from './api/marketplace';
+import { resolveUserIdToUuid } from './api/messages';
 
 /**
  * ==============================================================================
@@ -241,7 +242,7 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
       amenities: room.amenities,
       description: room.description,
       status: 'available',
-      moderation_status: 'pending',
+      moderation_status: 'approved',
     };
 
     const { error } = await supabase.from('rooms').insert(payload);
@@ -258,9 +259,14 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
 
 // 6. GHI / ĐỒNG BỘ BÀI ĐĂNG TÌM BẠN Ở GHÉP LÊN SUPABASE
 export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<boolean> {
-  const validPosterId = (post.userId && post.userId.length === 36)
-    ? post.userId
-    : '0016bd8f-d19e-4348-9175-3a4379cffad4';
+  let validPosterId = '0016bd8f-d19e-4348-9175-3a4379cffad4';
+  if (post.userId) {
+    try {
+      validPosterId = await resolveUserIdToUuid(post.userId);
+    } catch {
+      validPosterId = post.userId.length === 36 ? post.userId : validPosterId;
+    }
+  }
 
   const payload = {
     id: post.id,

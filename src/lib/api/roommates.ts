@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { resolveUserIdToUuid } from './messages';
 import type { RoommatePost } from '../../types';
 
 export function formatRoommatePost(r: any): RoommatePost {
@@ -176,10 +177,11 @@ export async function createRoommatePost(postData: {
     });
   };
   const newPostId = postData.id || generateUUID();
+  const cleanPosterId = await resolveUserIdToUuid(postData.poster_id);
 
   const fullPayload = {
     id: newPostId,
-    poster_id: postData.poster_id,
+    poster_id: cleanPosterId,
     room_id: postData.room_id || null,
     nickname: postData.nickname,
     age: postData.age,

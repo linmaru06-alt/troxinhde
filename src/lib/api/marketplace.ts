@@ -109,7 +109,7 @@ export async function getMarketplaceItemById(id: string): Promise<MarketplaceIte
 }
 
 /**
- * Đăng tin mới. Máy chủ luôn đưa tin vào trạng thái chờ duyệt.
+ * Đăng tin mới (Tự động duyệt và hiển thị công khai ngay lập tức).
  */
 export async function createMarketplaceItem(sellerId: string, input: MarketplaceItemInput): Promise<MarketplaceItem> {
   ensureConfigured();
