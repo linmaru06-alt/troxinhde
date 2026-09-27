@@ -39,6 +39,7 @@ import {
   MoreVertical,
   Search,
   X,
+  Calendar,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
 import { hasUserReported, getReportedTargetIds } from '../lib/api/reports';
@@ -52,7 +53,7 @@ export const ChatPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems } = useAppStore();
+  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems, rooms = [] } = useAppStore();
 
   // Đọc tham số Deep Link cho Chợ đồ cũ
   const rawNguoiBan = searchParams.get('nguoiBan') || searchParams.get('sellerId');
@@ -276,37 +277,69 @@ export const ChatPage: React.FC = () => {
     };
   }, [currentUser?.id, conversationId, showToast]);
 
-  // 1.1 Lắng nghe thay đổi danh sách cuộc trò chuyện qua Supabase Realtime
+  // 1.1 Lắng nghe thay đổi danh sách cuộc trò chuyện qua Supabase Realtime & Custom Events
   useEffect(() => {
-    if (!currentUser?.id || !isSupabaseConfigured) return;
+    if (!currentUser?.id) return;
 
     let isMounted = true;
-    const channel = supabase
-      .channel(`user-conversations-sync-${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'conversations',
-        },
-        async () => {
-          if (!isMounted) return;
-          try {
-            const updated = await getConversations(currentUser.id);
-            if (isMounted) {
-              setConversations(updated);
-            }
-          } catch (err) {
-            console.warn('[ChatPage] Lỗi Realtime sync conversations:', err);
-          }
+
+    const handleSync = async () => {
+      if (!isMounted) return;
+      try {
+        const updated = await getConversations(currentUser.id);
+        if (isMounted) {
+          setConversations(updated);
         }
-      )
-      .subscribe();
+      } catch (err) {
+        console.warn('[ChatPage] Lỗi Realtime sync conversations:', err);
+      }
+    };
+
+    let channel: any = null;
+    if (isSupabaseConfigured) {
+      channel = supabase
+        .channel(`user-conversations-sync-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'conversations',
+          },
+          () => {
+            handleSync();
+          }
+        )
+        .subscribe();
+    }
+
+    // Lắng nghe sự kiện cập nhật hội thoại tức thì từ hook toàn cục (0ms reordering)
+    const handleConvUpdated = (e: any) => {
+      const conv = e?.detail;
+      if (!conv || !isMounted) return;
+      setConversations((prev) => {
+        const existingIdx = prev.findIndex((c) => c.id === conv.id);
+        if (existingIdx >= 0) {
+          const updatedItem = { ...prev[existingIdx], ...conv };
+          const without = prev.filter((c) => c.id !== conv.id);
+          return [updatedItem, ...without];
+        } else {
+          handleSync();
+          return prev;
+        }
+      });
+    };
+
+    window.addEventListener('troxinh:conversation-updated', handleConvUpdated);
+    window.addEventListener('troxinh:resume-sync', handleSync);
 
     return () => {
       isMounted = false;
-      supabase.removeChannel(channel);
+      window.removeEventListener('troxinh:conversation-updated', handleConvUpdated);
+      window.removeEventListener('troxinh:resume-sync', handleSync);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
     };
   }, [currentUser?.id]);
 
@@ -589,6 +622,11 @@ export const ChatPage: React.FC = () => {
     parsedContext?.itemId ||
     null;
 
+  const attachedRoomId = activeConversation?.room_id || null;
+  const attachedRoom: any = attachedRoomId
+    ? (rooms || []).find((r) => r.id === attachedRoomId) || activeConversation?.rooms
+    : activeConversation?.rooms;
+
   const storeItem = attachedItemId
     ? marketplaceItems.find((m) => m.id === attachedItemId)
     : null;
@@ -736,14 +774,17 @@ export const ChatPage: React.FC = () => {
     setHideQuickReplies(true);
     await realtimeSendMessage(content);
 
-    // Cập nhật preview tin nhắn cuối trong danh sách conversations
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeConversationId
-          ? { ...c, last_message: content, last_message_at: new Date().toISOString() }
-          : c
-      )
-    );
+    // Cập nhật preview tin nhắn cuối và đẩy cuộc hội thoại lên đầu danh sách (Reorder)
+    setConversations((prev) => {
+      const target = prev.find((c) => c.id === activeConversationId);
+      if (!target) return prev;
+      const updated = {
+        ...target,
+        last_message: content,
+        last_message_at: new Date().toISOString(),
+      };
+      return [updated, ...prev.filter((c) => c.id !== activeConversationId)];
+    });
   };
 
   // 3. Chỉ ẩn gợi ý sau khi gửi thành công; gửi lỗi thì hiện lại kèm thông báo lỗi. Vô hiệu hóa nút trong lúc đang gửi.
@@ -762,15 +803,18 @@ export const ChatPage: React.FC = () => {
 
     try {
       await realtimeSendMessage(text);
-      // Gửi thành công -> Ẩn gợi ý
+      // Gửi thành công -> Ẩn gợi ý & đẩy lên đầu danh sách
       setHideQuickReplies(true);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeConversationId
-            ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
-            : c
-        )
-      );
+      setConversations((prev) => {
+        const target = prev.find((c) => c.id === activeConversationId);
+        if (!target) return prev;
+        const updated = {
+          ...target,
+          last_message: text,
+          last_message_at: new Date().toISOString(),
+        };
+        return [updated, ...prev.filter((c) => c.id !== activeConversationId)];
+      });
     } catch (err: any) {
       console.error('[ChatPage] Lỗi gửi gợi ý tin nhắn:', err);
       // Gửi lỗi -> Hiện lại kèm thông báo lỗi
@@ -1260,6 +1304,73 @@ export const ChatPage: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#006d37] group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </div>
                 </Link>
+              )}
+
+              {/* Thẻ ghim Phòng trọ gắn kèm phía trên khung chat */}
+              {!attachedItemId && attachedRoom && (attachedRoom.name || attachedRoom.title) && (
+                <div className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group shrink-0 z-10">
+                  <Link
+                    to={`/phong/${attachedRoom.id || attachedRoomId}`}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                    title="Bấm để xem chi tiết phòng trọ"
+                  >
+                    {/* Thumbnail ảnh phòng */}
+                    <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                      <img
+                        src={attachedRoom.images?.[0] || '/images/room-placeholder.jpg'}
+                        alt={attachedRoom.name || attachedRoom.title || 'Phòng trọ'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== ITEM_PLACEHOLDER) {
+                            target.src = ITEM_PLACEHOLDER;
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Tên & Giá phòng */}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
+                          Phòng trọ
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-[#006d37] transition-colors">
+                          {attachedRoom.name || attachedRoom.title || 'Phòng trọ cho thuê'}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-black text-[#006d37]">
+                          {formatCurrency(attachedRoom.price || 0)}/tháng
+                        </span>
+                        {attachedRoom.district && (
+                          <span className="text-[11px] text-gray-500 truncate hidden sm:inline">
+                            • {attachedRoom.district}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Nút đặt lịch hẹn xem phòng & Xem chi tiết */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <Link
+                      to={`/dat-lich/${attachedRoom.id || attachedRoomId}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-[#006d37] hover:bg-[#005a2e] px-2.5 py-1.5 rounded-xl transition shadow-2xs tap-bounce"
+                      title="Đặt lịch hẹn xem phòng trực tiếp"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Hẹn xem phòng</span>
+                    </Link>
+                    <Link
+                      to={`/phong/${attachedRoom.id || attachedRoomId}`}
+                      className="p-1.5 text-gray-400 group-hover:text-[#006d37] group-hover:translate-x-0.5 transition-transform"
+                      title="Xem chi tiết"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
               )}
 
               {/* Vùng hiển thị tin nhắn (Scroll Area) */}

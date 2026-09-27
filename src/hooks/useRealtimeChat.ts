@@ -72,6 +72,35 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
     };
   }, [conversationId, showToast]);
 
+  // 1.1 Tự động đồng bộ tin nhắn khi ứng dụng thức dậy từ chế độ ngủ (Resume Auto-Sync)
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const handleResume = () => {
+      getMessages(conversationId)
+        .then((latest) => {
+          if (latest && latest.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const sendingMsgs = prev.filter((m) => m.status === 'sending');
+              const newIncoming = latest.filter((m) => !existingIds.has(m.id));
+              if (newIncoming.length === 0) return prev;
+              const merged = [...prev.filter((m) => m.status !== 'sending'), ...newIncoming, ...sendingMsgs];
+              return merged.sort(
+                (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+              );
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener('troxinh:resume-sync', handleResume);
+    return () => {
+      window.removeEventListener('troxinh:resume-sync', handleResume);
+    };
+  }, [conversationId]);
+
   // 2. Lắng nghe tin nhắn mới qua Supabase Realtime Channel
   useEffect(() => {
     if (!conversationId || !isSupabaseConfigured) return;
