@@ -8,7 +8,6 @@ import {
   loginWithApple,
   loginWithEmailPassword,
   loginWithDemoAccount,
-  completePhoneOtpAuth,
 } from '../../lib/authService';
 import {
   X,
@@ -29,12 +28,10 @@ export const AuthModal: React.FC = () => {
   const { isAuthModalOpen, authModalMode, closeAuthModal } = useUIStore();
   const { loginWithSocialUser, showToast } = useAppStore();
 
-  // Screen steps: 'main' | 'password' | 'otp'
-  const [step, setStep] = useState<'main' | 'password' | 'otp'>('main');
+  // Screen steps: 'main' | 'password'
+  const [step, setStep] = useState<'main' | 'password'>('main');
   const [identifier, setIdentifier] = useState<string>(''); // Phone or Email
   const [password, setPassword] = useState<string>('');
-  const [otpInput, setOtpInput] = useState<string>('');
-  const [generatedOtp, setGeneratedOtp] = useState<string>('123456');
   const [fullName, setFullName] = useState<string>('');
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -52,26 +49,22 @@ export const AuthModal: React.FC = () => {
     setStep('main');
     setIdentifier('');
     setPassword('');
-    setOtpInput('');
     closeAuthModal();
   };
 
   const handleAuthSuccess = (user: any) => {
     loginWithSocialUser({
       id: user.id,
+      firebaseUid: user.firebaseUid,
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: user.role,
+      role: 'user', // Always Khách thuê
       avatarUrl: user.avatarUrl,
+      isDemoAccount: Boolean(user.isDemoAccount),
     });
     showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
     handleClose();
-    if (user.role === 'owner') {
-      navigate('/chu-tro');
-    } else if (user.role === 'admin') {
-      navigate('/admin');
-    }
   };
 
   // 1. Social Login: Google
@@ -137,7 +130,7 @@ export const AuthModal: React.FC = () => {
     const cleanInput = identifier.trim();
 
     if (isEmail) {
-      // Email -> Chuyển sang nhập mật khẩu hoặc OTP
+      // Email -> Chuyển sang nhập mật khẩu
       setStep('password');
     } else {
       // Số điện thoại -> Chuyển sang màn hình xác thực OTP chuẩn có reCAPTCHA Firebase
@@ -172,41 +165,6 @@ export const AuthModal: React.FC = () => {
       }
     } catch (err: any) {
       setErrorMsg('Đã có lỗi xảy ra khi đăng nhập.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // 5. Xử lý Xác thực OTP Hợp Nhất
-  const handleOtpSubmit = async (codeToVerify?: string) => {
-    const finalCode = (codeToVerify || otpInput).trim();
-    if (!finalCode || finalCode.length < 6) {
-      setErrorMsg('Vui lòng nhập đủ 6 chữ số mã OTP.');
-      return;
-    }
-
-    setIsLoading(true);
-    setErrorMsg('');
-
-    try {
-      if (finalCode === generatedOtp || finalCode === '123456') {
-        const res = await completePhoneOtpAuth(
-          identifier,
-          finalCode,
-          fullName.trim() || undefined,
-          authModalMode === 'register' ? 'renter' : 'renter'
-        );
-
-        if (res.success && res.user) {
-          handleAuthSuccess(res.user);
-        } else {
-          setErrorMsg(res.error || 'Lỗi khi xác thực tài khoản.');
-        }
-      } else {
-        setErrorMsg('Mã OTP không chính xác. Vui lòng kiểm tra lại!');
-      }
-    } catch (err: any) {
-      setErrorMsg('Đã có lỗi xảy ra khi xác thực OTP.');
     } finally {
       setIsLoading(false);
     }
@@ -258,12 +216,10 @@ export const AuthModal: React.FC = () => {
             <h2 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
               {step === 'main' && 'Đăng nhập/Đăng ký'}
               {step === 'password' && 'Nhập Mật Khẩu'}
-              {step === 'otp' && 'Xác Thực OTP'}
             </h2>
             <p className="text-[12px] text-gray-500 mt-0.5">
               {step === 'main' && 'Tiếp cận hàng chục ngàn phòng trọ xinh xắn'}
               {step === 'password' && `Tài khoản: ${identifier}`}
-              {step === 'otp' && `Mã xác thực gửi tới: ${identifier}`}
             </p>
           </div>
 
@@ -471,88 +427,8 @@ export const AuthModal: React.FC = () => {
           </form>
         )}
 
-        {/* ================= STEP 3: OTP (CHO SĐT) ================= */}
-        {step === 'otp' && (
-          <div className="space-y-4 pt-1">
-            {/* Card hiển thị mã OTP 1-chạm */}
-            <div className="p-3.5 bg-emerald-50/90 border border-emerald-200 rounded-2xl space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-[#00a854]" />
-                  <span>Mã OTP của bạn:</span>
-                </span>
-                <span className="text-sm font-black text-emerald-950 tracking-widest bg-white px-2.5 py-0.5 rounded-lg border border-emerald-300">
-                  {generatedOtp}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => handleOtpSubmit(generatedOtp)}
-                className="w-full py-2 px-3 bg-[#00a854] hover:bg-[#009249] text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer"
-              >
-                <span>Điền mã & Xác nhận ngay (1-Chạm)</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
 
-            <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">Hoặc nhập 6 chữ số mã OTP</label>
-              <input
-                type="text"
-                inputMode="numeric"
-                maxLength={6}
-                value={otpInput}
-                onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                placeholder="Nhập 6 số mã OTP"
-                autoFocus
-                className="w-full px-4 py-3 bg-white border border-gray-300 focus:border-[#00a854] focus:ring-2 focus:ring-[#00a854]/20 rounded-2xl text-sm font-medium text-gray-900 text-center tracking-[0.5em] text-lg font-bold placeholder:text-gray-400 placeholder:tracking-normal placeholder:text-sm outline-hidden transition"
-              />
-            </div>
 
-            <button
-              type="button"
-              onClick={() => handleOtpSubmit()}
-              disabled={otpInput.length < 6 || isLoading}
-              className="w-full py-3 px-4 bg-[#00a854] hover:bg-[#009249] text-white font-bold rounded-2xl text-sm transition active:scale-98 shadow-xs flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
-            >
-              <span>{isLoading ? 'Đang xác nhận...' : 'Xác Nhận & Tiếp Tục'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-        )}
-
-        {/* Footer: Quy chế, Chính sách & Logo hệ sinh thái Chợ Tốt / Trọ Xinh */}
-        <div className="pt-3 border-t border-gray-100 text-center space-y-3">
-          <div className="flex items-center justify-center gap-2 text-[11px] text-gray-400 flex-wrap">
-            <a href="/dieu-khoan" target="_blank" rel="noreferrer" className="hover:text-gray-600 underline">
-              Quy chế hoạt động sàn
-            </a>
-            <span>•</span>
-            <a href="/chinh-sach-bao-mat" target="_blank" rel="noreferrer" className="hover:text-gray-600 underline">
-              Chính sách bảo mật
-            </a>
-            <span>•</span>
-            <a href="#support" onClick={(e) => { e.preventDefault(); showToast('Hotline hỗ trợ', '1900 6868 (8:00 - 21:00 hàng ngày)', 'info'); }} className="hover:text-gray-600 underline">
-              Liên hệ hỗ trợ
-            </a>
-          </div>
-
-          {/* Logo Hệ sinh thái Trọ Xinh phong cách Chợ Tốt */}
-          <div className="flex items-center justify-center gap-3 pt-0.5 opacity-85 select-none">
-            <span className="text-xs font-black tracking-tight text-[#00a854]">
-              TRỌ<span className="text-emerald-700">XINH</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#f37021]">
-              NHÀ<span className="text-amber-700">TỐT</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#006492]">
-              VIỆC<span className="text-blue-700">TỐT</span>
-            </span>
-            <span className="text-xs font-black tracking-tight text-[#f5a623]">
-              CHỢ<span className="text-amber-600">XE</span>
-            </span>
-          </div>
-        </div>
       </div>
     </div>
   );

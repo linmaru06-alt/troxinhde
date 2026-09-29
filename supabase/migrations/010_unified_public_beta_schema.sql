@@ -35,8 +35,26 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'firebase_uid') THEN
     ALTER TABLE public.profiles ADD COLUMN firebase_uid TEXT UNIQUE;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'full_name') THEN
+    ALTER TABLE public.profiles ADD COLUMN full_name TEXT NOT NULL DEFAULT 'Người Dùng Trọ Xinh';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'name') THEN
+    ALTER TABLE public.profiles ADD COLUMN name TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'email') THEN
+    ALTER TABLE public.profiles ADD COLUMN email TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'phone') THEN
+    ALTER TABLE public.profiles ADD COLUMN phone TEXT;
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'avatar_url') THEN
+    ALTER TABLE public.profiles ADD COLUMN avatar_url TEXT DEFAULT '/images/user-avatar.jpg';
+  END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'app_role') THEN
     ALTER TABLE public.profiles ADD COLUMN app_role TEXT NOT NULL DEFAULT 'renter';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'role') THEN
+    ALTER TABLE public.profiles ADD COLUMN role TEXT DEFAULT 'renter';
   END IF;
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'is_demo_account') THEN
     ALTER TABLE public.profiles ADD COLUMN is_demo_account BOOLEAN DEFAULT false;
@@ -44,7 +62,14 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'owner_application_status') THEN
     ALTER TABLE public.profiles ADD COLUMN owner_application_status TEXT DEFAULT 'none';
   END IF;
+
+  -- Xóa bỏ khóa ngoại phụ thuộc Supabase auth.users nếu tồn tại (vì hệ thống dùng Firebase Auth)
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_id_fkey') THEN
+    ALTER TABLE public.profiles DROP CONSTRAINT profiles_id_fkey;
+  END IF;
 END $$;
+
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
 
 -- 3. HÀM POSTGRESQL HELPER CHO FIREBASE JWT & PHÂN QUYỀN RLS
 CREATE OR REPLACE FUNCTION public.current_firebase_uid()
@@ -138,6 +163,17 @@ CREATE TABLE IF NOT EXISTS public.buildings (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Đảm bảo có các cột cần thiết nếu bảng buildings đã tồn tại từ trước
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS total_rooms INTEGER DEFAULT 1;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS water_price NUMERIC DEFAULT 100000;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS amenities JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS lat NUMERIC;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS lng NUMERIC;
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active';
+ALTER TABLE public.buildings ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- 6. BẢNG PHÒNG TRỌ (ROOMS)
 CREATE TABLE IF NOT EXISTS public.rooms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -168,6 +204,30 @@ CREATE TABLE IF NOT EXISTS public.rooms (
   updated_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- Đảm bảo có các cột cần thiết nếu bảng rooms đã tồn tại từ trước (khắc phục lỗi CI thiếu availability_status)
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS room_number TEXT NOT NULL DEFAULT '101';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS price NUMERIC DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS deposit NUMERIC DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS electricity_price NUMERIC DEFAULT 3500;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS water_price NUMERIC DEFAULT 100000;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS area NUMERIC DEFAULT 20;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS room_type TEXT DEFAULT 'Phòng đơn';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS moderation_status TEXT DEFAULT 'approved';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS availability_status TEXT DEFAULT 'available';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'available';
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS amenities JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS images JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS is_boosted BOOLEAN DEFAULT false;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS boost_expires_at TIMESTAMPTZ;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS boost_badge TEXT;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS views_count INTEGER DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS saved_count INTEGER DEFAULT 0;
+ALTER TABLE public.rooms ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
+
 -- 7. BẢNG PHÒNG ĐÃ LƯU (SAVED_ROOMS)
 CREATE TABLE IF NOT EXISTS public.saved_rooms (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -193,6 +253,14 @@ CREATE TABLE IF NOT EXISTS public.viewing_requests (
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng viewing_requests đã tồn tại từ trước
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS time_slot TEXT DEFAULT '09:00 - 10:00';
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS renter_phone TEXT DEFAULT '';
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS renter_name TEXT DEFAULT '';
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS note TEXT;
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS owner_response_note TEXT;
+ALTER TABLE public.viewing_requests ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT now();
 
 -- 9. BẢNG CUỘC TRÒ CHUYỆN & TIN NHẮN (CONVERSATIONS & MESSAGES)
 CREATE TABLE IF NOT EXISTS public.conversations (
@@ -232,11 +300,33 @@ CREATE TABLE IF NOT EXISTS public.notifications (
 CREATE TABLE IF NOT EXISTS public.reviews (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   room_id UUID REFERENCES public.rooms(id) ON DELETE CASCADE,
+  reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
   rating INTEGER CHECK (rating >= 1 AND rating <= 5),
-  comment TEXT NOT NULL,
+  content TEXT,
+  comment TEXT,
+  cleanliness_rating INTEGER,
+  owner_rating INTEGER,
+  accuracy_rating INTEGER,
+  location_rating INTEGER,
+  rental_period TEXT,
+  image_urls JSONB DEFAULT '[]'::jsonb,
+  helpful_count INTEGER DEFAULT 0,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng reviews đã tồn tại từ trước (khắc phục lỗi thiếu reviewer_id / user_id)
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS reviewer_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS content TEXT;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS comment TEXT;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS cleanliness_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS owner_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS accuracy_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS location_rating INTEGER;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS rental_period TEXT;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS image_urls JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE public.reviews ADD COLUMN IF NOT EXISTS helpful_count INTEGER DEFAULT 0;
 
 -- 12. BẢNG BÁO CÁO VI PHẠM (REPORTS)
 CREATE TABLE IF NOT EXISTS public.reports (
@@ -250,6 +340,10 @@ CREATE TABLE IF NOT EXISTS public.reports (
   admin_notes TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng reports đã tồn tại từ trước
+ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS description TEXT;
+ALTER TABLE public.reports ADD COLUMN IF NOT EXISTS admin_notes TEXT;
 
 -- 13. BẢNG ĐƠN ĐĂNG KÝ CHỦ TRỌ (OWNER_APPLICATIONS)
 CREATE TABLE IF NOT EXISTS public.owner_applications (
@@ -267,6 +361,28 @@ CREATE TABLE IF NOT EXISTS public.owner_applications (
   created_at TIMESTAMPTZ DEFAULT now(),
   reviewed_at TIMESTAMPTZ
 );
+
+-- Đảm bảo có các cột cần thiết nếu bảng owner_applications đã tồn tại từ trước
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS building_name TEXT DEFAULT '';
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS address TEXT DEFAULT '';
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS total_rooms INTEGER DEFAULT 1;
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS cccd_number TEXT DEFAULT '';
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS legal_docs_note TEXT;
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS rejection_reason TEXT;
+ALTER TABLE public.owner_applications ADD COLUMN IF NOT EXISTS reviewed_at TIMESTAMPTZ;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'profiles' AND column_name = 'owner_application_status') THEN
+    ALTER TABLE public.profiles ADD COLUMN owner_application_status TEXT DEFAULT 'none';
+  END IF;
+
+  -- Nới rộng ràng buộc profiles_role_check nếu đã tồn tại từ schema cũ
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'profiles_role_check') THEN
+    ALTER TABLE public.profiles DROP CONSTRAINT profiles_role_check;
+    ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('user', 'renter', 'owner', 'admin'));
+  END IF;
+END $$;
 
 -- =================================================================
 -- 14. THIẾT LẬP TOÀN BỘ ROW LEVEL SECURITY (RLS) POLICIES
@@ -407,7 +523,8 @@ DROP POLICY IF EXISTS "Users create reviews for visited rooms" ON public.reviews
 CREATE POLICY "Users create reviews for visited rooms"
   ON public.reviews FOR INSERT
   WITH CHECK (
-    user_id = public.current_profile_id()
+    reviewer_id = public.current_profile_id()
+    OR user_id = public.current_profile_id()
     OR public.is_admin()
   );
 
@@ -451,11 +568,13 @@ CREATE POLICY "Admins access audit logs"
 -- =================================================================
 -- 15. SEED DỮ LIỆU BAN ĐẦU CHO 3 TÀI KHOẢN DEMO
 -- =================================================================
+-- Xóa bỏ khóa ngoại phụ thuộc auth.users nếu còn tồn tại từ schema cũ (Dự án dùng Firebase Auth)
+ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_id_fkey;
+
 INSERT INTO public.profiles (
   id,
   firebase_uid,
   full_name,
-  name,
   email,
   phone,
   app_role,
@@ -468,9 +587,8 @@ INSERT INTO public.profiles (
     '00000000-0000-0000-0000-000000000001',
     'demo_admin_troxinh',
     'Ban Quản Trị Trọ Xinh',
-    'Ban Quản Trị Trọ Xinh',
     'admin@troxinh.vn',
-    '0888110789',
+    '0999000001',
     'admin',
     'admin',
     true,
@@ -481,9 +599,8 @@ INSERT INTO public.profiles (
     '00000000-0000-0000-0000-000000000002',
     'demo_owner_troxinh',
     'Trần Quốc Tuấn (Chủ Trọ)',
-    'Trần Quốc Tuấn (Chủ Trọ)',
     'chutro@troxinh.vn',
-    '0912345678',
+    '0999000002',
     'owner',
     'owner',
     true,
@@ -494,18 +611,23 @@ INSERT INTO public.profiles (
     '00000000-0000-0000-0000-000000000003',
     'demo_renter_troxinh',
     'Nguyễn Văn An (Người Thuê)',
-    'Nguyễn Văn An (Người Thuê)',
     'nguoithue@troxinh.vn',
-    '0988110789',
+    '0999000003',
     'renter',
-    'renter',
+    'user',
     true,
     'none',
     '/images/user-avatar.jpg'
   )
-ON CONFLICT (firebase_uid) DO UPDATE
+ON CONFLICT (id) DO UPDATE
 SET
+  firebase_uid = EXCLUDED.firebase_uid,
   app_role = EXCLUDED.app_role,
   role = EXCLUDED.role,
   full_name = EXCLUDED.full_name,
-  is_demo_account = true;
+  email = EXCLUDED.email,
+  phone = EXCLUDED.phone,
+  is_demo_account = true,
+  owner_application_status = EXCLUDED.owner_application_status,
+  avatar_url = EXCLUDED.avatar_url;
+

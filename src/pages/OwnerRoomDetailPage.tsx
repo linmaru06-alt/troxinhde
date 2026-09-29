@@ -53,7 +53,7 @@ export const OwnerRoomDetailPage: React.FC = () => {
         {/* Status Banner */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <img src={room.images[0]} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+            <img src={room.images?.[0] || '/images/hero-banner.webp'} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0" />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-gray-900">{room.roomNumber} - {room.title}</h1>
@@ -76,6 +76,12 @@ export const OwnerRoomDetailPage: React.FC = () => {
               <option value="Đã cho thuê">Trạng thái: Đã cho thuê</option>
               <option value="Chờ duyệt">Trạng thái: Chờ duyệt</option>
             </select>
+
+            <Link to={`/chu-tro/phong/chinh-sua/${room.id}`}>
+              <Button variant="primary" size="sm" leftIcon={<Edit className="w-3.5 h-3.5" />}>
+                Sửa Tin
+              </Button>
+            </Link>
 
             <Link to={`/phong/${room.id}`} target="_blank">
               <Button variant="outline" size="sm" rightIcon={<ExternalLink className="w-3.5 h-3.5" />}>
@@ -110,15 +116,27 @@ export const OwnerRoomDetailPage: React.FC = () => {
         </div>
 
         {/* Action buttons */}
-        <div className="flex justify-end gap-3 pt-4 border-t border-gray-200">
-          <Button
-            variant="destructive"
-            size="sm"
-            onClick={() => setShowDeleteConfirm(true)}
-            leftIcon={<Trash2 className="w-4 h-4" />}
-          >
-            Xóa Phòng Này
-          </Button>
+        <div className="flex items-center justify-between gap-3 pt-4 border-t border-gray-200">
+          <Link to="/chu-tro">
+            <Button variant="outline" size="sm" leftIcon={<ArrowLeft className="w-4 h-4" />}>
+              Quay Lại Danh Sách
+            </Button>
+          </Link>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setShowDeleteConfirm(true)}
+              leftIcon={<Trash2 className="w-4 h-4" />}
+            >
+              Xóa Phòng
+            </Button>
+            <Link to={`/chu-tro/phong/chinh-sua/${room.id}`}>
+              <Button variant="primary" size="sm" leftIcon={<Edit className="w-4 h-4" />}>
+                Chỉnh Sửa Tin Phòng
+              </Button>
+            </Link>
+          </div>
         </div>
       </main>
 

@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { supabase, isSupabaseConfigured } from './supabase';
+import { createPendingTransaction, verifyPaymentFromDatabase } from './api/payments';
 
 export interface CreatePaymentRequest {
   planId: string;
@@ -58,7 +59,17 @@ export async function createPaymentOrder(params: CreatePaymentRequest): Promise<
   const returnUrl = params.returnUrl || `${baseUrl}/thanh-toan/ket-qua`;
   const cancelUrl = params.cancelUrl || `${baseUrl}/thanh-toan/${params.planId}?status=cancelled`;
 
-  // Try calling Supabase Edge Function if configured
+  // 1. Ghi nhận giao dịch PENDING vào Supabase Database
+  await createPendingTransaction({
+    orderCode,
+    userId: params.userId,
+    planId: params.planId,
+    roomId: params.roomId,
+    amount: params.amount,
+    paymentMethod: 'vietqr',
+  });
+
+  // 2. Thử gọi Supabase Edge Function nếu PayOS backend đã cấu hình
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase.functions.invoke('create-payment-link', {
@@ -92,7 +103,7 @@ export async function createPaymentOrder(params: CreatePaymentRequest): Promise<
     }
   }
 
-  // Direct VietQR payload
+  // 3. Chuẩn hóa mã VietQR QuickPay EMVCo chuẩn NAPAS
   const qrCode = generateVietQRUrl(
     defaultBank.bankCode,
     defaultBank.accountNumber,
@@ -116,24 +127,6 @@ export async function createPaymentOrder(params: CreatePaymentRequest): Promise<
   };
 }
 
-export async function checkPaymentStatus(orderCode: number | string): Promise<{ status: 'waiting' | 'success' | 'failed' }> {
-  // If Supabase is connected, query transaction
-  if (isSupabaseConfigured) {
-    try {
-      const { data, error } = await supabase
-        .from('transactions')
-        .select('status')
-        .eq('order_code', String(orderCode))
-        .single();
-
-      if (!error && data) {
-        if (data.status === 'success') return { status: 'success' };
-        if (data.status === 'failed') return { status: 'failed' };
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  return { status: 'waiting' };
+export async function checkPaymentStatus(orderCode: number | string): Promise<{ status: 'waiting' | 'success' | 'failed' | 'expired' }> {
+  return await verifyPaymentFromDatabase(orderCode);
 }

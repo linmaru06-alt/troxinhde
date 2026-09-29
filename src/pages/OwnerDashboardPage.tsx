@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
+import { BookingRequest } from '../types';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -40,6 +41,8 @@ export const OwnerDashboardPage: React.FC = () => {
     showToast,
   } = useAppStore();
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
+  const [rescheduleId, setRescheduleId] = useState<string | null>(null);
+  const [rescheduleTime, setRescheduleTime] = useState<string>('');
 
   // Supabase Real-time Room Status Subscription
   useRealtimeRoomStatus();
@@ -59,15 +62,23 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const handleUpdateBookingStatus = (bookingId: string, status: any) => {
+  const handleUpdateBookingStatus = (bookingId: string, status: any, note?: string) => {
     updateBookingStatus(bookingId, status);
     if (isSupabaseConfigured && bookingId.length === 36) {
+      const updates: any = {
+        updated_at: new Date().toISOString(),
+      };
+      
+      if (status === 'Đã xác nhận') updates.status = 'confirmed';
+      else if (status === 'Đổi giờ') {
+        updates.status = 'rescheduled';
+        updates.owner_response_note = note;
+      }
+      else updates.status = 'cancelled';
+
       supabase
         .from('viewing_requests')
-        .update({
-          status: status === 'Đã xác nhận' ? 'confirmed' : 'cancelled',
-          updated_at: new Date().toISOString(),
-        })
+        .update(updates)
         .eq('id', bookingId)
         .then();
     }
@@ -211,7 +222,9 @@ export const OwnerDashboardPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {bookings.map((b) => (
+              {bookings.map((b: BookingRequest) => {
+                const currentStatus: BookingRequest['status'] = b.status;
+                return (
                 <div
                   key={b.id}
                   className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
@@ -222,14 +235,16 @@ export const OwnerDashboardPage: React.FC = () => {
                       <span className="text-xs text-gray-500">({b.renterPhone})</span>
                       <span
                         className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
-                          b.status === 'Đã xác nhận'
+                          currentStatus === 'Đã xác nhận'
                             ? 'bg-emerald-100 text-emerald-800'
-                            : b.status === 'Đã hủy'
+                            : currentStatus === 'Đã hủy'
                             ? 'bg-rose-100 text-rose-800'
+                            : currentStatus === 'Đổi giờ'
+                            ? 'bg-blue-100 text-blue-800'
                             : 'bg-amber-100 text-amber-800'
                         }`}
                       >
-                        {b.status}
+                        {currentStatus}
                       </span>
                     </div>
 
@@ -252,13 +267,22 @@ export const OwnerDashboardPage: React.FC = () => {
                       <Phone className="w-3.5 h-3.5 text-emerald-600" /> Gọi khách
                     </a>
 
-                    {b.status === 'Chờ chủ trọ xác nhận' && (
+                    {currentStatus === 'Chờ chủ trọ xác nhận' && (
                       <>
                         <button
                           onClick={() => handleUpdateBookingStatus(b.id, 'Đã xác nhận')}
                           className="px-3 py-1.5 bg-[#00a854] hover:bg-[#008f47] text-white rounded-xl text-xs font-black transition shadow-xs flex items-center gap-1"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" /> Xác nhận đón
+                        </button>
+                        <button
+                          onClick={() => {
+                            setRescheduleId(b.id);
+                            setRescheduleTime(b.timeSlot);
+                          }}
+                          className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition"
+                        >
+                          Đổi giờ
                         </button>
                         <button
                           onClick={() => handleUpdateBookingStatus(b.id, 'Đã hủy')}
@@ -269,8 +293,32 @@ export const OwnerDashboardPage: React.FC = () => {
                       </>
                     )}
                   </div>
+                  
+                  {rescheduleId === b.id && (
+                    <div className="w-full bg-blue-50/50 p-3 rounded-xl border border-blue-100 mt-3 flex items-center gap-2">
+                      <input 
+                        type="text" 
+                        value={rescheduleTime} 
+                        onChange={(e) => setRescheduleTime(e.target.value)}
+                        placeholder="Vd: 10:30 - 11:30"
+                        className="flex-1 text-xs p-2 rounded-lg border border-blue-200 outline-none focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
+                      />
+                      <button 
+                        onClick={() => {
+                          handleUpdateBookingStatus(b.id, 'Đổi giờ', rescheduleTime);
+                          setRescheduleId(null);
+                        }}
+                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shrink-0 transition"
+                      >Gửi đề xuất</button>
+                      <button 
+                        onClick={() => setRescheduleId(null)} 
+                        className="px-3 py-2 bg-white text-gray-600 text-xs font-bold rounded-lg border border-gray-200 shrink-0 hover:bg-gray-50 transition"
+                      >Hủy</button>
+                    </div>
+                  )}
                 </div>
-              ))}
+              );
+            })}
             </div>
           </div>
         )}
@@ -316,7 +364,7 @@ export const OwnerDashboardPage: React.FC = () => {
               >
                 <div className="flex items-center gap-4">
                   <img
-                    src={room.images[0]}
+                    src={room.images?.[0] || '/images/hero-banner.webp'}
                     alt={room.title}
                     className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0"
                   />

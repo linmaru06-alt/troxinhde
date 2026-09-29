@@ -1,11 +1,11 @@
-import React, { useState, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { MarketplaceCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
+import { Pagination } from '../components/ui/Pagination';
 import {
-  ShoppingBag,
   PlusCircle,
   Sparkles,
   Tag,
@@ -15,12 +15,45 @@ import {
   MapPin,
   X,
   ArrowUpDown,
+  Save,
+  Eye,
+  RotateCcw,
+  AlertTriangle,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Edit3,
+  RefreshCw,
+  Layers,
+  User,
+  Check,
+  Truck,
+  HandCoins,
+  Camera,
 } from 'lucide-react';
+import { MarketplaceItem, MarketplaceConditionCode, MarketplaceDeliveryMethodCode } from '../types';
 
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
-import { createMarketplaceItem } from '../lib/api/marketplace';
+import { useMarketplaceItemMutations } from '../hooks/queries/useMarketplace';
+import { getItemAvailability, MarketplaceItemInput } from '../lib/marketplaceStatus';
+import {
+  filterMarketplaceItems,
+  validatePriceRange,
+  countActiveFilters,
+  countAdvancedFilters,
+  parseMarketplaceUrlParams,
+  buildMarketplaceUrlParams,
+  MarketplaceSortOption,
+  ParsedMarketplaceFilterState,
+  CONDITION_LABELS,
+  DELIVERY_METHOD_LABELS,
+  VALID_CONDITIONS,
+  VALID_DELIVERY_METHODS,
+  normalizeCondition,
+} from '../lib/marketplaceFilter';
+import { MarketplaceFilterDrawer } from '../components/marketplace/MarketplaceFilterDrawer';
 
 const DISTRICTS = [
   'Quận Cầu Giấy',
@@ -34,59 +67,426 @@ const DISTRICTS = [
   'Quận Hoàng Mai',
 ];
 
+const CATEGORY_SHOWCASE = [
+  {
+    name: 'Nội thất',
+    label: 'Nội thất sinh viên',
+    desc: 'Bàn ghế, tủ vải, kệ sách',
+    icon: '🪑',
+    image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Đồ điện tử',
+    label: 'Đồ điện tử giá rẻ',
+    desc: 'Tủ lạnh mini, màn hình, tai nghe',
+    icon: '⚡',
+    image: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Sách vở',
+    label: 'Sách & Giáo trình',
+    desc: 'TOEIC, IT, giáo trình đại học 0đ',
+    icon: '📚',
+    image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&auto=format&fit=crop&q=80',
+  },
+  {
+    name: 'Đồ gia dụng',
+    label: 'Đồ gia dụng phòng trọ',
+    desc: 'Nồi cơm điện, bếp từ, quạt máy',
+    icon: '🍳',
+    image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=80',
+  },
+];
+
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { marketplaceItems, currentUser, addMarketplaceItem, showToast } = useAppStore();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const {
+    marketplaceItems,
+    currentUser,
+    showToast,
+    hiddenItemIds,
+    blockedUserIds,
+    marketplaceLoadError,
+    refreshMarketplaceItems,
+  } = useAppStore();
+  const { createItem, updateItem } = useMarketplaceItemMutations();
+  const [isRetryingLoad, setIsRetryingLoad] = useState<boolean>(false);
 
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
-  const [selectedPricing, setSelectedPricing] = useState<string>('Tất cả');
-  const [selectedDistrict, setSelectedDistrict] = useState<string>('');
-  const [selectedSort, setSelectedSort] = useState<string>('newest');
+  const [viewMode, setViewMode] = useState<'public' | 'my_items'>('public');
 
-  // Create Item Modal State
+  // Đọc và validate URL query params
+  const urlState = useMemo(() => {
+    return parseMarketplaceUrlParams(searchParams);
+  }, [searchParams]);
+
+  // Input tức thời cho ô tìm kiếm
+  const [searchInput, setSearchInput] = useState<string>(urlState.keyword);
+
+  // Khi URL query thay đổi từ bên ngoài (Back / Forward / Reset), đồng bộ lại ô input
+  useEffect(() => {
+    setSearchInput(urlState.keyword);
+  }, [urlState.keyword]);
+
+  // Input tức thời cho ô nhập giá
+  const [minPriceInput, setMinPriceInput] = useState<string>(
+    urlState.minPrice !== undefined ? String(urlState.minPrice) : ''
+  );
+  const [maxPriceInput, setMaxPriceInput] = useState<string>(
+    urlState.maxPrice !== undefined ? String(urlState.maxPrice) : ''
+  );
+
+  useEffect(() => {
+    setMinPriceInput(urlState.minPrice !== undefined ? String(urlState.minPrice) : '');
+    setMaxPriceInput(urlState.maxPrice !== undefined ? String(urlState.maxPrice) : '');
+  }, [urlState.minPrice, urlState.maxPrice]);
+
+  // Hàm cập nhật URL State (chỉ đưa các tham số không mặc định vào URL)
+  const updateUrlFilters = (
+    updates: Partial<ParsedMarketplaceFilterState>,
+    resetPage = true,
+    isReplace = false
+  ) => {
+    const nextState: ParsedMarketplaceFilterState = {
+      ...urlState,
+      ...updates,
+      page: resetPage ? 1 : (updates.page ?? urlState.page),
+    };
+    const nextParams = buildMarketplaceUrlParams(nextState);
+    setSearchParams(nextParams, { replace: isReplace });
+  };
+
+  // Debounce 350ms cho ô tìm kiếm: sử dụng replaceState (isReplace: true) để không spam lịch sử trình duyệt
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput.trim() !== urlState.keyword) {
+        updateUrlFilters({ keyword: searchInput.trim() }, true, true);
+      }
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  // Mobile Drawer State
+  const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState<boolean>(false);
+
+  // Create Item Modal State & Draft Management
+  const DRAFT_KEY = 'troxinh_draft_marketplace';
+  const getInitialMarketDraft = () => {
+    try {
+      const saved = localStorage.getItem(DRAFT_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch (e) {
+      console.warn(e);
+    }
+    return null;
+  };
+  const initialMarketDraft = getInitialMarketDraft();
+
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
-  const [title, setTitle] = useState<string>('');
-  const [price, setPrice] = useState<number>(150000);
-  const [pricingType, setPricingType] = useState<'Giá rẻ' | 'Miễn phí'>('Giá rẻ');
-  const [category, setCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>('Nội thất');
-  const [condition, setCondition] = useState<'Mới 99%' | 'Còn dùng tốt' | 'Đã qua sử dụng' | 'Dùng tốt' | 'Tặng miễn phí'>('Còn dùng tốt');
-  const [location, setLocation] = useState<string>('Số 18 Ngõ 165 Cầu Giấy, Hà Nội');
-  const [district, setDistrict] = useState<string>('Quận Cầu Giấy');
-  const [description, setDescription] = useState<string>('');
-  const [images, setImages] = useState<string[]>([]);
+  const [hasDraftRestored, setHasDraftRestored] = useState<boolean>(Boolean(initialMarketDraft));
+  const [showPreviewModal, setShowPreviewModal] = useState<boolean>(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  const [title, setTitle] = useState<string>(initialMarketDraft?.title || '');
+  const [price, setPrice] = useState<number>(initialMarketDraft?.price ?? 150000);
+  const [pricingType, setPricingType] = useState<'Giá rẻ' | 'Miễn phí'>(initialMarketDraft?.pricingType || 'Giá rẻ');
+  const [category, setCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>(
+    initialMarketDraft?.category || 'Nội thất'
+  );
+  const [condition, setCondition] = useState<MarketplaceConditionCode>(
+    (initialMarketDraft?.condition && normalizeCondition(initialMarketDraft.condition)) || 'con_tot'
+  );
+  const [location, setLocation] = useState<string>(
+    initialMarketDraft?.location || 'Số 18 Ngõ 165 Cầu Giấy, Hà Nội'
+  );
+  const [district, setDistrict] = useState<string>(initialMarketDraft?.district || 'Quận Cầu Giấy');
+  const [description, setDescription] = useState<string>(initialMarketDraft?.description || '');
+  const [images, setImages] = useState<string[]>(initialMarketDraft?.images || []);
+  const [deliveryMethods, setDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(() => {
+    if (Array.isArray(initialMarketDraft?.deliveryMethods) && initialMarketDraft.deliveryMethods.length > 0) {
+      return initialMarketDraft.deliveryMethods
+        .map((m: string) => {
+          if (m === 'tai_truong' || m === 'giao_tan_noi' || m === 'tu_den_lay') return m as MarketplaceDeliveryMethodCode;
+          if (m === 'Gặp tại trường/KTX') return 'tai_truong';
+          if (m === 'Giao tận nơi') return 'giao_tan_noi';
+          if (m === 'Tự đến lấy') return 'tu_den_lay';
+          return null;
+        })
+        .filter((m: string | null): m is MarketplaceDeliveryMethodCode => m !== null);
+    }
+    return ['tai_truong'];
+  });
+  const [deliveryError, setDeliveryError] = useState<string | null>(null);
+  const [isNegotiable, setIsNegotiable] = useState<boolean>(
+    Boolean(initialMarketDraft?.isNegotiable)
+  );
+
+  // Resubmit / Edit Modal State (Nhận lý do từ chối và sửa gửi lại)
+  const [resubmitModalOpen, setResubmitModalOpen] = useState<boolean>(false);
+  const [resubmittingItem, setResubmittingItem] = useState<MarketplaceItem | null>(null);
+  const [resubmitTitle, setResubmitTitle] = useState<string>('');
+  const [resubmitPrice, setResubmitPrice] = useState<number>(0);
+  const [resubmitPricingType, setResubmitPricingType] = useState<'Giá rẻ' | 'Miễn phí'>('Giá rẻ');
+  const [resubmitCategory, setResubmitCategory] = useState<'Nội thất' | 'Đồ điện tử' | 'Sách vở' | 'Đồ gia dụng'>('Nội thất');
+  const [resubmitCondition, setResubmitCondition] = useState<MarketplaceConditionCode>('con_tot');
+  const [resubmitLocation, setResubmitLocation] = useState<string>('');
+  const [resubmitDistrict, setResubmitDistrict] = useState<string>('');
+  const [resubmitDescription, setResubmitDescription] = useState<string>('');
+  const [resubmitImages, setResubmitImages] = useState<string[]>([]);
+  const [resubmitDeliveryMethods, setResubmitDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(['tai_truong']);
+  const [resubmitDeliveryError, setResubmitDeliveryError] = useState<string | null>(null);
+  const [resubmitIsNegotiable, setResubmitIsNegotiable] = useState<boolean>(false);
+  const isResubmitting = updateItem.isPending;
+
+  const handleOpenResubmitModal = (itemToEdit: MarketplaceItem) => {
+    setResubmittingItem(itemToEdit);
+    setResubmitTitle(itemToEdit.name);
+    setResubmitPrice(itemToEdit.price);
+    setResubmitPricingType(itemToEdit.pricingType);
+    setResubmitCategory(itemToEdit.category);
+    setResubmitCondition((itemToEdit.condition && normalizeCondition(itemToEdit.condition)) || 'con_tot');
+    setResubmitLocation(itemToEdit.location);
+    setResubmitDistrict(itemToEdit.district);
+    setResubmitDescription(itemToEdit.description);
+    setResubmitImages(itemToEdit.images || []);
+    setResubmitDeliveryMethods(
+      itemToEdit.deliveryMethods && itemToEdit.deliveryMethods.length > 0
+        ? itemToEdit.deliveryMethods
+        : ['tai_truong']
+    );
+    setResubmitDeliveryError(null);
+    setResubmitIsNegotiable(Boolean(itemToEdit.isNegotiable));
+    setResubmitModalOpen(true);
+  };
+
+  // Auto-save draft when fields change
+  useEffect(() => {
+    if (isModalOpen) {
+      const draftData = {
+        title,
+        price,
+        pricingType,
+        category,
+        condition,
+        location,
+        district,
+        description,
+        images,
+        deliveryMethods,
+        isNegotiable,
+        savedAt: new Date().toISOString(),
+      };
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+  }, [title, price, pricingType, category, condition, location, district, description, images, deliveryMethods, isNegotiable, isModalOpen]);
+
+  const handleSaveMarketDraft = () => {
+    const draftData = {
+      title,
+      price,
+      pricingType,
+      category,
+      condition,
+      location,
+      district,
+      description,
+      images,
+      deliveryMethods,
+      isNegotiable,
+      savedAt: new Date().toISOString(),
+    };
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(draftData));
+      showToast('Đã lưu bản nháp', 'Dữ liệu món đồ đã được lưu an toàn', 'success');
+    } catch (e) {
+      showToast('Lỗi lưu nháp', 'Không thể ghi vào bộ nhớ tạm', 'error');
+    }
+  };
+
+  const handleClearMarketDraft = () => {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+      setTitle('');
+      setPrice(150000);
+      setPricingType('Giá rẻ');
+      setCategory('Nội thất');
+      setCondition('con_tot');
+      setDescription('');
+      setImages([]);
+      setDeliveryMethods(['tai_truong']);
+      setIsNegotiable(false);
+      setHasDraftRestored(false);
+      showToast('Đã xóa bản nháp', 'Form đăng đồ đã được làm mới', 'info');
+    } catch (e) {
+      console.warn(e);
+    }
+  };
+
+  const previewMarketItem: MarketplaceItem = {
+    id: 'preview_item',
+    userId: currentUser?.id || 'user_1',
+    userName: currentUser?.name || 'Người dùng Trọ Xinh',
+    userPhone: currentUser?.phone || '0987654321',
+    userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+    name: title || 'Tên món đồ thanh lý...',
+    price: pricingType === 'Miễn phí' ? 0 : Number(price),
+    pricingType,
+    category,
+    condition,
+    location: location || 'Hà Nội',
+    district: district || 'Quận Cầu Giấy',
+    images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=800'],
+    description: description || 'Chưa có mô tả chi tiết.',
+    status: 'Còn hàng',
+    createdAt: new Date().toISOString(),
+    deliveryMethods,
+    isNegotiable,
+  };
 
   const categories = ['Tất cả', 'Nội thất', 'Đồ điện tử', 'Sách vở', 'Đồ gia dụng'];
 
+  const handleToggleCategory = (cat: string) => {
+    if (cat === 'Tất cả') {
+      updateUrlFilters({ categories: [] }, true, false);
+      return;
+    }
+    const nextCategories = urlState.categories.includes(cat)
+      ? urlState.categories.filter((c) => c !== cat)
+      : [...urlState.categories, cat];
+    updateUrlFilters({ categories: nextCategories }, true, false);
+  };
+
+  const handleSelectDistrict = (dist: string) => {
+    updateUrlFilters({ district: dist }, true, false);
+  };
+
+  const handleSelectSort = (sort: MarketplaceSortOption) => {
+    updateUrlFilters({ sortBy: sort }, true, false);
+  };
+
+  const handleToggleFreeOnly = () => {
+    const nextFree = !urlState.isFreeOnly;
+    if (nextFree) {
+      setMinPriceInput('');
+      setMaxPriceInput('');
+      updateUrlFilters({ isFreeOnly: true, minPrice: undefined, maxPrice: undefined }, true, false);
+    } else {
+      updateUrlFilters({ isFreeOnly: false }, true, false);
+    }
+  };
+
+  const handleSelectPresetPrice = (min?: number, max?: number) => {
+    setMinPriceInput(min !== undefined ? String(min) : '');
+    setMaxPriceInput(max !== undefined ? String(max) : '');
+    updateUrlFilters({ minPrice: min, maxPrice: max, isFreeOnly: false }, true, false);
+  };
+
+  const handleResetAllFilters = () => {
+    setSearchInput('');
+    setMinPriceInput('');
+    setMaxPriceInput('');
+    setSearchParams({}, { replace: false });
+  };
+
+  const minPriceNum = minPriceInput.trim() ? Number(minPriceInput) : undefined;
+  const maxPriceNum = maxPriceInput.trim() ? Number(maxPriceInput) : undefined;
+  const priceValidation = validatePriceRange(minPriceNum, maxPriceNum);
+  const priceError = !priceValidation.isValid ? priceValidation.error : undefined;
+
+  // Debounce 400ms cho ô nhập khoảng giá tự do
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (minPriceNum !== undefined && maxPriceNum !== undefined && minPriceNum > maxPriceNum) {
+        return;
+      }
+      if (minPriceNum !== urlState.minPrice || maxPriceNum !== urlState.maxPrice) {
+        updateUrlFilters({ minPrice: minPriceNum, maxPrice: maxPriceNum }, true, false);
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [minPriceInput, maxPriceInput]);
+
+  const activeFilterCount = useMemo(() => {
+    return countActiveFilters(urlState);
+  }, [urlState]);
+
+  const advancedFilterCount = useMemo(() => {
+    return countAdvancedFilters(urlState);
+  }, [urlState]);
+
+  // Lấy danh sách tin của người dùng hiện tại
+  const myItems = useMemo(() => {
+    if (!currentUser) return [];
+    return marketplaceItems.filter((i) => i.userId === currentUser.id);
+  }, [marketplaceItems, currentUser]);
+
+  const rejectedCount = useMemo(() => {
+    return myItems.filter((i) => i.status === 'Bị từ chối' || i.moderationStatus === 'rejected').length;
+  }, [myItems]);
+
+  const pendingCount = useMemo(() => {
+    return myItems.filter((i) => i.status === 'Chờ duyệt' || i.moderationStatus === 'pending').length;
+  }, [myItems]);
+
   const filteredItems = useMemo(() => {
-    return marketplaceItems
-      .filter((item) => {
-        if (selectedCategory !== 'Tất cả' && item.category !== selectedCategory) return false;
-        if (selectedPricing === 'Miễn phí' && item.pricingType !== 'Miễn phí') return false;
-        if (selectedPricing === 'Giá rẻ' && item.pricingType !== 'Giá rẻ') return false;
-        if (selectedDistrict && item.district !== selectedDistrict) return false;
+    return filterMarketplaceItems(marketplaceItems, {
+      keyword: urlState.keyword,
+      categories: urlState.categories,
+      district: urlState.district,
+      minPrice: urlState.minPrice,
+      maxPrice: urlState.maxPrice,
+      isFreeOnly: urlState.isFreeOnly,
+      conditions: urlState.conditions,
+      deliveryMethods: urlState.deliveryMethods,
+      timeRange: urlState.timeRange,
+      isNegotiableOnly: urlState.isNegotiableOnly,
+      hasImagesOnly: urlState.hasImagesOnly,
+      sortBy: urlState.sortBy,
+      viewMode,
+      currentUserId: currentUser?.id,
+      hiddenItemIds,
+      blockedUserIds,
+    });
+  }, [
+    marketplaceItems,
+    urlState.keyword,
+    urlState.categories,
+    urlState.district,
+    urlState.minPrice,
+    urlState.maxPrice,
+    urlState.isFreeOnly,
+    urlState.conditions,
+    urlState.deliveryMethods,
+    urlState.timeRange,
+    urlState.isNegotiableOnly,
+    urlState.hasImagesOnly,
+    urlState.sortBy,
+    viewMode,
+    currentUser,
+    hiddenItemIds,
+    blockedUserIds,
+  ]);
 
-        if (searchKeyword.trim()) {
-          const q = searchKeyword.toLowerCase();
-          const matchName = item.name.toLowerCase().includes(q);
-          const matchDesc = item.description.toLowerCase().includes(q);
-          const matchLoc = item.location.toLowerCase().includes(q);
-          const matchDist = item.district.toLowerCase().includes(q);
-          if (!matchName && !matchDesc && !matchLoc && !matchDist) return false;
-        }
+  // Phân trang: 12 sản phẩm/trang
+  const PAGE_SIZE = 12;
+  const totalPages = Math.ceil(filteredItems.length / PAGE_SIZE) || 1;
+  const isPageOutOfRange = filteredItems.length > 0 && urlState.page > totalPages;
+  const safePage = Math.min(Math.max(1, urlState.page), totalPages);
 
-        return true;
-      })
-      .sort((a, b) => {
-        if (selectedSort === 'price_asc') return a.price - b.price;
-        if (selectedSort === 'price_desc') return b.price - a.price;
-        if (selectedSort === 'free_first') {
-          if (a.pricingType === 'Miễn phí' && b.pricingType !== 'Miễn phí') return -1;
-          if (a.pricingType !== 'Miễn phí' && b.pricingType === 'Miễn phí') return 1;
-        }
-        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
-      });
-  }, [marketplaceItems, selectedCategory, selectedPricing, selectedDistrict, searchKeyword, selectedSort]);
+  const paginatedItems = useMemo(() => {
+    if (isPageOutOfRange) return [];
+    const startIndex = (safePage - 1) * PAGE_SIZE;
+    return filteredItems.slice(startIndex, startIndex + PAGE_SIZE);
+  }, [filteredItems, safePage, isPageOutOfRange]);
+
+  const handlePageChange = (newPage: number) => {
+    updateUrlFilters({ page: newPage }, false, false);
+    window.scrollTo({ top: 350, behavior: 'smooth' });
+  };
 
   const handlePostItem = () => {
     if (!currentUser) {
@@ -97,54 +497,125 @@ export const MarketplaceListPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleFormSubmit = (e: React.FormEvent) => {
+  const isSubmitting = createItem.isPending;
+
+  const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSubmitError(null);
+
     if (!title.trim()) {
-      showToast('Vui lòng nhập tên món đồ', '', 'warning');
+      showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ muốn pass', 'warning');
       return;
     }
 
-    const sellerId = currentUser?.id || '00000000-0000-0000-0000-000000000003';
-    const catMap: Record<string, any> = {
-      'Nội thất': 'furniture',
-      'Đồ điện tử': 'electronics',
-      'Sách vở': 'books',
-      'Đồ gia dụng': 'household',
-    };
+    if (images.length === 0) {
+      showToast('Thiếu ảnh sản phẩm', 'Vui lòng tải lên ít nhất 1 ảnh thực tế của món đồ', 'warning');
+      return;
+    }
 
-    createMarketplaceItem({
-      seller_id: sellerId.length === 36 ? sellerId : '00000000-0000-0000-0000-000000000003',
-      title: title.trim(),
-      price: pricingType === 'Miễn phí' ? 0 : Number(price),
-      is_free: pricingType === 'Miễn phí',
-      category: catMap[category] || 'other',
-      district,
-      description: description || 'Đồ thanh lý sinh viên chính chủ.',
-      image_urls: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
-    }).catch((err) => console.warn('[Marketplace] Lỗi lưu đồ cũ lên Cloud:', err));
+    if (deliveryMethods.length === 0) {
+      setDeliveryError('Vui lòng chọn ít nhất một cách nhận đồ');
+      return;
+    }
 
-    addMarketplaceItem({
-      userId: currentUser?.id || 'user_1',
-      userName: currentUser?.name || 'Người dùng Trọ Xinh',
-      userPhone: currentUser?.phone || '0987654321',
-      userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-      name: title,
+    if (!currentUser || isSubmitting) return;
+
+    const input: MarketplaceItemInput = {
+      name: title.trim(),
       price: pricingType === 'Miễn phí' ? 0 : Number(price),
       pricingType,
       category,
       condition,
       location,
       district,
-      images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800'],
-      description: description || 'Đồ thanh lý sinh viên chính chủ.',
-    });
+      images,
+      description: description.trim() || 'Đồ thanh lý sinh viên chính chủ.',
+      deliveryMethods,
+      isNegotiable,
+    };
 
-    setIsModalOpen(false);
-    setTitle('');
-    setDescription('');
-    setImages([]);
-    showToast('Đăng tin đồ cũ thành công! 🎉', 'Món đồ của bạn đã xuất hiện trên chợ sinh viên.', 'success');
+    try {
+      // Máy chủ luôn đưa tin mới vào trạng thái chờ duyệt
+      await createItem.mutateAsync({ sellerId: currentUser.id, input });
+
+      // Xóa bản nháp sau khi đăng thành công
+      localStorage.removeItem(DRAFT_KEY);
+      setIsModalOpen(false);
+      setTitle('');
+      setDescription('');
+      setImages([]);
+      
+      // Chuyển sang tab "Tin của tôi" để người dùng theo dõi trạng thái chờ duyệt
+      setViewMode('my_items');
+      showToast('Gửi tin chờ duyệt thành công! ⏳', 'Admin sẽ kiểm tra nội dung và duyệt công khai tin của bạn sớm nhất.', 'success');
+    } catch (err: any) {
+      // GIỮ NGUYÊN DỮ LIỆU KHI LỖI
+      const errorMsg = err?.message || 'Không thể đăng tin lúc này. Dữ liệu của bạn đã được giữ nguyên.';
+      setSubmitError(errorMsg);
+      showToast('Lỗi khi đăng tin', errorMsg, 'error');
+    }
   };
+
+  // Xử lý gửi lại tin sau khi chỉnh sửa
+  const handleResubmitSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!resubmittingItem) return;
+
+    if (!resubmitTitle.trim()) {
+      showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ muốn thanh lý', 'warning');
+      return;
+    }
+
+    if (resubmitImages.length === 0) {
+      showToast('Thiếu ảnh sản phẩm', 'Vui lòng tải lên ít nhất 1 ảnh thực tế của món đồ', 'warning');
+      return;
+    }
+
+    if (resubmitDeliveryMethods.length === 0) {
+      setResubmitDeliveryError('Vui lòng chọn ít nhất một cách nhận đồ');
+      return;
+    }
+
+    if (isResubmitting) return;
+    try {
+      await updateItem.mutateAsync({
+        id: resubmittingItem.id,
+        input: {
+          name: resubmitTitle.trim(),
+          price: resubmitPricingType === 'Miễn phí' ? 0 : Number(resubmitPrice),
+          pricingType: resubmitPricingType,
+          category: resubmitCategory,
+          condition: resubmitCondition,
+          location: resubmitLocation,
+          district: resubmitDistrict,
+          description: resubmitDescription.trim(),
+          images: resubmitImages,
+          deliveryMethods: resubmitDeliveryMethods,
+          isNegotiable: resubmitIsNegotiable,
+        },
+      });
+
+      setResubmitModalOpen(false);
+      setResubmittingItem(null);
+      showToast('Đã gửi lại duyệt thành công! 🚀', 'Tin đăng đã được cập nhật và chuyển vào danh sách chờ Admin kiểm duyệt lại.', 'success');
+    } catch (err: any) {
+      showToast('Lỗi khi gửi lại duyệt', err?.message || 'Không thể gửi lại tin lúc này. Dữ liệu đã được giữ nguyên.', 'error');
+    }
+  };
+
+  const handleRetryLoad = async () => {
+    setIsRetryingLoad(true);
+    try {
+      await refreshMarketplaceItems();
+    } finally {
+      setIsRetryingLoad(false);
+    }
+  };
+
+  const publicItemCount = useMemo(
+    () => marketplaceItems.filter((i) => ['available', 'sold'].includes(getItemAvailability(i))).length,
+    [marketplaceItems]
+  );
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
@@ -158,14 +629,12 @@ export const MarketplaceListPage: React.FC = () => {
         {/* Dark Gradient & Frosted Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
+        {/* Ambient Warm Amber Glow */}
+        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-white/15 hover:bg-white/20 rounded-full text-xs font-bold text-amber-300 border border-amber-400/30 backdrop-blur-md shadow-xs">
-              <ShoppingBag className="w-4 h-4 text-amber-400" />
-              <span>Giai Đoạn 4: Chợ Sinh Viên Sang Nhượng & Tặng Đồ 0đ</span>
-            </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Chợ Đồ Cũ Sinh Viên <br />
               <span className="text-[#f59e0b]">Tiết Kiệm Tối Đa Chi Phí</span>
@@ -175,139 +644,682 @@ export const MarketplaceListPage: React.FC = () => {
             </p>
           </div>
 
-          <div className="shrink-0 bg-white/10 backdrop-blur-md p-2 rounded-2xl border border-white/20 shadow-xl">
-            <Button
-              variant="secondary"
-              size="lg"
-              onClick={handlePostItem}
-              leftIcon={<PlusCircle className="w-5 h-5" />}
-              className="font-bold shadow-lg cursor-pointer"
-            >
-              Đăng Món Đồ Thanh Lý
-            </Button>
+          {/* Phần đăng món đồ thanh lý nổi bật vượt trội */}
+          <div className="shrink-0 flex flex-col items-center md:items-end gap-2.5 w-full md:w-auto">
+            <div className="p-1 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.5)] hover:shadow-[0_0_40px_rgba(245,158,11,0.75)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
+              <button
+                type="button"
+                onClick={handlePostItem}
+                className="w-full md:w-auto flex items-center justify-center gap-3 px-5 sm:px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
+              >
+                <span className="p-1 bg-white/25 rounded-lg flex items-center justify-center shadow-inner">
+                  <PlusCircle className="w-5 h-5 text-white shrink-0" strokeWidth={2.5} />
+                </span>
+                <span>Đăng Món Đồ Muốn Thanh Lý</span>
+                <Sparkles className="w-4 h-4 text-amber-200 shrink-0" />
+              </button>
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-amber-500/35 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+              <span>Đăng tin miễn phí • Tặng 0đ hoặc sang nhượng</span>
+            </div>
           </div>
         </div>
       </div>
 
+      {/* View Mode Tabs: "Tất cả đồ thanh lý" vs "Tin thanh lý của tôi" */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 sm:p-2.5 rounded-2xl border border-gray-200/90 shadow-xs">
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setViewMode('public')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              viewMode === 'public'
+                ? 'bg-[#006d37] text-white shadow-xs'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <Layers className="w-4 h-4" />
+            <span>Tất cả đồ thanh lý</span>
+            <span className={`text-[11px] px-2 py-0.5 rounded-full ${viewMode === 'public' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
+              {publicItemCount}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (!currentUser) {
+                showToast('Vui lòng đăng nhập', 'Đăng nhập để xem danh sách tin thanh lý của bạn', 'warning');
+                navigate('/dang-nhap?returnUrl=/cho-do-cu');
+                return;
+              }
+              setViewMode('my_items');
+            }}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all cursor-pointer ${
+              viewMode === 'my_items'
+                ? 'bg-[#006d37] text-white shadow-xs'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            <span>Tin của tôi</span>
+            {currentUser && (
+              <span className={`text-[11px] px-2 py-0.5 rounded-full ${viewMode === 'my_items' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-[#006d37]'}`}>
+                {myItems.length}
+              </span>
+            )}
+            {rejectedCount > 0 && (
+              <span className="bg-rose-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full animate-pulse" title={`${rejectedCount} tin bị từ chối cần sửa`}>
+                {rejectedCount} cần sửa
+              </span>
+            )}
+            {pendingCount > 0 && (
+              <span className="bg-amber-500 text-white text-[10px] font-black px-1.5 py-0.5 rounded-full" title={`${pendingCount} tin chờ duyệt`}>
+                {pendingCount} chờ duyệt
+              </span>
+            )}
+          </button>
+        </div>
+
+        {viewMode === 'my_items' && (
+          <div className="flex items-center gap-2 text-xs text-gray-500 pr-2">
+            <span className="flex items-center gap-1 text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200 font-semibold">
+              <Clock className="w-3.5 h-3.5 text-amber-600" />
+              {pendingCount} chờ duyệt
+            </span>
+            <span className="flex items-center gap-1 text-rose-700 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200 font-semibold">
+              <AlertCircle className="w-3.5 h-3.5 text-rose-600" />
+              {rejectedCount} bị từ chối
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Visual Category Showcase Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4">
+        {CATEGORY_SHOWCASE.map((cat) => {
+          const isSelected = urlState.categories.includes(cat.name);
+          const count = marketplaceItems.filter((i) => i.category === cat.name).length;
+
+          return (
+            <button
+              key={cat.name}
+              type="button"
+              onClick={() => handleToggleCategory(cat.name)}
+              className={`group relative overflow-hidden rounded-2xl border text-left transition-all duration-300 p-3.5 sm:p-4 flex flex-col justify-between h-32 sm:h-36 cursor-pointer shadow-xs hover:shadow-md ${
+                isSelected
+                  ? 'border-[#006d37] ring-2 ring-[#006d37]/30 shadow-emerald-900/10 -translate-y-0.5'
+                  : 'border-gray-200/80 hover:border-[#006d37]/30 bg-white hover:-translate-y-0.5'
+              }`}
+            >
+              {/* Background Decorative Image */}
+              <div
+                className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105 opacity-20 group-hover:opacity-30"
+                style={{ backgroundImage: `url('${cat.image}')` }}
+              />
+              <div
+                className={`absolute inset-0 transition-colors ${
+                  isSelected
+                    ? 'bg-gradient-to-t from-emerald-900/90 via-emerald-900/50 to-emerald-900/20'
+                    : 'bg-gradient-to-t from-white via-white/80 to-white/40'
+                }`}
+              />
+
+              {/* Top Row: Icon & Count Badge */}
+              <div className="relative z-10 flex items-center justify-between w-full">
+                <span className="text-2xl sm:text-3xl filter drop-shadow-xs">{cat.icon}</span>
+                <span
+                  className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
+                    isSelected ? 'bg-white text-[#006d37] shadow-xs' : 'bg-gray-100 text-gray-700'
+                  }`}
+                >
+                  {count} món
+                </span>
+              </div>
+
+              {/* Bottom Row: Label & Subtitle */}
+              <div className="relative z-10 space-y-0.5">
+                <h3
+                  className={`text-xs sm:text-sm font-black transition-colors ${
+                    isSelected ? 'text-white' : 'text-gray-900 group-hover:text-[#006d37]'
+                  }`}
+                >
+                  {cat.label}
+                </h3>
+                <p
+                  className={`text-[10px] sm:text-[11px] line-clamp-1 ${
+                    isSelected ? 'text-emerald-100' : 'text-gray-500'
+                  }`}
+                >
+                  {cat.desc}
+                </p>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
       {/* Filter Bar & Search */}
       <div className="space-y-3 bg-white p-4 sm:p-5 rounded-3xl border border-gray-200 shadow-xs">
-        {/* Search & Sort Row */}
+        {/* Row 1: Search, Mobile Filter Toggle, District & Sort */}
         <div className="flex flex-col sm:flex-row items-center gap-3">
+          {/* Search Input with Debounce */}
           <div className="relative flex-1 w-full">
             <Search className="w-4 h-4 text-gray-400 absolute left-3.5 top-3" />
             <input
               type="text"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="Tìm theo tên món đồ (vd: tủ lạnh, bàn học, quạt máy, giáo trình...)"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Tìm món đồ không dấu (vd: tu lanh, ban hoc, quat, sach...)"
               className="w-full pl-10 pr-10 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
             />
-            {searchKeyword && (
-              <button onClick={() => setSearchKeyword('')} className="absolute right-3 top-2.5 text-gray-400">
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchInput('');
+                  updateUrlFilters({ keyword: '' }, true, true);
+                }}
+                className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600 cursor-pointer"
+                aria-label="Xóa từ khóa"
+              >
                 <X className="w-4 h-4" />
               </button>
             )}
           </div>
 
-          <div className="flex items-center gap-2 w-full sm:w-auto">
+          {/* Mobile Filter Drawer Button */}
+          <button
+            type="button"
+            onClick={() => setIsFilterDrawerOpen(true)}
+            className="sm:hidden w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-2xl bg-gray-100 hover:bg-gray-200 text-gray-800 text-xs font-bold transition shadow-xs cursor-pointer"
+          >
+            <SlidersHorizontal className="w-4 h-4 text-[#006d37]" />
+            <span>Bộ lọc chi tiết</span>
+            {activeFilterCount > 0 && (
+              <span className="w-5 h-5 rounded-full bg-[#006d37] text-white text-[10px] font-black flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+
+          {/* District & Sort */}
+          <div className="flex items-center gap-2 w-full sm:w-auto shrink-0 justify-between sm:justify-start">
             {/* District Filter */}
-            <select
-              value={selectedDistrict}
-              onChange={(e) => setSelectedDistrict(e.target.value)}
-              className="bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800 focus:outline-none focus:border-[#006d37] w-full sm:w-auto"
-            >
-              <option value="">Tất cả khu vực</option>
-              {DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
+            <div className="flex-1 sm:flex-initial flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
+              <MapPin className="w-3.5 h-3.5 text-gray-400 mr-1.5 shrink-0" />
+              <select
+                value={urlState.district}
+                onChange={(e) => handleSelectDistrict(e.target.value)}
+                className="bg-transparent focus:outline-none cursor-pointer w-full"
+              >
+                <option value="">Tất cả khu vực</option>
+                {DISTRICTS.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             {/* Sorting */}
-            <div className="flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800 shrink-0">
-              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
+            <div className="flex-1 sm:flex-initial flex items-center bg-gray-50 border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-800">
+              <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5 shrink-0" />
               <select
-                value={selectedSort}
-                onChange={(e) => setSelectedSort(e.target.value)}
-                className="bg-transparent focus:outline-none cursor-pointer"
+                value={urlState.sortBy}
+                onChange={(e) => handleSelectSort(e.target.value as MarketplaceSortOption)}
+                className="bg-transparent focus:outline-none cursor-pointer w-full"
               >
                 <option value="newest">Mới nhất</option>
                 <option value="price_asc">Giá: Thấp → Cao</option>
                 <option value="price_desc">Giá: Cao → Thấp</option>
-                <option value="free_first">Đồ tặng 0đ trước</option>
               </select>
             </div>
           </div>
         </div>
 
-        {/* Category Pills & Pricing Filter */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
+        {/* Row 2: Multi-Category Pills on Left, Free-only Toggle & "Bộ lọc khác" on Right */}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-2.5 border-t border-gray-100">
+          {/* Multi-category Pills */}
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 scrollbar-none">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setSelectedCategory(cat)}
-                className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer ${
-                  selectedCategory === cat
-                    ? 'bg-[#006d37] text-white shadow-xs'
-                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                }`}
-              >
-                {cat}
-              </button>
-            ))}
+            <span className="text-xs font-bold text-gray-600 mr-1 flex items-center gap-1 shrink-0">
+              <Tag className="w-3.5 h-3.5 text-[#006d37]" />
+              Danh mục:
+            </span>
+
+            <button
+              type="button"
+              onClick={() => handleToggleCategory('Tất cả')}
+              className={`px-3 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer ${
+                urlState.categories.length === 0
+                  ? 'bg-[#006d37] text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              Tất cả
+            </button>
+
+            {categories.filter((c) => c !== 'Tất cả').map((cat) => {
+              const isSelected = urlState.categories.includes(cat);
+              return (
+                <button
+                  key={cat}
+                  type="button"
+                  onClick={() => handleToggleCategory(cat)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer flex items-center gap-1 ${
+                    isSelected
+                      ? 'bg-[#006d37] text-white shadow-xs'
+                      : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                  }`}
+                >
+                  {isSelected && <CheckCircle2 className="w-3.5 h-3.5 stroke-[2.5]" />}
+                  <span>{cat}</span>
+                </button>
+              );
+            })}
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right Side: Toggle "Đồ tặng miễn phí" & Nút "Bộ lọc khác" */}
+          <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+            {/* Toggle Đồ tặng miễn phí (nền xanh đậm khi bật) */}
             <button
-              onClick={() => setSelectedPricing(selectedPricing === 'Miễn phí' ? 'Tất cả' : 'Miễn phí')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition border cursor-pointer ${
-                selectedPricing === 'Miễn phí'
-                  ? 'bg-emerald-500 text-white border-emerald-500 shadow-xs'
-                  : 'bg-white text-emerald-700 border-emerald-200 hover:bg-emerald-50'
+              type="button"
+              onClick={handleToggleFreeOnly}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer ${
+                urlState.isFreeOnly
+                  ? 'bg-[#006d37] text-white shadow-xs'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
               <Gift className="w-3.5 h-3.5" />
-              <span>Chỉ đồ tặng 0đ</span>
+              <span>Đồ tặng miễn phí</span>
             </button>
 
-            {(selectedCategory !== 'Tất cả' || selectedPricing !== 'Tất cả' || selectedDistrict || searchKeyword) && (
+            {/* Nút Bộ lọc khác & Container Popover / Drawer */}
+            <div className="relative">
               <button
-                onClick={() => {
-                  setSelectedCategory('Tất cả');
-                  setSelectedPricing('Tất cả');
-                  setSelectedDistrict('');
-                  setSearchKeyword('');
-                }}
-                className="text-xs text-rose-600 hover:underline font-bold flex items-center gap-0.5 ml-1"
+                type="button"
+                data-filter-toggle="true"
+                onClick={() => setIsFilterDrawerOpen((prev) => !prev)}
+                className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition cursor-pointer border ${
+                  advancedFilterCount > 0 || isFilterDrawerOpen
+                    ? 'bg-emerald-50 text-[#006d37] border-emerald-300 shadow-xs'
+                    : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50'
+                }`}
               >
-                <X className="w-3.5 h-3.5" />
-                Xóa lọc
+                <SlidersHorizontal className="w-3.5 h-3.5 text-[#006d37]" />
+                <span>
+                  {advancedFilterCount > 0 ? `Bộ lọc (${advancedFilterCount})` : 'Bộ lọc khác'}
+                </span>
+              </button>
+
+              {/* Popover on Desktop & Bottom Sheet Drawer on Mobile */}
+              <MarketplaceFilterDrawer
+                isOpen={isFilterDrawerOpen}
+                onClose={() => setIsFilterDrawerOpen(false)}
+                isFreeOnly={urlState.isFreeOnly}
+                initialValues={{
+                  minPrice: urlState.minPrice,
+                  maxPrice: urlState.maxPrice,
+                  conditions: urlState.conditions,
+                  deliveryMethods: urlState.deliveryMethods,
+                  timeRange: urlState.timeRange,
+                  isNegotiableOnly: urlState.isNegotiableOnly,
+                  hasImagesOnly: urlState.hasImagesOnly,
+                }}
+                onApply={(values) => {
+                  updateUrlFilters(
+                    {
+                      minPrice: values.minPrice,
+                      maxPrice: values.maxPrice,
+                      conditions: values.conditions,
+                      deliveryMethods: values.deliveryMethods,
+                      timeRange: values.timeRange,
+                      isNegotiableOnly: values.isNegotiableOnly,
+                      hasImagesOnly: values.hasImagesOnly,
+                    },
+                    true,
+                    false
+                  );
+                }}
+                activeCount={advancedFilterCount}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Row 3: Active Filter Chips & Results Count */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-gray-100">
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Đếm số lượng sản phẩm tìm thấy */}
+            <span className="text-xs font-bold text-gray-700 mr-1">
+              Tìm thấy <span className="font-extrabold text-[#006d37]">{filteredItems.length}</span> sản phẩm
+              {totalPages > 1 && (
+                <span className="text-gray-400 font-normal"> (Trang {safePage}/{totalPages})</span>
+              )}
+            </span>
+
+            {/* Chip từ khóa */}
+            {urlState.keyword && (
+              <span className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 text-xs font-medium px-2.5 py-1 rounded-full border border-gray-200 shadow-2xs">
+                <span>Từ khóa: "{urlState.keyword}"</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    updateUrlFilters({ keyword: '' }, true, true);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Xóa từ khóa lọc"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chips danh mục đã chọn */}
+            {urlState.categories.map((cat) => (
+              <span
+                key={cat}
+                className="inline-flex items-center gap-1 bg-emerald-50 text-[#006d37] text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 shadow-2xs"
+              >
+                <span>{cat}</span>
+                <button
+                  type="button"
+                  onClick={() => handleToggleCategory(cat)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label={`Bỏ chọn danh mục ${cat}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip chỉ đồ miễn phí */}
+            {urlState.isFreeOnly && (
+              <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-900 text-xs font-bold px-2.5 py-1 rounded-full border border-emerald-300 shadow-2xs">
+                <Gift className="w-3 h-3 text-[#006d37]" />
+                <span>Đồ tặng miễn phí</span>
+                <button
+                  type="button"
+                  onClick={handleToggleFreeOnly}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc đồ tặng 0đ"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip khoảng giá */}
+            {!urlState.isFreeOnly && (urlState.minPrice !== undefined || urlState.maxPrice !== undefined) && (
+              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 text-xs font-medium px-2.5 py-1 rounded-full border border-amber-200 shadow-2xs">
+                <span>
+                  Giá: {urlState.minPrice !== undefined ? `${urlState.minPrice.toLocaleString('vi-VN')}đ` : '0đ'} – {urlState.maxPrice !== undefined ? `${urlState.maxPrice.toLocaleString('vi-VN')}đ` : '∞'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMinPriceInput('');
+                    setMaxPriceInput('');
+                    updateUrlFilters({ minPrice: undefined, maxPrice: undefined }, true, false);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Xóa bộ lọc giá"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip khu vực */}
+            {urlState.district && (
+              <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 text-xs font-medium px-2.5 py-1 rounded-full border border-blue-200 shadow-2xs">
+                <MapPin className="w-3 h-3 text-blue-600" />
+                <span>{urlState.district}</span>
+                <button
+                  type="button"
+                  onClick={() => handleSelectDistrict('')}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc khu vực"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip tình trạng món đồ */}
+            {urlState.conditions.map((cond) => (
+              <span
+                key={cond}
+                className="inline-flex items-center gap-1 bg-teal-50 text-teal-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-teal-200 shadow-2xs"
+              >
+                <Sparkles className="w-3 h-3 text-teal-600" />
+                <span>Tình trạng: {CONDITION_LABELS[cond] || cond}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = urlState.conditions.filter((c) => c !== cond);
+                    updateUrlFilters({ conditions: next }, true, false);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label={`Bỏ lọc tình trạng ${CONDITION_LABELS[cond] || cond}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip cách nhận đồ */}
+            {urlState.deliveryMethods.map((meth) => (
+              <span
+                key={meth}
+                className="inline-flex items-center gap-1 bg-indigo-50 text-indigo-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-200 shadow-2xs"
+              >
+                <Truck className="w-3 h-3 text-indigo-600" />
+                <span>Nhận: {DELIVERY_METHOD_LABELS[meth] || meth}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const next = urlState.deliveryMethods.filter((m) => m !== meth);
+                    updateUrlFilters({ deliveryMethods: next }, true, false);
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label={`Bỏ lọc nhận ${DELIVERY_METHOD_LABELS[meth] || meth}`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            ))}
+
+            {/* Chip thời gian đăng */}
+            {urlState.timeRange && urlState.timeRange !== 'all' && (
+              <span className="inline-flex items-center gap-1 bg-purple-50 text-purple-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-purple-200 shadow-2xs">
+                <Clock className="w-3 h-3 text-purple-600" />
+                <span>Đăng: {urlState.timeRange === '24h' ? '24 giờ qua' : '7 ngày qua'}</span>
+                <button
+                  type="button"
+                  onClick={() => updateUrlFilters({ timeRange: 'all' }, true, false)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc thời gian đăng"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip có thể trả giá */}
+            {urlState.isNegotiableOnly && (
+              <span className="inline-flex items-center gap-1 bg-emerald-50 text-emerald-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-emerald-200 shadow-2xs">
+                <HandCoins className="w-3 h-3 text-emerald-600" />
+                <span>Có thể trả giá</span>
+                <button
+                  type="button"
+                  onClick={() => updateUrlFilters({ isNegotiableOnly: false }, true, false)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc trả giá"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Chip chỉ tin có ảnh */}
+            {urlState.hasImagesOnly && (
+              <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 text-xs font-semibold px-2.5 py-1 rounded-full border border-amber-200 shadow-2xs">
+                <Camera className="w-3 h-3 text-amber-600" />
+                <span>Chỉ tin có ảnh</span>
+                <button
+                  type="button"
+                  onClick={() => updateUrlFilters({ hasImagesOnly: false }, true, false)}
+                  className="hover:text-rose-600 cursor-pointer"
+                  aria-label="Bỏ lọc chỉ tin có ảnh"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </span>
+            )}
+
+            {/* Nút Xóa tất cả bộ lọc */}
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={handleResetAllFilters}
+                className="text-xs font-bold text-rose-600 hover:text-rose-700 hover:underline flex items-center gap-1 ml-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Xóa tất cả ({activeFilterCount})</span>
               </button>
             )}
           </div>
         </div>
       </div>
 
+      {marketplaceLoadError && (
+        <div role="alert" className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-800">
+          <span className="flex items-start gap-1.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Không thể tải danh sách chợ đồ cũ: {marketplaceLoadError}</span>
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetryLoad}
+            disabled={isRetryingLoad}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRetryingLoad ? 'animate-spin' : ''}`} />}
+            className="border-rose-300 text-rose-700 hover:bg-rose-100 shrink-0"
+          >
+            {isRetryingLoad ? 'Đang tải lại...' : 'Thử lại'}
+          </Button>
+        </div>
+      )}
+
       {/* Items Grid */}
       {filteredItems.length === 0 ? (
         <EmptyState
           icon="market"
-          title="Chưa có món đồ nào trong danh mục này"
-          description="Hãy thử chọn lại danh mục hoặc đăng thanh lý món đồ đầu tiên của bạn nhé!"
-          actionText="Đăng đồ thanh lý ngay"
-          onAction={handlePostItem}
+          title={viewMode === 'my_items' ? "Bạn chưa có tin đăng thanh lý nào" : "Chưa có món đồ nào phù hợp"}
+          description={viewMode === 'my_items' ? "Hãy đăng món đồ đầu tiên để pass lại cho các bạn sinh viên nhé!" : "Hãy thử thay đổi từ khóa, khoảng giá hoặc bộ lọc danh mục để tìm thấy nhiều đồ hơn nhé!"}
+          actionText={viewMode === 'my_items' ? "Đăng đồ thanh lý ngay" : "Xóa tất cả bộ lọc"}
+          onAction={viewMode === 'my_items' ? handlePostItem : handleResetAllFilters}
+        />
+      ) : isPageOutOfRange ? (
+        <EmptyState
+          icon="search"
+          title={`Không tìm thấy sản phẩm ở trang ${urlState.page}`}
+          description={`Hiện chỉ có ${totalPages} trang cho kết quả lọc này. Vui lòng quay về trang đầu tiên.`}
+          actionText="Về trang 1"
+          onAction={() => handlePageChange(1)}
         />
       ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-5">
-          {filteredItems.map((item) => (
-            <MarketplaceCard key={item.id} item={item} />
-          ))}
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+            {paginatedItems.map((item) => {
+              const isRejected = item.status === 'Bị từ chối' || item.moderationStatus === 'rejected';
+              const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';
+
+              return (
+                <div key={item.id} className="flex flex-col h-full space-y-2">
+                  <div className="flex-1">
+                    <MarketplaceCard item={item} />
+                  </div>
+
+                  {/* Khung hành động kiểm duyệt cho chính người đăng (Tin của tôi) */}
+                  {viewMode === 'my_items' && (
+                    <div className="space-y-1.5 pt-1">
+                      {isRejected && (
+                        <div className="p-3 bg-rose-50 border border-rose-300 rounded-xl space-y-2 text-xs shadow-xs">
+                          <div className="flex items-start gap-1.5 text-rose-900">
+                            <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                            <div>
+                              <p className="font-bold text-rose-900">Admin từ chối duyệt:</p>
+                              <p className="text-rose-700 italic mt-0.5 leading-snug">
+                                "{item.rejectionReason || 'Ảnh mờ hoặc thông tin chưa đạt chuẩn quy định chợ đồ cũ sinh viên.'}"
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResubmitModal(item)}
+                            className="w-full flex items-center justify-center gap-1.5 py-2 px-3 bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-lg transition shadow-xs cursor-pointer text-xs"
+                          >
+                            <Edit3 className="w-3.5 h-3.5" />
+                            <span>Sửa & Gửi Lại Duyệt</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {isPending && (
+                        <div className="p-2.5 bg-amber-50 border border-amber-300 rounded-xl flex items-center justify-between gap-2 text-xs text-amber-900 shadow-xs">
+                          <span className="flex items-center gap-1.5 font-medium">
+                            <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0 animate-pulse" />
+                            Đang chờ Admin duyệt
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenResubmitModal(item)}
+                            className="text-amber-800 font-bold hover:underline flex items-center gap-1 text-[11px] cursor-pointer"
+                          >
+                            <Edit3 className="w-3 h-3" />
+                            Sửa tin
+                          </button>
+                        </div>
+                      )}
+
+                      {getItemAvailability(item) === 'available' && (
+                        <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-[11px] text-emerald-800">
+                          <span className="flex items-center gap-1 font-semibold">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-[#006d37]" />
+                            Đã duyệt • Đang công khai
+                          </span>
+                          <Link
+                            to={`/cho-do-cu/${item.id}`}
+                            className="text-[#006d37] font-bold hover:underline"
+                          >
+                            Xem tin →
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Phân trang */}
+          <div className="pt-2 pb-4">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+            />
+          </div>
         </div>
       )}
 
-      {/* Post Item Modal with Real Cloudinary Image Uploader */}
+      {/* Post Item Modal with Real Cloudinary Image Uploader & Draft/Preview */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -315,12 +1327,49 @@ export const MarketplaceListPage: React.FC = () => {
         maxWidth="lg"
       >
         <form onSubmit={handleFormSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+          {/* Draft Restored Banner */}
+          {hasDraftRestored && (
+            <div className="p-3 bg-emerald-50 rounded-xl border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
+              <span className="flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                Đã tự động nạp dữ liệu nháp của bạn
+              </span>
+              <button
+                type="button"
+                onClick={handleClearMarketDraft}
+                className="text-rose-600 font-bold hover:underline cursor-pointer"
+              >
+                Xóa nháp
+              </button>
+            </div>
+          )}
+
+          {/* Submit Error Banner (Giữ nguyên form) */}
+          {submitError && (
+            <div className="p-3 bg-rose-50 rounded-xl border border-rose-200 flex items-start justify-between text-xs text-rose-800 gap-2">
+              <div className="flex items-start gap-1.5">
+                <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold">Lỗi: {submitError}</p>
+                  <p className="text-[11px] text-rose-600">Toàn bộ thông tin bạn đã nhập đã được giữ nguyên.</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSubmitError(null)}
+                className="text-rose-400 hover:text-rose-600 cursor-pointer"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
+
           <Input
             label="Tên món đồ / Sản phẩm"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Ví dụ: Bàn học gấp gọn sinh viên, Nồi cơm điện..."
+            placeholder="Ví dụ: Bàn học gấp gọn sinh viên, Nồi cơm điện Sharp..."
           />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -356,9 +1405,11 @@ export const MarketplaceListPage: React.FC = () => {
               label="Mức giá bán (VNĐ)"
               type="number"
               required
+              min={0}
+              step={10000}
               value={price}
               onChange={(e) => setPrice(Number(e.target.value))}
-              placeholder="150000"
+              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận / chưa nhập giá)"
             />
           )}
 
@@ -367,14 +1418,12 @@ export const MarketplaceListPage: React.FC = () => {
               <label className="block text-sm font-medium text-gray-700">Tình trạng đồ</label>
               <select
                 value={condition}
-                onChange={(e) => setCondition(e.target.value as any)}
+                onChange={(e) => setCondition(e.target.value as MarketplaceConditionCode)}
                 className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
               >
-                <option value="Mới 99%">Mới 99%</option>
-                <option value="Còn dùng tốt">Còn dùng tốt</option>
-                <option value="Dùng tốt">Dùng tốt</option>
-                <option value="Đã qua sử dụng">Đã qua sử dụng</option>
-                <option value="Tặng miễn phí">Tặng miễn phí</option>
+                <option value="nhu_moi">Như mới</option>
+                <option value="con_tot">Còn tốt</option>
+                <option value="da_cu">Đã cũ</option>
               </select>
             </div>
             <Input
@@ -385,13 +1434,306 @@ export const MarketplaceListPage: React.FC = () => {
             />
           </div>
 
+          {/* Cách nhận đồ */}
+          <div className="space-y-1.5 text-left">
+            <label className="block text-sm font-medium text-gray-700">
+              Cách nhận đồ <span className="text-rose-500 font-bold">*</span> <span className="text-gray-400 font-normal text-xs">(chọn ít nhất 1)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {VALID_DELIVERY_METHODS.map((methodCode) => {
+                const isChecked = deliveryMethods.includes(methodCode);
+                return (
+                  <button
+                    key={methodCode}
+                    type="button"
+                    onClick={() => {
+                      setDeliveryError(null);
+                      if (isChecked) {
+                        setDeliveryMethods(deliveryMethods.filter((m) => m !== methodCode));
+                      } else {
+                        setDeliveryMethods([...deliveryMethods, methodCode]);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      isChecked
+                        ? 'bg-emerald-50 text-[#006d37] border-emerald-300 shadow-xs ring-1 ring-emerald-400/30'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                    <span>{DELIVERY_METHOD_LABELS[methodCode]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {deliveryError && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1 pt-0.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{deliveryError}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Toggle Cho phép trả giá */}
+          {pricingType === 'Giá rẻ' && (
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Cho phép thương lượng / trả giá</p>
+                  <p className="text-[11px] text-gray-500">Người mua có thể nhắn tin thương lượng giá cả</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={isNegotiable}
+                onChange={(e) => setIsNegotiable(e.target.checked)}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+          )}
+
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
             <textarea
-              rows={2}
+              rows={3}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Thông tin chi tiết về sản phẩm, lý do pass..."
+              placeholder="Thông tin chi tiết về sản phẩm, tình trạng, lý do pass..."
+              className="w-full rounded-xl border border-gray-300 p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
+            />
+          </div>
+
+          {/* Cloudinary Image Uploader với sắp xếp ảnh */}
+          <div className="pt-1">
+            <ImageUploader
+              folder="troxinh/marketplace"
+              maxFiles={5}
+              label="Ảnh sản phẩm thực tế"
+              helperText="Tối đa 5 ảnh. Ảnh đầu tiên làm ảnh bìa. Dùng nút mũi tên hoặc kéo thả để đổi thứ tự."
+              onComplete={(urls) => setImages(urls)}
+              existingUrls={images}
+            />
+          </div>
+
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-3 border-t border-gray-100">
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={handleSaveMarketDraft}
+                leftIcon={<Save className="w-3.5 h-3.5" />}
+              >
+                Lưu Nháp
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                type="button"
+                onClick={() => setShowPreviewModal(true)}
+                leftIcon={<Eye className="w-3.5 h-3.5 text-[#006d37]" />}
+                className="text-[#006d37]"
+              >
+                Xem Trước
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+              <Button variant="outline" size="md" type="button" onClick={() => setIsModalOpen(false)}>
+                Hủy
+              </Button>
+              <Button variant="primary" size="md" type="submit" disabled={isSubmitting}>
+                {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Ngay'}
+              </Button>
+            </div>
+          </div>
+        </form>
+      </Modal>
+
+      {/* Preview Item Modal */}
+      <Modal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        title="Xem Trước Thẻ Món Đồ Trên Chợ"
+        maxWidth="md"
+      >
+        <div className="space-y-4 text-center">
+          <p className="text-xs text-gray-500 text-left">
+            Đây là giao diện hiển thị của món đồ trên danh sách Chợ đồ cũ:
+          </p>
+          <div className="max-w-xs mx-auto">
+            <MarketplaceCard item={previewMarketItem} />
+          </div>
+          <div className="flex justify-end pt-3 border-t border-gray-100">
+            <Button variant="primary" size="sm" onClick={() => setShowPreviewModal(false)}>
+              Đóng Xem Trước
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Resubmit Modal (Nhận lý do từ chối và sửa gửi lại) */}
+      <Modal
+        isOpen={resubmitModalOpen}
+        onClose={() => {
+          setResubmitModalOpen(false);
+          setResubmittingItem(null);
+        }}
+        title={`Chỉnh Sửa & Gửi Lại Duyệt: ${resubmittingItem?.name || ''}`}
+        maxWidth="lg"
+      >
+        <form onSubmit={handleResubmitSubmit} className="space-y-4 max-h-[80vh] overflow-y-auto pr-1">
+          {/* Lý do từ chối từ Admin */}
+          {resubmittingItem?.rejectionReason && (
+            <div className="p-3.5 bg-rose-50 rounded-xl border border-rose-300 flex items-start gap-2.5 text-xs text-rose-900 shadow-xs">
+              <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-bold text-rose-900">Lý do từ chối từ ban quản trị:</p>
+                <p className="text-rose-700 italic mt-0.5">"{resubmittingItem.rejectionReason}"</p>
+                <p className="text-[11px] text-rose-600 mt-1 font-medium">
+                  💡 Bạn hãy điều chỉnh thông tin hoặc ảnh sản phẩm theo góp ý trên rồi nhấn nút "Gửi Lại Cho Admin Duyệt".
+                </p>
+              </div>
+            </div>
+          )}
+
+          <Input
+            label="Tên món đồ / Sản phẩm"
+            required
+            value={resubmitTitle}
+            onChange={(e) => setResubmitTitle(e.target.value)}
+            placeholder="Ví dụ: Bàn học gấp gọn sinh viên, Nồi cơm điện Sharp..."
+          />
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Danh mục</label>
+              <select
+                value={resubmitCategory}
+                onChange={(e) => setResubmitCategory(e.target.value as any)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
+              >
+                <option value="Nội thất">Nội thất</option>
+                <option value="Đồ điện tử">Đồ điện tử</option>
+                <option value="Sách vở">Sách vở</option>
+                <option value="Đồ gia dụng">Đồ gia dụng</option>
+              </select>
+            </div>
+
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Hình thức</label>
+              <select
+                value={resubmitPricingType}
+                onChange={(e) => setResubmitPricingType(e.target.value as any)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
+              >
+                <option value="Giá rẻ">Thanh lý có phí (Giá rẻ)</option>
+                <option value="Miễn phí">Tặng miễn phí (0 đồng)</option>
+              </select>
+            </div>
+          </div>
+
+          {resubmitPricingType === 'Giá rẻ' && (
+            <Input
+              label="Mức giá bán (VNĐ)"
+              type="number"
+              required
+              min={0}
+              step={10000}
+              value={resubmitPrice}
+              onChange={(e) => setResubmitPrice(Number(e.target.value))}
+              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận)"
+            />
+          )}
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5 text-left">
+              <label className="block text-sm font-medium text-gray-700">Tình trạng đồ</label>
+              <select
+                value={resubmitCondition}
+                onChange={(e) => setResubmitCondition(e.target.value as MarketplaceConditionCode)}
+                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
+              >
+                <option value="nhu_moi">Như mới</option>
+                <option value="con_tot">Còn tốt</option>
+                <option value="da_cu">Đã cũ</option>
+              </select>
+            </div>
+            <Input
+              label="Địa chỉ lấy đồ"
+              value={resubmitLocation}
+              onChange={(e) => setResubmitLocation(e.target.value)}
+              placeholder="Quận Cầu Giấy, Hà Nội"
+            />
+          </div>
+
+          {/* Cách nhận đồ */}
+          <div className="space-y-1.5 text-left">
+            <label className="block text-sm font-medium text-gray-700">
+              Cách nhận đồ <span className="text-rose-500 font-bold">*</span> <span className="text-gray-400 font-normal text-xs">(chọn ít nhất 1)</span>
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {VALID_DELIVERY_METHODS.map((methodCode) => {
+                const isChecked = resubmitDeliveryMethods.includes(methodCode);
+                return (
+                  <button
+                    key={methodCode}
+                    type="button"
+                    onClick={() => {
+                      setResubmitDeliveryError(null);
+                      if (isChecked) {
+                        setResubmitDeliveryMethods(resubmitDeliveryMethods.filter((m) => m !== methodCode));
+                      } else {
+                        setResubmitDeliveryMethods([...resubmitDeliveryMethods, methodCode]);
+                      }
+                    }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border transition cursor-pointer ${
+                      isChecked
+                        ? 'bg-emerald-50 text-[#006d37] border-emerald-300 shadow-xs ring-1 ring-emerald-400/30'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'
+                    }`}
+                  >
+                    {isChecked && <Check className="w-3.5 h-3.5 stroke-[2.5]" />}
+                    <span>{DELIVERY_METHOD_LABELS[methodCode]}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {resubmitDeliveryError && (
+              <p className="text-xs text-rose-600 font-medium flex items-center gap-1 pt-0.5">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>{resubmitDeliveryError}</span>
+              </p>
+            )}
+          </div>
+
+          {/* Toggle Cho phép trả giá */}
+          {resubmitPricingType === 'Giá rẻ' && (
+            <label className="flex items-center justify-between p-3 rounded-xl bg-gray-50 border border-gray-200 cursor-pointer hover:bg-gray-100 transition">
+              <div className="flex items-center gap-2">
+                <HandCoins className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-800">Cho phép thương lượng / trả giá</p>
+                  <p className="text-[11px] text-gray-500">Người mua có thể nhắn tin thương lượng giá cả</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={resubmitIsNegotiable}
+                onChange={(e) => setResubmitIsNegotiable(e.target.checked)}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+          )}
+
+          <div className="space-y-1.5 text-left">
+            <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>
+            <textarea
+              rows={3}
+              value={resubmitDescription}
+              onChange={(e) => setResubmitDescription(e.target.value)}
+              placeholder="Thông tin chi tiết về sản phẩm, tình trạng, lý do pass..."
               className="w-full rounded-xl border border-gray-300 p-2.5 text-sm focus:ring-2 focus:ring-[#006d37]"
             />
           </div>
@@ -402,18 +1744,32 @@ export const MarketplaceListPage: React.FC = () => {
               folder="troxinh/marketplace"
               maxFiles={5}
               label="Ảnh sản phẩm thực tế"
-              helperText="Tối đa 5 ảnh. Chụp rõ tình trạng thật của đồ"
-              onComplete={(urls) => setImages(urls)}
-              existingUrls={images}
+              helperText="Tối đa 5 ảnh. Hãy chụp rõ ràng ánh sáng tốt để Admin duyệt nhanh chóng."
+              onComplete={(urls) => setResubmitImages(urls)}
+              existingUrls={resubmitImages}
             />
           </div>
 
-          <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
-            <Button variant="outline" size="md" type="button" onClick={() => setIsModalOpen(false)}>
+          <div className="flex items-center justify-end gap-2 pt-3 border-t border-gray-100">
+            <Button
+              variant="outline"
+              size="md"
+              type="button"
+              onClick={() => {
+                setResubmitModalOpen(false);
+                setResubmittingItem(null);
+              }}
+            >
               Hủy
             </Button>
-            <Button variant="primary" size="md" type="submit">
-              Đăng Tin Ngay
+            <Button
+              variant="primary"
+              size="md"
+              type="submit"
+              disabled={isResubmitting}
+              leftIcon={<RefreshCw className={`w-4 h-4 ${isResubmitting ? 'animate-spin' : ''}`} />}
+            >
+              {isResubmitting ? 'Đang Gửi Lại...' : 'Gửi Lại Cho Admin Duyệt'}
             </Button>
           </div>
         </form>

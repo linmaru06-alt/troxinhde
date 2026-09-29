@@ -22,6 +22,7 @@ import {
   Plus,
   Search,
   X,
+  ShieldCheck,
 } from 'lucide-react';
 
 const HANOI_DISTRICTS = [
@@ -44,7 +45,7 @@ export const Navbar: React.FC = () => {
   const location = useLocation();
   const { currentUser, logout, savedRoomIds = [] } = useAppStore();
   const { openAuthModal, openFloatingChat } = useUIStore();
-  const { unreadCount: unreadNotifs } = useRealtimeNotifications();
+  const { unreadCount: unreadNotifs, notifications } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -103,7 +104,9 @@ export const Navbar: React.FC = () => {
     if (khuVuc !== null) setSelectedDistrict(khuVuc);
   }, [location.search]);
 
-  const unreadMessages = 0;
+  const unreadMessages = (notifications || []).filter(
+    (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
+  ).length;
 
   // Main navigation links: Room rental, Map, Roommate, Student Marketplace
   const navLinks = [
@@ -122,7 +125,7 @@ export const Navbar: React.FC = () => {
     if (currentUser?.role === 'owner') {
       navigate('/chu-tro/phong/tao-moi');
     } else {
-      navigate('/nang-cap-chu-tro');
+      navigate('/landlord-registration');
     }
   };
 
@@ -190,17 +193,17 @@ export const Navbar: React.FC = () => {
             </div>
 
             {/* 2. Center: Desktop Main Navigation Tabs */}
-            <nav className="hidden lg:flex items-center gap-6 text-xs font-bold">
+            <nav className="hidden lg:flex items-center gap-3 text-xs font-bold">
               {navLinks.map((link) => {
                 const active = isActive(link.to);
                 return (
                   <Link
                     key={link.to}
                     to={link.to}
-                    className={`py-1 transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black transition shadow-2xs ${
                       active
-                        ? 'text-white border-b-2 border-white font-black'
-                        : 'text-emerald-100/90 hover:text-white font-bold'
+                        ? 'bg-white text-gray-950 shadow-md'
+                        : 'bg-white/90 hover:bg-white text-gray-900/80 hover:text-gray-950'
                     }`}
                   >
                     {link.label}
@@ -279,27 +282,39 @@ export const Navbar: React.FC = () => {
                 <span>ĐĂNG TIN</span>
               </button>
 
+              {/* NÚT QUẢN TRỊ KHI LÀ ADMIN */}
+              {currentUser?.role === 'admin' && (
+                <Link
+                  to="/admin"
+                  className="hidden sm:flex items-center gap-1 px-3.5 py-1.5 rounded-full bg-purple-800 hover:bg-purple-900 text-white text-xs font-black transition shadow-md cursor-pointer"
+                  title="Bảng điều khiển quản trị viên"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5" />
+                  <span>QUẢN TRỊ</span>
+                </Link>
+              )}
+
               {/* Ô Tài Khoản & Dropdown Menu Chợ Tốt */}
               <div className="relative" ref={topDropdownRef}>
                 {currentUser ? (
                   <button
                     onClick={() => setIsTopAvatarOpen(!isTopAvatarOpen)}
-                    className="flex items-center gap-1 p-0.5 rounded-full bg-white hover:ring-2 hover:ring-white transition shadow-2xs cursor-pointer"
+                    className="relative flex items-center justify-center rounded-full hover:ring-2 hover:ring-white/80 transition cursor-pointer shrink-0"
                     aria-expanded={isTopAvatarOpen}
                     title="Tài khoản cá nhân"
                   >
                     <OptimizedImage
                       src={currentUser.avatarUrl}
                       alt={currentUser.name}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-full object-cover ring-1 ring-white/60"
+                      width={36}
+                      height={36}
+                      className="w-9 h-9 rounded-full object-cover shadow-2xs ring-1 ring-white/20"
                     />
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-gray-950 pr-1 transition-transform ${
-                        isTopAvatarOpen ? 'rotate-180' : ''
-                      }`}
-                    />
+                    {currentUser.isDemoAccount && (
+                      <span className="absolute -bottom-1 -right-1 bg-amber-400 text-amber-950 text-[9px] font-black px-1 py-0.5 rounded-md leading-none uppercase tracking-wide ring-1 ring-emerald-600">
+                        DEMO
+                      </span>
+                    )}
                   </button>
                 ) : (
                   <button
@@ -536,22 +551,22 @@ export const Navbar: React.FC = () => {
                 {currentUser ? (
                   <button
                     onClick={() => setIsStickyAvatarOpen(!isStickyAvatarOpen)}
-                    className="flex items-center gap-1 p-0.5 rounded-full hover:ring-2 hover:ring-gray-300 transition shadow-2xs cursor-pointer"
+                    className="relative flex items-center justify-center rounded-full hover:ring-2 hover:ring-gray-300 transition cursor-pointer shrink-0"
                     aria-expanded={isStickyAvatarOpen}
                     title="Tài khoản cá nhân"
                   >
                     <OptimizedImage
                       src={currentUser.avatarUrl}
                       alt={currentUser.name}
-                      width={32}
-                      height={32}
-                      className="w-8 h-8 rounded-full object-cover ring-1 ring-gray-200"
+                      width={36}
+                      height={36}
+                      className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover shadow-2xs ring-1 ring-gray-200"
                     />
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-gray-700 pr-0.5 transition-transform ${
-                        isStickyAvatarOpen ? 'rotate-180' : ''
-                      }`}
-                    />
+                    {currentUser.isDemoAccount && (
+                      <span className="absolute -bottom-1 -right-1 bg-amber-400 text-amber-950 text-[9px] font-black px-1 py-0.5 rounded-md leading-none uppercase tracking-wide ring-1 ring-white">
+                        DEMO
+                      </span>
+                    )}
                   </button>
                 ) : (
                   <button

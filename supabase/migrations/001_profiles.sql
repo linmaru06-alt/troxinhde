@@ -4,6 +4,7 @@
 create table if not exists public.profiles (
   id uuid references auth.users(id) on delete cascade primary key,
   full_name text not null,
+  email text,
   phone text unique,
   avatar_url text,
   role text not null default 'user'
@@ -23,16 +24,18 @@ create table if not exists public.profiles (
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
-  insert into public.profiles (id, full_name, phone, avatar_url, role)
+  insert into public.profiles (id, full_name, email, phone, avatar_url, role)
   values (
     new.id,
     coalesce(new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', 'Người dùng Trọ Xinh'),
+    new.email,
     new.raw_user_meta_data->>'phone',
     coalesce(new.raw_user_meta_data->>'avatar_url', '/images/user-avatar.jpg'),
     coalesce(new.raw_user_meta_data->>'role', 'user')
   )
   on conflict (id) do update set
     full_name = excluded.full_name,
+    email = coalesce(excluded.email, profiles.email),
     phone = coalesce(excluded.phone, profiles.phone),
     updated_at = now();
   return new;

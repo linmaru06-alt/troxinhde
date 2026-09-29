@@ -7,9 +7,12 @@ dist-ssr
 .env.production
 .env.*
 !.env.example
+!.env.local.example
 .vercel
 .stitch-mcp
 .vscode
 .DS_Store
 Thumbs.db
 stats.html
+supabase/.temp/
+.temp/

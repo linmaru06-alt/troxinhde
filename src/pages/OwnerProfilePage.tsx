@@ -21,9 +21,19 @@ export const OwnerProfilePage: React.FC = () => {
               currentUrl={currentUser?.avatarUrl}
               size="lg"
               folder="troxinh/avatars"
-              onComplete={(urls) => {
-                if (urls[0] && currentUser) {
-                  setCurrentUser({ ...currentUser, avatarUrl: urls[0] });
+              onComplete={async (urls) => {
+                if (urls[0] && currentUser && currentUser.id) {
+                  const updatedUser = { ...currentUser, avatarUrl: urls[0] };
+                  setCurrentUser(updatedUser);
+                  
+                  try {
+                    const { updateUserProfile } = await import('../lib/supabaseAuthSync');
+                    await updateUserProfile(currentUser.id, {
+                      avatar_url: urls[0],
+                    });
+                  } catch (err) {
+                    console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);
+                  }
                 }
               }}
             />
@@ -32,10 +42,28 @@ export const OwnerProfilePage: React.FC = () => {
                 <h1 className="text-2xl font-black text-gray-900">{currentUser?.name}</h1>
                 <Badge variant="verified" size="sm">Chủ trọ uy tín 5★</Badge>
               </div>
-              <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
-                <Phone className="w-3.5 h-3.5 text-gray-400" />
-                {currentUser?.phone}
-              </p>
+              <div className="flex flex-col gap-1.5 mt-2">
+                <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
+                  <Phone className="w-3.5 h-3.5 text-gray-400" />
+                  {currentUser?.phone || 'Chưa cập nhật SĐT'}
+                  {currentUser?.phoneVerified && (
+                    <span title="Đã xác minh" className="inline-flex">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                    </span>
+                  )}
+                </p>
+                {currentUser?.email && (
+                  <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
+                    <Mail className="w-3.5 h-3.5 text-gray-400" />
+                    {currentUser.email}
+                    {currentUser.emailVerified && (
+                      <span title="Đã xác minh" className="inline-flex">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                      </span>
+                    )}
+                  </p>
+                )}
+              </div>
               <p className="text-xs text-gray-500">{currentUser?.bio}</p>
             </div>
 

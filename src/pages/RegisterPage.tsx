@@ -95,11 +95,13 @@ export const RegisterPage: React.FC = () => {
         return;
       }
 
-      // Đăng ký thành công -> cập nhật trạng thái user và chuyển hướng an toàn
+      // Đăng ký thành công -> cập nhật trạng thái user và chuyển hướng về trang chủ
       setCurrentUser(regRes.user as any);
       showToast('Đăng ký tài khoản thành công! 🎉', `Chào mừng ${regRes.user.name} đến với Trọ Xinh.`, 'success');
       setIsLoading(false);
-      navigate(returnUrl || (roleParam === 'owner' ? '/chu-tro' : '/'));
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
+      }
     } catch (err: any) {
       setIsLoading(false);
       setError(err?.message || 'Đã có lỗi xảy ra khi tạo tài khoản. Vui lòng thử lại!');
@@ -154,21 +156,19 @@ export const RegisterPage: React.FC = () => {
     if (res.success && res.user) {
       loginWithSocialUser({
         id: res.user.id,
+        firebaseUid: res.user.firebaseUid,
         name: res.user.name,
         email: res.user.email,
         phone: res.user.phone,
         role: res.user.role,
         avatarUrl: res.user.avatarUrl,
+        isDemoAccount: Boolean(res.user.isDemoAccount),
       });
 
       showToast('Đăng ký Google thành công! 🎉', `Chào mừng ${res.user.name}`, 'success');
 
-      if (returnUrl) {
-        navigate(decodeURIComponent(returnUrl));
-      } else if (res.user.role === 'owner') {
-        navigate('/chu-tro');
-      } else {
-        navigate('/tim-phong');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
       }
     } else {
       setError(res.error || 'Không thể đăng ký bằng Google.');
@@ -186,21 +186,19 @@ export const RegisterPage: React.FC = () => {
     if (res.success && res.user) {
       loginWithSocialUser({
         id: res.user.id,
+        firebaseUid: res.user.firebaseUid,
         name: res.user.name,
         email: res.user.email,
         phone: res.user.phone,
         role: res.user.role,
         avatarUrl: res.user.avatarUrl,
+        isDemoAccount: Boolean(res.user.isDemoAccount),
       });
 
       showToast(`Kích hoạt tài khoản ${demoType.toUpperCase()} Demo thành công! ✨`, `Chào mừng ${res.user.name}`, 'success');
 
-      if (returnUrl) {
-        navigate(decodeURIComponent(returnUrl));
-      } else if (res.user.role === 'owner') {
-        navigate('/chu-tro');
-      } else {
-        navigate('/tim-phong');
+      if (typeof window !== 'undefined') {
+        window.location.href = '/';
       }
     }
   };

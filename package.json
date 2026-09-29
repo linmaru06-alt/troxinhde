@@ -7,16 +7,20 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
+    "lint": "tsc --noEmit",
+    "test": "node scripts/test-find-or-create-conversation.mjs && node scripts/test-report-rules.mjs && node scripts/test-user-blocks-and-hidden-items.mjs && node scripts/test-admin-reports.mjs && node scripts/test-marketplace-status.mjs && node scripts/test-chat-inbox-system.mjs && node scripts/test-auto-approve-listings.mjs",
+    "test:listings": "node scripts/test-auto-approve-listings.mjs",
+    "test:chat": "node scripts/test-chat-inbox-system.mjs",
+    "test:reports": "node scripts/test-report-rules.mjs",
+    "test:marketplace": "node scripts/test-marketplace-status.mjs",
     "test:all": "node scripts/run-all-tests.mjs",
     "test:auth": "node scripts/test-unified-auth.mjs",
     "test:momo": "node scripts/test-momo-integration.mjs",
     "sync": "git add -A && git commit -m \"sync: automatic update\" && git push origin main",
+    "prepare": "git config core.hooksPath .githooks || exit 0",
     "stitch:doctor": "node -e \"import('./scripts/fetch-info.mjs')\""
   },
   "dependencies": {
-    "@cloudinary/react": "^1.14.4",
-    "@cloudinary/url-gen": "^1.22.0",
-    "@sentry/react": "^10.70.0",
     "@supabase/supabase-js": "^2.112.3",
     "@tailwindcss/forms": "^0.5.10",
     "@tanstack/react-query": "^5.102.0",
@@ -29,7 +33,6 @@
     "autoprefixer": "^10.4.20",
     "axios": "^1.19.0",
     "clsx": "^2.1.1",
-    "crypto-js": "^4.2.0",
     "firebase": "^12.18.0",
     "framer-motion": "^12.4.7",
     "html2canvas": "^1.4.1",
@@ -42,7 +45,7 @@
     "react-helmet-async": "^3.0.0",
     "react-leaflet": "^4.2.1",
     "react-router-dom": "^6.28.0",
-    "rollup-plugin-visualizer": "^7.1.1",
+    "recharts": "^2.15.4",
     "tailwind-merge": "^2.6.0",
     "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2",
@@ -54,7 +57,7 @@
     "node": ">=18.0.0"
   },
   "devDependencies": {
-    "@types/crypto-js": "^4.2.2",
+    "rollup-plugin-visualizer": "^7.1.1",
     "sharp": "^0.35.3"
   }
 }

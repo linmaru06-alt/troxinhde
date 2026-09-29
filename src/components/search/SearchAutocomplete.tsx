@@ -49,7 +49,8 @@ export const HANOI_LANDMARKS_SUGGEST = [
 ];
 
 // Helper to remove Vietnamese tones for fuzzy searching
-function removeVietnameseTones(str: string): string {
+function removeVietnameseTones(str: string | null | undefined): string {
+  if (!str || typeof str !== 'string') return '';
   return str
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
@@ -102,7 +103,12 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   useOutsideClick(containerRef, () => setIsOpen(false), isOpen);
 
-  // Debounce 300ms
+  // Sync internal state when initialValue changes (Back/Forward, reload, chip removals)
+  useEffect(() => {
+    setInputValue(initialValue || '');
+  }, [initialValue]);
+
+  // Debounce 200ms
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedQuery(inputValue.trim());
@@ -141,17 +147,18 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
     suggestions.universities.length + suggestions.districts.length + suggestions.landmarks.length;
 
   const handleSelect = (text: string, type: 'university' | 'district' | 'landmark', districtFilter?: string) => {
-    setInputValue(text);
+    const cleanText = text.replace(/^Gần\s+/i, '').trim();
+    setInputValue(cleanText);
     setIsOpen(false);
     if (onSelect) {
-      onSelect(text, type);
+      onSelect(cleanText, type);
     } else {
       if (type === 'district') {
-        navigate(`/tim-kiem?khuVuc=${encodeURIComponent(text)}`);
+        navigate(`/tim-kiem?khuVuc=${encodeURIComponent(cleanText)}`);
       } else if (type === 'university') {
-        navigate(`/tim-kiem?truong=${encodeURIComponent(text)}&q=${encodeURIComponent(text)}`);
+        navigate(`/tim-kiem?truong=${encodeURIComponent(cleanText)}`);
       } else {
-        navigate(`/tim-kiem?q=${encodeURIComponent(text)}`);
+        navigate(`/tim-kiem?q=${encodeURIComponent(cleanText)}`);
       }
     }
   };
@@ -160,11 +167,26 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
     if (e.key === 'Enter') {
       e.preventDefault();
       setIsOpen(false);
-      if (inputValue.trim()) {
-        navigate(`/tim-kiem?q=${encodeURIComponent(inputValue.trim())}`);
+      const query = inputValue.trim();
+      if (onSelect) {
+        onSelect(query, 'landmark');
+      } else {
+        if (query) {
+          navigate(`/tim-kiem?q=${encodeURIComponent(query)}`);
+        } else {
+          navigate('/tim-kiem');
+        }
       }
     } else if (e.key === 'Escape') {
       setIsOpen(false);
+    }
+  };
+
+  const handleClear = () => {
+    setInputValue('');
+    setIsOpen(false);
+    if (onSelect) {
+      onSelect('', 'landmark');
     }
   };
 
@@ -192,10 +214,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
         {inputValue && (
           <button
             type="button"
-            onClick={() => {
-              setInputValue('');
-              setIsOpen(false);
-            }}
+            onClick={handleClear}
             className="absolute right-3 p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition"
           >
             <X className="w-3.5 h-3.5" />

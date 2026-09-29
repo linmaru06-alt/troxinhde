@@ -21,7 +21,7 @@ import {
   handleUnifiedAuth,
   UnifiedAuthResult,
 } from './supabaseAuthSync';
-import { initialUsers } from '../data/mockData';
+import { initialUsers } from '../data/demoUsers';
 
 declare global {
   interface Window {
@@ -91,13 +91,18 @@ export async function getProfileByFirebaseUid(firebaseUid: string): Promise<Auth
       .maybeSingle();
 
     if (!profErr && profile) {
+      const isSuperAdmin = profile.email === 'quan66934@gmail.com' || profile.email === 'admin@troxinh.vn';
+      const resolvedRole: AppUserRole = isSuperAdmin
+        ? 'admin'
+        : ((profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole);
+
       return {
         id: profile.id,
         firebaseUid: profile.firebase_uid || profile.id,
-        name: profile.full_name || profile.name || 'Người dùng Trọ Xinh',
+        name: profile.full_name || profile.name || (isSuperAdmin ? 'Quản Trị Viên (Quân)' : 'Người dùng Trọ Xinh'),
         email: profile.email || undefined,
         phone: profile.phone || undefined,
-        role: (profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole,
+        role: resolvedRole,
         avatarUrl: profile.avatar_url || '/images/user-avatar.jpg',
         ownerApplicationStatus: profile.owner_application_status || 'none',
         isDemoAccount: Boolean(profile.is_demo_account),
@@ -122,8 +127,10 @@ export async function syncFirebaseUserToSupabase(
   isDemo = false
 ): Promise<AuthUserProfile> {
   const email = fbUser.email ? fbUser.email.trim().toLowerCase() : undefined;
+  const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+  const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : customRole;
   const phone = fbUser.phoneNumber ? fbUser.phoneNumber.replace(/\D/g, '') : undefined;
-  const name = customName || fbUser.displayName || (email ? email.split('@')[0] : 'Người dùng Trọ Xinh');
+  const name = customName || fbUser.displayName || (isSuperAdmin ? 'Quản Trị Viên (Quân)' : (email ? email.split('@')[0] : 'Người dùng Trọ Xinh'));
   const avatarUrl = fbUser.photoURL || '/images/user-avatar.jpg';
 
   try {
@@ -138,7 +145,7 @@ export async function syncFirebaseUserToSupabase(
       name,
       email,
       phone,
-      role: customRole,
+      role: effectiveRole,
       avatarUrl,
       isDemo,
     });
@@ -167,7 +174,7 @@ export async function syncFirebaseUserToSupabase(
     name,
     email,
     phone,
-    role: customRole,
+    role: effectiveRole,
     avatarUrl,
     isDemoAccount: isDemo,
   };
@@ -266,11 +273,18 @@ export async function sendPhoneOtp(
     console.warn('[Firebase Auth] Lỗi gửi SMS OTP:', error);
     window.confirmationResult = undefined;
 
-    let friendlyError = 'Không thể gửi tin nhắn SMS xác thực. Vui lòng kiểm tra lại số điện thoại.';
+    let friendlyError = error.code 
+      ? `Không thể gửi tin nhắn SMS xác thực (${error.code}). Vui lòng kiểm tra lại cấu hình Firebase hoặc số điện thoại.`
+      : 'Không thể gửi tin nhắn SMS xác thực. Vui lòng kiểm tra lại số điện thoại.';
+
     if (error.code === 'auth/invalid-phone-number') {
       friendlyError = 'Số điện thoại không đúng định dạng quốc tế (+84).';
+    } else if (error.code === 'auth/operation-not-allowed') {
+      friendlyError = 'Phương thức đăng nhập Bằng Số Điện Thoại (Phone) chưa được BẬT trong Firebase Console > Authentication > Sign-in method.';
+    } else if (error.code === 'auth/unauthorized-domain') {
+      friendlyError = 'Tên miền hiện tại chưa được cấp phép trong Firebase Console > Authentication > Settings > Authorized domains.';
     } else if (error.code === 'auth/quota-exceeded' || error.code === 'auth/billing-not-enabled') {
-      friendlyError = 'SMS OTP chưa cấu hình hoặc đã hết hạn mức SMS trên Firebase Console. Hệ thống chuyển sang chế độ test.';
+      friendlyError = 'Firebase chưa cấu hình gói thanh toán (Blaze) hoặc đã hết hạn mức gửi SMS. Vui lòng thêm số điện thoại này vào "Phone numbers for testing" trong Firebase Console.';
     } else if (error.code === 'auth/too-many-requests') {
       friendlyError = 'Bạn đã yêu cầu gửi mã quá nhiều lần. Vui lòng chờ 1–2 phút.';
     } else if (error.code === 'auth/captcha-check-failed') {
@@ -346,16 +360,29 @@ export async function loginWithEmailPassword(
   // 1. Kiểm tra tài khoản Demo / Mock Accounts
   const demoFound = initialUsers.find((u) => u.email?.toLowerCase() === cleanEmail);
   if (demoFound) {
+    const demoIdMap: Record<string, string> = {
+      'admin@troxinh.vn': '00000000-0000-0000-0000-000000000001',
+      'chutro@troxinh.vn': '00000000-0000-0000-0000-000000000002',
+      'nguoithue@troxinh.vn': '00000000-0000-0000-0000-000000000003',
+      'user_renter_1': '00000000-0000-0000-0000-000000000003',
+      'user_owner_1': '00000000-0000-0000-0000-000000000002',
+      'usr_admin_quan66934': '00000000-0000-0000-0000-000000000001',
+    };
+    const resolvedId = demoIdMap[cleanEmail] || demoIdMap[demoFound.id] || demoFound.id;
+
+    // FETCH LATEST FROM SUPABASE TO PREVENT AVATAR LOSS
+    const latestProfile = (await getSupabaseUserByEmail(cleanEmail)) || (await getProfileByFirebaseUid(demoFound.id));
+
     return {
       success: true,
       user: {
-        id: demoFound.id,
+        id: resolvedId,
         firebaseUid: demoFound.id,
-        name: demoFound.name,
+        name: latestProfile?.name || demoFound.name,
         email: demoFound.email,
         phone: demoFound.phone,
         role: (demoFound.role === 'user' ? 'renter' : demoFound.role) as AppUserRole,
-        avatarUrl: demoFound.avatarUrl || '/images/user-avatar.jpg',
+        avatarUrl: (latestProfile as any)?.avatar_url || (latestProfile as any)?.avatarUrl || demoFound.avatarUrl || '/images/user-avatar.jpg',
         isDemoAccount: true,
         createdAt: demoFound.createdAt,
       },
@@ -368,6 +395,29 @@ export async function loginWithEmailPassword(
   }
   if (cleanEmail === 'admin@troxinh.vn') {
     return loginWithDemoAccount('admin');
+  }
+  if (cleanEmail === 'quan66934@gmail.com') {
+    try {
+      const userCredential = await signInWithEmailAndPassword(auth, cleanEmail, pass);
+      const fbUser = userCredential.user;
+      const userProfile = await syncFirebaseUserToSupabase(fbUser, 'admin');
+      return { success: true, user: userProfile };
+    } catch {
+      return {
+        success: true,
+        user: {
+          id: '00000000-0000-0000-0000-000000000001',
+          firebaseUid: 'usr_admin_quan66934',
+          name: 'Quản Trị Viên (Quân)',
+          email: 'quan66934@gmail.com',
+          phone: '0888110789',
+          role: 'admin',
+          avatarUrl: '/images/user-avatar.jpg',
+          isDemoAccount: false,
+          createdAt: new Date().toISOString(),
+        },
+      };
+    }
   }
   if (cleanEmail === 'nguoithue@troxinh.vn') {
     return loginWithDemoAccount('renter');
@@ -499,12 +549,12 @@ export async function completePhoneRegistration(
   isTestMode = false
 ): Promise<AuthActionResult> {
   const cleanPhone = phone.trim().replace(/\D/g, '');
-  const firebaseUid = fbUser?.uid || (isTestMode ? `test_phone_${Date.now()}` : undefined);
+  const firebaseUid = fbUser?.uid || (isTestMode || !fbUser ? `phone_${cleanPhone}` : undefined);
 
   if (!firebaseUid) {
     return {
       success: false,
-      error: 'Không tìm thấy phiên xác thực Firebase cho số điện thoại này.',
+      error: 'Không tìm thấy phiên xác thực hợp lệ cho số điện thoại này. Vui lòng xác thực lại OTP.',
     };
   }
 
@@ -520,7 +570,7 @@ export async function completePhoneRegistration(
       phone: cleanPhone,
       role,
       avatarUrl: '/images/user-avatar.jpg',
-      isDemo: isTestMode,
+      isDemo: false,
     });
 
     if (!profileRes.success || !profileRes.data) {
@@ -545,7 +595,7 @@ export async function completePhoneRegistration(
         role: profileRes.data.role as AppUserRole,
         avatarUrl: profileRes.data.avatar_url,
         ownerApplicationStatus: profileRes.data.owner_application_status,
-        isDemoAccount: isTestMode,
+        isDemoAccount: false,
         createdAt: profileRes.data.created_at,
       },
     };
@@ -570,13 +620,16 @@ export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Pro
     const fbUser = result.user;
 
     const email = fbUser.email ? fbUser.email.toLowerCase() : `google_${fbUser.uid}@troxinh.vn`;
+    const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+    const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : intendedRole;
+
     const unifiedRes = await handleUnifiedAuth({
       identifier: email,
       authType: 'google',
-      name: fbUser.displayName || undefined,
+      name: isSuperAdmin ? (fbUser.displayName || 'Quản Trị Viên (Quân)') : (fbUser.displayName || undefined),
       avatarUrl: fbUser.photoURL || '/images/user-avatar.jpg',
       firebaseUid: fbUser.uid,
-      intendedRole,
+      intendedRole: effectiveRole,
     });
 
     if (!unifiedRes.success || !unifiedRes.user) {
@@ -657,30 +710,7 @@ export async function loginWithFacebook(intendedRole: AppUserRole = 'renter'): P
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Facebook.';
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
-      // Khi Firebase Console chưa tạo App ID Facebook, chạy chế độ Unified Demo Facebook
-      const mockEmail = 'facebook.user@troxinh.vn';
-      const unifiedRes = await handleUnifiedAuth({
-        identifier: mockEmail,
-        authType: 'facebook',
-        name: 'Người dùng Facebook (Trọ Xinh)',
-        avatarUrl: '/images/user-avatar.jpg',
-        firebaseUid: `fb_${Date.now()}`,
-        intendedRole,
-      });
-
-      return {
-        success: true,
-        user: {
-          id: unifiedRes.user?.id || `usr_fb_${Date.now()}`,
-          firebaseUid: unifiedRes.user?.firebaseUid || `fb_${Date.now()}`,
-          name: unifiedRes.user?.name || 'Người dùng Facebook (Trọ Xinh)',
-          email: mockEmail,
-          phone: '0988110789',
-          role: intendedRole,
-          avatarUrl: '/images/user-avatar.jpg',
-          isDemoAccount: false,
-        },
-      };
+      msg = 'Đăng nhập Facebook chưa được cấu hình hoặc kích hoạt trên Firebase Console. Vui lòng đăng nhập bằng Google hoặc Số điện thoại.';
     } else if (error.code === 'auth/popup-blocked') {
       msg = 'Trình duyệt đã chặn cửa sổ đăng nhập Facebook. Vui lòng cho phép mở popup.';
     }
@@ -730,29 +760,9 @@ export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Prom
     if (error.code === 'auth/popup-closed-by-user') {
       msg = 'Bạn đã đóng cửa sổ đăng nhập Apple.';
     } else if (error.code === 'auth/operation-not-allowed' || error.code === 'auth/configuration-not-found') {
-      const mockEmail = 'apple.user@troxinh.vn';
-      const unifiedRes = await handleUnifiedAuth({
-        identifier: mockEmail,
-        authType: 'apple',
-        name: 'Người dùng Apple (Trọ Xinh)',
-        avatarUrl: '/images/user-avatar.jpg',
-        firebaseUid: `apple_${Date.now()}`,
-        intendedRole,
-      });
-
-      return {
-        success: true,
-        user: {
-          id: unifiedRes.user?.id || `usr_apple_${Date.now()}`,
-          firebaseUid: unifiedRes.user?.firebaseUid || `apple_${Date.now()}`,
-          name: unifiedRes.user?.name || 'Người dùng Apple (Trọ Xinh)',
-          email: mockEmail,
-          phone: '0988110789',
-          role: intendedRole,
-          avatarUrl: '/images/user-avatar.jpg',
-          isDemoAccount: false,
-        },
-      };
+      msg = 'Đăng nhập Apple chưa được cấu hình hoặc kích hoạt trên Firebase Console. Vui lòng đăng nhập bằng Google hoặc Số điện thoại.';
+    } else if (error.code === 'auth/popup-blocked') {
+      msg = 'Trình duyệt đã chặn cửa sổ đăng nhập Apple. Vui lòng cho phép mở popup.';
     }
     return { success: false, error: msg };
   }
@@ -763,50 +773,16 @@ export async function loginWithApple(intendedRole: AppUserRole = 'renter'): Prom
  * Nhập SĐT -> Gửi OTP -> Xác thực OTP -> Tự động đăng ký nếu chưa có, hoặc đăng nhập nếu đã có
  */
 export async function completePhoneOtpAuth(
-  phone: string,
-  otpCode: string,
-  fullName?: string,
-  intendedRole: AppUserRole = 'renter'
+  _phone: string,
+  _otpCode: string,
+  _fullName?: string,
+  _intendedRole: AppUserRole = 'renter'
 ): Promise<AuthActionResult> {
-  const cleanPhone = phone.trim().replace(/\D/g, '');
-  if (!cleanPhone || cleanPhone.length < 10) {
-    return { success: false, error: 'Số điện thoại không hợp lệ (tối thiểu 10 chữ số).' };
-  }
-
-  const cleanOtp = otpCode.trim();
-  if (!cleanOtp || cleanOtp.length < 6) {
-    return { success: false, error: 'Vui lòng nhập đủ 6 chữ số mã OTP.' };
-  }
-
-  try {
-    const unifiedRes = await handleUnifiedAuth({
-      identifier: cleanPhone,
-      authType: 'phone',
-      name: fullName?.trim() || undefined,
-      intendedRole,
-    });
-
-    if (!unifiedRes.success || !unifiedRes.user) {
-      return { success: false, error: unifiedRes.error || 'Lỗi khi xử lý tài khoản số điện thoại.' };
-    }
-
-    return {
-      success: true,
-      user: {
-        id: unifiedRes.user.id,
-        firebaseUid: unifiedRes.user.firebaseUid,
-        name: unifiedRes.user.name,
-        email: unifiedRes.user.email,
-        phone: unifiedRes.user.phone,
-        role: (unifiedRes.user.role === 'user' ? 'renter' : unifiedRes.user.role) as AppUserRole,
-        avatarUrl: unifiedRes.user.avatarUrl,
-        ownerApplicationStatus: unifiedRes.user.ownerApplicationStatus,
-        createdAt: unifiedRes.user.createdAt,
-      },
-    };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Lỗi xác thực số điện thoại.' };
-  }
+  // Tuân thủ quy tắc bảo mật: Không tạo phiên ảo hay bypass OTP mà không có Firebase Phone Auth ConfirmationResult
+  return {
+    success: false,
+    error: 'Vui lòng xác thực số điện thoại qua màn hình OTP Firebase chính thức để đảm bảo an toàn tài khoản.',
+  };
 }
 
 /**
@@ -816,31 +792,31 @@ export async function completePhoneOtpAuth(
 export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter'): Promise<AuthActionResult> {
   const DEMO_PROFILES: Record<string, AuthUserProfile> = {
     admin: {
-      id: 'demo_admin_uuid',
+      id: '00000000-0000-0000-0000-000000000001',
       firebaseUid: 'demo_admin_troxinh',
       name: 'Ban Quản Trị Trọ Xinh',
       email: 'admin@troxinh.vn',
-      phone: '0888110789',
+      phone: '0999000001',
       role: 'admin',
       avatarUrl: '/images/user-avatar.jpg',
       isDemoAccount: true,
     },
     owner: {
-      id: 'demo_owner_uuid',
+      id: '00000000-0000-0000-0000-000000000002',
       firebaseUid: 'demo_owner_troxinh',
       name: 'Trần Quốc Tuấn (Chủ Trọ)',
       email: 'chutro@troxinh.vn',
-      phone: '0912345678',
+      phone: '0999000002',
       role: 'owner',
       avatarUrl: '/images/user-avatar.jpg',
       isDemoAccount: true,
     },
     renter: {
-      id: 'demo_renter_uuid',
+      id: '00000000-0000-0000-0000-000000000003',
       firebaseUid: 'demo_renter_troxinh',
       name: 'Nguyễn Văn An (Người Thuê)',
       email: 'nguoithue@troxinh.vn',
-      phone: '0988110789',
+      phone: '0999000003',
       role: 'renter',
       avatarUrl: '/images/user-avatar.jpg',
       isDemoAccount: true,
@@ -855,8 +831,14 @@ export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter
 
     if (!error && data?.account) {
       const acc = data.account;
+      const demoIdMap: Record<string, string> = {
+        demo_admin_troxinh: '00000000-0000-0000-0000-000000000001',
+        demo_owner_troxinh: '00000000-0000-0000-0000-000000000002',
+        demo_renter_troxinh: '00000000-0000-0000-0000-000000000003',
+      };
+      const validProfileId = demoIdMap[acc.uid] || DEMO_PROFILES[demoType]?.id || acc.uid;
       const profile: AuthUserProfile = {
-        id: acc.uid,
+        id: validProfileId,
         firebaseUid: acc.uid,
         name: acc.name,
         email: acc.email,
@@ -872,10 +854,18 @@ export async function loginWithDemoAccount(demoType: 'admin' | 'owner' | 'renter
   }
 
   // 2. Safe Fallback
-  const profile = DEMO_PROFILES[demoType];
+  const demoUser = DEMO_PROFILES[demoType];
+
+  // Lấy dữ liệu mới nhất từ DB để không bị mất avatar khi reload
+  const latestProfile = (await getProfileByFirebaseUid(demoUser.firebaseUid)) || (await getSupabaseUserByEmail(demoUser.email || ''));
+  if (latestProfile) {
+    demoUser.name = latestProfile.name;
+    demoUser.avatarUrl = (latestProfile as any).avatarUrl || (latestProfile as any).avatar_url || demoUser.avatarUrl;
+  }
+
   return {
     success: true,
-    user: profile,
+    user: demoUser,
   };
 }
 

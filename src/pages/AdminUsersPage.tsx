@@ -79,7 +79,7 @@ export const AdminUsersPage: React.FC = () => {
 
   // Hàm che số điện thoại: 0912345678 -> 091****678
   const maskPhone = (phone?: string) => {
-    if (!phone || phone.length < 7) return phone || '—';
+    if (!phone || typeof phone !== 'string' || phone.length < 7) return phone || '—';
     return `${phone.slice(0, 3)}****${phone.slice(-3)}`;
   };
 
@@ -112,6 +112,9 @@ export const AdminUsersPage: React.FC = () => {
       onConfirm: async (reason: string) => {
         try {
           await banUserApi(user.id, reason, 30, currentUser);
+          useAppStore.setState((state) => ({
+            roommates: state.roommates.filter((r) => r.userId !== user.id),
+          }));
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast(`Đã khóa tài khoản ${user.name}`, 'warning');
           fetchUsersList();
@@ -125,7 +128,7 @@ export const AdminUsersPage: React.FC = () => {
   // Mở khóa tài khoản
   const handleUnbanUser = async (user: User) => {
     try {
-      await unbanUserApi(user.id, currentUser);
+      await unbanUserApi(user.id, 'Quản trị viên mở khóa tài khoản', currentUser);
       showToast(`Đã mở khóa tài khoản ${user.name}!`, 'success');
       fetchUsersList();
     } catch (err: any) {
@@ -162,10 +165,10 @@ export const AdminUsersPage: React.FC = () => {
 
     if (
       search &&
-      !u.name.toLowerCase().includes(search.toLowerCase()) &&
+      !(u.name || '').toLowerCase().includes(search.toLowerCase()) &&
       !(u.phone || '').includes(search) &&
       !(u.email || '').toLowerCase().includes(search.toLowerCase()) &&
-      !u.id.toLowerCase().includes(search.toLowerCase())
+      !(u.id || '').toLowerCase().includes(search.toLowerCase())
     ) {
       return false;
     }
@@ -183,9 +186,7 @@ export const AdminUsersPage: React.FC = () => {
               <Users className="w-7 h-7 text-[#006d37]" />
               Quản Lý Người Dùng & Phân Quyền
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Tra cứu hồ sơ, phân quyền đối tác chủ trọ, xử lý khóa tài khoản vi phạm qua Supabase thật.
-            </p>
+
           </div>
 
           <Button

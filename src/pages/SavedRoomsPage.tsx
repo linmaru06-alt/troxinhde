@@ -39,9 +39,29 @@ export const SavedRoomsPage: React.FC = () => {
         />
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-          {savedRooms.map((room: Room) => (
-            <RoomCard key={room.id} room={room} />
-          ))}
+          {savedRooms.map((room: Room) => {
+            const isUnavailable = room.status === 'Đã cho thuê' || room.status === 'Đã ẩn' || room.status === 'Chờ duyệt';
+            return (
+              <div key={room.id} className="relative group">
+                <div className={isUnavailable ? 'opacity-60 pointer-events-none' : ''}>
+                  <RoomCard room={room} />
+                </div>
+                {isUnavailable && (
+                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center p-4 text-center rounded-3xl bg-white/40 backdrop-blur-[2px]">
+                    <span className="bg-rose-100 text-rose-700 px-4 py-1.5 rounded-full text-xs font-bold mb-3 shadow-sm border border-rose-200">
+                      Phòng đã ngừng hiển thị
+                    </span>
+                    <button
+                      onClick={() => useAppStore.getState().toggleSaveRoom(room.id)}
+                      className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 px-4 py-2 rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                    >
+                      Bỏ lưu phòng này
+                    </button>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

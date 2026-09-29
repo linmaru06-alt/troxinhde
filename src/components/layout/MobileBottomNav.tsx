@@ -27,7 +27,9 @@ export const MobileBottomNav: React.FC = () => {
   const location = useLocation();
 
   const unreadNotifs = (notifications || []).filter((n) => !n.read).length;
-  const unreadMessages = 0;
+  const unreadMessages = (notifications || []).filter(
+    (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
+  ).length;
 
   // Hidden on specific fullscreen auth pages
   if (['/dang-nhap', '/dang-ky', '/quen-mat-khau', '/xac-thuc-otp'].includes(location.pathname)) {

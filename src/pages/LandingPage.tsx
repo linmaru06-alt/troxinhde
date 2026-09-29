@@ -43,12 +43,19 @@ export const LandingPage: React.FC = () => {
     const params = new URLSearchParams();
     if (searchQuery.trim()) params.set('q', searchQuery.trim());
     if (selectedDistrict) params.set('khuVuc', selectedDistrict);
-    navigate(`/tim-phong?${params.toString()}`);
+    navigate(`/tim-kiem?${params.toString()}`);
   };
 
   const verifiedRooms = (displayRooms || []).filter((r: any) => r.verified && (r.status === 'Còn trống' || r.availability_status === 'available')).slice(0, 6);
   const featuredRoommates = (roommates || []).slice(0, 3);
-  const featuredMarketplace = (marketplaceItems || []).slice(0, 4);
+  const approvedMarketplaceItems = (marketplaceItems || []).filter(
+    (item) =>
+      item.status !== 'Chờ duyệt' &&
+      item.moderationStatus !== 'pending' &&
+      item.status !== 'Bị từ chối' &&
+      item.moderationStatus !== 'rejected'
+  );
+  const featuredMarketplace = approvedMarketplaceItems.slice(0, 4);
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-16 bg-[#f8f9fa]">
@@ -58,30 +65,23 @@ export const LandingPage: React.FC = () => {
         url="/"
       />
 
-      {/* 1. COMPACT BRIGHT GREEN HERO BANNER */}
-      <section
-        className="relative pt-4 pb-8 sm:pt-5 sm:pb-9 md:pt-6 md:pb-10 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/30"
-        style={{
-          background: 'radial-gradient(ellipse 85% 85% at 50% 45%, #fff9a6 0%, #a7f3d0 38%, #34d399 70%, #10b981 100%)',
-        }}
-      >
+      {/* 1. HERO BANNER WITH CUSTOM ILLUSTRATION BACKGROUND */}
+      <section className="relative pt-6 pb-12 sm:pt-8 sm:pb-16 md:pt-10 md:pb-20 px-4 sm:px-6 lg:px-8 border-b border-emerald-400/20 bg-[#e6f4ea] bg-[url('/hero-bg.png')] bg-cover bg-center bg-no-repeat overflow-visible">
+        {/* Background Image Container */}
+        <div className="absolute inset-0 overflow-hidden -z-10 pointer-events-none">
+          <img
+            src="/hero-bg.png"
+            alt="Trọ Xinh Hero Background"
+            className="w-full h-full object-cover object-center"
+            loading="eager"
+          />
+        </div>
+
         <div className="max-w-6xl mx-auto text-center relative z-10">
-          {/* Slogan Banner with 3D Icons & Black Bold Text */}
+          {/* Slogan Banner with Bold Text */}
           <div className="relative max-w-2xl mx-auto py-1">
-            {/* Left Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -left-10 top-0 text-2xl animate-bounce duration-1000 select-none pointer-events-none opacity-90">
-              <span>🏠</span>
-              <span className="text-base">🛋️</span>
-            </div>
-
-            {/* Right Decorative Floating Badges */}
-            <div className="hidden md:flex flex-col items-center absolute -right-10 top-0 text-2xl animate-bounce duration-700 select-none pointer-events-none opacity-90">
-              <span>🛵</span>
-              <span className="text-base">🎓</span>
-            </div>
-
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-3xl font-black text-gray-950 tracking-tight leading-snug drop-shadow-xs">
-              Phòng thật, giá chuẩn
+            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-black text-gray-950 tracking-tight leading-snug drop-shadow-xs">
+              Phòng tốt chốt ngay, đồ hay giá rẻ
             </h1>
           </div>
         </div>
@@ -211,7 +211,7 @@ export const LandingPage: React.FC = () => {
 
           <Link to="/cho-do-cu">
             <Button variant="outline" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-              Xem tất cả ({(marketplaceItems || []).length} món đồ)
+              Xem tất cả ({approvedMarketplaceItems.length} món đồ)
             </Button>
           </Link>
         </div>
@@ -239,7 +239,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <Link to="/nang-cap-chu-tro">
+            <Link to="/landlord-registration">
               <button className="px-6 py-3 bg-gray-950 hover:bg-black text-white font-black rounded-2xl text-xs sm:text-sm shadow-md transition">
                 Đăng ký làm chủ trọ
               </button>

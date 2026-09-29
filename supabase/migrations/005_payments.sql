@@ -23,7 +23,5 @@ create table if not exists public.user_subscriptions (
   plan_id text not null,
   started_at timestamptz default now(),
   expires_at timestamptz not null,
-  transaction_id uuid references public.transactions(id) on delete set null,
-  is_active boolean generated always as
-    (expires_at > now()) stored
+  transaction_id uuid references public.transactions(id) on delete set null
 );

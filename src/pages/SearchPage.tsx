@@ -21,6 +21,8 @@ import {
   X,
   Sparkles,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   RotateCcw,
   ShieldCheck,
   GraduationCap,
@@ -28,10 +30,32 @@ import {
   CheckCircle2,
   Clock,
   ArrowUpDown,
+  Banknote,
+  Zap,
+  Share2,
+  Check,
 } from 'lucide-react';
 
 import { Room } from '../types';
 import { useRooms } from '../hooks/queries/useRooms';
+import {
+  RoomSearchParams,
+  DISTRICTS,
+  UNIVERSITIES,
+  ROOM_TYPES,
+  AMENITIES_LIST,
+  isPublicRoom,
+  normalizeRoom,
+  isSchoolMatch,
+  removeVietnameseTones,
+  parsePriceRange,
+  formatPriceRangeDisplay,
+  findMatchedUniversity,
+  findMatchedDistrict,
+  findMatchedType,
+  parseRoomSearchParams,
+  filterAndSortRooms,
+} from '../lib/roomSearch';
 
 export const SearchPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -40,145 +64,183 @@ export const SearchPage: React.FC = () => {
   const { isMobileFilterOpen, toggleMobileFilter, closeAllSheets } = useUIStore();
   const { data: cloudRooms, isLoading: isQueryLoading } = useRooms();
 
-  const activeRooms: Room[] = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) as unknown as Room[];
+  // Normalize room record to standard Room schema and enforce unified public room condition
+  const activeRooms: Room[] = useMemo(() => {
+    const rawList = (cloudRooms && cloudRooms.length > 0 ? cloudRooms : rooms) || [];
+    return rawList.filter(isPublicRoom).map(normalizeRoom);
+  }, [cloudRooms, rooms]);
 
   const mobileDrawerRef = useRef<HTMLDivElement>(null);
-  useOutsideClick(mobileDrawerRef, closeAllSheets, isMobileFilterOpen);
 
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const isLoading = isQueryLoading;
+  const [isCopied, setIsCopied] = useState<boolean>(false);
 
-  // Filters State from URL
-  const searchQuery = searchParams.get('q') || '';
-  const selectedSchool = searchParams.get('truong') || '';
-  const selectedDistrict = searchParams.get('khuVuc') || '';
-  const selectedPrice = searchParams.get('gia') || '';
-  const selectedType = searchParams.get('loai') || '';
-  const selectedSort = searchParams.get('sort') || 'verified_first';
-  const selectedAmenity = searchParams.get('tienIch') || '';
-  const verifiedOnly = searchParams.get('xacMinh') === 'true';
+  // Filters State from URL via shared parser
+  const searchParamsObj = useMemo(() => parseRoomSearchParams(searchParams), [searchParams]);
+  const {
+    searchQuery,
+    selectedSchool,
+    selectedDistrict,
+    selectedPrice,
+    selectedType,
+    selectedAmenity,
+    verifiedOnly,
+    selectedSort,
+  } = searchParamsObj;
+
+  // Mobile draft filters – only applied to URL when "Ap dung" tapped
+  const [mobileDraft, setMobileDraft] = useState({
+    verified: verifiedOnly,
+    school: selectedSchool,
+    district: selectedDistrict,
+    price: selectedPrice,
+    type: selectedType,
+    amenity: selectedAmenity,
+    sort: selectedSort,
+  });
+
+  // Sync draft each time the drawer opens (discard unapplied prev changes)
+  useEffect(() => {
+    if (isMobileFilterOpen) {
+      setMobileDraft({
+        verified: verifiedOnly,
+        school: selectedSchool,
+        district: selectedDistrict,
+        price: selectedPrice,
+        type: selectedType,
+        amenity: selectedAmenity,
+        sort: selectedSort,
+      });
+    }
+  }, [isMobileFilterOpen, verifiedOnly, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedAmenity, selectedSort]);
+
+  // Close without applying – draft changes are discarded
+  const handleMobileClose = () => closeAllSheets();
+
+  useOutsideClick(mobileDrawerRef, handleMobileClose, isMobileFilterOpen);
+
+  // Flush draft to URL
+  const applyMobileFilters = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      mobileDraft.verified ? next.set('xacMinh', 'true') : next.delete('xacMinh');
+      mobileDraft.school   ? next.set('truong',  mobileDraft.school)   : next.delete('truong');
+      mobileDraft.district ? next.set('khuVuc',  mobileDraft.district) : next.delete('khuVuc');
+      mobileDraft.price    ? next.set('gia',     mobileDraft.price)    : next.delete('gia');
+      mobileDraft.type     ? next.set('loai',    mobileDraft.type)     : next.delete('loai');
+      mobileDraft.amenity  ? next.set('tienIch', mobileDraft.amenity)  : next.delete('tienIch');
+      if (mobileDraft.sort && mobileDraft.sort !== 'verified_first') {
+        next.set('sort', mobileDraft.sort);
+      } else {
+        next.delete('sort');
+      }
+      // Requirement: Đổi bộ lọc quay về trang đầu
+      next.delete('page');
+      return next;
+    });
+    closeAllSheets();
+  };
 
   const updateParam = (key: string, value: string) => {
-    const next = new URLSearchParams(searchParams);
-    if (value) {
-      next.set(key, value);
-    } else {
-      next.delete(key);
-    }
-    setSearchParams(next);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (value && value !== 'verified_first') {
+        next.set(key, value);
+      } else if (key === 'sort' && value === 'verified_first') {
+        // verified_first is default, omitting keeps URL cleaner
+        next.delete('sort');
+      } else {
+        next.delete(key);
+      }
+      // Requirement: Đổi bộ lọc quay về trang đầu
+      next.delete('page');
+      return next;
+    });
   };
 
   const clearAllFilters = () => {
     setSearchParams(new URLSearchParams());
   };
 
-  const districts = [
-    'Quận Cầu Giấy',
-    'Quận Đống Đa',
-    'Quận Hai Bà Trưng',
-    'Quận Thanh Xuân',
-    'Quận Nam Từ Liêm',
-    'Quận Hà Đông',
-    'Quận Ba Đình',
-    'Quận Hoàng Mai',
-    'Quận Bắc Từ Liêm',
-  ];
+  const handleShare = () => {
+    const currentUrl = window.location.href;
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(currentUrl).then(() => {
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      });
+    }
+  };
 
-  const universities = [
-    'Đại học Quốc Gia Hà Nội',
-    'Đại học Bách Khoa Hà Nội',
-    'Đại học Ngoại Thương',
-    'Đại học Kinh Tế Quốc Dân',
-    'Đại học Sư Phạm Hà Nội',
-    'Đại học Hà Nội',
-    'Học viện Ngoại Giao',
-    'Học viện Bưu Chính Viễn Thông',
-    'Đại học Y Hà Nội',
-    'Đại học Xây Dựng Hà Nội',
-    'Đại học Giao Thông Vận Tải',
-    'Đại học Thương Mại',
-  ];
+  const districts = DISTRICTS;
+  const universities = UNIVERSITIES;
+  const roomTypes = ROOM_TYPES;
+  const amenitiesList = AMENITIES_LIST;
 
-  const roomTypes = ['Phòng đơn', 'Studio', 'Phòng ghép', 'Căn hộ mini'];
-  const amenitiesList = ['Máy lạnh', 'Tủ lạnh', 'Gác lửng', 'Ban công', 'Bếp', 'Wifi', 'Bảo vệ 24/7', 'Thang máy', 'Khóa vân tay'];
+  const matchedUniversityOption = useMemo(() => findMatchedUniversity(selectedSchool), [selectedSchool]);
+  const matchedDistrict = useMemo(() => findMatchedDistrict(selectedDistrict), [selectedDistrict]);
+  const matchedType = useMemo(() => findMatchedType(selectedType), [selectedType]);
 
-  // Helper to remove Vietnamese tones for fuzzy searching
-  function removeVietnameseTones(str: string): string {
-    return str
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .replace(/đ/g, 'd')
-      .replace(/Đ/g, 'D')
-      .toLowerCase();
-  }
-
-  // Filtered & Sorted Rooms
+  // Filtered & Sorted Rooms using shared roomSearch module
   const filteredRooms = useMemo(() => {
-    return (activeRooms || []).filter((r: any) => {
-      // Verification filter
-      if (verifiedOnly && !r.verified) return false;
+    return filterAndSortRooms(activeRooms, searchParamsObj);
+  }, [activeRooms, searchParamsObj]);
 
-      // School filter
-      if (selectedSchool) {
-        const normSchool = removeVietnameseTones(selectedSchool);
-        const matchRoomSchool = r.nearestSchool && removeVietnameseTones(r.nearestSchool).includes(normSchool);
-        if (!matchRoomSchool) return false;
+  const priceRangeInvalid = selectedPrice !== '' && parsePriceRange(selectedPrice) === null;
+
+  // Pagination calculations
+  const ITEMS_PER_PAGE = 12;
+  const rawPage = parseInt(searchParams.get('page') || '1', 10);
+  const totalRooms = filteredRooms.length;
+  const totalPages = Math.max(1, Math.ceil(totalRooms / ITEMS_PER_PAGE));
+  const currentPage = Math.min(Math.max(1, isNaN(rawPage) ? 1 : rawPage), totalPages);
+
+  const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+  const paginatedRooms = useMemo(() => {
+    return filteredRooms.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+  }, [filteredRooms, startIndex]);
+
+  const goToPage = (pageNumber: number) => {
+    const clamped = Math.min(Math.max(1, pageNumber), totalPages);
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      if (clamped <= 1) {
+        next.delete('page');
+      } else {
+        next.set('page', String(clamped));
       }
-
-      // Keyword query filter
-      if (searchQuery) {
-        const normQ = removeVietnameseTones(searchQuery.trim());
-        const matchTitle = removeVietnameseTones(r.title).includes(normQ);
-        const matchAddress = removeVietnameseTones(r.address).includes(normQ);
-        const matchDistrict = removeVietnameseTones(r.district).includes(normQ);
-        const matchDesc = removeVietnameseTones(r.description).includes(normQ);
-        const matchSchool = r.nearestSchool && removeVietnameseTones(r.nearestSchool).includes(normQ);
-        if (!matchTitle && !matchAddress && !matchDistrict && !matchDesc && !matchSchool) {
-          return false;
-        }
-      }
-
-      // District filter
-      if (selectedDistrict && r.district !== selectedDistrict) return false;
-
-      // Type filter
-      if (selectedType && r.type !== selectedType) return false;
-
-      // Amenity filter
-      if (selectedAmenity && !r.amenities.some((a: string) => a.toLowerCase().includes(selectedAmenity.toLowerCase()))) {
-        return false;
-      }
-
-      // Price filter
-      if (selectedPrice) {
-        const [min, max] = selectedPrice.split('-').map(Number);
-        if (r.price < min || r.price > max) return false;
-      }
-
-      return true;
-    }).sort((a: any, b: any) => {
-      // Prioritize boosted rooms at top
-      if (a.isBoosted && !b.isBoosted) return -1;
-      if (!a.isBoosted && b.isBoosted) return 1;
-
-      if (selectedSort === 'verified_first') {
-        if (a.verified && !b.verified) return -1;
-        if (!a.verified && b.verified) return 1;
-      }
-      if (selectedSort === 'price_asc') return a.price - b.price;
-      if (selectedSort === 'price_desc') return b.price - a.price;
-      if (selectedSort === 'distance') return (a.distanceToSchoolKm || 0) - (b.distanceToSchoolKm || 0);
-      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      return next;
     });
-  }, [activeRooms, searchQuery, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedSort, selectedAmenity, verifiedOnly]);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  const pageNumbers = useMemo(() => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  }, [totalPages, currentPage]);
 
   const activeFilterCount = [searchQuery, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedAmenity, verifiedOnly ? 'xacMinh' : ''].filter(Boolean).length;
+
+  const mobileDraftFilterCount = [
+    mobileDraft.school, mobileDraft.district, mobileDraft.price,
+    mobileDraft.type, mobileDraft.amenity, mobileDraft.verified ? 'v' : '',
+    mobileDraft.sort && mobileDraft.sort !== 'verified_first' ? 's' : '',
+  ].filter(Boolean).length;
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
       <SEOHead
-        title={selectedDistrict ? `Tìm Phòng Trọ ${selectedDistrict} | Trọ Xinh Hà Nội` : `Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội (${filteredRooms.length} phòng) | Trọ Xinh`}
-        description={`Xem ${filteredRooms.length} phòng trọ sinh viên đã đối chiếu thực tế tại Hà Nội. Minh bạch tổng chi phí, lọc theo trường ĐH, mức giá, tiện nghi.`}
-        url={`/tim-phong${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+        title={matchedDistrict ? `Tìm Phòng Trọ ${matchedDistrict} | Trọ Xinh Hà Nội` : `Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội (${totalRooms} phòng) | Trọ Xinh`}
+        description={`Xem ${totalRooms} phòng trọ sinh viên đã đối chiếu thực tế tại Hà Nội. Minh bạch tổng chi phí, lọc theo trường ĐH, mức giá, tiện nghi.`}
+        url={`/tim-kiem${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
       />
 
       {/* Top Search Autocomplete Bar */}
@@ -187,16 +249,24 @@ export const SearchPage: React.FC = () => {
           initialValue={searchQuery || selectedSchool}
           placeholder="Tìm phòng theo trường ĐH, quận hoặc địa danh (vd: Bách Khoa, Cầu Giấy, Chùa Láng...)"
           onSelect={(val, type) => {
-            if (type === 'district') {
-              updateParam('khuVuc', val);
-            } else if (type === 'university') {
-              const next = new URLSearchParams(searchParams);
-              next.set('truong', val);
-              next.delete('q');
-              setSearchParams(next);
-            } else {
-              updateParam('q', val);
-            }
+            setSearchParams((prev) => {
+              const next = new URLSearchParams(prev);
+              const cleanVal = (val || '').replace(/^Gần\s+/i, '').trim();
+              if (!cleanVal) {
+                next.delete('q');
+                next.delete('truong');
+              } else if (type === 'district') {
+                next.set('khuVuc', cleanVal);
+              } else if (type === 'university') {
+                next.set('truong', cleanVal);
+                next.delete('q');
+              } else {
+                next.set('q', cleanVal);
+              }
+              // Reset to page 1 on search select
+              next.delete('page');
+              return next;
+            });
           }}
         />
       </div>
@@ -212,11 +282,22 @@ export const SearchPage: React.FC = () => {
             Danh Sách Phòng Trọ Cho Thuê Hà Nội
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Hiển thị <span className="font-black text-[#00a854]">{filteredRooms.length}</span> phòng trọ có sẵn & minh bạch chi phí
+            {totalRooms === 0 ? (
+              <span>Không tìm thấy phòng trọ phù hợp</span>
+            ) : (
+              <span>
+                Hiển thị{' '}
+                <strong className="text-gray-900 font-bold">
+                  {startIndex + 1} - {Math.min(startIndex + ITEMS_PER_PAGE, totalRooms)}
+                </strong>{' '}
+                trên tổng số{' '}
+                <span className="font-black text-[#00a854]">{totalRooms}</span> phòng trọ có sẵn & minh bạch chi phí
+              </span>
+            )}
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2 sm:gap-2.5 flex-wrap">
           {/* Sorting Dropdown */}
           <div className="flex items-center bg-white border border-gray-200 rounded-2xl px-3 py-2 text-xs font-bold text-gray-900 shadow-2xs">
             <ArrowUpDown className="w-3.5 h-3.5 text-gray-400 mr-1.5" />
@@ -232,6 +313,25 @@ export const SearchPage: React.FC = () => {
               <option value="distance">Gần trường nhất</option>
             </select>
           </div>
+
+          {/* Share / Copy Search Link Button */}
+          <button
+            onClick={handleShare}
+            title="Sao chép liên kết tìm kiếm (giữ nguyên bộ lọc & sắp xếp)"
+            className="inline-flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 rounded-2xl text-xs font-bold text-gray-700 hover:text-[#00a854] hover:border-emerald-300 shadow-2xs transition active:scale-95 cursor-pointer"
+          >
+            {isCopied ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-[#00a854]" />
+                <span className="text-[#00a854]">Đã chép link!</span>
+              </>
+            ) : (
+              <>
+                <Share2 className="w-3.5 h-3.5 text-gray-400" />
+                <span>Chia sẻ</span>
+              </>
+            )}
+          </button>
 
           {/* Map view button */}
           <Link to={`/ban-do?${searchParams.toString()}`}>
@@ -275,31 +375,43 @@ export const SearchPage: React.FC = () => {
           )}
           {selectedSchool && (
             <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
-              🎓 {selectedSchool}
+              🎓 {matchedUniversityOption || selectedSchool}
               <button onClick={() => updateParam('truong', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
             </span>
           )}
           {selectedDistrict && (
             <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
-              📍 {selectedDistrict}
+              📍 {matchedDistrict || selectedDistrict}
               <button onClick={() => updateParam('khuVuc', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
             </span>
           )}
-          {selectedPrice && (
+          {selectedPrice && !priceRangeInvalid && (
             <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
-              💵 {selectedPrice.split('-')[0]}đ - {selectedPrice.split('-')[1]}đ
+              💵 {formatPriceRangeDisplay(selectedPrice)}
+              <button onClick={() => updateParam('gia', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
+            </span>
+          )}
+          {selectedPrice && priceRangeInvalid && (
+            <span className="inline-flex items-center gap-1 bg-rose-50 text-rose-600 px-3 py-1 rounded-full border border-rose-200 font-bold">
+              ⚠️ Giá không hợp lệ
               <button onClick={() => updateParam('gia', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
             </span>
           )}
           {selectedType && (
             <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
-              🏠 {selectedType}
+              🏠 {matchedType || selectedType}
               <button onClick={() => updateParam('loai', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
+            </span>
+          )}
+          {selectedAmenity && (
+            <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
+              ⚡ {selectedAmenity}
+              <button onClick={() => updateParam('tienIch', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
             </span>
           )}
           <button
             onClick={clearAllFilters}
-            className="text-xs text-rose-600 font-black hover:underline flex items-center gap-1 ml-2 tap-bounce"
+            className="text-xs text-rose-600 font-black hover:underline flex items-center gap-1 ml-2 tap-bounce cursor-pointer"
           >
             <RotateCcw className="w-3 h-3" /> Đặt lại tất cả
           </button>
@@ -316,7 +428,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          🛡️ Đã kiểm duyệt
+          Đã kiểm duyệt
         </button>
         <button
           onClick={() => updateParam('gia', selectedPrice === '0-2500000' ? '' : '0-2500000')}
@@ -326,7 +438,7 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          💵 Dưới 2.5 triệu
+          Dưới 2.5 triệu
         </button>
         <button
           onClick={() => updateParam('gia', selectedPrice === '2500000-4000000' ? '' : '2500000-4000000')}
@@ -336,47 +448,47 @@ export const SearchPage: React.FC = () => {
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          ⚡ 2.5 - 4 triệu
+          2.5 - 4 triệu
         </button>
         <button
-          onClick={() => updateParam('truong', selectedSchool === 'ĐH Bách Khoa Hà Nội' ? '' : 'ĐH Bách Khoa Hà Nội')}
+          onClick={() => updateParam('truong', isSchoolMatch('Bách Khoa', selectedSchool) ? '' : 'Đại học Bách Khoa Hà Nội')}
           className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedSchool === 'ĐH Bách Khoa Hà Nội'
+            isSchoolMatch('Bách Khoa', selectedSchool)
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          🎓 Bách Khoa
+          Bách Khoa
         </button>
         <button
-          onClick={() => updateParam('khuVuc', selectedDistrict === 'Quận Cầu Giấy' ? '' : 'Quận Cầu Giấy')}
+          onClick={() => updateParam('khuVuc', matchedDistrict === 'Quận Cầu Giấy' ? '' : 'Quận Cầu Giấy')}
           className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedDistrict === 'Quận Cầu Giấy'
+            matchedDistrict === 'Quận Cầu Giấy'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          📍 Cầu Giấy
+          Cầu Giấy
         </button>
         <button
-          onClick={() => updateParam('khuVuc', selectedDistrict === 'Quận Đống Đa' ? '' : 'Quận Đống Đa')}
+          onClick={() => updateParam('khuVuc', matchedDistrict === 'Quận Đống Đa' ? '' : 'Quận Đống Đa')}
           className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedDistrict === 'Quận Đống Đa'
+            matchedDistrict === 'Quận Đống Đa'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          📍 Đống Đa
+          Đống Đa
         </button>
         <button
-          onClick={() => updateParam('loai', selectedType === 'Studio' ? '' : 'Studio')}
+          onClick={() => updateParam('loai', matchedType === 'Studio' ? '' : 'Studio')}
           className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedType === 'Studio'
+            matchedType === 'Studio'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
           }`}
         >
-          🏠 Studio
+          Studio
         </button>
       </div>
 
@@ -423,7 +535,7 @@ export const SearchPage: React.FC = () => {
               <GraduationCap className="w-3.5 h-3.5 text-[#00a854]" /> Trường Đại học lân cận
             </label>
             <select
-              value={selectedSchool}
+              value={matchedUniversityOption}
               onChange={(e) => updateParam('truong', e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-2.5 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854]"
             >
@@ -440,7 +552,7 @@ export const SearchPage: React.FC = () => {
               <MapPin className="w-3.5 h-3.5 text-[#00a854]" /> Khu vực (Hà Nội)
             </label>
             <select
-              value={selectedDistrict}
+              value={matchedDistrict}
               onChange={(e) => updateParam('khuVuc', e.target.value)}
               className="w-full bg-gray-50 border border-gray-200 rounded-2xl p-2.5 text-xs font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854]"
             >
@@ -461,7 +573,7 @@ export const SearchPage: React.FC = () => {
                 <input
                   type="radio"
                   name="type"
-                  checked={!selectedType}
+                  checked={!selectedType || !roomTypes.includes(matchedType as any)}
                   onChange={() => updateParam('loai', '')}
                   className="text-[#00a854] focus:ring-[#00a854] accent-[#00a854]"
                 />
@@ -472,7 +584,7 @@ export const SearchPage: React.FC = () => {
                   <input
                     type="radio"
                     name="type"
-                    checked={selectedType === t}
+                    checked={matchedType === t}
                     onChange={() => updateParam('loai', t)}
                     className="text-[#00a854] focus:ring-[#00a854] accent-[#00a854]"
                   />
@@ -484,13 +596,18 @@ export const SearchPage: React.FC = () => {
 
           {/* Price Range */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
-            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider">Mức giá thuê</label>
+            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Banknote className="w-3.5 h-3.5 text-[#00a854]" /> Mức giá thuê
+            </label>
+            {priceRangeInvalid && (
+              <p className="text-[10px] text-rose-600 font-bold">⚠️ Khoảng giá không hợp lệ</p>
+            )}
             <div className="space-y-1">
               <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854]">
                 <input
                   type="radio"
                   name="price"
-                  checked={!selectedPrice}
+                  checked={!selectedPrice || priceRangeInvalid}
                   onChange={() => updateParam('gia', '')}
                   className="text-[#00a854] focus:ring-[#00a854] accent-[#00a854]"
                 />
@@ -541,7 +658,9 @@ export const SearchPage: React.FC = () => {
 
           {/* Amenities */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
-            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider">Tiện ích kèm theo</label>
+            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+              <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích kèm theo
+            </label>
             <div className="space-y-1">
               <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854]">
                 <input
@@ -591,11 +710,68 @@ export const SearchPage: React.FC = () => {
               onAction={clearAllFilters}
             />
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredRooms.map((room: Room) => (
-                <RoomCard key={room.id} room={room} />
-              ))}
-            </div>
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                {paginatedRooms.map((room: Room) => (
+                  <RoomCard key={room.id} room={room} />
+                ))}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 pb-2 border-t border-gray-100">
+                  <p className="text-xs text-gray-500 font-medium order-2 sm:order-1">
+                    Trang <strong className="text-gray-900 font-bold">{currentPage}</strong> / {totalPages} (tổng cộng <strong className="text-[#00a854] font-bold">{totalRooms}</strong> phòng)
+                  </p>
+                  <nav role="navigation" aria-label="Phân trang kết quả" className="flex items-center gap-1.5 order-1 sm:order-2">
+                    <button
+                      onClick={() => goToPage(currentPage - 1)}
+                      disabled={currentPage <= 1}
+                      aria-label="Trang trước"
+                      className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {pageNumbers.map((p, idx) => {
+                      if (p === '...') {
+                        return (
+                          <span key={`ellipsis-${idx}`} className="w-9 h-9 flex items-center justify-center text-gray-400 text-xs font-bold select-none">
+                            ...
+                          </span>
+                        );
+                      }
+                      const pageNum = Number(p);
+                      const isActive = pageNum === currentPage;
+                      return (
+                        <button
+                          key={pageNum}
+                          onClick={() => goToPage(pageNum)}
+                          aria-label={`Trang ${pageNum}`}
+                          aria-current={isActive ? 'page' : undefined}
+                          className={`w-9 h-9 rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer ${
+                            isActive
+                              ? 'bg-[#00a854] text-white shadow-xs'
+                              : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                          }`}
+                        >
+                          {pageNum}
+                        </button>
+                      );
+                    })}
+
+                    <button
+                      onClick={() => goToPage(currentPage + 1)}
+                      disabled={currentPage >= totalPages}
+                      aria-label="Trang tiếp theo"
+                      className="inline-flex items-center justify-center w-9 h-9 rounded-xl border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 hover:border-gray-300 disabled:opacity-30 disabled:cursor-not-allowed transition cursor-pointer"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </nav>
+                </div>
+              )}
+            </>
           )}
 
           {/* AI-Powered Recommendations */}
@@ -613,7 +789,7 @@ export const SearchPage: React.FC = () => {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={closeAllSheets}
+              onClick={handleMobileClose}
               className="fixed inset-0 bg-black/60 backdrop-blur-xs"
             />
 
@@ -623,26 +799,27 @@ export const SearchPage: React.FC = () => {
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="relative ml-auto w-full max-w-sm bg-white h-full shadow-2xl z-10 flex flex-col justify-between p-5 overflow-y-auto"
+              className="relative ml-auto w-full max-w-sm bg-white h-full shadow-2xl z-10 flex flex-col overflow-hidden"
             >
-              <div className="space-y-5">
+              {/* Scrollable body */}
+              <div className="flex-1 overflow-y-auto p-5 space-y-5">
                 <div className="flex items-center justify-between pb-3 border-b border-gray-100">
                   <h3 className="font-black text-gray-950 text-base flex items-center gap-2">
                     <SlidersHorizontal className="w-5 h-5 text-[#00a854]" />
                     Bộ Lọc Tìm Kiếm
                   </h3>
-                  <button onClick={closeAllSheets} className="p-1 rounded-full text-gray-400 hover:text-gray-700">
+                  <button onClick={handleMobileClose} className="p-1 rounded-full text-gray-400 hover:text-gray-700">
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
                 {/* Verification Check */}
                 <div className="p-3 bg-emerald-50 rounded-2xl border border-emerald-100">
-                  <label className="flex items-center gap-2 text-xs font-black text-gray-950">
+                  <label className="flex items-center gap-2 text-xs font-black text-gray-950 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={verifiedOnly}
-                      onChange={(e) => updateParam('xacMinh', e.target.checked ? 'true' : '')}
+                      checked={mobileDraft.verified}
+                      onChange={(e) => setMobileDraft((d) => ({ ...d, verified: e.target.checked }))}
                       className="w-4 h-4 rounded text-[#00a854] accent-[#00a854]"
                     />
                     <span>🛡️ Chỉ phòng đã xác minh</span>
@@ -651,10 +828,12 @@ export const SearchPage: React.FC = () => {
 
                 {/* University selector */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-gray-900 uppercase">Trường ĐH</label>
+                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                    <GraduationCap className="w-3.5 h-3.5 text-[#00a854]" /> Trường ĐH
+                  </label>
                   <select
-                    value={selectedSchool}
-                    onChange={(e) => updateParam('truong', e.target.value)}
+                    value={mobileDraft.school ? (universities.find((u) => isSchoolMatch(mobileDraft.school, u)) || mobileDraft.school) : ''}
+                    onChange={(e) => setMobileDraft((d) => ({ ...d, school: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-900"
                   >
                     <option value="">Tất cả các trường ĐH</option>
@@ -666,10 +845,16 @@ export const SearchPage: React.FC = () => {
 
                 {/* District */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-gray-900 uppercase">Khu vực</label>
+                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                    <MapPin className="w-3.5 h-3.5 text-[#00a854]" /> Khu vực
+                  </label>
                   <select
-                    value={selectedDistrict}
-                    onChange={(e) => updateParam('khuVuc', e.target.value)}
+                    value={mobileDraft.district ? (districts.find(d => {
+                      const normD = removeVietnameseTones(d).toLowerCase().trim();
+                      const normSel = removeVietnameseTones(mobileDraft.district).toLowerCase().trim();
+                      return normD === normSel || normD.includes(normSel);
+                    }) || mobileDraft.district) : ''}
+                    onChange={(e) => setMobileDraft((d) => ({ ...d, district: e.target.value }))}
                     className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-900"
                   >
                     <option value="">Tất cả khu vực</option>
@@ -679,53 +864,109 @@ export const SearchPage: React.FC = () => {
                   </select>
                 </div>
 
-                {/* Price */}
+                {/* Sort Option in Mobile Drawer */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-gray-900 uppercase">Mức giá</label>
+                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                    <ArrowUpDown className="w-3.5 h-3.5 text-[#00a854]" /> Sắp xếp theo
+                  </label>
+                  <select
+                    value={mobileDraft.sort || 'verified_first'}
+                    onChange={(e) => setMobileDraft((d) => ({ ...d, sort: e.target.value as RoomSearchParams['selectedSort'] }))}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl p-2.5 text-xs font-bold text-gray-900"
+                  >
+                    <option value="verified_first">Ưu tiên đã xác minh</option>
+                    <option value="newest">Tin mới nhất</option>
+                    <option value="price_asc">Giá: Thấp → Cao</option>
+                    <option value="price_desc">Giá: Cao → Thấp</option>
+                    <option value="distance">Gần trường nhất</option>
+                  </select>
+                </div>
+
+                {/* Room Type */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                    <Home className="w-3.5 h-3.5 text-[#00a854]" /> Loại hình phòng
+                  </label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => updateParam('gia', '0-2500000')}
-                      className={`p-2 rounded-xl text-xs font-bold border ${selectedPrice === '0-2500000' ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                      onClick={() => setMobileDraft((d) => ({ ...d, type: '' }))}
+                      className={`p-2 rounded-xl text-xs font-bold border ${!mobileDraft.type ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
                     >
-                      Dưới 2.5Tr
+                      Tất cả
                     </button>
+                    {roomTypes.map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setMobileDraft((d) => ({ ...d, type: d.type === t ? '' : t }))}
+                        className={`p-2 rounded-xl text-xs font-bold border ${mobileDraft.type === t ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                      >
+                        {t}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Price */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                    <Banknote className="w-3.5 h-3.5 text-[#00a854]" /> Mức giá
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'Dưới 2.5Tr', value: '0-2500000' },
+                      { label: '2.5 - 4Tr', value: '2500000-4000000' },
+                      { label: '4 - 6Tr', value: '4000000-6000000' },
+                      { label: 'Trên 6Tr', value: '6000000-99999999' },
+                    ].map(({ label, value }) => (
+                      <button
+                        key={value}
+                        onClick={() => setMobileDraft((d) => ({ ...d, price: d.price === value ? '' : value }))}
+                        className={`p-2 rounded-xl text-xs font-bold border ${mobileDraft.price === value ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Amenities */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                    <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => updateParam('gia', '2500000-4000000')}
-                      className={`p-2 rounded-xl text-xs font-bold border ${selectedPrice === '2500000-4000000' ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                      onClick={() => setMobileDraft((d) => ({ ...d, amenity: '' }))}
+                      className={`p-2 rounded-xl text-xs font-bold border ${!mobileDraft.amenity ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
                     >
-                      2.5 - 4Tr
+                      Tất cả
                     </button>
-                    <button
-                      onClick={() => updateParam('gia', '4000000-6000000')}
-                      className={`p-2 rounded-xl text-xs font-bold border ${selectedPrice === '4000000-6000000' ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
-                    >
-                      4 - 6Tr
-                    </button>
-                    <button
-                      onClick={() => updateParam('gia', '6000000-99999999')}
-                      className={`p-2 rounded-xl text-xs font-bold border ${selectedPrice === '6000000-99999999' ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
-                    >
-                      Trên 6Tr
-                    </button>
+                    {amenitiesList.map((a) => (
+                      <button
+                        key={a}
+                        onClick={() => setMobileDraft((d) => ({ ...d, amenity: d.amenity === a ? '' : a }))}
+                        className={`p-2 rounded-xl text-xs font-bold border ${mobileDraft.amenity === a ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                      >
+                        {a}
+                      </button>
+                    ))}
                   </div>
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-gray-100 flex gap-2">
+              {/* Fixed bottom action bar */}
+              <div className="px-5 py-4 border-t border-gray-100 bg-white flex gap-2 shrink-0">
                 <button
-                  onClick={() => {
-                    clearAllFilters();
-                    closeAllSheets();
-                  }}
-                  className="w-1/2 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs"
+                  onClick={() => setMobileDraft({ verified: false, school: '', district: '', price: '', type: '', amenity: '', sort: 'verified_first' })}
+                  className="w-1/2 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs cursor-pointer"
                 >
                   Xóa lọc
                 </button>
                 <button
-                  onClick={closeAllSheets}
-                  className="w-1/2 py-3 bg-[#00a854] text-white font-black rounded-xl text-xs shadow-md"
+                  onClick={applyMobileFilters}
+                  className="w-1/2 py-3 bg-[#00a854] text-white font-black rounded-xl text-xs shadow-md cursor-pointer"
                 >
-                  Áp dụng ({filteredRooms.length})
+                  Áp dụng {mobileDraftFilterCount > 0 ? `(${mobileDraftFilterCount})` : ''}
                 </button>
               </div>
             </motion.div>

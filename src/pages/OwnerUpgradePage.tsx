@@ -169,7 +169,7 @@ export const OwnerUpgradePage: React.FC = () => {
           </p>
         </div>
         <div className="space-y-3 pt-2">
-          <Link to="/dang-nhap?returnUrl=/nang-cap-chu-tro" className="block">
+          <Link to="/dang-nhap?returnUrl=/dang-ky-chu-tro" className="block">
             <Button variant="primary" size="lg" className="w-full" rightIcon={<ArrowRight className="w-4 h-4" />}>
               Đăng Nhập Tài Khoản Ngay
             </Button>
@@ -250,7 +250,7 @@ export const OwnerUpgradePage: React.FC = () => {
     );
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!fullName.trim()) {
@@ -287,8 +287,7 @@ export const OwnerUpgradePage: React.FC = () => {
     }
 
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
       submitOwnerApplication({
         fullName,
         organizationType: orgType,
@@ -314,7 +313,16 @@ export const OwnerUpgradePage: React.FC = () => {
         legalDocsNote,
       });
       setIsSuccess(true);
-    }, 500);
+      showToast(
+        'Đã gửi hồ sơ nâng cấp thành công!',
+        'Ban Quản Trị Trọ Xinh đã nhận được hồ sơ và sẽ thẩm định trong vòng 24h.',
+        'success'
+      );
+    } catch (err: any) {
+      showToast('Lỗi khi gửi hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

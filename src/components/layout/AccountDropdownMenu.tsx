@@ -1,24 +1,20 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../types';
 import {
-  Heart,
   Bookmark,
   Clock,
-  Star,
   MapPin,
   ShieldCheck,
-  Store,
-  Sparkles,
   TicketPercent,
   Settings,
   Headphones,
   ChevronRight,
   LogOut,
-  X,
   User as UserIcon,
   Building2,
+  FileText,
 } from 'lucide-react';
 
 interface AccountDropdownMenuProps {
@@ -81,7 +77,14 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
   logout,
 }) => {
   const navigate = useNavigate();
-  const [showPromoBadge, setShowPromoBadge] = useState<boolean>(true);
+
+  const isLandlord =
+    currentUser?.role === 'owner' ||
+    currentUser?.app_role === 'owner' ||
+    (currentUser as any)?.role === 'landlord' ||
+    (currentUser as any)?.app_role === 'landlord' ||
+    currentUser?.role === 'admin' ||
+    currentUser?.app_role === 'admin';
 
   if (!isOpen) return null;
 
@@ -117,19 +120,8 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 </div>
               </div>
 
-              {/* 2 nút Đăng ký & Đăng nhập */}
-              <div className="grid grid-cols-2 gap-2 mt-3.5">
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleAction(() => {
-                      openAuthModal('register');
-                    })
-                  }
-                  className="w-full py-2 px-3 rounded-xl border border-gray-200 bg-white hover:bg-gray-50 text-xs font-bold text-gray-900 transition shadow-2xs cursor-pointer text-center"
-                >
-                  Tạo tài khoản
-                </button>
+              {/* Nút Đăng ký / Đăng nhập hợp nhất */}
+              <div className="mt-3.5">
                 <button
                   type="button"
                   onClick={() =>
@@ -137,9 +129,9 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       openAuthModal('login');
                     })
                   }
-                  className="w-full py-2 px-3 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-xs font-black text-white transition shadow-xs cursor-pointer text-center"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[#00a854] hover:bg-[#008f47] active:scale-[0.99] text-xs font-black text-white transition-all shadow-xs hover:shadow-sm cursor-pointer text-center flex items-center justify-center gap-1.5"
                 >
-                  Đăng nhập
+                  Đăng ký / Đăng nhập
                 </button>
               </div>
             </div>
@@ -152,8 +144,34 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   className="w-12 h-12 rounded-full object-cover ring-2 ring-[#006d37]/30 shrink-0"
                 />
                 <div className="overflow-hidden flex-1">
-                  <h3 className="text-sm font-black text-gray-900 truncate">{currentUser.name}</h3>
-                  <p className="text-xs text-gray-500 font-mono">{currentUser.phone || 'Thành viên Trọ Xinh'}</p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <h3 className="text-sm font-black text-gray-900 truncate">{currentUser.name}</h3>
+                    {currentUser.isDemoAccount && (
+                      <span className="bg-amber-100 border border-amber-300 text-amber-900 text-[10px] font-black px-1.5 py-0.5 rounded-md">
+                        ⚠️ Demo
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <p className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                      {currentUser.phone || 'Thành viên Trọ Xinh'}
+                      {currentUser.phoneVerified && (
+                        <span title="SĐT đã xác minh" className="inline-flex">
+                          <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                        </span>
+                      )}
+                    </p>
+                    {currentUser.email && (
+                      <p className="text-xs text-gray-500 font-mono flex items-center gap-1">
+                        {currentUser.email}
+                        {currentUser.emailVerified && (
+                          <span title="Email đã xác minh" className="inline-flex">
+                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500" aria-hidden="true" />
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
                   <span
                     className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                       currentUser.role === 'owner'
@@ -172,6 +190,13 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 </div>
               </div>
 
+              {currentUser.isDemoAccount && (
+                <div className="p-2 bg-amber-50 border border-amber-200 rounded-xl text-[11px] text-amber-900 leading-tight flex items-start gap-1.5">
+                  <span className="shrink-0 text-xs">⚠️</span>
+                  <span>Bạn đang dùng <strong>Tài khoản Demo</strong> để trải nghiệm tính năng.</span>
+                </div>
+              )}
+
               <div className="pt-2 border-t border-gray-100 grid grid-cols-2 gap-2">
                 <Link
                   to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
@@ -180,7 +205,15 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 >
                   Trang cá nhân
                 </Link>
-                {currentUser.role === 'owner' ? (
+                {currentUser.role === 'admin' ? (
+                  <Link
+                    to="/admin"
+                    onClick={onClose}
+                    className="text-center py-1.5 px-2 bg-purple-600 hover:bg-purple-700 text-xs font-bold text-white rounded-xl transition shadow-xs"
+                  >
+                    Trang quản trị
+                  </Link>
+                ) : currentUser.role === 'owner' ? (
                   <Link
                     to="/chu-tro"
                     onClick={onClose}
@@ -202,8 +235,8 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
             </div>
           )}
 
-          {/* BANNER NỔI BẬT: ĐĂNG KÝ CHỦ TRỌ */}
-          {currentUser && currentUser.role !== 'owner' && (
+          {/* BANNER NỔI BẬT: ĐĂNG KÝ CHỦ TRỌ CHO KHÁCH THUÊ */}
+          {currentUser && currentUser.role !== 'owner' && currentUser.role !== 'admin' && (
             <Link
               to="/dang-ky-chu-tro"
               onClick={onClose}
@@ -229,6 +262,49 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
             </Link>
           )}
 
+          {/* BAN QUẢN TRỊ SHORTCUT */}
+          {currentUser && currentUser.role === 'admin' && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-bold text-purple-800 px-1 flex items-center gap-1">
+                <ShieldCheck className="w-3.5 h-3.5 text-purple-600" />
+                <span>Ban Quản Trị Hệ Thống</span>
+              </span>
+              <div className="bg-gradient-to-r from-purple-50 to-indigo-50/80 rounded-2xl shadow-2xs border border-purple-200 overflow-hidden divide-y divide-purple-100/60">
+                <Link
+                  to="/admin"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-2.5 text-xs font-black text-purple-950 hover:bg-purple-100/70 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <ShieldCheck className="w-4 h-4 text-purple-600" />
+                    <span>Bảng Điều Khiển Quản Trị</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </Link>
+                <Link
+                  to="/admin/kiem-duyet"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-2.5 text-xs font-bold text-purple-900 hover:bg-purple-100/70 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>📋 Duyệt tin phòng trọ</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </Link>
+                <Link
+                  to="/admin/nguoi-dung"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-2.5 text-xs font-bold text-purple-900 hover:bg-purple-100/70 transition"
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span>👥 Quản lý người dùng</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-purple-400" />
+                </Link>
+              </div>
+            </div>
+          )}
+
           {/* 2. NHÓM "TIỆN ÍCH" */}
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-gray-500 px-1 block">Tiện ích</span>
@@ -239,44 +315,20 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
-                  <Heart className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Tin đã lưu</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/tim-kiem"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
                   <Bookmark className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Tìm kiếm đã lưu</span>
+                  <span>Mục đã lưu</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
 
               <Link
-                to="/da-luu"
+                to="/quan-ly-bai-viet"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Lịch sử xem tin</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/ve-chung-toi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Star className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Đánh giá từ tôi</span>
+                  <FileText className="w-4 h-4 text-gray-600 stroke-[2.2]" />
+                  <span>Quản lý bài viết</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
@@ -318,33 +370,37 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
 
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
-                    PRO
-                  </span>
-                  <span>Gói PRO</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/chu-tro"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+              {isLandlord && (
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
+                      PRO
+                    </span>
+                    <span>Gói PRO</span>
                   </div>
-                  <span>Kênh Đối Tác</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              )}
+
+              {isLandlord && (
+                <Link
+                  to="/chu-tro"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Kênh Đối Tác</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              )}
 
               <Link
                 to="/chu-tro/quan-ly-goi"
@@ -357,20 +413,6 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
-
-              <Link
-                to="/chu-tro/toa-nha"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Store className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Cửa hàng / chuyên trang</span>
-                </div>
-                <span className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Tạo ngay
-                </span>
-              </Link>
             </div>
           </div>
 
@@ -379,25 +421,13 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
             <span className="text-xs font-semibold text-gray-500 px-1 block">Ưu đãi, khuyến mãi</span>
             <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
               <Link
-                to="/ve-chung-toi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Sparkles className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Trọ Xinh ưu đãi</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/ve-chung-toi"
+                to="/vouchers"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
                   <TicketPercent className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Ưu đãi của tôi</span>
+                  <span>Kho Voucher / Ưu đãi</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
@@ -421,7 +451,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </Link>
 
               <Link
-                to="/ve-chung-toi/an-toan"
+                to="/help"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
@@ -452,28 +482,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
           </div>
         </div>
 
-        {/* Floating Sticker Ưu Đãi Vịt Vàng ở góc dưới (như ảnh Chợ Tốt) */}
-        {showPromoBadge && (
-          <div className="sticky bottom-2 right-2 flex justify-end px-3 pb-1 pointer-events-auto">
-            <div className="bg-white/95 backdrop-blur-xs rounded-2xl p-2 shadow-lg border border-emerald-200 flex items-center gap-2 relative animate-bounce-subtle">
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPromoBadge(false);
-                }}
-                className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-gray-900 text-white rounded-full flex items-center justify-center text-[10px] hover:bg-black cursor-pointer"
-                title="Đóng"
-              >
-                <X className="w-2.5 h-2.5" />
-              </button>
-              <YellowDuckMascot className="w-8 h-8 shrink-0" />
-              <div className="pr-1 text-left">
-                <div className="text-[10px] font-black text-[#00a854] leading-tight">TRỌ XINH ƯU ĐÃI</div>
-                <div className="text-[9px] text-gray-500 font-medium">Nhận mã giảm cọc ngay</div>
-              </div>
-            </div>
-          </div>
-        )}
+
       </motion.div>
     </AnimatePresence>
   );

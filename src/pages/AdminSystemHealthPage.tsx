@@ -123,9 +123,7 @@ export const AdminSystemHealthPage: React.FC = () => {
               <Activity className="w-7 h-7 text-[#006d37]" />
               Trạng Thái Hệ Thống (System Health)
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Giám sát realtime hạ tầng backend, cổng xác thực OTP và thời gian phản hồi (Tự động làm mới mỗi 60s).
-            </p>
+
           </div>
 
           <div className="flex items-center gap-3 self-start sm:self-auto">

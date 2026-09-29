@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { Message } from '../types';
-import { getMessages, sendMessage as sendMessageApi } from '../lib/api/messages';
+import { getMessages, sendMessage as sendMessageApi, markConversationAsRead } from '../lib/api/messages';
 
 export interface UseRealtimeChatReturn {
   messages: Message[];
@@ -27,7 +27,7 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
     activeConversationIdRef.current = conversationId;
   }, [conversationId]);
 
-  // 1. Tải lịch sử tin nhắn thật từ Supabase khi mở conversation
+  // 1. Tải lịch sử tin nhắn thật từ Supabase khi mở conversation & đánh dấu đã đọc
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
@@ -66,6 +66,18 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
       .then((data) => {
         if (isMounted) {
           setMessages(data);
+          // Đánh dấu toàn bộ tin nhắn trong hội thoại là đã đọc
+          if (currentUser?.id) {
+            markConversationAsRead(conversationId, currentUser.id).then();
+            // Cập nhật ngay trạng thái đã đọc cho các thông báo liên quan trong store
+            useAppStore.setState((state) => ({
+              notifications: (state.notifications || []).map((n) =>
+                (n.ctaUrl && n.ctaUrl.includes(`/tin-nhan/${conversationId}`))
+                  ? { ...n, read: true }
+                  : n
+              ),
+            }));
+          }
         }
       })
       .catch((err) => {
@@ -94,6 +106,35 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
       isMounted = false;
     };
   }, [conversationId, currentUser?.id, showToast]);
+
+  // 1.1 Tự động đồng bộ tin nhắn khi ứng dụng thức dậy từ chế độ ngủ (Resume Auto-Sync)
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const handleResume = () => {
+      getMessages(conversationId)
+        .then((latest) => {
+          if (latest && latest.length > 0) {
+            setMessages((prev) => {
+              const existingIds = new Set(prev.map((m) => m.id));
+              const sendingMsgs = prev.filter((m) => m.status === 'sending');
+              const newIncoming = latest.filter((m) => !existingIds.has(m.id));
+              if (newIncoming.length === 0) return prev;
+              const merged = [...prev.filter((m) => m.status !== 'sending'), ...newIncoming, ...sendingMsgs];
+              return merged.sort(
+                (a, b) => new Date(a.created_at || 0).getTime() - new Date(b.created_at || 0).getTime()
+              );
+            });
+          }
+        })
+        .catch(() => {});
+    };
+
+    window.addEventListener('troxinh:resume-sync', handleResume);
+    return () => {
+      window.removeEventListener('troxinh:resume-sync', handleResume);
+    };
+  }, [conversationId]);
 
   // 2. Lắng nghe tin nhắn mới qua Supabase Realtime Channel
   useEffect(() => {
@@ -148,6 +189,36 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
 
             return [...prev, incomingMsg];
           });
+
+          // Nếu tin nhắn do đối phương gửi và mình đang mở hội thoại này, tự động đánh dấu đã đọc
+          if (currentUser?.id && incomingMsg.sender_id !== currentUser.id) {
+            markConversationAsRead(conversationId, currentUser.id).then();
+          }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`,
+        },
+        (payload: any) => {
+          const updatedRow = payload.new;
+          if (!updatedRow) return;
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === updatedRow.id
+                ? {
+                    ...m,
+                    is_read: Boolean(updatedRow.is_read),
+                    content: updatedRow.content,
+                  }
+                : m
+            )
+          );
         }
       )
       .subscribe((status) => {
@@ -232,14 +303,20 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
       }
 
       try {
-        const savedMessage = await sendMessageApi(conversationId, currentUser.id, cleanContent);
+        const savedMessage = await sendMessageApi(
+          conversationId,
+          currentUser.id,
+          cleanContent,
+          currentUser.name
+        );
 
-        // Cập nhật trạng thái thành 'sent' và gắn ID thật từ Supabase
+        // Cập nhật trạng thái thành 'sent' và giữ sender_id đồng bộ với currentUser
         setMessages((prev) =>
           prev.map((m) =>
             m.id === tempId
               ? {
                   ...savedMessage,
+                  sender_id: currentUser.id,
                   status: 'sent',
                   sender: tempMessage.sender,
                 }
@@ -255,6 +332,7 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
             m.id === tempId ? { ...m, id: `msg_local_${Date.now()}`, status: 'sent' } : m
           )
         );
+        throw err;
       }
     },
     [conversationId, currentUser]
@@ -274,7 +352,9 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
         const saved = await sendMessageApi(
           conversationId,
           currentUser.id,
-          failedMessage.content
+          failedMessage.content,
+          currentUser.name,
+          failedMessage.id
         );
 
         setMessages((prev) =>

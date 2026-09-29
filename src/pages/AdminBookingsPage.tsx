@@ -42,9 +42,9 @@ export const AdminBookingsPage: React.FC = () => {
     if (statusFilter !== 'all' && b.status !== statusFilter) return false;
     if (
       search &&
-      !b.rooms?.name?.toLowerCase().includes(search.toLowerCase()) &&
-      !b.renter?.full_name?.toLowerCase().includes(search.toLowerCase()) &&
-      !b.contact_phone?.includes(search)
+      !(b.rooms?.name || '').toLowerCase().includes(search.toLowerCase()) &&
+      !(b.renter?.full_name || '').toLowerCase().includes(search.toLowerCase()) &&
+      !(b.contact_phone || '').includes(search)
     ) {
       return false;
     }
@@ -62,9 +62,7 @@ export const AdminBookingsPage: React.FC = () => {
               <Calendar className="w-7 h-7 text-[#006d37]" />
               Theo Dõi Lịch Hẹn Xem Phòng
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Giám sát các yêu cầu đặt lịch hẹn giữa khách thuê và chủ trọ để đảm bảo tỷ lệ hoàn thành cao nhất.
-            </p>
+
           </div>
 
           <Button

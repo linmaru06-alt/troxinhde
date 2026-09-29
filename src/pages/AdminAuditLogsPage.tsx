@@ -43,7 +43,7 @@ export const AdminAuditLogsPage: React.FC = () => {
     if (entityFilter !== 'all' && l.entity_type !== entityFilter) return false;
     if (
       search &&
-      !l.action.toLowerCase().includes(search.toLowerCase()) &&
+      !(l.action || '').toLowerCase().includes(search.toLowerCase()) &&
       !(l.reason || '').toLowerCase().includes(search.toLowerCase()) &&
       !(l.admin_email || '').toLowerCase().includes(search.toLowerCase()) &&
       !(l.entity_id || '').toLowerCase().includes(search.toLowerCase())
@@ -64,9 +64,7 @@ export const AdminAuditLogsPage: React.FC = () => {
               <History className="w-7 h-7 text-[#006d37]" />
               Nhật Ký Quản Trị (Audit Logs)
             </h1>
-            <p className="text-xs text-gray-500 mt-1">
-              Hệ thống lưu vết bất biến: theo dõi ai đã làm gì, vào thời điểm nào, đối tượng nào và lý do cụ thể.
-            </p>
+
           </div>
 
           <Button
@@ -96,7 +94,7 @@ export const AdminAuditLogsPage: React.FC = () => {
 
           <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
             <span className="text-xs font-semibold text-gray-500 whitespace-nowrap">Lọc đối tượng:</span>
-            {['all', 'room', 'owner_application', 'user', 'report'].map((cat) => (
+            {['all', 'room', 'roommate', 'marketplace_item', 'owner_application', 'user', 'report'].map((cat) => (
               <button
                 key={cat}
                 onClick={() => setEntityFilter(cat)}
@@ -110,6 +108,10 @@ export const AdminAuditLogsPage: React.FC = () => {
                   ? 'Tất cả'
                   : cat === 'room'
                   ? 'Phòng'
+                  : cat === 'roommate'
+                  ? 'Ở ghép'
+                  : cat === 'marketplace_item'
+                  ? 'Đồ cũ'
                   : cat === 'owner_application'
                   ? 'Chủ trọ'
                   : cat === 'user'

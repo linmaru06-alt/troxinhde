@@ -5,5 +5,10 @@ Disallow: /admin
 Disallow: /debug
 Disallow: /chu-tro/
 Disallow: /chu-tro
+Disallow: /tin-nhan
+Disallow: /tin-nhan/
+Disallow: /chat
+Disallow: /chat/
+Disallow: /thanh-toan/
 
 Sitemap: https://troxinh.vn/sitemap.xml

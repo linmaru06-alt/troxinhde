@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import { createPendingTransaction } from './api/payments';
 
 export const MOMO_CONFIG = {
   PARTNER_NAME: 'Trọ Xinh - Nền Tảng Tìm & Quản Lý Nhà Trọ',
@@ -100,25 +101,14 @@ export async function createMoMoPaymentOrder(
   );
 
   // 1. Lưu bản ghi đơn hàng pending vào Supabase bảng transactions (nếu có kết nối)
-  if (isSupabaseConfigured) {
-    try {
-      const validUserId = params.userId && params.userId.length === 36 ? params.userId : '00000000-0000-0000-0000-000000000002';
-      await supabase.from('transactions').upsert(
-        {
-          user_id: validUserId,
-          order_code: orderId,
-          plan_id: params.planId,
-          amount: params.amount,
-          status: 'pending',
-          payment_method: 'momo',
-          created_at: new Date().toISOString(),
-        },
-        { onConflict: 'order_code' }
-      );
-    } catch (dbErr) {
-      console.warn('[MoMo Payment] Lưu transaction pending:', dbErr);
-    }
-  }
+  await createPendingTransaction({
+    orderCode: orderId,
+    userId: params.userId,
+    planId: params.planId,
+    roomId: params.roomId,
+    amount: params.amount,
+    paymentMethod: 'momo',
+  });
 
   // 2. Thử gọi Edge Function create-momo-payment (nếu backend MoMo Gateway v2 cấu hình sẵn)
   if (isSupabaseConfigured) {

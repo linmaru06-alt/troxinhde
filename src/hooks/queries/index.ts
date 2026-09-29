@@ -4,3 +4,4 @@ export * from './useConversations';
 export * from './useNotifications';
 export * from './useSavedRooms';
 export * from './useBuildings';
+export * from './useMarketplace';

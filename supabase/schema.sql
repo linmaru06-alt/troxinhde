@@ -11,7 +11,9 @@ CREATE TABLE IF NOT EXISTS public.users (
   avatar_url TEXT DEFAULT '/images/user-avatar.jpg',
   email VARCHAR(255),
   school VARCHAR(255),
+  university TEXT,
   year VARCHAR(50),
+  student_year TEXT,
   bio TEXT,
   address TEXT,
   rating NUMERIC(2,1) DEFAULT 5.0,
@@ -149,7 +151,7 @@ CREATE TABLE IF NOT EXISTS public.notifications (
   title VARCHAR(255) NOT NULL,
   message TEXT NOT NULL,
   link TEXT,
-  read BOOLEAN DEFAULT false,
+  is_read BOOLEAN DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -176,7 +178,6 @@ CREATE TABLE IF NOT EXISTS public.user_subscriptions (
   started_at TIMESTAMPTZ DEFAULT NOW(),
   expires_at TIMESTAMPTZ NOT NULL,
   transaction_id UUID REFERENCES public.transactions(id) ON DELETE SET NULL,
-  is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
@@ -206,7 +207,10 @@ CREATE INDEX IF NOT EXISTS idx_rooms_nearest_school ON public.rooms(nearest_scho
 CREATE INDEX IF NOT EXISTS idx_rooms_created_at ON public.rooms(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_buildings_owner_id ON public.buildings(owner_id);
 CREATE INDEX IF NOT EXISTS idx_messages_thread_id ON public.messages(thread_id, created_at ASC);
+ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS is_read BOOLEAN DEFAULT false;
+CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON public.notifications(user_id, is_read);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON public.notifications(user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_transactions_user_id ON public.transactions(user_id, created_at DESC);
+
 
 
