@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
@@ -10,23 +10,16 @@ import {
   CheckCircle2,
   Clock,
   ArrowRight,
-  TrendingUp,
   FileCheck,
   Phone,
   Lock,
-  ArrowLeft,
   XCircle,
   Upload,
   CreditCard,
   UserCheck,
   FileText,
   Camera,
-  Image as ImageIcon,
-  Check,
-  AlertTriangle,
-  HelpCircle,
   Trash2,
-  Eye,
 } from 'lucide-react';
 
 const VIETNAM_BANKS = [

@@ -155,12 +155,12 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   <h3 className="text-sm font-black text-gray-900 truncate">{currentUser.name}</h3>
                   <p className="text-xs text-gray-500 font-mono">{currentUser.phone || 'Thành viên Trọ Xinh'}</p>
                   <span
-                    className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                    className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                       currentUser.role === 'owner'
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
                         : currentUser.role === 'admin'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-blue-100 text-blue-800'
+                        ? 'bg-purple-100 text-purple-800 ring-1 ring-purple-300'
+                        : 'bg-emerald-50 text-[#006d37] font-black ring-1 ring-emerald-200'
                     }`}
                   >
                     {currentUser.role === 'owner'
@@ -176,7 +176,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 <Link
                   to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
                   onClick={onClose}
-                  className="text-center py-1.5 px-2 bg-gray-50 hover:bg-gray-100 text-xs font-bold text-gray-800 rounded-xl transition"
+                  className="text-center py-2 px-2 bg-gray-50 hover:bg-gray-100 text-xs font-bold text-gray-800 rounded-xl transition"
                 >
                   Trang cá nhân
                 </Link>
@@ -184,21 +184,49 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   <Link
                     to="/chu-tro"
                     onClick={onClose}
-                    className="text-center py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-[#006d37] rounded-xl transition"
+                    className="text-center py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-[#006d37] rounded-xl transition"
                   >
                     Quản lý phòng
                   </Link>
                 ) : (
                   <Link
-                    to="/nang-cap-chu-tro"
+                    to="/dang-ky-chu-tro"
                     onClick={onClose}
-                    className="text-center py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-[#006d37] rounded-xl transition"
+                    className="text-center py-2 px-2 bg-[#00a854] hover:bg-[#008f47] text-xs font-black text-white rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
                   >
-                    Đăng ký Chủ trọ
+                    <Building2 className="w-3.5 h-3.5" />
+                    Đăng ký chủ trọ
                   </Link>
                 )}
               </div>
             </div>
+          )}
+
+          {/* BANNER NỔI BẬT: ĐĂNG KÝ CHỦ TRỌ */}
+          {currentUser && currentUser.role !== 'owner' && (
+            <Link
+              to="/dang-ky-chu-tro"
+              onClick={onClose}
+              className="block p-3.5 bg-gradient-to-r from-emerald-900 to-[#006d37] rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden"
+            >
+              <div className="flex items-center justify-between">
+                <div className="space-y-0.5 max-w-[220px]">
+                  <div className="flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-amber-300" />
+                    <span className="text-xs font-black text-white">Đăng Ký Chủ Trọ</span>
+                    <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                      Mở duyệt
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-emerald-100 font-medium leading-tight">
+                    Điền biểu mẫu 3 bước để đăng tin và quản lý phòng trọ
+                  </p>
+                </div>
+                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-[#006d37] transition">
+                  <ChevronRight className="w-4 h-4" />
+                </div>
+              </div>
+            </Link>
           )}
 
           {/* 2. NHÓM "TIỆN ÍCH" */}
