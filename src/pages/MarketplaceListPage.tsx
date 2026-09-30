@@ -634,8 +634,8 @@ export const MarketplaceListPage: React.FC = () => {
               Chợ Đồ Cũ Sinh Viên <br />
               <span className="text-emerald-400">Tiết Kiệm Tối Đa Chi Phí</span>
             </h1>
-            <p className="text-gray-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-lg">
-              Mua bán bàn ghế, tủ lạnh, quạt điện, giáo trình giá rẻ từ các anh chị khóa trên hoặc nhận đồ tặng 0 đồng tại các cụm trọ sinh viên Hà Nội.
+            <p className="text-emerald-50/90 text-sm sm:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-md">
+              Sang nhượng đồ dùng giá sinh viên & nhận đồ tặng 0đ quanh cụm trọ.
             </p>
           </div>
 
@@ -647,7 +647,7 @@ export const MarketplaceListPage: React.FC = () => {
                 onClick={handlePostItem}
                 className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
               >
-                <span>Đăng Món Đồ Muốn Thanh Lý</span>
+                <span>Đăng Tin Thanh Lý</span>
               </button>
             </div>
             <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-emerald-500/35 shadow-xs">
