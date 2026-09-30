@@ -51,7 +51,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   const { savedRoomIds, toggleSaveRoom, currentUser, removeRoom } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const isSaved = savedRoomIds.includes(room.id);
-  const isOwner = currentUser?.id === room.ownerId;
+  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, room.ownerId));
 
   const handleConfirmDelete = () => {
     removeRoom(room.id);
@@ -261,7 +261,7 @@ export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
 export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => {
   const { currentUser, removeBuilding } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = currentUser?.id === building.ownerId;
+  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, building.ownerId));
 
   const handleConfirmDelete = () => {
     removeBuilding(building.id);
@@ -350,7 +350,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   
   const isSaved = savedRoommateIds.includes(post.id);
-  const isOwner = currentUser?.id === post.userId;
+  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, post.userId));
 
   const handleConfirmDelete = () => {
     removeRoommatePost(post.id);
