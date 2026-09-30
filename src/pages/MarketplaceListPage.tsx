@@ -6,7 +6,6 @@ import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Pagination } from '../components/ui/Pagination';
 import {
-  PlusCircle,
   Sparkles,
   Tag,
   Gift,
@@ -646,13 +645,9 @@ export const MarketplaceListPage: React.FC = () => {
               <button
                 type="button"
                 onClick={handlePostItem}
-                className="w-full md:w-auto flex items-center justify-center gap-3 px-5 sm:px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
+                className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
               >
-                <span className="p-1 bg-white/25 rounded-lg flex items-center justify-center shadow-inner">
-                  <PlusCircle className="w-5 h-5 text-white shrink-0" strokeWidth={2.5} />
-                </span>
                 <span>Đăng Món Đồ Muốn Thanh Lý</span>
-                <Sparkles className="w-4 h-4 text-amber-200 shrink-0" />
               </button>
             </div>
             <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-amber-500/35 shadow-xs">
