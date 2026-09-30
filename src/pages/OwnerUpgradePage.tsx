@@ -20,6 +20,10 @@ import {
   FileText,
   Camera,
   Trash2,
+  ExternalLink,
+  AlertTriangle,
+  Scale,
+  X,
 } from 'lucide-react';
 
 const VIETNAM_BANKS = [
@@ -86,7 +90,8 @@ export const OwnerUpgradePage: React.FC = () => {
     'Đã có giấy phép đăng ký kinh doanh và đạt thẩm duyệt PCCC năm 2025.'
   );
 
-  const [agreementChecked, setAgreementChecked] = useState<boolean>(true);
+  const [agreementChecked, setAgreementChecked] = useState<boolean>(false);
+  const [showTermsModal, setShowTermsModal] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
 
@@ -844,38 +849,142 @@ export const OwnerUpgradePage: React.FC = () => {
           </div>
         </div>
 
-        {/* Commitment Agreement Checkbox */}
-        <div className="p-4 bg-emerald-50/60 rounded-2xl border border-emerald-200 text-xs text-emerald-950 flex items-start gap-3">
-          <input
-            type="checkbox"
-            id="agreement"
-            checked={agreementChecked}
-            onChange={(e) => setAgreementChecked(e.target.checked)}
-            className="w-4 h-4 rounded text-[#006d37] focus:ring-[#006d37] mt-0.5"
-          />
-          <label htmlFor="agreement" className="cursor-pointer leading-relaxed">
-            Tôi cam kết các thông tin cá nhân, CCCD/KYC và cơ sở nhà trọ khai báo ở trên là hoàn toàn chính xác, trung thực và chịu trách nhiệm trước quy định của pháp luật và Điều khoản hoạt động Trọ Xinh.
-          </label>
+        {/* ============================================================ */}
+        {/* 5. ĐIỀU KHOẢN VÀ ĐIỀU KIỆN SỬ DỤNG DÀNH CHO CHỦ TRỌ */}
+        {/* ============================================================ */}
+        <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-6">
+          <div className="border-b border-gray-100 pb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-7 h-7 rounded-xl bg-emerald-100 text-[#006d37] font-black text-xs flex items-center justify-center">
+                  5
+                </span>
+                <h2 className="text-base sm:text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Scale className="w-5 h-5 text-[#006d37]" />
+                  Điều Khoản &amp; Điều Kiện Sử Dụng Dành Cho Chủ Trọ
+                </h2>
+              </div>
+              <p className="text-xs text-gray-500 mt-1 pl-9">
+                Quy định về tài khoản, nội dung tin đăng, thanh toán, an toàn PCCC &amp; cơ chế xử lý vi phạm
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowTermsModal(true)}
+              className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-[#006d37] text-xs font-bold rounded-xl transition cursor-pointer self-start sm:self-auto border border-emerald-200 shadow-2xs"
+            >
+              <span>Xem toàn văn 5 điều khoản</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
+          {/* Tóm tắt 5 điều khoản cốt lõi */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5 text-xs">
+            <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-1.5">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#006d37] text-[11px] font-black flex items-center justify-center shrink-0">1</span>
+                Quy Định Tài Khoản &amp; Xác Thực
+              </div>
+              <p className="text-gray-600 pl-7 leading-relaxed">
+                Cam kết dữ liệu chính xác, chính chủ (CCCD, SĐT, STK), tự bảo mật tài khoản và có quyền sở hữu/cho thuê hợp pháp.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-1.5">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#006d37] text-[11px] font-black flex items-center justify-center shrink-0">2</span>
+                Quy Định Nội Dung Tin Đăng
+              </div>
+              <p className="text-gray-600 pl-7 leading-relaxed">
+                Trung thực 100% về hình ảnh, giá, diện tích; cập nhật trạng thái phòng kịp thời; không đăng nội dung vi phạm pháp luật.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-1.5">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#006d37] text-[11px] font-black flex items-center justify-center shrink-0">3</span>
+                Giao Dịch &amp; Thanh Toán
+              </div>
+              <p className="text-gray-600 pl-7 leading-relaxed">
+                Thanh toán phí dịch vụ niêm yết, đối soát nhận tiền cọc/tiền thuê qua STK và tuân thủ chính sách hoàn tiền khi có lỗi.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-1.5">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#006d37] text-[11px] font-black flex items-center justify-center shrink-0">4</span>
+                Trách Nhiệm Với Người Thuê
+              </div>
+              <p className="text-gray-600 pl-7 leading-relaxed">
+                Ký hợp đồng thuê trọ hợp pháp, hỗ trợ đăng ký tạm trú và đảm bảo an toàn PCCC, an ninh trật tự cơ sở.
+              </p>
+            </div>
+
+            <div className="p-3.5 bg-gray-50/80 rounded-2xl border border-gray-200/80 space-y-1.5 md:col-span-2">
+              <div className="font-bold text-gray-900 flex items-center gap-2">
+                <span className="w-5 h-5 rounded-full bg-emerald-100 text-[#006d37] text-[11px] font-black flex items-center justify-center shrink-0">5</span>
+                Cơ Chế Xử Lý Vi Phạm &amp; Giới Hạn Trách Nhiệm
+              </div>
+              <p className="text-gray-600 pl-7 leading-relaxed">
+                Website có quyền gỡ bỏ tin sai sự thật, khóa tài khoản vi phạm; hoạt động với vai trò sàn TMĐT kết nối người thuê và cho thuê.
+              </p>
+            </div>
+          </div>
+
+          {/* Commitment Agreement Checkbox */}
+          <div
+            className={`p-4 sm:p-5 rounded-2xl border transition-all duration-200 flex items-start gap-3.5 ${
+              agreementChecked
+                ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-500/20'
+                : 'bg-amber-50/60 border-amber-200 hover:border-amber-300'
+            }`}
+          >
+            <input
+              type="checkbox"
+              id="agreement"
+              checked={agreementChecked}
+              onChange={(e) => setAgreementChecked(e.target.checked)}
+              className="w-5 h-5 rounded text-[#006d37] focus:ring-[#006d37] cursor-pointer mt-0.5 shrink-0 accent-[#006d37]"
+            />
+            <label htmlFor="agreement" className="cursor-pointer text-xs leading-relaxed text-gray-800 select-none">
+              <span className="font-bold text-gray-900 block mb-0.5">
+                Tôi xác nhận đã đọc, hiểu rõ và đồng ý với tất cả 5 Điều khoản &amp; Điều kiện sử dụng dành cho Chủ trọ *
+              </span>
+              Tôi cam kết các thông tin cá nhân, giấy tờ CCCD/KYC, tài khoản thanh toán và thông tin cơ sở nhà trọ khai báo ở trên là hoàn toàn chính xác, trung thực và tự chịu hoàn toàn trách nhiệm trước pháp luật.
+            </label>
+          </div>
+
+          {!agreementChecked && (
+            <p className="text-[11px] text-amber-700 font-medium flex items-center gap-1.5 pl-1 animate-pulse">
+              <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+              <span>Vui lòng tích chọn đồng ý với điều khoản trên để mở khóa nút gửi yêu cầu trở thành chủ trọ.</span>
+            </p>
+          )}
         </div>
 
-        {/* SUBMIT BUTTON (Matching screenshot) */}
+        {/* SUBMIT BUTTON */}
         <div className="space-y-4">
           <button
             type="submit"
-            disabled={isSubmitting}
-            className="w-full py-4 px-6 rounded-2xl bg-[#00a854] hover:bg-[#008f47] active:scale-[0.99] text-white font-black text-sm sm:text-base shadow-lg shadow-emerald-500/20 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+            disabled={!agreementChecked || isSubmitting}
+            className={`w-full py-4 px-6 rounded-2xl font-black text-sm sm:text-base shadow-lg flex items-center justify-center gap-2 transition-all ${
+              agreementChecked && !isSubmitting
+                ? 'bg-[#00a854] hover:bg-[#008f47] active:scale-[0.99] text-white shadow-emerald-500/20 cursor-pointer'
+                : 'bg-gray-200 text-gray-400 cursor-not-allowed shadow-none border border-gray-300/50'
+            }`}
           >
             {isSubmitting ? (
               <span>Đang gửi hồ sơ thẩm định...</span>
             ) : (
               <>
-                <span>Gửi Hồ Sơ Xét Duyệt Lên Chủ Trọ (24h)</span>
+                <span>Gửi Yêu Cầu Trở Thành Chủ Trọ (Xét duyệt 24h)</span>
                 <ArrowRight className="w-5 h-5" />
               </>
             )}
           </button>
 
-          {/* Footer Consultation Info (From screenshot) */}
+          {/* Footer Consultation Info */}
           <div className="text-center text-xs text-gray-500 flex items-center justify-center gap-2 flex-wrap">
             <span>Cần tư vấn gói phù hợp?</span>
             <span className="flex items-center gap-1 font-bold text-gray-800">
@@ -888,6 +997,165 @@ export const OwnerUpgradePage: React.FC = () => {
           </div>
         </div>
       </form>
+
+      {/* MODAL CHI TIẾT ĐIỀU KHOẢN VÀ ĐIỀU KIỆN SỬ DỤNG DÀNH CHO CHỦ TRỌ */}
+      {showTermsModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[85vh] flex flex-col shadow-2xl border border-gray-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-5 sm:p-6 border-b border-gray-100 flex items-center justify-between bg-gray-50/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-emerald-100 text-[#006d37] flex items-center justify-center shrink-0">
+                  <Scale className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-gray-900">
+                    ĐIỀU KHOẢN VÀ ĐIỀU KIỆN SỬ DỤNG DÀNH CHO CHỦ TRỌ
+                  </h3>
+                  <p className="text-xs text-gray-500">Nền tảng Quản lý &amp; Tìm kiếm Trọ Xinh</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowTermsModal(false)}
+                className="p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-full transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Scrollable Body */}
+            <div className="p-6 overflow-y-auto space-y-6 text-xs sm:text-sm text-gray-700 leading-relaxed text-left">
+              {/* Điều 1 */}
+              <section className="space-y-2">
+                <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-[#006d37] font-black text-xs flex items-center justify-center shrink-0">1</span>
+                  Quy định về tài khoản và xác thực thông tin
+                </h4>
+                <ul className="list-disc pl-10 space-y-1.5 text-gray-600">
+                  <li>
+                    <strong className="text-gray-800">Chính xác dữ liệu:</strong> Chủ trọ cam kết cung cấp thông tin cá nhân (Họ tên, CCCD, Số điện thoại, Tài khoản ngân hàng) chính xác, chính chủ và chịu trách nhiệm hoàn toàn về tính pháp lý của thông tin này.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Bảo mật tài khoản:</strong> Chủ trọ có trách nhiệm tự bảo mật mật khẩu và tài khoản của mình. Mọi hoạt động được thực hiện qua tài khoản của chủ trọ được tính là hành vi của chính chủ trọ đó.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Quyền sở hữu:</strong> Chủ trọ cam kết mình là chủ sở hữu hợp pháp hoặc có quyền cho thuê hợp pháp đối với bất động sản/phòng trọ được đăng tải.
+                  </li>
+                </ul>
+              </section>
+
+              {/* Điều 2 */}
+              <section className="space-y-2">
+                <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-[#006d37] font-black text-xs flex items-center justify-center shrink-0">2</span>
+                  Quy định về nội dung tin đăng
+                </h4>
+                <ul className="list-disc pl-10 space-y-1.5 text-gray-600">
+                  <li>
+                    <strong className="text-gray-800">Tính trung thực:</strong> Thông tin về phòng trọ (giá cả, diện tích, vị trí, tiện ích, hình ảnh, video) phải đúng với thực tế. Nghiêm cấm hành vi treo đầu dê bán thịt chó hoặc dùng hình ảnh giả mạo.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Cập nhật trạng thái:</strong> Chủ trọ có nghĩa vụ cập nhật ngay trạng thái phòng (Còn trống / Đã cho thuê) trên hệ thống để tránh làm mất thời gian của người thuê và giữ uy tín cho nền tảng.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Nội dung nghiêm cấm:</strong> Không đăng tải các nội dung vi phạm pháp luật, thuần phong mỹ tục, hoặc các thông tin mang tính chất quảng cáo cho các dịch vụ khác ngoài mục đích cho thuê bất động sản.
+                  </li>
+                </ul>
+              </section>
+
+              {/* Điều 3 */}
+              <section className="space-y-2">
+                <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-[#006d37] font-black text-xs flex items-center justify-center shrink-0">3</span>
+                  Quy trình giao dịch và thanh toán
+                </h4>
+                <ul className="list-disc pl-10 space-y-1.5 text-gray-600">
+                  <li>
+                    <strong className="text-gray-800">Phí dịch vụ:</strong> Chủ trọ đồng ý thanh toán các khoản phí (phí đăng tin, phí hoa hồng trên mỗi lượt đặt phòng thành công, hoặc phí dịch vụ khác) theo biểu phí được niêm yết công khai của website tại từng thời điểm.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Nhận tiền thanh toán:</strong> Nền tảng sẽ chuyển tiền đặt cọc/tiền thuê thu hộ (nếu có) vào tài khoản ngân hàng do chủ trọ cung cấp sau khi khấu trừ phí dịch vụ, theo đúng chu kỳ đối soát đã thỏa thuận.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Chính sách hoàn tiền:</strong> Chủ trọ phải tuân thủ chính sách hủy phòng và hoàn tiền của website trong trường hợp lỗi phát sinh từ phía chủ trọ (ví dụ: không bàn giao phòng đúng hẹn, phòng không đúng mô tả).
+                  </li>
+                </ul>
+              </section>
+
+              {/* Điều 4 */}
+              <section className="space-y-2">
+                <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-[#006d37] font-black text-xs flex items-center justify-center shrink-0">4</span>
+                  Trách nhiệm đối với người thuê trọ
+                </h4>
+                <ul className="list-disc pl-10 space-y-1.5 text-gray-600">
+                  <li>
+                    <strong className="text-gray-800">Hợp đồng thuê nhà:</strong> Chủ trọ tự chịu trách nhiệm ký kết hợp đồng thuê trọ hợp pháp với khách thuê và thực hiện đầy đủ nghĩa vụ của bên cho thuê theo quy định của Pháp luật Việt Nam.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">An ninh và Đăng ký tạm trú:</strong> Chủ trọ có trách nhiệm hỗ trợ khách thuê thực hiện các thủ tục đăng ký tạm trú, tạm vắng và đảm bảo các điều kiện an toàn phòng cháy chữa cháy (PCCC), an ninh trật tự tại cơ sở cho thuê.
+                  </li>
+                </ul>
+              </section>
+
+              {/* Điều 5 */}
+              <section className="space-y-2">
+                <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-emerald-100 text-[#006d37] font-black text-xs flex items-center justify-center shrink-0">5</span>
+                  Cơ chế xử lý vi phạm
+                </h4>
+                <ul className="list-disc pl-10 space-y-1.5 text-gray-600">
+                  <li>
+                    <strong className="text-gray-800">Gỡ bỏ tin đăng:</strong> Website có quyền gỡ bỏ không cần báo trước các tin đăng có dấu hiệu lừa đảo, sai sự thật hoặc bị người dùng báo cáo (report) tiêu cực nhiều lần.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Khóa tài khoản:</strong> Tài khoản của chủ trọ sẽ bị khóa tạm thời hoặc vĩnh viễn nếu vi phạm nghiêm trọng các điều khoản này hoặc có hành vi gian lận tài chính.
+                  </li>
+                  <li>
+                    <strong className="text-gray-800">Giới hạn trách nhiệm:</strong> Website chỉ đóng vai trò là sàn giao dịch thương mại điện tử kết nối người thuê và người cho thuê. Website không chịu trách nhiệm về bất kỳ tranh chấp, thiệt hại phát sinh từ mối quan hệ thuê nhà giữa chủ trọ và khách thuê.
+                  </li>
+                </ul>
+              </section>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="p-4 sm:p-5 border-t border-gray-100 flex items-center justify-between bg-gray-50/60">
+              <Link
+                to="/dieu-khoan"
+                target="_blank"
+                className="text-xs font-semibold text-[#006d37] hover:underline flex items-center gap-1"
+              >
+                <span>Xem trang Điều khoản chung</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowTermsModal(false)}
+                >
+                  Đóng
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    setAgreementChecked(true);
+                    setShowTermsModal(false);
+                    showToast('Đã xác nhận đồng ý điều khoản', 'Bạn có thể gửi hồ sơ đăng ký ngay bây giờ.', 'success');
+                  }}
+                  rightIcon={<CheckCircle2 className="w-4 h-4" />}
+                >
+                  Tôi Đã Đọc &amp; Đồng Ý
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
