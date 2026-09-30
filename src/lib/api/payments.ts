@@ -112,7 +112,10 @@ export async function verifyPaymentFromDatabase(
 }
 
 /**
- * Ghi nhận giao dịch thanh toán (Chỉ dùng cho môi trường Sandbox Demo hoặc Fallback cục bộ có kiểm soát)
+ * @deprecated KHÔNG DÙNG Ở PRODUCTION.
+ * Quy tắc bảo mật: Client không được tự chuyển status = 'paid'.
+ * Trạng thái thanh toán chỉ được cập nhật qua Webhook / Edge Function có Service Role.
+ * Hàm này chỉ tồn tại như di sản (legacy) phục vụ mock testing cục bộ.
  */
 export async function recordSuccessfulPayment(
   userId: string,

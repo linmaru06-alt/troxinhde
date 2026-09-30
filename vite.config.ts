@@ -34,6 +34,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*tile\.openstreetmap\.org/,
@@ -62,12 +64,16 @@ export default defineConfig({
         ],
       },
     }),
-    visualizer({
-      filename: 'stats.html',
-      gzipSize: true,
-      brotliSize: true,
-      open: false,
-    }),
+    ...(process.env.ANALYZE === 'true'
+      ? [
+          visualizer({
+            filename: 'stats.html',
+            gzipSize: true,
+            brotliSize: true,
+            open: false,
+          }),
+        ]
+      : []),
   ],
   resolve: {
     alias: {
@@ -83,7 +89,6 @@ export default defineConfig({
           'leaflet-vendor': ['leaflet', 'react-leaflet'],
           'ui-vendor': ['framer-motion', 'lucide-react', 'clsx', 'tailwind-merge'],
           'supabase-vendor': ['@supabase/supabase-js'],
-          'cloudinary-vendor': ['@cloudinary/react', '@cloudinary/url-gen'],
         },
       },
     },

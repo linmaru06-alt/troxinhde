@@ -1,6 +1,6 @@
 import { supabase } from './supabase';
 import { auth, fetchSignInMethodsForEmail } from './firebase';
-import { initialUsers } from '../data/mockData';
+import { initialUsers } from '../data/demoUsers';
 
 export interface SupabaseUserProfile {
   id: string;
@@ -529,7 +529,8 @@ export async function createSupabaseProfile(
   const cleanEmail = data.email ? data.email.trim().toLowerCase() : null;
   const cleanPhone = data.phone ? data.phone.replace(/\D/g, '') : null;
   const isSuperAdmin = cleanEmail === 'quan66934@gmail.com' || cleanEmail === 'admin@troxinh.vn';
-  const role = isSuperAdmin ? 'admin' : (data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'renter');
+  const isLandlord = cleanEmail === 'phuonglinh832005@gmail.com';
+  const role = isSuperAdmin ? 'admin' : isLandlord ? 'owner' : (data.role === 'owner' ? 'owner' : data.role === 'admin' ? 'admin' : 'renter');
   const avatarUrl = data.avatar_url || data.avatarUrl || '/images/user-avatar.jpg';
 
   try {
@@ -804,11 +805,12 @@ export async function handleUnifiedAuth(params: {
 
     // 4. NẾU CHƯA CÓ PROFILE -> TỰ ĐỘNG ĐĂNG KÝ & LƯU SUPABASE PROFILES
     const isSuperAdmin = cleanEmail === 'quan66934@gmail.com' || cleanEmail === 'admin@troxinh.vn';
+    const isLandlord = cleanEmail === 'phuonglinh832005@gmail.com';
     const defaultName =
       (isSuperAdmin ? 'Quản Trị Viên (Quân)' : undefined) ||
       params.name?.trim() ||
       (cleanPhone ? `Người dùng ${cleanPhone.slice(-4)}` : cleanEmail ? cleanEmail.split('@')[0] : 'Người dùng Trọ Xinh');
-    const role = isSuperAdmin ? 'admin' : (params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'renter');
+    const role = isSuperAdmin ? 'admin' : isLandlord ? 'owner' : (params.intendedRole === 'owner' ? 'owner' : params.intendedRole === 'admin' ? 'admin' : 'renter');
     const avatar = params.avatarUrl || '/images/user-avatar.jpg';
 
     const newProfileRecord: Record<string, any> = {

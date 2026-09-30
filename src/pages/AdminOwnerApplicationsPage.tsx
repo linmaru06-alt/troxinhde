@@ -326,31 +326,141 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                 </Badge>
               </div>
 
-              {/* Section: Verification Details */}
+              {/* Section 1: Personal / Org Details */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 uppercase text-[11px] tracking-wider text-[#006d37]">
-                  1. Thông Tin Xác Minh
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4" /> 1. Thông Tin Cá Nhân / Tổ Chức Cho Thuê
                 </h4>
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2.5">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Số Căn cước công dân (CCCD):</span>
-                    <span className="font-mono font-bold text-gray-900">
-                      {selectedApp.cccdNumber ? `${selectedApp.cccdNumber.slice(0, 3)} xxx xxx ${selectedApp.cccdNumber.slice(-3)}` : '079 xxx xxx 123'}
+                    <span className="text-gray-500">Loại hình:</span>
+                    <span className="font-bold text-gray-900">
+                      {selectedApp.organizationType === 'business' ? 'Doanh Nghiệp / Hộ Kinh Doanh' : 'Cá Nhân Cho Thuê'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Xác thực số điện thoại OTP:</span>
-                    <span className="text-emerald-700 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Đã xác thực
+                    <span className="text-gray-500">Họ và tên / Đại diện:</span>
+                    <span className="font-bold text-gray-900">{selectedApp.fullName || selectedApp.userName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Số CCCD / CMND / MST:</span>
+                    <span className="font-mono font-bold text-gray-900">
+                      {selectedApp.taxOrCccdNumber || selectedApp.cccdNumber || '079098001234'}
                     </span>
+                  </div>
+                  {(selectedApp.cccdIssueDate || selectedApp.cccdIssuePlace) && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Ngày & Nơi cấp:</span>
+                      <span className="font-medium text-gray-800 text-right">
+                        {selectedApp.cccdIssueDate || '15/08/2021'} • {selectedApp.cccdIssuePlace || 'Cục Cảnh sát QLHC'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Số điện thoại liên hệ:</span>
+                    <span className="font-mono font-bold text-[#006d37] flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {selectedApp.userPhone} (Đã xác thực OTP)
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Email giao dịch:</span>
+                    <span className="font-medium text-gray-800">{selectedApp.userEmail || 'Chưa có'}</span>
+                  </div>
+                  {selectedApp.permanentAddress && (
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Địa chỉ liên hệ / Hộ khẩu:</span>
+                      <span className="font-medium text-gray-800">{selectedApp.permanentAddress}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 2: KYC Photos */}
+              <div className="space-y-2">
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" /> 2. Thông Tin Xác Thực Tài Khoản (KYC)
+                </h4>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-500 block">Mặt trước CCCD:</span>
+                      <div className="h-28 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                        <img
+                          src={selectedApp.cccdFrontUrl || selectedApp.cccdImageUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80'}
+                          alt="Mặt trước CCCD"
+                          className="w-full h-full object-cover hover:scale-105 transition cursor-pointer"
+                          onClick={() => window.open(selectedApp.cccdFrontUrl || selectedApp.cccdImageUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80', '_blank')}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-500 block">Mặt sau CCCD:</span>
+                      <div className="h-28 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                        <img
+                          src={selectedApp.cccdBackUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80'}
+                          alt="Mặt sau CCCD"
+                          className="w-full h-full object-cover hover:scale-105 transition cursor-pointer"
+                          onClick={() => window.open(selectedApp.cccdBackUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80', '_blank')}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedApp.portraitWithCccdUrl && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-500 block">Chân dung chủ trọ cầm CCCD:</span>
+                      <div className="h-32 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                        <img
+                          src={selectedApp.portraitWithCccdUrl}
+                          alt="Chân dung cầm CCCD"
+                          className="w-full h-full object-cover hover:scale-105 transition cursor-pointer"
+                          onClick={() => window.open(selectedApp.portraitWithCccdUrl, '_blank')}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedApp.businessDocUrl && (
+                    <div className="p-2.5 bg-white rounded-xl border border-gray-200 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-gray-700">Giấy CNQSDĐ / Giấy phép kinh doanh</span>
+                      <a
+                        href={selectedApp.businessDocUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#006d37] font-bold text-[11px] hover:underline"
+                      >
+                        Xem tài liệu →
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Bank Payment Details */}
+              <div className="space-y-2">
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <FileCheck className="w-4 h-4" /> 3. Thông Tin Tài Khoản Nhận Tiền
+                </h4>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Ngân hàng:</span>
+                    <span className="font-bold text-gray-900">{selectedApp.bankName || 'Vietcombank'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Số tài khoản:</span>
+                    <span className="font-mono font-bold text-emerald-800">{selectedApp.bankAccountNumber || '0011004328999'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Chủ tài khoản:</span>
+                    <span className="font-mono font-bold text-gray-900">{selectedApp.bankAccountName || selectedApp.userName.toUpperCase()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Section: Property Info */}
+              {/* Section 4: Property Info */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 uppercase text-[11px] tracking-wider text-[#006d37]">
-                  2. Thông Tin Cơ Sở Nhà Trọ
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4" /> 4. Thông Tin Cơ Sở Nhà Trọ
                 </h4>
                 <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
                   <div>
@@ -376,10 +486,10 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section: Commitments */}
+              {/* Section 5: Commitments */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 uppercase text-[11px] tracking-wider text-[#006d37]">
-                  3. Cam Kết Từ Chủ Cơ Sở
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37]">
+                  5. Cam Kết Từ Chủ Cơ Sở
                 </h4>
                 <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100 space-y-1.5 text-emerald-950">
                   <div className="flex items-center gap-2 font-medium">

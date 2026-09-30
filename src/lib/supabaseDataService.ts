@@ -2,6 +2,7 @@ import { supabase } from './supabase';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../types';
 import { fetchMarketplaceItems } from './api/marketplace';
 import { attachPublicProfiles } from './api/publicProfiles';
+import { resolveUserIdToUuid } from './api/messages';
 
 /**
  * ==============================================================================
@@ -206,10 +207,30 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       .order('created_at', { ascending: false });
 
     if (!auditErr && auditData) {
-      cloudAuditPosts = auditData
+      const activeCloud = auditData
         .map((item: any) => item.data_after)
-        .filter((p: any) => p && p.status === 'active')
-        .map(mapRecord);
+        .filter((p: any) => p && p.status === 'active');
+        
+      const posterIds = Array.from(new Set(activeCloud.map((p: any) => p.poster_id).filter(Boolean)));
+      let profileMap: Record<string, any> = {};
+      
+      if (posterIds.length > 0) {
+        try {
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', posterIds);
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.id, p]));
+          }
+        } catch (err) {
+          console.warn('[Supabase] Lỗi khi tải profiles cho audit_logs:', err);
+        }
+      }
+
+      cloudAuditPosts = activeCloud.map((p: any) => {
+        if (p.poster_id && profileMap[p.poster_id]) {
+          p.profiles = profileMap[p.poster_id];
+        }
+        return mapRecord(p);
+      });
     }
   } catch (err) {
     console.warn('[Supabase] Lỗi khi tải audit_logs roommate posts:', err);
@@ -246,7 +267,7 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
       amenities: room.amenities,
       description: room.description,
       status: 'available',
-      moderation_status: 'pending',
+      moderation_status: 'approved',
     };
 
     const { error } = await supabase.from('rooms').insert(payload);
@@ -263,9 +284,14 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
 
 // 6. GHI / ĐỒNG BỘ BÀI ĐĂNG TÌM BẠN Ở GHÉP LÊN SUPABASE
 export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<boolean> {
-  const validPosterId = (post.userId && post.userId.length === 36)
-    ? post.userId
-    : '0016bd8f-d19e-4348-9175-3a4379cffad4';
+  let validPosterId = '0016bd8f-d19e-4348-9175-3a4379cffad4';
+  if (post.userId) {
+    try {
+      validPosterId = await resolveUserIdToUuid(post.userId);
+    } catch {
+      validPosterId = post.userId.length === 36 ? post.userId : validPosterId;
+    }
+  }
 
   const payload = {
     id: post.id,

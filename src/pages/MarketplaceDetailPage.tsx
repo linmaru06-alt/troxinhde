@@ -9,6 +9,7 @@ import { ImageUploader } from '../components/ui/ImageUploader';
 import { MarketplaceCard, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   ShoppingBag,
   MapPin,
@@ -428,6 +429,21 @@ export const MarketplaceDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title={`${item.name} - ${item.pricingType === 'Miễn phí' ? 'Miễn phí 0đ' : formatCurrency(item.price)} | Chợ Đồ Cũ Trọ Xinh`}
+        description={`Thanh lý ${item.name} tại ${(item as any).sellerDistrict || item.location || 'Hà Nội'}. Tình trạng: ${CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}. Giá sinh viên: ${item.pricingType === 'Miễn phí' ? '0đ' : formatCurrency(item.price)}.`}
+        image={images[0] || '/images/hero-banner.webp'}
+        url={`/cho-do-cu/${item.id}`}
+        type="article"
+        product={{
+          name: item.name,
+          description: item.description,
+          images: images,
+          price: item.price || 0,
+          condition: item.condition,
+        }}
+      />
+
       {/* 1. Breadcrumb Navigation */}
       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
         <div className="flex items-center gap-1.5 truncate">

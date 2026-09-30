@@ -48,12 +48,30 @@ export interface OwnerApplication {
   userName: string;
   userPhone: string;
   userEmail?: string;
+  // 1. Personal / Org info
+  fullName?: string;
+  organizationType?: 'personal' | 'business';
+  taxOrCccdNumber?: string;
+  cccdNumber: string;
+  cccdIssueDate?: string;
+  cccdIssuePlace?: string;
+  phoneVerified?: boolean;
+  permanentAddress?: string;
+  // 2. KYC Verification
+  cccdImageUrl?: string;
+  cccdFrontUrl?: string;
+  cccdBackUrl?: string;
+  portraitWithCccdUrl?: string;
+  businessDocUrl?: string;
+  // 3. Payment Account
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  // Facility / Property info
   buildingName: string;
   address: string;
   district: string;
   totalRooms: number;
-  cccdNumber: string;
-  cccdImageUrl?: string;
   legalDocsNote?: string;
   status: "pending" | "approved" | "rejected";
   rejectionReason?: string;
@@ -76,6 +94,7 @@ export interface Room {
   electricityPrice: number;
   waterPrice: number;
   area: number;
+  floor?: number;
   type: "Phòng đơn" | "Studio" | "Phòng ghép" | "Căn hộ mini";
   status: "Còn trống" | "Đã cho thuê" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn";
   verified: boolean;
@@ -229,6 +248,7 @@ export interface Conversation {
   last_message_at?: string | null;
   unread_count_p1?: number;
   unread_count_p2?: number;
+  unread_count?: number;
   created_at?: string;
   other_name?: string;
   other_avatar?: string;

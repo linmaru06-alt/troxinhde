@@ -29,18 +29,20 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications, ownerApplications } = useAppStore();
+  const { logout, currentUser, notifications, ownerApplications, bookings = [] } = useAppStore();
 
   const unreadNotifs = notifications.filter((n) => !n.read).length;
   const unreadMessages = notifications.filter(
     (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
   ).length;
   const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;
+  const pendingBookings = (bookings || []).filter((b) => b.status === 'Chờ chủ trọ xác nhận').length;
 
   const ownerLinks: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan & Phòng', icon: LayoutDashboard },
     { to: '/chu-tro/toa-nha', label: 'Tòa nhà của tôi', icon: Building2 },
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
+    { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
     { to: '/chu-tro/quan-ly-goi', label: 'Gói dịch vụ & Hóa đơn', icon: Crown },
     { to: '/chu-tro/tin-nhan', label: 'Tin nhắn khách thuê', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/thong-bao', label: 'Trung tâm thông báo', icon: Bell, badge: unreadNotifs },
@@ -63,7 +65,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
   const links = role === 'owner' ? ownerLinks : adminLinks;
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 min-h-[calc(100vh-4rem)] p-4 flex flex-col justify-between hidden md:flex shrink-0">
+    <aside className="w-64 bg-white border-r border-gray-200 sticky top-16 h-[calc(100vh-4rem)] p-4 flex flex-col justify-between hidden md:flex shrink-0 z-20 overflow-y-auto">
       <div>
         {/* User Badge */}
         <div className="flex items-center gap-3 p-3 bg-emerald-50/70 rounded-2xl mb-6">

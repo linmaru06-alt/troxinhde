@@ -1,0 +1,64 @@
+#!/bin/sh
+# ==============================================================================
+# Trọ Xinh (troxinh.vn) - Quality Gate: Pre-Push Hook (Lớp 1)
+# Ngăn chặn đẩy mã nguồn lỗi lên GitHub & Vercel
+# ==============================================================================
+
+echo ""
+echo "🛡️  ==============================================================="
+echo "🛡️  [Trọ Xinh Quality Gate] Đang kiểm tra mã nguồn trước khi push..."
+echo "🛡️  ==============================================================="
+
+# Xác định lệnh npm phù hợp với môi trường (Windows / Linux / macOS)
+if command -v npm.cmd >/dev/null 2>&1; then
+  NPM_EXEC="npm.cmd"
+elif command -v npm >/dev/null 2>&1; then
+  NPM_EXEC="npm"
+else
+  echo "❌ Không tìm thấy Node/NPM trên hệ thống!"
+  exit 1
+fi
+
+# 1. Kiểm tra TypeCheck & Build Production (tsc + vite build)
+echo ""
+echo "📦 [1/2] Đang kiểm tra TypeScript & Build Production (npm run build)..."
+$NPM_EXEC run build
+BUILD_STATUS=$?
+
+if [ $BUILD_STATUS -ne 0 ]; then
+  echo ""
+  echo "❌ ==============================================================="
+  echo "❌ [CHẶN PUSH] Phát hiện lỗi TypeCheck hoặc Build Production thất bại!"
+  echo "❌ Vui lòng sửa hết các lỗi hiển thị ở trên trước khi đẩy code."
+  echo "❌ ==============================================================="
+  echo ""
+  exit 1
+fi
+
+echo "✅ [1/2] Đạt chuẩn Build Production & TypeCheck!"
+
+# 2. Kiểm tra bộ Test Suites nghiệp vụ
+echo ""
+echo "🧪 [2/2] Đang chạy bộ kiểm thử hệ thống (npm run test:all)..."
+$NPM_EXEC run test:all
+TEST_STATUS=$?
+
+if [ $TEST_STATUS -ne 0 ]; then
+  echo ""
+  echo "❌ ==============================================================="
+  echo "❌ [CHẶN PUSH] Phát hiện lỗi trong kịch bản kiểm thử (Test Suite)!"
+  echo "❌ Vui lòng sửa lỗi trước khi push."
+  echo "❌ ==============================================================="
+  echo ""
+  exit 1
+fi
+
+echo "✅ [2/2] Toàn bộ 5/5 Test Suites đạt chuẩn 100%!"
+
+echo ""
+echo "🎉 ==============================================================="
+echo "🎉 [CHẤP THUẬN] Mọi tiêu chuẩn an toàn đã đạt! Cho phép git push."
+echo "🎉 ==============================================================="
+echo ""
+
+exit 0

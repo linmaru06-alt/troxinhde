@@ -8,8 +8,18 @@ export interface AccommodationSchema {
   address?: string;
   district?: string;
   price?: number;
+  area?: number;
+  amenities?: string[];
   avgRating?: number;
   reviewCount?: number;
+}
+
+export interface ProductSchema {
+  name: string;
+  description?: string;
+  images?: string[];
+  price?: number;
+  condition?: string;
 }
 
 export interface SEOProps {
@@ -19,7 +29,9 @@ export interface SEOProps {
   url?: string;
   type?: 'website' | 'article';
   keywords?: string;
+  noindex?: boolean;
   accommodation?: AccommodationSchema;
+  product?: ProductSchema;
 }
 
 export const SEOHead: React.FC<SEOProps> = ({
@@ -29,58 +41,102 @@ export const SEOHead: React.FC<SEOProps> = ({
   url,
   type = 'website',
   keywords = 'phòng trọ hà nội, thuê phòng sinh viên, nhà trọ cầu giấy, phòng trọ đống đa, bách khoa, đhqg hà nội',
+  noindex = false,
   accommodation,
+  product,
 }) => {
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://troxinh.vn';
   const currentUrl = url ? `${siteUrl}${url}` : typeof window !== 'undefined' ? window.location.href : 'https://troxinh.vn';
   const fullTitle = title.includes('TroXinh') || title.includes('Trọ Xinh') ? title : `${title} | TroXinh.vn`;
 
   // Schema.org JSON-LD Structured Data
-  const structuredData = accommodation
-    ? {
-        '@context': 'https://schema.org',
-        '@type': 'Accommodation',
-        name: accommodation.name,
-        description: accommodation.description || description,
-        image: accommodation.images && accommodation.images.length > 0 ? accommodation.images : [image],
-        address: {
-          '@type': 'PostalAddress',
-          streetAddress: accommodation.address || 'Hà Nội',
-          addressLocality: accommodation.district || 'Hà Nội',
-          addressRegion: 'Hà Nội',
-          addressCountry: 'VN',
-        },
-        offers: accommodation.price
-          ? {
-              '@type': 'Offer',
+  let structuredData: any = null;
+
+  if (accommodation) {
+    structuredData = {
+      '@context': 'https://schema.org',
+      '@type': 'Apartment',
+      name: accommodation.name,
+      description: accommodation.description || description,
+      image: accommodation.images && accommodation.images.length > 0 ? accommodation.images : [image],
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: accommodation.address || 'Hà Nội',
+        addressLocality: accommodation.district || 'Hà Nội',
+        addressRegion: 'Hà Nội',
+        addressCountry: 'VN',
+      },
+      numberOfRooms: 1,
+      ...(accommodation.area
+        ? {
+            floorSize: {
+              '@type': 'QuantitativeValue',
+              value: accommodation.area,
+              unitCode: 'MTK',
+            },
+          }
+        : {}),
+      ...(Array.isArray(accommodation.amenities) && accommodation.amenities.length > 0
+        ? {
+            amenityFeature: accommodation.amenities.map((item) => ({
+              '@type': 'LocationFeatureSpecification',
+              name: item,
+              value: true,
+            })),
+          }
+        : {}),
+      offers: accommodation.price
+        ? {
+            '@type': 'Offer',
+            price: accommodation.price,
+            priceCurrency: 'VND',
+            availability: 'https://schema.org/InStock',
+            validFrom: '2026-01-01',
+            priceSpecification: {
+              '@type': 'UnitPriceSpecification',
               price: accommodation.price,
               priceCurrency: 'VND',
-              priceSpecification: {
-                '@type': 'UnitPriceSpecification',
-                unitText: 'MONTH',
-              },
+              unitText: 'MONTH',
+            },
+          }
+        : undefined,
+      aggregateRating:
+        accommodation.avgRating && accommodation.reviewCount
+          ? {
+              '@type': 'AggregateRating',
+              ratingValue: accommodation.avgRating,
+              reviewCount: accommodation.reviewCount,
             }
           : undefined,
-        aggregateRating:
-          accommodation.avgRating && accommodation.reviewCount
-            ? {
-                '@type': 'AggregateRating',
-                ratingValue: accommodation.avgRating,
-                reviewCount: accommodation.reviewCount,
-              }
-            : undefined,
-      }
-    : {
-        '@context': 'https://schema.org',
-        '@type': 'WebSite',
-        name: 'Trọ Xinh Việt Nam',
-        url: 'https://troxinh.vn',
-        potentialAction: {
-          '@type': 'SearchAction',
-          target: 'https://troxinh.vn/tim-kiem?q={search_term_string}',
-          'query-input': 'required name=search_term_string',
-        },
-      };
+    };
+  } else if (product) {
+    structuredData = {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      image: product.images && product.images.length > 0 ? product.images : [image],
+      description: product.description || description,
+      offers: {
+        '@type': 'Offer',
+        price: product.price || 0,
+        priceCurrency: 'VND',
+        availability: 'https://schema.org/InStock',
+        itemCondition: 'https://schema.org/UsedCondition',
+      },
+    };
+  } else {
+    structuredData = {
+      '@context': 'https://schema.org',
+      '@type': 'WebSite',
+      name: 'Trọ Xinh Việt Nam',
+      url: 'https://troxinh.vn',
+      potentialAction: {
+        '@type': 'SearchAction',
+        target: 'https://troxinh.vn/tim-kiem?q={search_term_string}',
+        'query-input': 'required name=search_term_string',
+      },
+    };
+  }
 
   return (
     <Helmet>
@@ -89,6 +145,11 @@ export const SEOHead: React.FC<SEOProps> = ({
       <meta name="description" content={description} />
       <meta name="keywords" content={keywords} />
       <link rel="canonical" href={currentUrl} />
+      {noindex ? (
+        <meta name="robots" content="noindex, nofollow" />
+      ) : (
+        <meta name="robots" content="index, follow" />
+      )}
 
       {/* Open Graph / Facebook */}
       <meta property="og:type" content={type} />

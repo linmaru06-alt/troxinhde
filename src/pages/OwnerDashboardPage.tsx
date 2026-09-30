@@ -126,12 +126,12 @@ export const OwnerDashboardPage: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <Link to="/chu-tro/quan-ly-goi">
-              <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition">
+              <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer">
                 Quản lý gói & Hóa đơn
               </button>
             </Link>
-            <Link to="/nang-cap">
-              <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs">
+            <Link to="/chu-tro/quan-ly-goi">
+              <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs cursor-pointer">
                 Nâng cấp gói ⭐
               </button>
             </Link>
@@ -165,14 +165,14 @@ export const OwnerDashboardPage: React.FC = () => {
 
         {/* 4 Stat Cards Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-3xl border border-gray-200 shadow-xs space-y-2">
+          <Link to="/chu-tro/toa-nha" className="bg-white p-5 rounded-3xl border border-gray-200 shadow-xs space-y-2 hover:border-gray-300 transition block">
             <div className="flex items-center justify-between text-xs text-gray-500 font-bold">
               <span>Tổng số phòng</span>
               <Building2 className="w-4 h-4 text-gray-400" />
             </div>
             <div className="text-2xl sm:text-3xl font-black text-gray-950">{totalRooms}</div>
-            <p className="text-[11px] text-emerald-600 font-bold">↑ 2 tòa nhà đang vận hành</p>
-          </div>
+            <p className="text-[11px] text-emerald-600 font-bold">↑ Quản lý tòa nhà & phòng</p>
+          </Link>
 
           <div className="bg-white p-5 rounded-3xl border border-emerald-200 shadow-xs space-y-2 bg-emerald-50/40">
             <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
@@ -192,14 +192,14 @@ export const OwnerDashboardPage: React.FC = () => {
             <p className="text-[11px] text-emerald-600 font-bold">Tỷ lệ lấp đầy cao</p>
           </div>
 
-          <div className="bg-white p-5 rounded-3xl border border-amber-200 shadow-xs space-y-2 bg-amber-50/40">
+          <Link to="/chu-tro/lich-hen" className="bg-white p-5 rounded-3xl border border-amber-200 shadow-xs space-y-2 bg-amber-50/40 hover:border-amber-300 transition block">
             <div className="flex items-center justify-between text-xs text-amber-800 font-bold">
               <span>Lịch hẹn xem phòng</span>
               <Calendar className="w-4 h-4 text-amber-600" />
             </div>
             <div className="text-2xl sm:text-3xl font-black text-amber-700">{bookings.length}</div>
-            <p className="text-[11px] text-gray-500 font-medium">Khách hẹn trực tiếp</p>
-          </div>
+            <p className="text-[11px] text-amber-700 font-bold">→ Quản lý lịch hẹn</p>
+          </Link>
         </div>
 
         {/* 🌟 2-WAY BOOKING APPOINTMENTS SECTION FOR LANDLORD */}
@@ -213,6 +213,12 @@ export const OwnerDashboardPage: React.FC = () => {
                 </h3>
                 <p className="text-xs text-gray-500">Xác nhận để khách chuẩn bị đến xem phòng đúng giờ</p>
               </div>
+              <Link
+                to="/chu-tro/lich-hen"
+                className="text-xs font-bold text-[#006d37] hover:underline"
+              >
+                Xem tất cả lịch hẹn →
+              </Link>
             </div>
 
             <div className="space-y-3">

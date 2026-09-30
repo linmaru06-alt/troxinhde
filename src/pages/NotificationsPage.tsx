@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
@@ -15,8 +16,12 @@ import {
 } from 'lucide-react';
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, markNotificationRead, markAllNotificationsRead } = useAppStore();
+  const { notifications, markNotificationRead, markAllNotificationsRead, currentUser } = useAppStore();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'system'>('all');
+
+  const isOwner = currentUser?.role === 'owner' || location.pathname.startsWith('/chu-tro');
+  const isAdmin = !isOwner && (currentUser?.role === 'admin' || location.pathname.startsWith('/admin'));
 
   const filteredNotifs = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.read;
@@ -40,15 +45,26 @@ export const NotificationsPage: React.FC = () => {
     }
   };
 
-  return (
-    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+  const content = (
+    <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
         <div>
-          <h1 className="text-2xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2">
-            <Bell className="w-6 h-6 text-[#006d37]" />
-            Trung Tâm Thông Báo
+          {isOwner && (
+            <div className="flex items-center gap-2 text-xs text-gray-500 mb-1">
+              <Link to="/chu-tro" className="hover:text-[#006d37]">Bảng điều khiển</Link>
+              <span>/</span>
+              <span className="font-bold text-gray-900">Trung tâm thông báo</span>
+            </div>
+          )}
+          <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight flex items-center gap-2.5">
+            <Bell className="w-7 h-7 text-[#006d37]" />
+            {isOwner ? 'Trung Tâm Thông Báo Chủ Trọ' : isAdmin ? 'Thông Báo Quản Trị Viên' : 'Trung Tâm Thông Báo'}
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">Cập nhật trạng thái duyệt tin, tin nhắn và lịch hẹn</p>
+          <p className="text-xs text-gray-500 mt-0.5">
+            {isOwner
+              ? 'Cập nhật trạng thái duyệt tin, tin nhắn khách thuê và lịch hẹn xem phòng'
+              : 'Cập nhật trạng thái duyệt tin, tin nhắn và lịch hẹn của bạn'}
+          </p>
         </div>
 
         <Button
@@ -71,7 +87,7 @@ export const NotificationsPage: React.FC = () => {
           <button
             key={t.key}
             onClick={() => setActiveTab(t.key as any)}
-            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
+            className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition cursor-pointer ${
               activeTab === t.key
                 ? 'bg-[#006d37] text-white shadow-xs'
                 : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
@@ -131,6 +147,25 @@ export const NotificationsPage: React.FC = () => {
           ))}
         </div>
       )}
+    </div>
+  );
+
+  // If Owner or Admin or under /chu-tro, wrap inside DashboardSidebar layout
+  if (isOwner || isAdmin) {
+    return (
+      <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
+        <DashboardSidebar role={isOwner ? 'owner' : 'admin'} />
+        <main className="flex-1 p-4 sm:p-8 max-w-5xl space-y-6 overflow-y-auto">
+          {content}
+        </main>
+      </div>
+    );
+  }
+
+  // Renter clean centered view
+  return (
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+      {content}
     </div>
   );
 };

@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { resolveUserIdToUuid } from './messages';
 import type { RoommatePost } from '../../types';
 import { attachPublicProfiles } from './publicProfiles';
 
@@ -87,9 +88,30 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
       .order('created_at', { ascending: false });
 
     if (!auditErr && auditData) {
-      cloudAuditPosts = auditData
+      const activeCloud = auditData
         .map((item: any) => item.data_after)
         .filter((p: any) => p && p.status === 'active');
+        
+      const posterIds = Array.from(new Set(activeCloud.map((p: any) => p.poster_id).filter(Boolean)));
+      let profileMap: Record<string, any> = {};
+      if (posterIds.length > 0) {
+        try {
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, is_banned').in('id', posterIds);
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.id, p]));
+          }
+        } catch (e) {
+          console.warn('[Roommates API] Lỗi tải profiles cho auditData:', e);
+        }
+      }
+
+      cloudAuditPosts = activeCloud.map((p: any) => {
+        if (p.poster_id && profileMap[p.poster_id]) {
+          p.poster = profileMap[p.poster_id];
+        }
+        return p;
+      });
+
       if (district && district !== 'Tất cả quận' && district !== 'Tất cả khu vực') {
         cloudAuditPosts = cloudAuditPosts.filter((p: any) => p.district === district);
       }
@@ -146,7 +168,16 @@ export async function getRoommatePostById(id: string): Promise<RoommatePost | nu
       .maybeSingle();
 
     if (!auditErr && auditItem?.data_after) {
-      return formatRoommatePost(auditItem.data_after);
+      const p = auditItem.data_after;
+      if (p.poster_id) {
+        try {
+          const { data: profile } = await supabase.from('profiles').select('id, full_name, avatar_url, is_banned').eq('id', p.poster_id).maybeSingle();
+          if (profile) p.poster = profile;
+        } catch (e) {
+          console.warn('[Roommates API] Lỗi tải profile cho auditItem:', e);
+        }
+      }
+      return formatRoommatePost(p);
     }
   } catch (auditErr) {
     console.warn('[Roommates API] Lỗi tìm audit_logs theo ID:', auditErr);
@@ -180,10 +211,11 @@ export async function createRoommatePost(postData: {
     });
   };
   const newPostId = postData.id || generateUUID();
+  const cleanPosterId = await resolveUserIdToUuid(postData.poster_id);
 
   const fullPayload = {
     id: newPostId,
-    poster_id: postData.poster_id,
+    poster_id: cleanPosterId,
     room_id: postData.room_id || null,
     nickname: postData.nickname,
     age: postData.age,

@@ -5,11 +5,18 @@ import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import {
   getConversations,
   getConversationMeta,
+  saveConversationMeta,
   findOrCreateConversation,
   isSameUserId,
   KNOWN_USER_NAMES,
+  markConversationAsRead,
+  isConversationWithAdmin,
+  getOrCreateAdminConversation,
+  ADMIN_USER_ID,
 } from '../lib/api/messages';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
+import { getRoommatePostById } from '../lib/api/roommates';
 import { getItemAvailability } from '../lib/marketplaceStatus';
 import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 import { formatCurrency } from '../components/ui/Cards';
@@ -35,6 +42,14 @@ import {
   Tag,
   Flag,
   MoreVertical,
+  Search,
+  X,
+  Calendar,
+  Users,
+  Camera,
+  Maximize2,
+  Download,
+  FileCheck,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
 import { hasUserReported, getReportedTargetIds } from '../lib/api/reports';
@@ -43,17 +58,57 @@ import { canMessage } from '../lib/api/blocksAndHides';
 const ITEM_PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='80' height='80' viewBox='0 0 24 24' fill='none' stroke='%239ca3af' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m7.5 4.27 9 5.15'/%3E%3Cpath d='M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z'/%3E%3Cpath d='m3.3 7 8.7 5 8.7-5'/%3E%3Cpath d='M12 22V12'/%3E%3C/svg%3E";
 
+function compressImageToBlob(file: File, maxWidth = 1200, quality = 0.8): Promise<Blob> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new window.Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height);
+          canvas.toBlob(
+            (blob) => {
+              resolve(blob || file);
+            },
+            'image/jpeg',
+            quality
+          );
+        } else {
+          resolve(file);
+        }
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+}
+
 export const ChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
-  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems } = useAppStore();
+  const { currentUser, showToast, blockedUserIds, blockUser, unblockUser, marketplaceItems, rooms = [] } = useAppStore();
 
-  // Đọc tham số Deep Link cho Chợ đồ cũ
+  // Đọc tham số Deep Link cho Chợ đồ cũ & Ở ghép
   const rawNguoiBan = searchParams.get('nguoiBan') || searchParams.get('sellerId');
   const rawMonDo = searchParams.get('monDo') || searchParams.get('itemId');
+  const rawRoommateId = searchParams.get('roommateId') || searchParams.get('oGhep');
   const hasDeepLinkParams = searchParams.has('nguoiBan') || searchParams.has('monDo');
+
+  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'rooms' | 'marketplace' | 'roommates'>('all');
 
   const [deepLinkState, setDeepLinkState] = useState<{
     isLoading: boolean;
@@ -70,6 +125,7 @@ export const ChatPage: React.FC = () => {
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
   const [activeConversationId, setActiveConversationId] = useState<string>(conversationId || '');
   const [inputText, setInputText] = useState<string>('');
+  const [convSearch, setConvSearch] = useState<string>('');
   const [showReportModal, setShowReportModal] = useState<boolean>(false);
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [hideQuickReplies, setHideQuickReplies] = useState<boolean>(false);
@@ -271,6 +327,95 @@ export const ChatPage: React.FC = () => {
     };
   }, [currentUser?.id, conversationId, showToast]);
 
+  // 1.1 Lắng nghe thay đổi danh sách cuộc trò chuyện qua Supabase Realtime & Custom Events
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    let isMounted = true;
+
+    const handleSync = async () => {
+      if (!isMounted) return;
+      try {
+        const updated = await getConversations(currentUser.id);
+        if (isMounted) {
+          setConversations(updated);
+        }
+      } catch (err) {
+        console.warn('[ChatPage] Lỗi Realtime sync conversations:', err);
+      }
+    };
+
+    let channel: any = null;
+    if (isSupabaseConfigured) {
+      channel = supabase
+        .channel(`user-conversations-sync-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'conversations',
+          },
+          () => {
+            handleSync();
+          }
+        )
+        .subscribe();
+    }
+
+    // Lắng nghe sự kiện cập nhật hội thoại tức thì từ hook toàn cục (0ms reordering)
+    const handleConvUpdated = (e: any) => {
+      const conv = e?.detail;
+      if (!conv || !isMounted) return;
+      setConversations((prev) => {
+        const existingIdx = prev.findIndex((c) => c.id === conv.id);
+        if (existingIdx >= 0) {
+          const updatedItem = { ...prev[existingIdx], ...conv };
+          const without = prev.filter((c) => c.id !== conv.id);
+          return [updatedItem, ...without];
+        } else {
+          handleSync();
+          return prev;
+        }
+      });
+    };
+
+    window.addEventListener('troxinh:conversation-updated', handleConvUpdated);
+    window.addEventListener('troxinh:resume-sync', handleSync);
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('troxinh:conversation-updated', handleConvUpdated);
+      window.removeEventListener('troxinh:resume-sync', handleSync);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [currentUser?.id]);
+
+  // 1.2 Đánh dấu đã đọc khi activeConversationId thay đổi
+  useEffect(() => {
+    if (!activeConversationId || !currentUser?.id) return;
+
+    // Đặt unread_count của conversation này về 0 ngay lập tức trong state
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeConversationId
+          ? { ...c, unread_count: 0, unread_count_p1: 0, unread_count_p2: 0 }
+          : c
+      )
+    );
+
+    markConversationAsRead(activeConversationId, currentUser.id).then();
+    useAppStore.setState((state) => ({
+      notifications: (state.notifications || []).map((n) =>
+        (n.ctaUrl && n.ctaUrl.includes(`/tin-nhan/${activeConversationId}`))
+          ? { ...n, read: true }
+          : n
+      ),
+    }));
+  }, [activeConversationId, currentUser?.id]);
+
   // Đồng bộ activeConversationId từ URL param
   useEffect(() => {
     if (conversationId) {
@@ -337,18 +482,26 @@ export const ChatPage: React.FC = () => {
 
   const knownOther = otherId ? KNOWN_USER_NAMES[otherId] : null;
 
-  const otherName =
-    activeConversation?.other_name ||
-    otherParticipant?.full_name ||
-    otherParticipant?.name ||
-    knownOther?.name ||
-    (isP1Me ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
-  const otherAvatar =
-    activeConversation?.other_avatar ||
-    otherParticipant?.avatar_url ||
-    knownOther?.avatar ||
-    '/images/user-avatar.jpg';
-  const otherPhone = otherParticipant?.phone;
+  const isChatWithAdmin = Boolean(
+    activeConversation && isConversationWithAdmin(activeConversation, currentUser?.id)
+  );
+
+  const otherName = isChatWithAdmin
+    ? 'Ban Quản Trị Trọ Xinh'
+    : (activeConversation?.other_name ||
+      otherParticipant?.full_name ||
+      otherParticipant?.name ||
+      knownOther?.name ||
+      (isP1Me ? 'Chủ trọ / Người đăng' : 'Khách liên hệ'));
+
+  const otherAvatar = isChatWithAdmin
+    ? '/images/logo.png'
+    : (activeConversation?.other_avatar ||
+      otherParticipant?.avatar_url ||
+      knownOther?.avatar ||
+      '/images/user-avatar.jpg');
+
+  const otherPhone = isChatWithAdmin ? '0888110789' : otherParticipant?.phone;
 
   // Header menu "..." và Báo cáo tin nhắn
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState<boolean>(false);
@@ -369,6 +522,9 @@ export const ChatPage: React.FC = () => {
     if (!text) return '[Hình ảnh]';
     if (/^https?:\/\/.*\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(text)) {
       return '[Hình ảnh]';
+    }
+    if (text.startsWith('{') && text.includes('"type":"offer"')) {
+      return '[Đề xuất trả giá]';
     }
     if (text.length <= 80) return text;
     return text.slice(0, 80) + '...';
@@ -527,6 +683,49 @@ export const ChatPage: React.FC = () => {
     parsedContext?.itemId ||
     null;
 
+  const attachedRoomId = activeConversation?.room_id || null;
+  const attachedRoom: any = attachedRoomId
+    ? (rooms || []).find((r) => r.id === attachedRoomId) || activeConversation?.rooms
+    : activeConversation?.rooms;
+
+  const attachedRoommateId =
+    rawRoommateId ||
+    savedMeta?.roommate_id ||
+    (activeConversation as any)?.roommate_id ||
+    null;
+
+  const [roommatePost, setRoommatePost] = useState<any>(savedMeta?.roommate_post || null);
+
+  useEffect(() => {
+    if (!attachedRoommateId) {
+      setRoommatePost(null);
+      return;
+    }
+    if (savedMeta?.roommate_post && savedMeta.roommate_post.id === attachedRoommateId) {
+      setRoommatePost(savedMeta.roommate_post);
+      return;
+    }
+    let cancelled = false;
+    getRoommatePostById(attachedRoommateId)
+      .then((res) => {
+        if (cancelled) return;
+        if (res) {
+          setRoommatePost(res);
+          if (activeConversationId) {
+            saveConversationMeta(activeConversationId, {
+              roommate_id: res.id,
+              roommate_post: res,
+            });
+          }
+        }
+      })
+      .catch((err) => console.warn('[ChatPage] Không thể tải thông tin bài ở ghép:', err));
+
+    return () => {
+      cancelled = true;
+    };
+  }, [attachedRoommateId, activeConversationId, savedMeta]);
+
   const storeItem = attachedItemId
     ? marketplaceItems.find((m) => m.id === attachedItemId)
     : null;
@@ -619,6 +818,159 @@ export const ChatPage: React.FC = () => {
     itemSellerId && currentUser?.id && isSameUserId(itemSellerId, currentUser.id)
   );
 
+  const roomOwnerId =
+    attachedRoom?.owner_id ||
+    attachedRoom?.ownerId ||
+    attachedRoom?.landlord_id ||
+    attachedRoom?.poster_id;
+  const isOwnerOfRoom = Boolean(
+    roomOwnerId && currentUser?.id && isSameUserId(roomOwnerId, currentUser.id)
+  );
+
+  const [isTransacting, setIsTransacting] = useState<boolean>(false);
+  const [showOfferModal, setShowOfferModal] = useState<boolean>(false);
+  const [offerPriceInput, setOfferPriceInput] = useState<string>('');
+  const [lightboxImage, setLightboxImage] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState<boolean>(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+
+  const handleMarkTransacted = async (type: 'room' | 'item') => {
+    if (!currentUser) return;
+    setIsHeaderMenuOpen(false);
+
+    if (type === 'room' && attachedRoomId) {
+      if (!window.confirm('Xác nhận đánh dấu phòng này đã được cho thuê thành công?')) {
+        return;
+      }
+      setIsTransacting(true);
+      try {
+        if (isSupabaseConfigured) {
+          await supabase
+            .from('rooms')
+            .update({ status: 'Đã cho thuê', availability_status: 'rented' })
+            .eq('id', attachedRoomId);
+        }
+        useAppStore.setState((state) => ({
+          rooms: (state.rooms || []).map((r) =>
+            r.id === attachedRoomId ? { ...r, status: 'Đã cho thuê' } : r
+          ),
+        }));
+        await realtimeSendMessage('🎉 Chúc mừng! Phòng trọ này đã được chủ nhà xác nhận cho thuê thành công.');
+        showToast('Cập nhật thành công', 'Phòng trọ đã được chuyển sang trạng thái Đã cho thuê.', 'success');
+      } catch (err: any) {
+        console.error('[ChatPage] Lỗi cập nhật trạng thái phòng:', err);
+        showToast('Lỗi', 'Không thể cập nhật trạng thái phòng trọ.', 'error');
+      } finally {
+        setIsTransacting(false);
+      }
+    } else if (type === 'item' && attachedItemId) {
+      if (!window.confirm('Xác nhận đánh dấu món đồ này đã được bán thành công?')) {
+        return;
+      }
+      setIsTransacting(true);
+      try {
+        if (isSupabaseConfigured) {
+          await supabase
+            .from('marketplace_items')
+            .update({ status: 'sold', updated_at: new Date().toISOString() })
+            .eq('id', attachedItemId);
+        }
+        setRemoteItem((prev: any) => (prev ? { ...prev, status: 'sold' } : { status: 'sold' }));
+        useAppStore.setState((state) => ({
+          marketplaceItems: (state.marketplaceItems || []).map((m) =>
+            m.id === attachedItemId ? { ...m, status: 'Đã bán' } : m
+          ),
+        }));
+        await realtimeSendMessage('🎉 Chúc mừng! Món đồ này đã được người bán xác nhận giao dịch thành công.');
+        showToast('Cập nhật thành công', 'Món đồ đã được đánh dấu là Đã bán.', 'success');
+      } catch (err: any) {
+        console.error('[ChatPage] Lỗi cập nhật trạng thái món đồ:', err);
+        showToast('Lỗi', 'Không thể cập nhật trạng thái món đồ.', 'error');
+      } finally {
+        setIsTransacting(false);
+      }
+    }
+  };
+
+  const handleSendOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const cleanNum = parseInt(offerPriceInput.replace(/\D/g, ''), 10);
+    if (!cleanNum || cleanNum <= 0) {
+      showToast('Giá chưa hợp lệ', 'Vui lòng nhập số tiền bạn muốn đề xuất.', 'warning');
+      return;
+    }
+    if (rawPrice && cleanNum >= rawPrice) {
+      showToast('Đề xuất trả giá', 'Giá trả nên thấp hơn giá đang bán của món đồ.', 'warning');
+      return;
+    }
+    const offerPayload = JSON.stringify({
+      type: 'offer',
+      itemId: attachedItemId,
+      itemTitle: pinnedTitle,
+      originalPrice: rawPrice || 0,
+      offeredPrice: cleanNum,
+      buyerId: currentUser?.id,
+      buyerName: (currentUser as any)?.full_name || currentUser?.name || 'Khách hỏi mua',
+    });
+
+    try {
+      await realtimeSendMessage(offerPayload);
+      setShowOfferModal(false);
+      setOfferPriceInput('');
+      showToast('Đã gửi đề xuất', 'Đề xuất trả giá của bạn đã được gửi tới người bán.', 'success');
+    } catch (err: any) {
+      showToast('Gửi đề xuất thất bại', err?.message || 'Vui lòng thử lại sau', 'error');
+    }
+  };
+
+  const handleUploadAndSendImage = async (file: File) => {
+    if (!file || !currentUser?.id || !activeConversationId) return;
+    if (!file.type.startsWith('image/')) {
+      showToast('File không hợp lệ', 'Vui lòng chỉ gửi tệp hình ảnh.', 'warning');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Ảnh quá lớn', 'Kích thước ảnh tối đa là 10MB.', 'warning');
+      return;
+    }
+
+    setIsUploadingImage(true);
+    try {
+      const compressedBlob = await compressImageToBlob(file);
+      let imageUrl = '';
+      if (isSupabaseConfigured) {
+        const fileExt = file.name.split('.').pop() || 'jpg';
+        const fileName = `chat_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `${currentUser.id}/${fileName}`;
+        const { data: uploadData, error: uploadErr } = await supabase.storage
+          .from('room-images')
+          .upload(filePath, compressedBlob, { contentType: file.type, upsert: true });
+
+        if (!uploadErr && uploadData?.path) {
+          const { data: pubData } = supabase.storage.from('room-images').getPublicUrl(uploadData.path);
+          if (pubData?.publicUrl) imageUrl = pubData.publicUrl;
+        }
+      }
+
+      if (!imageUrl) {
+        imageUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(compressedBlob);
+        });
+      }
+
+      await realtimeSendMessage(imageUrl);
+      showToast('Đã gửi ảnh', 'Hình ảnh thực tế đã được gửi thành công.', 'success');
+    } catch (err: any) {
+      console.error('[ChatPage] Lỗi gửi ảnh:', err);
+      showToast('Lỗi gửi ảnh', err?.message || 'Không thể tải ảnh lên. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsUploadingImage(false);
+      if (imageInputRef.current) imageInputRef.current.value = '';
+    }
+  };
+
   // 5. Kiểm tra deliveryMethods: Nếu tin đăng có dữ liệu và không bao gồm tai_truong thì ẩn gợi ý "Mình nhận ở trường/KTX được không?"
   const itemDeliveryMethods: string[] =
     storeItem?.deliveryMethods ||
@@ -645,17 +997,110 @@ export const ChatPage: React.FC = () => {
     'Cho mình hỏi giá điện nước đã bao gồm chưa ạ?',
   ];
 
-  const currentQuickReplies = attachedItemId ? itemQuickReplies : roomQuickReplies;
+  // Gợi ý cho bài đăng tìm bạn ở ghép
+  const roommateQuickReplies = [
+    'Chào bạn, bạn đã tìm được phòng trọ ưng ý chưa?',
+    'Mình cũng đang tìm bạn ở ghép khu này, bạn học trường nào vậy?',
+    'Giờ giấc sinh hoạt và thói quen của bạn thế nào ạ?',
+    'Cuối tuần này chúng mình gặp nhau uống nước trao đổi nhé!',
+  ];
+
+  // Gợi ý khi nhắn tin với Ban Quản Trị Trọ Xinh
+  const adminQuickReplies = [
+    'Em cần hỗ trợ tìm phòng trọ tại Hà Nội',
+    'Em muốn tư vấn về quy trình kiểm duyệt & cọc an toàn',
+    'Em cần báo cáo sự cố bài đăng hoặc chủ trọ',
+    'Em muốn đăng ký tài khoản chủ trọ đối tác',
+  ];
+
+  const currentQuickReplies = isChatWithAdmin
+    ? adminQuickReplies
+    : attachedItemId
+    ? itemQuickReplies
+    : roommatePost
+    ? roommateQuickReplies
+    : roomQuickReplies;
+
+  const isPosterOfRoommate = Boolean(
+    roommatePost?.userId && currentUser?.id && isSameUserId(roommatePost.userId, currentUser.id)
+  );
 
   // Điều kiện hiển thị gợi ý:
-  // - Chưa có tin nhắn thật nào từ cả hai phía (nếu người bán đã nhắn trước thì không hiện)
-  // - Chỉ hiện cho người mua, không hiện cho chủ món đồ
-  // - Chưa bị ẩn do đã gửi thành công
+  // - Khi chat với Admin: luôn gợi ý nếu chưa ẩn
+  // - Khi chat với người dùng: chỉ hiện khi chưa có tin nhắn thật và chưa bị ẩn
   const shouldShowQuickReplies =
-    !hasAnyRealMessage &&
-    !isOwnerOfItem &&
-    !hideQuickReplies &&
+    (isChatWithAdmin
+      ? !hideQuickReplies
+      : (!hasAnyRealMessage && !isOwnerOfItem && !isPosterOfRoommate && !hideQuickReplies)) &&
     currentQuickReplies.length > 0;
+
+  const renderOfferCard = (offerData: any, isFromMe: boolean) => {
+    const origPrice = Number(offerData.originalPrice || 0);
+    const offerPrice = Number(offerData.offeredPrice || 0);
+    const discountPercent =
+      origPrice > 0 && offerPrice < origPrice
+        ? Math.round(((origPrice - offerPrice) / origPrice) * 100)
+        : 0;
+
+    return (
+      <div className="bg-amber-50/95 border border-amber-200/90 rounded-2xl p-3.5 max-w-[280px] sm:max-w-xs shadow-xs text-gray-900">
+        <div className="flex items-center gap-1.5 mb-2 pb-2 border-b border-amber-200/60 text-amber-900">
+          <Tag className="w-4 h-4 text-amber-600 shrink-0" />
+          <span className="text-xs font-bold uppercase tracking-wide">Đề xuất trả giá</span>
+          {discountPercent > 0 && (
+            <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900">
+              Giảm {discountPercent}%
+            </span>
+          )}
+        </div>
+        <p className="text-xs font-semibold text-gray-900 line-clamp-1 mb-1.5" title={offerData.itemTitle}>
+          {offerData.itemTitle || 'Món đồ trên chợ'}
+        </p>
+        <div className="flex items-baseline gap-2 mb-3">
+          {origPrice > 0 && (
+            <span className="text-xs text-gray-400 line-through">
+              {formatCurrency(origPrice)}
+            </span>
+          )}
+          <span className="text-base font-extrabold text-[#006d37]">
+            {formatCurrency(offerPrice)}
+          </span>
+        </div>
+        {!isFromMe ? (
+          <div className="flex items-center gap-2 pt-2 border-t border-amber-200/60">
+            <button
+              type="button"
+              onClick={async () => {
+                await realtimeSendMessage(
+                  `✅ Mình đồng ý với mức giá đề xuất ${formatCurrency(offerPrice)}. Bạn có thể qua xem hoặc chốt đơn nhé!`
+                );
+                showToast('Đã đồng ý', 'Bạn đã chấp thuận mức giá đề xuất của người mua.', 'success');
+              }}
+              className="flex-1 py-1.5 px-2 bg-[#006d37] hover:bg-[#005a2d] text-white text-[11px] font-bold rounded-xl transition-all shadow-2xs cursor-pointer text-center"
+            >
+              Đồng ý giá
+            </button>
+            <button
+              type="button"
+              onClick={async () => {
+                await realtimeSendMessage(
+                  `Cảm ơn bạn đã quan tâm. Rất tiếc mình chưa thể bán với giá ${formatCurrency(offerPrice)} được ạ.`
+                );
+                showToast('Đã từ chối', 'Bạn đã từ chối mức giá đề xuất.', 'info');
+              }}
+              className="py-1.5 px-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-300 text-[11px] font-medium rounded-xl transition-all cursor-pointer text-center"
+            >
+              Từ chối
+            </button>
+          </div>
+        ) : (
+          <div className="text-[11px] text-gray-500 italic pt-1 border-t border-amber-200/40 text-center">
+            Đang chờ người bán phản hồi...
+          </div>
+        )}
+      </div>
+    );
+  };
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -674,14 +1119,17 @@ export const ChatPage: React.FC = () => {
     setHideQuickReplies(true);
     await realtimeSendMessage(content);
 
-    // Cập nhật preview tin nhắn cuối trong danh sách conversations
-    setConversations((prev) =>
-      prev.map((c) =>
-        c.id === activeConversationId
-          ? { ...c, last_message: content, last_message_at: new Date().toISOString() }
-          : c
-      )
-    );
+    // Cập nhật preview tin nhắn cuối và đẩy cuộc hội thoại lên đầu danh sách (Reorder)
+    setConversations((prev) => {
+      const target = prev.find((c) => c.id === activeConversationId);
+      if (!target) return prev;
+      const updated = {
+        ...target,
+        last_message: content,
+        last_message_at: new Date().toISOString(),
+      };
+      return [updated, ...prev.filter((c) => c.id !== activeConversationId)];
+    });
   };
 
   // 3. Chỉ ẩn gợi ý sau khi gửi thành công; gửi lỗi thì hiện lại kèm thông báo lỗi. Vô hiệu hóa nút trong lúc đang gửi.
@@ -700,15 +1148,18 @@ export const ChatPage: React.FC = () => {
 
     try {
       await realtimeSendMessage(text);
-      // Gửi thành công -> Ẩn gợi ý
+      // Gửi thành công -> Ẩn gợi ý & đẩy lên đầu danh sách
       setHideQuickReplies(true);
-      setConversations((prev) =>
-        prev.map((c) =>
-          c.id === activeConversationId
-            ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
-            : c
-        )
-      );
+      setConversations((prev) => {
+        const target = prev.find((c) => c.id === activeConversationId);
+        if (!target) return prev;
+        const updated = {
+          ...target,
+          last_message: text,
+          last_message_at: new Date().toISOString(),
+        };
+        return [updated, ...prev.filter((c) => c.id !== activeConversationId)];
+      });
     } catch (err: any) {
       console.error('[ChatPage] Lỗi gửi gợi ý tin nhắn:', err);
       // Gửi lỗi -> Hiện lại kèm thông báo lỗi
@@ -726,7 +1177,128 @@ export const ChatPage: React.FC = () => {
   const handleSelectConversation = (id: string) => {
     setActiveConversationId(id);
     navigate(`/tin-nhan/${id}`);
+
+    // Xóa ngay trạng thái chưa đọc trong UI cho cuộc hội thoại này
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === id
+          ? { ...c, unread_count: 0, unread_count_p1: 0, unread_count_p2: 0 }
+          : c
+      )
+    );
+
+    if (currentUser?.id) {
+      markConversationAsRead(id, currentUser.id).then();
+      useAppStore.setState((state) => ({
+        notifications: (state.notifications || []).map((n) =>
+          (n.ctaUrl && n.ctaUrl.includes(`/tin-nhan/${id}`))
+            ? { ...n, read: true }
+            : n
+        ),
+      }));
+    }
   };
+
+  const filterCounts = React.useMemo(() => {
+    let unread = 0;
+    let roomsCount = 0;
+    let marketplaceCount = 0;
+    let roommatesCount = 0;
+
+    conversations.forEach((c) => {
+      const isMe = isSameUserId(c.participant_1, currentUser?.id);
+      const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+      if (unreadCount > 0) unread++;
+
+      const meta = getConversationMeta(c.id);
+      if (c.room_id || c.rooms) roomsCount++;
+      if (c.item_id || c.last_item_id || meta?.last_item_id) marketplaceCount++;
+      if ((c as any).roommate_id || meta?.roommate_id) roommatesCount++;
+    });
+
+    return {
+      all: conversations.length,
+      unread,
+      rooms: roomsCount,
+      marketplace: marketplaceCount,
+      roommates: roommatesCount,
+    };
+  }, [conversations, currentUser?.id]);
+
+  const filteredConversations = conversations.filter((c) => {
+    // 1. Lọc theo ô tìm kiếm
+    if (convSearch.trim()) {
+      const q = convSearch.toLowerCase().trim();
+      const isMe = isSameUserId(c.participant_1, currentUser?.id);
+      const other = isMe ? c.p2 : c.p1;
+      const otherId = isMe ? c.participant_2 : c.participant_1;
+      const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+      const name = (c.other_name || other?.full_name || other?.name || known?.name || '').toLowerCase();
+      const room = (c.rooms?.name || c.rooms?.title || '').toLowerCase();
+      const lastMsg = (c.last_message || '').toLowerCase();
+      if (!name.includes(q) && !room.includes(q) && !lastMsg.includes(q)) {
+        return false;
+      }
+    }
+
+    // 2. Lọc theo tab danh mục
+    const isMe = isSameUserId(c.participant_1, currentUser?.id);
+    const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+    const meta = getConversationMeta(c.id);
+    const hasRoom = Boolean(c.room_id || c.rooms);
+    const hasItem = Boolean(c.item_id || c.last_item_id || meta?.last_item_id);
+    const hasRoommate = Boolean((c as any).roommate_id || meta?.roommate_id);
+
+    if (inboxFilter === 'unread') return unreadCount > 0;
+    if (inboxFilter === 'rooms') return hasRoom;
+    if (inboxFilter === 'marketplace') return hasItem;
+    if (inboxFilter === 'roommates') return hasRoommate;
+    return true;
+  });
+
+  const isCurrentUserAdmin =
+    currentUser?.role === 'admin' || (currentUser as any)?.app_role === 'admin';
+
+  // 1. Cuộc trò chuyện với Ban Quản Trị Trọ Xinh (Ghim ở Phần 1)
+  const adminConversation = useMemo(() => {
+    return conversations.find((c) => isConversationWithAdmin(c, currentUser?.id));
+  }, [conversations, currentUser?.id]);
+
+  // 2. Những đoạn chat nhắn tin với những người đã nhắn (Phần 2, loại trừ Admin)
+  const otherConversations = useMemo(() => {
+    return filteredConversations.filter((c) => !isConversationWithAdmin(c, currentUser?.id));
+  }, [filteredConversations, currentUser?.id]);
+
+  const [isOpeningAdminChat, setIsOpeningAdminChat] = useState<boolean>(false);
+
+  const handleSelectAdminChat = async () => {
+    if (adminConversation) {
+      handleSelectConversation(adminConversation.id);
+      return;
+    }
+    if (!currentUser?.id) {
+      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để chat với Ban Quản Trị', 'warning');
+      return;
+    }
+    setIsOpeningAdminChat(true);
+    try {
+      const convId = await getOrCreateAdminConversation(currentUser.id);
+      const updatedList = await getConversations(currentUser.id);
+      setConversations(updatedList);
+      handleSelectConversation(convId);
+    } catch (err: any) {
+      console.error('[ChatPage] Lỗi mở hội thoại với Admin:', err);
+      showToast('Không thể kết nối', err?.message || 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setIsOpeningAdminChat(false);
+    }
+  };
+
+  const adminUnreadCount = useMemo(() => {
+    if (!adminConversation) return 0;
+    const isMe = isSameUserId(adminConversation.participant_1, currentUser?.id);
+    return adminConversation.unread_count ?? (isMe ? (adminConversation.unread_count_p1 || 0) : (adminConversation.unread_count_p2 || 0));
+  }, [adminConversation, currentUser?.id]);
 
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 sm:py-4">
@@ -756,99 +1328,306 @@ export const ChatPage: React.FC = () => {
             )}
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          {/* Ô tìm kiếm cuộc trò chuyện */}
+          <div className="p-2.5 border-b border-gray-100 bg-gray-50/50">
+            <div className="relative">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={convSearch}
+                onChange={(e) => setConvSearch(e.target.value)}
+                placeholder="Tìm cuộc trò chuyện..."
+                className="w-full pl-8 pr-7 py-1.5 text-xs bg-white border border-gray-200 rounded-xl focus:outline-none focus:ring-1 focus:ring-[#006d37] text-gray-900 placeholder:text-gray-400"
+              />
+              {convSearch && (
+                <button
+                  type="button"
+                  onClick={() => setConvSearch('')}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-0.5 cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* Thanh Tab phân loại danh bạ hộp thư */}
+          <div className="px-2.5 py-2 border-b border-gray-100 bg-gray-50/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
+            {[
+              { id: 'all' as const, label: 'Tất cả', count: filterCounts.all },
+              { id: 'unread' as const, label: 'Chưa đọc', count: filterCounts.unread, isAlert: true },
+              { id: 'rooms' as const, label: 'Phòng trọ', count: filterCounts.rooms, icon: Home },
+              { id: 'marketplace' as const, label: 'Đồ cũ', count: filterCounts.marketplace, icon: ShoppingBag },
+              { id: 'roommates' as const, label: 'Ở ghép', count: filterCounts.roommates, icon: Users },
+            ].map((tab) => {
+              const isActive = inboxFilter === tab.id;
+              const IconComp = tab.icon;
+              return (
+                <button
+                  key={tab.id}
+                  type="button"
+                  onClick={() => setInboxFilter(tab.id)}
+                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold flex items-center gap-1 shrink-0 transition-all cursor-pointer select-none tap-bounce ${
+                    isActive
+                      ? 'bg-[#006d37] text-white shadow-2xs font-bold'
+                      : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200/80'
+                  }`}
+                >
+                  {IconComp && <IconComp className="w-3 h-3" />}
+                  <span>{tab.label}</span>
+                  {tab.count > 0 && (
+                    <span
+                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold leading-none ${
+                        isActive
+                          ? 'bg-white/25 text-white'
+                          : tab.isAlert
+                          ? 'bg-rose-500 text-white'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {tab.count > 99 ? '99+' : tab.count}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex-1 overflow-y-auto">
             {isConvLoading ? (
               <div className="p-8 text-center text-gray-400 space-y-2">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#006d37]" />
                 <p className="text-xs">Đang tải cuộc trò chuyện...</p>
               </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 space-y-2">
-                <MessageSquare className="w-8 h-8 mx-auto text-gray-300" />
-                <p className="text-xs font-semibold">Chưa có tin nhắn nào</p>
-                <p className="text-[11px] text-gray-400">
-                  Hãy bấm "Nhắn tin" trên trang chi tiết phòng để bắt đầu trò chuyện.
-                </p>
-              </div>
             ) : (
-              conversations.map((c) => {
-                const isMe = isSameUserId(c.participant_1, currentUser?.id);
-                const other = isMe ? c.p2 : c.p1;
-                const otherId = isMe ? c.participant_2 : c.participant_1;
-                const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
-                const name =
-                  c.other_name ||
-                  other?.full_name ||
-                  other?.name ||
-                  known?.name ||
-                  (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
-                const avatar =
-                  c.other_avatar ||
-                  other?.avatar_url ||
-                  known?.avatar ||
-                  '/images/user-avatar.jpg';
-                const isActive = c.id === activeConversationId;
+              <>
+                {/* ========================================================
+                    PHẦN 1: GHIM NHẮN TIN VỚI ADMIN / BAN QUẢN TRỊ TRỌ XINH
+                ======================================================== */}
+                {!isCurrentUserAdmin && (
+                  <div className="bg-white border-b-2 border-emerald-100/90 shrink-0">
+                    <div className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-50 via-emerald-50/80 to-teal-50/40 border-b border-emerald-100 flex items-center justify-between text-[11px] font-bold text-[#006d37]">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-xs">📌</span>
+                        <span>HỖ TRỢ BAN QUẢN TRỊ</span>
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-[#006d37] px-2 py-0.5 rounded-full font-semibold border border-emerald-200 shadow-2xs">
+                        CSKH 24/7
+                      </span>
+                    </div>
 
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => handleSelectConversation(c.id)}
-                    className={`p-4 flex items-start gap-3 cursor-pointer transition tap-bounce ${
-                      isActive ? 'bg-emerald-50/70 border-l-4 border-[#006d37]' : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <img
-                      src={avatar}
-                      alt={name}
-                      className="w-10 h-10 rounded-full object-cover shrink-0 ring-2 ring-gray-100"
-                    />
-                    <div className="flex-1 overflow-hidden space-y-0.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <h4 className="text-xs font-bold text-gray-900 truncate">{name}</h4>
-                          {otherId && blockedUserIds.includes(otherId) && (
-                            <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded font-bold shrink-0">
-                              Đã chặn
+                    <div
+                      onClick={handleSelectAdminChat}
+                      className={`p-3.5 flex items-start gap-3 cursor-pointer transition tap-bounce relative ${
+                        adminConversation && adminConversation.id === activeConversationId
+                          ? 'bg-emerald-50/90 border-l-4 border-[#006d37]'
+                          : adminUnreadCount > 0
+                          ? 'bg-emerald-50/40 hover:bg-emerald-50/70'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="relative shrink-0">
+                        <img
+                          src="/images/logo.png"
+                          alt="Trọ Xinh"
+                          className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-500/40 shadow-xs"
+                        />
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-600/30" />
+                      </div>
+
+                      <div className="flex-1 overflow-hidden space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <h4 className={`text-xs truncate ${adminUnreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>
+                              Ban Quản Trị Trọ Xinh
+                            </h4>
+                            <span className="text-[9px] bg-[#006d37] text-white px-1.5 py-0.2 rounded font-bold uppercase shrink-0">
+                              BQT
+                            </span>
+                          </div>
+                          {adminConversation?.last_message_at && (
+                            <span className={`text-[10px] shrink-0 ${adminUnreadCount > 0 ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
+                              {new Date(adminConversation.last_message_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </span>
                           )}
                         </div>
-                        {c.last_message_at && (
-                          <span className="text-[10px] text-gray-400">
-                            {new Date(c.last_message_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        )}
-                      </div>
-                      {(c.rooms?.name || c.rooms?.title) && (
+
                         <p className="text-[10px] text-[#006d37] font-semibold truncate flex items-center gap-1">
-                          <Home className="w-3 h-3 shrink-0" /> {c.rooms.name || c.rooms.title}
+                          <ShieldCheck className="w-3 h-3 text-[#006d37] shrink-0" />
+                          Hỗ trợ tìm phòng, cọc an toàn &amp; khiếu nại
                         </p>
-                      )}
-                      <p className="text-xs text-gray-500 truncate leading-snug">
-                        {(() => {
-                          const raw = c.last_message;
-                          if (!raw) return 'Bắt đầu cuộc trò chuyện...';
-                          const trimmed = raw.trim();
-                          // 4. Đảm bảo tin cảnh báo an toàn không hiển thị ở dòng xem trước tin cuối trong sidebar
-                          if (trimmed.includes('Nên gặp ở nơi công cộng') || trimmed.includes('kiểm tra đồ trước khi chuyển tiền')) {
-                            return 'Bắt đầu cuộc trò chuyện...';
-                          }
-                          if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                            try {
-                              const parsed = JSON.parse(trimmed);
-                              if (parsed.summary) return parsed.summary;
-                              if (parsed.title) return `[Món đồ] ${parsed.title}`;
-                            } catch {}
-                          }
-                          return raw;
-                        })()}
-                      </p>
+
+                        <div className="flex items-center justify-between gap-1">
+                          <p className={`text-xs truncate leading-snug flex-1 ${adminUnreadCount > 0 ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                            {isOpeningAdminChat
+                              ? 'Đang kết nối tới Ban Quản Trị...'
+                              : adminConversation?.last_message
+                              ? adminConversation.last_message
+                              : 'Bấm vào đây để chat trực tiếp với BQT Trọ Xinh...'}
+                          </p>
+                          {adminUnreadCount > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 text-[10px] font-bold bg-[#006d37] text-white rounded-full shadow-xs shrink-0 animate-scaleUp">
+                              {adminUnreadCount > 99 ? '99+' : adminUnreadCount}
+                            </span>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                );
-              })
+                )}
+
+                {/* ========================================================
+                    PHẦN 2: NHỮNG ĐOẠN CHAT NHẮN TIN VỚI NHỮNG NGƯỜI ĐÃ NHẮN
+                ======================================================== */}
+                <div>
+                  <div className="px-3.5 py-1.5 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
+                      <span>ĐOẠN CHAT GẦN ĐÂY</span>
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {otherConversations.length} cuộc trò chuyện
+                    </span>
+                  </div>
+
+                  {otherConversations.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 space-y-2">
+                      <MessageSquare className="w-7 h-7 mx-auto text-gray-300" />
+                      <p className="text-xs font-semibold">Chưa có tin nhắn nào khác</p>
+                      <p className="text-[11px] text-gray-400 leading-relaxed">
+                        {inboxFilter !== 'all'
+                          ? 'Không có tin nhắn nào trong mục lọc này.'
+                          : 'Các cuộc trò chuyện với chủ trọ, bạn ở ghép hoặc người mua/bán đồ sẽ xuất hiện ở đây.'}
+                      </p>
+                      {inboxFilter !== 'all' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInboxFilter('all');
+                            setConvSearch('');
+                          }}
+                          className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer pt-1 block mx-auto"
+                        >
+                          Xem tất cả cuộc trò chuyện
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {otherConversations.map((c) => {
+                        const isMe = isSameUserId(c.participant_1, currentUser?.id);
+                        const other = isMe ? c.p2 : c.p1;
+                        const otherId = isMe ? c.participant_2 : c.participant_1;
+                        const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+                        const name =
+                          c.other_name ||
+                          other?.full_name ||
+                          other?.name ||
+                          known?.name ||
+                          (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
+                        const avatar =
+                          c.other_avatar ||
+                          other?.avatar_url ||
+                          known?.avatar ||
+                          '/images/user-avatar.jpg';
+                        const isActive = c.id === activeConversationId;
+                        const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+                        const hasUnread = unreadCount > 0;
+                        const cMeta = getConversationMeta(c.id);
+
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => handleSelectConversation(c.id)}
+                            className={`p-3.5 flex items-start gap-3 cursor-pointer transition tap-bounce relative ${
+                              isActive
+                                ? 'bg-emerald-50/80 border-l-4 border-[#006d37]'
+                                : hasUnread
+                                ? 'bg-emerald-50/30 hover:bg-emerald-50/50'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="relative shrink-0">
+                              <img
+                                src={avatar}
+                                alt={name}
+                                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100"
+                              />
+                              {hasUnread && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#006d37] rounded-full border-2 border-white ring-1 ring-[#006d37]/20" />
+                              )}
+                            </div>
+                            <div className="flex-1 overflow-hidden space-y-0.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                  <h4 className={`text-xs truncate ${hasUnread ? 'font-black text-gray-900' : 'font-bold text-gray-800'}`}>
+                                    {name}
+                                  </h4>
+                                  {otherId && blockedUserIds.includes(otherId) && (
+                                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded font-bold shrink-0">
+                                      Đã chặn
+                                    </span>
+                                  )}
+                                </div>
+                                {c.last_message_at && (
+                                  <span className={`text-[10px] shrink-0 ${hasUnread ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
+                                    {new Date(c.last_message_at).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              {(c.rooms?.name || c.rooms?.title) ? (
+                                <p className="text-[10px] text-[#006d37] font-semibold truncate flex items-center gap-1">
+                                  <Home className="w-3 h-3 shrink-0" /> {c.rooms.name || c.rooms.title}
+                                </p>
+                              ) : (c.item_id || c.last_item_id || cMeta?.last_item_name) ? (
+                                <p className="text-[10px] text-amber-700 font-semibold truncate flex items-center gap-1">
+                                  <ShoppingBag className="w-3 h-3 shrink-0 text-amber-600" /> {cMeta?.last_item_name || 'Đồ cũ thanh lý'}
+                                </p>
+                              ) : ((c as any).roommate_id || cMeta?.roommate_id) ? (
+                                <p className="text-[10px] text-indigo-700 font-semibold truncate flex items-center gap-1">
+                                  <Users className="w-3 h-3 shrink-0 text-indigo-600" /> Tìm bạn ở ghép
+                                </p>
+                              ) : null}
+                              <div className="flex items-center justify-between gap-1">
+                                <p className={`text-xs truncate leading-snug flex-1 ${hasUnread ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                                  {(() => {
+                                    const raw = c.last_message;
+                                    if (!raw) return 'Bắt đầu cuộc trò chuyện...';
+                                    const trimmed = raw.trim();
+                                    // Đảm bảo tin cảnh báo an toàn không hiển thị ở dòng xem trước tin cuối trong sidebar
+                                    if (trimmed.includes('Nên gặp ở nơi công cộng') || trimmed.includes('kiểm tra đồ trước khi chuyển tiền')) {
+                                      return 'Bắt đầu cuộc trò chuyện...';
+                                    }
+                                    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                                      try {
+                                        const parsed = JSON.parse(trimmed);
+                                        if (parsed.summary) return parsed.summary;
+                                        if (parsed.title) return `[Món đồ] ${parsed.title}`;
+                                      } catch {}
+                                    }
+                                    return raw;
+                                  })()}
+                                </p>
+                                {hasUnread && (
+                                  <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 text-[10px] font-bold bg-[#006d37] text-white rounded-full shadow-xs shrink-0 animate-scaleUp">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </aside>
@@ -999,33 +1778,65 @@ export const ChatPage: React.FC = () => {
                     </button>
 
                     {isHeaderMenuOpen && (
-                      <div className="absolute right-0 top-full mt-1.5 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-fadeIn text-xs">
-                        {/* Mục duy nhất: Báo cáo người này */}
-                        <button
-                          type="button"
-                          disabled={hasReportedUser}
-                          onClick={() => {
-                            setIsHeaderMenuOpen(false);
-                            if (!currentUser) {
-                              showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để gửi báo cáo', 'warning');
-                              navigate(`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
-                              return;
-                            }
-                            if (hasReportedUser) {
-                              showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho người dùng này rồi.', 'info');
-                              return;
-                            }
-                            setShowReportModal(true);
-                          }}
-                          className={`w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 transition cursor-pointer ${
-                            hasReportedUser
-                              ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
-                              : 'text-rose-600 hover:bg-rose-50 font-medium'
-                          }`}
-                        >
-                          <Flag className="w-4 h-4 shrink-0" />
-                          <span>{hasReportedUser ? 'Đã báo cáo người này' : 'Báo cáo người này'}</span>
-                        </button>
+                      <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-50 animate-fadeIn text-xs divide-y divide-gray-100">
+                        {/* Nút đánh dấu đã cho thuê phòng cho chủ nhà */}
+                        {isOwnerOfRoom && attachedRoomId && attachedRoom?.status !== 'Đã cho thuê' && (
+                          <div className="py-1">
+                            <button
+                              type="button"
+                              disabled={isTransacting}
+                              onClick={() => handleMarkTransacted('room')}
+                              className="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 text-emerald-700 hover:bg-emerald-50 transition cursor-pointer font-bold disabled:opacity-50"
+                            >
+                              <CheckCheck className="w-4 h-4 text-[#006d37] shrink-0" />
+                              <span>Đánh dấu đã cho thuê phòng</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Nút đánh dấu đã bán đồ cho người bán */}
+                        {isOwnerOfItem && attachedItemId && itemStatusType !== 'sold' && (
+                          <div className="py-1">
+                            <button
+                              type="button"
+                              disabled={isTransacting}
+                              onClick={() => handleMarkTransacted('item')}
+                              className="w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 text-emerald-700 hover:bg-emerald-50 transition cursor-pointer font-bold disabled:opacity-50"
+                            >
+                              <CheckCheck className="w-4 h-4 text-[#006d37] shrink-0" />
+                              <span>Đánh dấu đã bán món đồ</span>
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Mục Báo cáo người này */}
+                        <div className="py-1">
+                          <button
+                            type="button"
+                            disabled={hasReportedUser}
+                            onClick={() => {
+                              setIsHeaderMenuOpen(false);
+                              if (!currentUser) {
+                                showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để gửi báo cáo', 'warning');
+                                navigate(`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname + location.search)}`);
+                                return;
+                              }
+                              if (hasReportedUser) {
+                                showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho người dùng này rồi.', 'info');
+                                return;
+                              }
+                              setShowReportModal(true);
+                            }}
+                            className={`w-full px-3.5 py-2.5 text-left flex items-center gap-2.5 transition cursor-pointer ${
+                              hasReportedUser
+                                ? 'text-gray-400 bg-gray-50 cursor-not-allowed'
+                                : 'text-rose-600 hover:bg-rose-50 font-medium'
+                            }`}
+                          >
+                            <Flag className="w-4 h-4 shrink-0" />
+                            <span>{hasReportedUser ? 'Đã báo cáo người này' : 'Báo cáo người này'}</span>
+                          </button>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -1049,8 +1860,39 @@ export const ChatPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Thẻ ghim thông tin hỗ trợ BQT Trọ Xinh */}
+              {isChatWithAdmin && (
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50/50 to-emerald-50 border-b border-emerald-200/90 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs shrink-0 z-10">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5">
+                        <span>Kênh Hỗ Trợ Chính Thức Trọ Xinh</span>
+                        <span className="text-[10px] text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded font-semibold border border-emerald-200">
+                          CSKH 24/7
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-emerald-900/80 leading-snug">
+                        Giải đáp tìm phòng trọ, cọc an toàn, hợp đồng mẫu &amp; giải quyết sự cố, khiếu nại.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="tel:0888110789"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#006d37] hover:bg-[#005a2e] text-white text-xs font-bold rounded-xl transition shadow-2xs tap-bounce"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Hotline: 0888 110 789</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* Thẻ ghim món đồ gắn kèm phía trên khung chat */}
-              {attachedItemId && (
+              {!isChatWithAdmin && attachedItemId && (
                 <Link
                   to={`/cho-do-cu/${attachedItemId}`}
                   className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group cursor-pointer shrink-0 z-10"
@@ -1088,8 +1930,23 @@ export const ChatPage: React.FC = () => {
                     </div>
                   </div>
 
-                  {/* Nhãn trạng thái (Đang bán / Đã bán / Đã ẩn) & Nút xem chi tiết */}
+                  {/* Nhãn trạng thái (Đang bán / Đã bán / Đã ẩn) & Nút Trả giá & Nút xem chi tiết */}
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    {!isOwnerOfItem && itemStatusType === 'available' && rawPrice && rawPrice > 0 && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setShowOfferModal(true);
+                        }}
+                        className="inline-flex items-center gap-1 text-[11px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 px-2.5 py-1.5 rounded-xl transition shadow-2xs tap-bounce shrink-0 cursor-pointer"
+                        title="Đề xuất mức giá bạn muốn mua"
+                      >
+                        <Tag className="w-3.5 h-3.5 text-amber-600" />
+                        <span>Trả giá</span>
+                      </button>
+                    )}
                     {itemStatusType === 'sold' ? (
                       <span className="inline-flex items-center gap-1 text-[10px] sm:text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full shrink-0">
                         <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
@@ -1114,6 +1971,158 @@ export const ChatPage: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-gray-400 group-hover:text-[#006d37] group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </div>
                 </Link>
+              )}
+
+              {/* Thẻ ghim Phòng trọ gắn kèm phía trên khung chat */}
+              {!isChatWithAdmin && !attachedItemId && attachedRoom && (attachedRoom.name || attachedRoom.title) && (
+                <div className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group shrink-0 z-10">
+                  <Link
+                    to={`/phong/${attachedRoom.id || attachedRoomId}`}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                    title="Bấm để xem chi tiết phòng trọ"
+                  >
+                    {/* Thumbnail ảnh phòng */}
+                    <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                      <img
+                        src={attachedRoom.images?.[0] || '/images/room-placeholder.jpg'}
+                        alt={attachedRoom.name || attachedRoom.title || 'Phòng trọ'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          if (target.src !== ITEM_PLACEHOLDER) {
+                            target.src = ITEM_PLACEHOLDER;
+                          }
+                        }}
+                      />
+                    </div>
+
+                    {/* Tên & Giá phòng */}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-[#006d37] bg-emerald-50 border border-emerald-200 px-1.5 py-0.2 rounded shrink-0">
+                          Phòng trọ
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-[#006d37] transition-colors">
+                          {attachedRoom.name || attachedRoom.title || 'Phòng trọ cho thuê'}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-black text-[#006d37]">
+                          {formatCurrency(attachedRoom.price || 0)}/tháng
+                        </span>
+                        {attachedRoom.district && (
+                          <span className="text-[11px] text-gray-500 truncate hidden sm:inline">
+                            • {attachedRoom.district}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Nút đặt lịch hẹn xem phòng & Xem chi tiết */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <Link
+                      to={`/dat-lich/${attachedRoom.id || attachedRoomId}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-white bg-[#006d37] hover:bg-[#005a2e] px-2.5 py-1.5 rounded-xl transition shadow-2xs tap-bounce"
+                      title="Đặt lịch hẹn xem phòng trực tiếp"
+                    >
+                      <Calendar className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Hẹn xem phòng</span>
+                    </Link>
+                    <Link
+                      to="/bien-ban-dat-coc"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] font-medium text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 px-2 py-1.5 rounded-xl transition shadow-2xs"
+                      title="Xem mẫu biên bản đặt cọc giữ chỗ pháp lý"
+                    >
+                      <FileCheck className="w-3.5 h-3.5 text-[#006d37]" />
+                      <span className="hidden md:inline">Mẫu cọc</span>
+                    </Link>
+                    <Link
+                      to={`/phong/${attachedRoom.id || attachedRoomId}`}
+                      className="p-1.5 text-gray-400 group-hover:text-[#006d37] group-hover:translate-x-0.5 transition-transform"
+                      title="Xem chi tiết"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* Thẻ ghim Bạn ở ghép gắn kèm phía trên khung chat */}
+              {!isChatWithAdmin && !attachedItemId && (!attachedRoom || (!attachedRoom.name && !attachedRoom.title)) && roommatePost && (
+                <div className="bg-white/95 backdrop-blur-xs border-b border-indigo-100 hover:border-indigo-300 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-indigo-50/30 transition-all group shrink-0 z-10">
+                  <Link
+                    to={`/roommate/${roommatePost.id}`}
+                    className="flex items-center gap-2.5 min-w-0 flex-1 cursor-pointer"
+                    title="Bấm để xem chi tiết bài đăng tìm bạn ở ghép"
+                  >
+                    {/* Thumbnail ảnh đại diện */}
+                    <div className="relative w-10 h-10 sm:w-11 sm:h-11 rounded-xl overflow-hidden bg-indigo-50 border border-indigo-200 shrink-0">
+                      <img
+                        src={roommatePost.userAvatar || '/images/user-avatar.jpg'}
+                        alt={roommatePost.userName || 'Bạn cùng phòng'}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = '/images/user-avatar.jpg';
+                        }}
+                      />
+                    </div>
+
+                    {/* Tên, trường & ngân sách */}
+                    <div className="min-w-0 flex-1 space-y-0.5">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] sm:text-[10px] font-bold text-indigo-700 bg-indigo-50 border border-indigo-200 px-1.5 py-0.2 rounded shrink-0">
+                          Tìm ở ghép
+                        </span>
+                        <h4 className="text-xs sm:text-sm font-bold text-gray-900 truncate group-hover:text-indigo-700 transition-colors">
+                          {roommatePost.userName || roommatePost.title || 'Tìm bạn ở ghép'}
+                        </h4>
+                        {roommatePost.userGender && (
+                          <span className="text-[9px] sm:text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded font-medium shrink-0">
+                            {roommatePost.userGender}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-2 text-xs">
+                        <span className="font-black text-indigo-600">
+                          {formatCurrency(roommatePost.budgetShare || 0)}/tháng
+                        </span>
+                        {roommatePost.userSchool && (
+                          <span className="text-[11px] text-gray-500 truncate hidden sm:inline">
+                            • {roommatePost.userSchool}
+                          </span>
+                        )}
+                        {roommatePost.district && (
+                          <span className="text-[11px] text-gray-400 truncate hidden md:inline">
+                            • {roommatePost.district}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </Link>
+
+                  {/* Nút Xem bài đăng & Xem chi tiết */}
+                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                    <Link
+                      to={`/roommate/${roommatePost.id}`}
+                      className="inline-flex items-center gap-1 text-[11px] font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 px-2.5 py-1.5 rounded-xl transition shadow-2xs tap-bounce"
+                      title="Xem bài đăng tìm bạn ở ghép"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Xem bài đăng</span>
+                    </Link>
+                    <Link
+                      to={`/roommate/${roommatePost.id}`}
+                      className="p-1.5 text-gray-400 group-hover:text-indigo-600 group-hover:translate-x-0.5 transition-transform"
+                      title="Xem chi tiết"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </Link>
+                  </div>
+                </div>
               )}
 
               {/* Vùng hiển thị tin nhắn (Scroll Area) */}
@@ -1184,6 +2193,16 @@ export const ChatPage: React.FC = () => {
                       );
                     }
 
+                    const isImage = (msg as any).type === 'image' || (!msg.content?.includes('\n') && (/^https?:\/\/.*\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(msg.content?.trim() || '') || msg.content?.startsWith('data:image/')));
+
+                    let offerData: any = null;
+                    if (msg.content && msg.content.includes('"type":"offer"')) {
+                      try {
+                        const parsed = JSON.parse(msg.content);
+                        if (parsed.type === 'offer') offerData = parsed;
+                      } catch {}
+                    }
+
                     return (
                       <div
                         key={msg.id}
@@ -1195,29 +2214,68 @@ export const ChatPage: React.FC = () => {
                             <span className="text-[11px] font-semibold text-[#006d37] mr-1 mb-1">
                               {msgSenderName}
                             </span>
-                            <div className="bg-[#006d37] text-white rounded-2xl rounded-br-xs px-4 py-2.5 shadow-xs w-fit">
-                              <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
-                                {msg.content}
-                              </p>
-                              <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-emerald-100">
-                                <span>{timeStr}</span>
-                                {msg.status === 'sending' ? (
-                                  <Clock className="w-2.5 h-2.5 animate-spin text-emerald-200" />
-                                ) : msg.status === 'failed' ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => retryMessage(msg)}
-                                    className="inline-flex items-center gap-0.5 text-rose-200 hover:text-white font-bold cursor-pointer"
-                                    title="Thử gửi lại tin nhắn này"
-                                  >
-                                    <AlertCircle className="w-3 h-3 text-rose-300" />
-                                    <span className="underline">Thử lại</span>
-                                  </button>
-                                ) : (
-                                  <CheckCheck className="w-3 h-3 text-emerald-200" />
-                                )}
+                            {offerData ? (
+                              <div className="w-fit">
+                                {renderOfferCard(offerData, isMe)}
+                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-gray-400">
+                                  <span>{timeStr}</span>
+                                  {msg.status === 'sending' ? (
+                                    <Clock className="w-2.5 h-2.5 animate-spin text-gray-400" />
+                                  ) : (
+                                    <CheckCheck className="w-3 h-3 text-[#006d37]" />
+                                  )}
+                                </div>
                               </div>
-                            </div>
+                            ) : isImage ? (
+                              <div className="w-fit">
+                                <div
+                                  onClick={() => setLightboxImage(msg.content)}
+                                  className="relative rounded-2xl overflow-hidden cursor-pointer group/img max-w-[240px] sm:max-w-xs shadow-xs border border-gray-200"
+                                  title="Bấm để xem ảnh phóng to"
+                                >
+                                  <img
+                                    src={msg.content}
+                                    alt="Ảnh đính kèm"
+                                    className="w-full max-h-64 object-cover rounded-2xl group-hover/img:scale-102 transition-transform duration-200"
+                                  />
+                                  <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                    <Maximize2 className="w-5 h-5 drop-shadow" />
+                                  </div>
+                                </div>
+                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-gray-400">
+                                  <span>{timeStr}</span>
+                                  {msg.status === 'sending' ? (
+                                    <Clock className="w-2.5 h-2.5 animate-spin text-gray-400" />
+                                  ) : (
+                                    <CheckCheck className="w-3 h-3 text-[#006d37]" />
+                                  )}
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="bg-[#006d37] text-white rounded-2xl rounded-br-xs px-4 py-2.5 shadow-xs w-fit">
+                                <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
+                                  {msg.content}
+                                </p>
+                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-emerald-100">
+                                  <span>{timeStr}</span>
+                                  {msg.status === 'sending' ? (
+                                    <Clock className="w-2.5 h-2.5 animate-spin text-emerald-200" />
+                                  ) : msg.status === 'failed' ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => retryMessage(msg)}
+                                      className="inline-flex items-center gap-0.5 text-rose-200 hover:text-white font-bold cursor-pointer"
+                                      title="Thử gửi lại tin nhắn này"
+                                    >
+                                      <AlertCircle className="w-3 h-3 text-rose-300" />
+                                      <span className="underline">Thử lại</span>
+                                    </button>
+                                  ) : (
+                                    <CheckCheck className="w-3 h-3 text-emerald-200" />
+                                  )}
+                                </div>
+                              </div>
+                            )}
                           </div>
                         ) : (
                           /* Phần người nhận / đối phương gửi: Nằm bên TRÁI, có avatar + tên cụ thể + bong bóng trắng + thời gian + báo cáo */
@@ -1245,7 +2303,9 @@ export const ChatPage: React.FC = () => {
                                       onContextMenu={(e) => {
                                         if (canReportThisMessage) e.preventDefault();
                                       }}
-                                      className="bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-tl-xs px-4 py-2.5 shadow-2xs w-fit select-none active:scale-[0.99] transition-transform"
+                                      className={`rounded-2xl rounded-tl-xs shadow-2xs w-fit select-none active:scale-[0.99] transition-transform ${
+                                        offerData || isImage ? '' : 'bg-white text-gray-900 border border-gray-200 px-4 py-2.5'
+                                      }`}
                                       title={
                                         isMessageReported
                                           ? 'Tin nhắn này đã được báo cáo'
@@ -1254,9 +2314,28 @@ export const ChatPage: React.FC = () => {
                                           : undefined
                                       }
                                     >
-                                      <p className="whitespace-pre-wrap break-words text-xs leading-relaxed select-text">
-                                        {msg.content}
-                                      </p>
+                                      {offerData ? (
+                                        renderOfferCard(offerData, isMe)
+                                      ) : isImage ? (
+                                        <div
+                                          onClick={() => setLightboxImage(msg.content)}
+                                          className="relative rounded-2xl overflow-hidden cursor-pointer group/img max-w-[240px] sm:max-w-xs shadow-xs border border-gray-200"
+                                          title="Bấm để xem ảnh phóng to"
+                                        >
+                                          <img
+                                            src={msg.content}
+                                            alt="Ảnh đính kèm"
+                                            className="w-full max-h-64 object-cover rounded-2xl group-hover/img:scale-102 transition-transform duration-200"
+                                          />
+                                          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center text-white">
+                                            <Maximize2 className="w-5 h-5 drop-shadow" />
+                                          </div>
+                                        </div>
+                                      ) : (
+                                        <p className="whitespace-pre-wrap break-words text-xs leading-relaxed select-text">
+                                          {msg.content}
+                                        </p>
+                                      )}
                                       <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
                                         <span>{timeStr}</span>
                                       </div>
@@ -1348,16 +2427,60 @@ export const ChatPage: React.FC = () => {
                   {/* Hộp nhập tin nhắn */}
                   <form
                     onSubmit={handleSend}
-                    className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-2"
+                    className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-1.5 sm:gap-2"
                     style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
                   >
+                    {/* Input chọn ảnh ẩn */}
+                    <input
+                      ref={imageInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleUploadAndSendImage(file);
+                      }}
+                    />
+
+                    {/* Nút đính kèm ảnh */}
+                    <button
+                      type="button"
+                      disabled={isUploadingImage}
+                      onClick={() => imageInputRef.current?.click()}
+                      className="p-2 text-gray-500 hover:text-[#006d37] hover:bg-emerald-50 rounded-2xl transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                      title="Gửi hình ảnh thực tế"
+                      aria-label="Gửi hình ảnh"
+                    >
+                      {isUploadingImage ? (
+                        <Loader2 className="w-5 h-5 animate-spin text-[#006d37]" />
+                      ) : (
+                        <Camera className="w-5 h-5" />
+                      )}
+                    </button>
+
                     <input
                       type="text"
                       value={inputText}
                       onChange={(e) => setInputText(e.target.value)}
-                      placeholder="Nhập tin nhắn của bạn..."
-                      className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
+                      onPaste={(e) => {
+                        const items = e.clipboardData?.items;
+                        if (items) {
+                          for (let i = 0; i < items.length; i++) {
+                            if (items[i].type.startsWith('image/')) {
+                              const file = items[i].getAsFile();
+                              if (file) {
+                                e.preventDefault();
+                                handleUploadAndSendImage(file);
+                                break;
+                              }
+                            }
+                          }
+                        }
+                      }}
+                      placeholder="Nhập tin nhắn (hỗ trợ dán ảnh Ctrl+V)..."
+                      className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-3.5 sm:px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
                     />
+
                     <Button
                       type="submit"
                       variant="primary"
@@ -1415,6 +2538,133 @@ export const ChatPage: React.FC = () => {
             showToast('Đã gửi báo cáo tin nhắn', 'Cảm ơn bạn đã phản ánh tin nhắn vi phạm.', 'success');
           }}
         />
+      )}
+
+      {/* Modal Đề Xuất Trả Giá (Chợ đồ cũ) */}
+      {showOfferModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-xs p-4 animate-fadeIn">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-gray-100 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 bg-amber-100 rounded-xl text-amber-700">
+                  <Tag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Đề xuất trả giá</h3>
+                  <p className="text-xs text-gray-500 line-clamp-1">{pinnedTitle}</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowOfferModal(false)}
+                className="p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-emerald-50/60 p-3 rounded-2xl border border-emerald-100 flex justify-between items-center text-xs">
+              <span className="text-gray-600">Giá người bán niêm yết:</span>
+              <span className="font-bold text-[#006d37]">{formatCurrency(rawPrice || 0)}</span>
+            </div>
+
+            <form onSubmit={handleSendOffer} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 mb-1.5">
+                  Số tiền bạn muốn trả (VND):
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={offerPriceInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '');
+                    setOfferPriceInput(val ? parseInt(val, 10).toLocaleString('vi-VN') : '');
+                  }}
+                  placeholder="Ví dụ: 150.000"
+                  className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-2xl text-base font-bold text-[#006d37] focus:outline-none focus:ring-2 focus:ring-[#006d37]"
+                />
+              </div>
+
+              {rawPrice && rawPrice > 0 && (
+                <div className="flex gap-2">
+                  {[0.9, 0.85, 0.8].map((ratio) => {
+                    const calcPrice = Math.round((rawPrice * ratio) / 1000) * 1000;
+                    const percent = Math.round((1 - ratio) * 100);
+                    return (
+                      <button
+                        key={ratio}
+                        type="button"
+                        onClick={() => setOfferPriceInput(calcPrice.toLocaleString('vi-VN'))}
+                        className="flex-1 py-1 px-2 text-[11px] font-semibold bg-gray-100 hover:bg-emerald-100 hover:text-[#006d37] rounded-xl transition-colors cursor-pointer"
+                      >
+                        -{percent}%
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div className="flex gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="flex-1 rounded-2xl cursor-pointer"
+                  onClick={() => setShowOfferModal(false)}
+                >
+                  Hủy
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  className="flex-1 rounded-2xl cursor-pointer"
+                  disabled={!offerPriceInput.trim()}
+                >
+                  Gửi trả giá
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Phóng To Ảnh (Lightbox) */}
+      {lightboxImage && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-fadeIn"
+          onClick={() => setLightboxImage(null)}
+        >
+          <div
+            className="relative max-w-4xl max-h-[90vh] flex flex-col items-center"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="absolute top-3 right-3 flex items-center gap-2 z-10">
+              <a
+                href={lightboxImage}
+                download="anh_chat.jpg"
+                target="_blank"
+                rel="noreferrer"
+                className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors cursor-pointer"
+                title="Mở ảnh kích thước gốc"
+              >
+                <Download className="w-5 h-5" />
+              </a>
+              <button
+                type="button"
+                onClick={() => setLightboxImage(null)}
+                className="p-2 bg-black/60 hover:bg-black/80 text-white rounded-full transition-colors cursor-pointer"
+                title="Đóng (Esc)"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <img
+              src={lightboxImage}
+              alt="Ảnh phóng to"
+              className="max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl"
+            />
+          </div>
+        </div>
       )}
     </div>
   );

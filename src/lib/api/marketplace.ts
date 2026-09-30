@@ -38,7 +38,7 @@ function ensureConfigured() {
 export async function getMarketplaceItems(category?: string, district?: string) {
   if (!isSupabaseConfigured) return [];
 
-  let query = supabase
+    let query = supabase
     .from('marketplace_items')
     .select(`
       id,
@@ -54,7 +54,10 @@ export async function getMarketplaceItems(category?: string, district?: string) 
       seller_name,
       seller_avatar,
       seller_phone,
-      show_phone
+      show_phone,
+      seller_id,
+      user_id,
+      profiles:seller_id(id, full_name, avatar_url, phone)
     `)
     .eq('status', 'available');
 
@@ -68,14 +71,17 @@ export async function getMarketplaceItems(category?: string, district?: string) 
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
 
-  return (data || []).map((item: any) => ({
-    ...item,
-    seller: {
-      full_name: item.seller_name || 'Sinh viên Trọ Xinh',
-      avatar_url: item.seller_avatar || '/images/user-avatar.jpg',
-      phone: item.seller_phone || '',
-    },
-  }));
+  return (data || []).map((item: any) => {
+    const profile = item.profiles || {};
+    return {
+      ...item,
+      seller: {
+        full_name: profile.full_name || item.seller_name || 'Sinh viên Trọ Xinh',
+        avatar_url: profile.avatar_url || item.seller_avatar || '/images/user-avatar.jpg',
+        phone: profile.phone || item.seller_phone || '',
+      },
+    };
+  });
 }
 
 /**
@@ -113,7 +119,7 @@ export async function getMarketplaceItemById(id: string): Promise<MarketplaceIte
 }
 
 /**
- * Đăng tin mới. Máy chủ luôn đưa tin vào trạng thái chờ duyệt.
+ * Đăng tin mới (Tự động duyệt và hiển thị công khai ngay lập tức).
  */
 export async function createMarketplaceItem(sellerId: string, input: MarketplaceItemInput): Promise<MarketplaceItem> {
   ensureConfigured();

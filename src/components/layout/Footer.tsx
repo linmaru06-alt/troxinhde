@@ -7,28 +7,7 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-white border-t border-gray-200 mt-16 pt-12 pb-24 md:pb-12 text-sm text-gray-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          {/* Col 1: Brand & Trust */}
-          <div className="space-y-4 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <OptimizedImage
-                src="/images/logo.png"
-                alt="Trọ Xinh Logo"
-                loading="lazy"
-                width={36}
-                height={36}
-                className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30 shadow-xs group-hover:scale-105 transition-transform"
-              />
-              <span className="text-xl font-black text-[#006d37]">Trọ Xinh</span>
-            </Link>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Nền tảng tìm trọ sinh viên Hà Nội uy tín. Mọi phòng trọ đều qua quy trình kiểm duyệt thực tế 100%.
-            </p>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full text-xs font-semibold">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Bảo vệ người thuê & giữ cọc an toàn</span>
-            </div>
-          </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
 
           {/* Col 2: Liên hệ */}
           <div className="space-y-3">
@@ -97,7 +76,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-2.5 text-xs">
               <li>
                 <a
-                  href="https://www.facebook.com/troxinh.vn"
+                  href="https://www.facebook.com/chinh.nguyenvu.05"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:text-[#006d37] transition"

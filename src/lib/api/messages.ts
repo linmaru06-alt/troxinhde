@@ -138,6 +138,57 @@ export function saveConversationMeta(
   } catch {}
 }
 
+export const ADMIN_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+/**
+ * Kiểm tra xem một cuộc hội thoại có phải là với Admin / Ban Quản Trị hay không
+ */
+export function isConversationWithAdmin(
+  c: Conversation,
+  currentUserId?: string
+): boolean {
+  if (!c) return false;
+  const isMe = isSameUserId(c.participant_1, currentUserId);
+  const other = isMe ? c.p2 : c.p1;
+  const otherId = isMe ? c.participant_2 : c.participant_1;
+
+  if (
+    otherId === ADMIN_USER_ID ||
+    otherId === "usr_admin_quan66934" ||
+    otherId === "demo_admin_uuid" ||
+    otherId === "demo_admin_troxinh"
+  ) {
+    return true;
+  }
+  if (other?.app_role === "admin" || (other as any)?.role === "admin") {
+    return true;
+  }
+  const name = (
+    c.other_name ||
+    other?.full_name ||
+    other?.name ||
+    ""
+  ).toLowerCase();
+  if (
+    name.includes("ban quản trị") ||
+    name.includes("bqt trọ xinh") ||
+    name.includes("quản trị viên")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Khởi tạo hoặc tìm cuộc hội thoại trực tiếp với Ban Quản Trị Trọ Xinh
+ */
+export async function getOrCreateAdminConversation(userId: string): Promise<string> {
+  return getOrCreateConversation(userId, ADMIN_USER_ID, undefined, {
+    otherName: "Ban Quản Trị Trọ Xinh",
+    otherAvatar: "/images/logo.png",
+  });
+}
+
 function getLocalConversations(): Conversation[] {
   try {
     const raw = safeGetStorage(LOCAL_CONVS_KEY);
@@ -253,7 +304,43 @@ export async function getOrCreateConversation(
   const validRoomId =
     roomId && UUID_REGEX.test(roomId.trim()) ? roomId.trim() : null;
 
-  // 1. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
+  // 1. Thử gọi Postgres RPC get_or_create_conversation trên Supabase (SECURITY DEFINER)
+  const isDemoOrTest = isDemoUser(cleanTenantId) || isDemoUser(cleanLandlordId);
+  if (isSupabaseConfigured && !isDemoOrTest) {
+    try {
+      const { data: convId, error: rpcErr } = await supabase.rpc("get_or_create_conversation", {
+        p_partner_id: cleanLandlordId,
+        p_room_id: validRoomId,
+      });
+
+      if (!rpcErr && convId) {
+        if (extra?.otherName || extra?.otherAvatar) {
+          saveConversationMeta(convId, {
+            other_name: extra.otherName,
+            other_avatar: extra.otherAvatar,
+          });
+        }
+        return convId;
+      }
+
+      if (rpcErr) {
+        if (rpcErr.message?.includes('P0005') || rpcErr.message?.includes('Không thể gửi tin nhắn')) {
+          throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+        }
+        if (rpcErr.message?.includes('P0004') || rpcErr.message?.includes('tạm khóa')) {
+          throw new Error("Tài khoản người dùng hiện đang bị tạm khóa hoặc ngừng hoạt động.");
+        }
+        console.warn("[MessagesAPI] RPC get_or_create_conversation báo lỗi, thử truy vấn bảng trực tiếp:", rpcErr.message);
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("Không thể gửi tin nhắn") || err?.message?.includes("tạm khóa")) {
+        throw err;
+      }
+      console.warn("[MessagesAPI] Ngoại lệ khi gọi get_or_create_conversation RPC:", err);
+    }
+  }
+
+  // 2. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
   let existingId: string | null = null;
   if (isSupabaseConfigured) {
     try {
@@ -477,6 +564,7 @@ export async function getConversations(
     const otherId = isMe ? c.participant_2 : c.participant_1;
     const known = KNOWN_USER_NAMES[otherId];
     const savedMeta = getConversationMeta(c.id);
+    const unreadCount = isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
 
     const resolvedName =
       c.other_name ||
@@ -495,6 +583,7 @@ export async function getConversations(
 
     return {
       ...c,
+      unread_count: unreadCount,
       other_name: resolvedName,
       other_avatar: resolvedAvatar,
     };
@@ -505,6 +594,52 @@ export async function getConversations(
       new Date(b.last_message_at || b.created_at || 0).getTime() -
       new Date(a.last_message_at || a.created_at || 0).getTime(),
   );
+}
+
+/**
+ * Đánh dấu toàn bộ tin nhắn trong cuộc trò chuyện là đã đọc
+ * Đặt lại unread_count = 0 và cập nhật thông báo
+ */
+export async function markConversationAsRead(
+  conversationId: string,
+  userId?: string,
+): Promise<void> {
+  if (!conversationId) return;
+
+  if (isSupabaseConfigured && UUID_REGEX.test(conversationId.trim())) {
+    try {
+      const { error } = await supabase.rpc("mark_conversation_read", {
+        p_conversation_id: conversationId,
+      });
+      if (error) {
+        // Fallback cập nhật trực tiếp nếu RPC chưa có
+        await supabase
+          .from("messages")
+          .update({ is_read: true })
+          .eq("conversation_id", conversationId)
+          .eq("is_read", false);
+      }
+    } catch (err) {
+      console.warn("[MessagesAPI] Ngoại lệ markConversationAsRead:", err);
+    }
+  }
+
+  // Cập nhật bộ nhớ cục bộ nếu có
+  try {
+    const localConvs = getLocalConversations();
+    const updated = localConvs.map((c) => {
+      if (c.id === conversationId) {
+        return {
+          ...c,
+          unread_count_p1: 0,
+          unread_count_p2: 0,
+          unread_count: 0,
+        };
+      }
+      return c;
+    });
+    safeSetStorage(LOCAL_CONVS_KEY, JSON.stringify(updated));
+  } catch {}
 }
 
 /**
@@ -647,6 +782,9 @@ export async function sendMessage(
         if (error.message?.includes('P0005') || error.message?.includes('Không thể gửi tin nhắn') || error.message?.includes('blocked')) {
           throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
         }
+        if (error.message?.includes('No suitable key') || (error as any).code === 'PGRST301') {
+          throw new Error("Supabase chưa bật Firebase Third-Party Auth. Vui lòng thêm Firebase Project ID (troxinh-eb) vào Supabase Dashboard.");
+        }
         if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
           throw new Error(`Lỗi gửi tin nhắn Supabase: ${error.message}`);
         }
@@ -677,20 +815,33 @@ export async function sendMessage(
     saveLocalMessage(savedMessage);
   }
 
-  // 3. Gửi thông báo Realtime cho người nhận nếu là tin nhắn người dùng
+  // 3. Gửi thông báo cho người nhận nếu là tin nhắn người dùng (kèm fallback nếu DB trigger chưa chạy)
   try {
-    if (cleanSenderId) {
+    if (cleanSenderId && isSupabaseConfigured) {
+      let receiverId = "";
       const localConvs = getLocalConversations();
       const conv = localConvs.find((c) => c.id === conversationId);
-      let receiverId = "";
       if (conv) {
         receiverId = isSameUserId(conv.participant_1, cleanSenderId)
           ? conv.participant_2
           : conv.participant_1;
       }
 
+      if (!receiverId && UUID_REGEX.test(conversationId.trim())) {
+        const { data: dbConv } = await supabase
+          .from("conversations")
+          .select("participant_1, participant_2")
+          .eq("id", conversationId)
+          .maybeSingle();
+
+        if (dbConv) {
+          receiverId = isSameUserId(dbConv.participant_1, cleanSenderId)
+            ? dbConv.participant_2
+            : dbConv.participant_1;
+        }
+      }
+
       if (
-        isSupabaseConfigured &&
         receiverId &&
         !isSameUserId(receiverId, cleanSenderId)
       ) {

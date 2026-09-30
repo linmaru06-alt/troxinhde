@@ -114,6 +114,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     const nextItems = [...items, ...validNewItems];
     setItems(nextItems);
+    notifyUrls(nextItems);
     setIsUploading(true);
 
     // Sequential Upload UX
@@ -127,6 +128,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
           it.id === id ? { ...it, url: secureUrl, status: 'done', progress: 100 } : it
         );
         setItems([...updatedItemsState]);
+        notifyUrls(updatedItemsState);
       } catch (err: any) {
         const errorMsg = err?.message || 'Tải lên thất bại';
         updatedItemsState = updatedItemsState.map((it) =>

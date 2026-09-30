@@ -218,10 +218,6 @@ export const RoommateListPage: React.FC = () => {
                 <span>Đăng Tin Tìm Bạn Ghép</span>
               </button>
             </div>
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300 font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Miễn phí 100% • Tiếp cận 10.000+ sinh viên</span>
-            </div>
           </div>
         </div>
       </div>

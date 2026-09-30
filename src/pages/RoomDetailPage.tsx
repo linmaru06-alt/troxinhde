@@ -302,6 +302,8 @@ export const RoomDetailPage: React.FC = () => {
           address: room.address,
           district: room.district,
           price: room.price,
+          area: room.area,
+          amenities: room.amenities,
           avgRating: 4.9,
           reviewCount: userReviews.length || 5,
         }}

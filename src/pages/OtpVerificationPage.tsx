@@ -239,17 +239,14 @@ export const OtpVerificationPage: React.FC = () => {
 
             setIsLoading(false);
 
-            if (returnUrl) {
-              const decoded = decodeURIComponent(returnUrl);
-              if (isValidReturnUrl(decoded, res.user.role)) {
-                navigate(decoded, { replace: true });
-                return;
+            if (typeof window !== 'undefined') {
+              if (returnUrl && returnUrl !== '/') {
+                window.location.href = decodeURIComponent(returnUrl);
+              } else if (res.user.role === 'owner') {
+                window.location.href = '/chu-tro';
+              } else {
+                window.location.href = '/';
               }
-            }
-            if (res.user.role === 'owner') {
-              navigate('/chu-tro', { replace: true });
-            } else {
-              navigate('/tim-phong', { replace: true });
             }
           } else {
             setIsLoading(false);
@@ -264,6 +261,7 @@ export const OtpVerificationPage: React.FC = () => {
 
           const userId = existingUser?.id || firebaseAuthUser?.uid || `usr_phone_${cleanPhone}`;
           const userName = existingUser?.name || name || `Người dùng ${cleanPhone.slice(-4)}`;
+          const userRole = (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any;
 
           sessionStorage.removeItem('troxinh_current_otp');
           loginWithSocialUser({
@@ -271,7 +269,7 @@ export const OtpVerificationPage: React.FC = () => {
             firebaseUid: existingUser?.id || firebaseAuthUser?.uid || `usr_phone_${cleanPhone}`,
             name: userName,
             phone: cleanPhone,
-            role: (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any,
+            role: userRole,
             avatarUrl: existingUser?.avatar_url || '/images/user-avatar.jpg',
             isDemoAccount: false,
             phoneVerified: true,
@@ -281,18 +279,14 @@ export const OtpVerificationPage: React.FC = () => {
           showToast('Đăng nhập thành công! 👋', `Chào mừng ${userName}`, 'success');
           setIsLoading(false);
 
-          if (returnUrl) {
-            const decoded = decodeURIComponent(returnUrl);
-            const userRole = (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any;
-            if (isValidReturnUrl(decoded, userRole)) {
-              navigate(decoded, { replace: true });
-              return;
+          if (typeof window !== 'undefined') {
+            if (returnUrl && returnUrl !== '/') {
+              window.location.href = decodeURIComponent(returnUrl);
+            } else if (userRole === 'owner') {
+              window.location.href = '/chu-tro';
+            } else {
+              window.location.href = '/';
             }
-          }
-          if (existingUser?.role === 'owner' || role === 'owner') {
-            navigate('/chu-tro', { replace: true });
-          } else {
-            navigate('/tim-phong', { replace: true });
           }
         }
       } catch (err: any) {

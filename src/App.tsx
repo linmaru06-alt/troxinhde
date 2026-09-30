@@ -29,7 +29,6 @@ const ContractTemplatePage = React.lazy(() => import('./pages/ContractTemplatePa
 const DepositContractPage = React.lazy(() => import('./pages/DepositContractPage').then((m) => ({ default: m.DepositContractPage })));
 const TermsPage = React.lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
-const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })));
 const HelpPage = React.lazy(() => import('./pages/HelpPage').then((m) => ({ default: m.HelpPage })));
 
 // Auth Pages
@@ -58,9 +57,13 @@ const PaymentResultPage = React.lazy(() => import('./pages/PaymentResultPage').t
 const OwnerOnboardingPage = React.lazy(() => import('./pages/OwnerOnboardingPage').then((m) => ({ default: m.OwnerOnboardingPage })));
 const OwnerDashboardPage = React.lazy(() => import('./pages/OwnerDashboardPage').then((m) => ({ default: m.OwnerDashboardPage })));
 const OwnerBuildingListPage = React.lazy(() => import('./pages/OwnerBuildingListPage').then((m) => ({ default: m.OwnerBuildingListPage })));
+const OwnerBuildingDetailPage = React.lazy(() => import('./pages/OwnerBuildingDetailPage').then((m) => ({ default: m.OwnerBuildingDetailPage })));
 const OwnerCreateBuildingPage = React.lazy(() => import('./pages/OwnerCreateBuildingPage').then((m) => ({ default: m.OwnerCreateBuildingPage })));
 const OwnerCreateRoomPage = React.lazy(() => import('./pages/OwnerCreateRoomPage').then((m) => ({ default: m.OwnerCreateRoomPage })));
 const OwnerRoomDetailPage = React.lazy(() => import('./pages/OwnerRoomDetailPage').then((m) => ({ default: m.OwnerRoomDetailPage })));
+const OwnerChatPage = React.lazy(() => import('./pages/OwnerChatPage').then((m) => ({ default: m.OwnerChatPage })));
+const OwnerBookingsPage = React.lazy(() => import('./pages/OwnerBookingsPage').then((m) => ({ default: m.OwnerBookingsPage })));
+const OwnerNotificationsPage = React.lazy(() => import('./pages/OwnerNotificationsPage').then((m) => ({ default: m.OwnerNotificationsPage })));
 const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
 const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
@@ -118,26 +121,30 @@ const AppCloudDataLoader: React.FC = () => {
         try {
           const email = fbUser.email?.toLowerCase();
           const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+          const isLandlord = email === 'phuonglinh832005@gmail.com';
           const profile = await getProfileByFirebaseUid(fbUser.uid);
+          const isApprovedOwner = profile?.owner_application_status === 'approved' || profile?.role === 'owner' || isLandlord;
+          const targetRole = isSuperAdmin ? 'admin' : (isApprovedOwner ? 'owner' : (profile?.role || 'user'));
+
           if (profile) {
             loginWithSocialUser({
               id: profile.id,
               name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
               email: profile.email || fbUser.email || undefined,
               phone: profile.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : profile.role,
+              role: targetRole,
               avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,
             });
           } else {
-            const synced = await syncFirebaseUserToSupabase(fbUser);
+            const synced = await syncFirebaseUserToSupabase(fbUser, isLandlord ? 'owner' : 'renter');
             loginWithSocialUser({
               id: synced.id,
               name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : synced.name,
               email: synced.email || fbUser.email || undefined,
               phone: synced.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : synced.role,
+              role: isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : synced.role),
               avatarUrl: synced.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,
@@ -265,6 +272,15 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Smart Home Route: Tự động điều hướng Chủ trọ vào trang Tổng quan & Phòng
+const HomeRoute: React.FC = () => {
+  const { currentUser } = useAppStore();
+  if (currentUser && (currentUser.role === 'owner' || currentUser.ownerApplicationStatus === 'approved')) {
+    return <Navigate to="/chu-tro" replace />;
+  }
+  return <LandingPage />;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -277,7 +293,7 @@ export const App: React.FC = () => {
           <React.Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Core Routes */}
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/tim-kiem" element={<SearchPage />} />
               <Route path="/tim-phong" element={<SearchPage />} />
               <Route path="/ban-do" element={<MapViewPage />} />
@@ -453,6 +469,9 @@ export const App: React.FC = () => {
             <Route path="/landlord-registration/trang-thai" element={<OwnerApplicationStatusPage />} />
             <Route path="/landlord-registration/status" element={<OwnerApplicationStatusPage />} />
             <Route path="/nang-cap-chu-tro" element={<OwnerUpgradePage />} />
+            <Route path="/landlord-registration" element={<OwnerUpgradePage />} />
+            <Route path="/dang-ky-chu-tro" element={<OwnerUpgradePage />} />
+            <Route path="/dang-ky-cho-thue" element={<OwnerUpgradePage />} />
             <Route path="/nang-cap-chu-tro/trang-thai" element={<OwnerApplicationStatusPage />} />
 
             {/* Owner SaaS Features (Protected) */}
@@ -500,7 +519,7 @@ export const App: React.FC = () => {
               path="/chu-tro/toa-nha/:id"
               element={
                 <OwnerRoute>
-                  <BuildingDetailPage />
+                  <OwnerBuildingDetailPage />
                 </OwnerRoute>
               }
             />
@@ -536,13 +555,35 @@ export const App: React.FC = () => {
                 </OwnerRoute>
               }
             />
-            <Route path="/chu-tro/tin-nhan" element={<Navigate to="/tin-nhan" replace />} />
-            <Route path="/chu-tro/lich-hen" element={<Navigate to="/lich-hen" replace />} />
+            <Route
+              path="/chu-tro/tin-nhan"
+              element={
+                <OwnerRoute>
+                  <OwnerChatPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/tin-nhan/:conversationId"
+              element={
+                <OwnerRoute>
+                  <OwnerChatPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/lich-hen"
+              element={
+                <OwnerRoute>
+                  <OwnerBookingsPage />
+                </OwnerRoute>
+              }
+            />
             <Route
               path="/chu-tro/thong-bao"
               element={
                 <OwnerRoute>
-                  <NotificationsPage />
+                  <OwnerNotificationsPage />
                 </OwnerRoute>
               }
             />
@@ -614,6 +655,22 @@ export const App: React.FC = () => {
             />
             <Route
               path="/admin/don-chu-tro"
+              element={
+                <AdminRoute>
+                  <AdminOwnerApplicationsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/owner-applications"
+              element={
+                <AdminRoute>
+                  <AdminOwnerApplicationsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/quan-tri/duyet-chu-tro"
               element={
                 <AdminRoute>
                   <AdminOwnerApplicationsPage />

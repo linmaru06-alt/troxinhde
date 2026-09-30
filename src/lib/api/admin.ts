@@ -164,6 +164,22 @@ export async function getAdminMetrics(
     const reports = reportsRes.data || [];
     const bookings = bookingsRes.data || [];
 
+    // Tính pendingOwnerApps từ Cloud và Local Store
+    let pendingOwnerCount = ownerApps.filter((a) => a.status === 'pending').length;
+    let totalOwnerCount = profiles.filter((p) => p.role === 'owner').length;
+    try {
+      const raw = localStorage.getItem('troxinh-storage');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const storeApps = parsed?.state?.ownerApplications || [];
+        const localPendingCount = storeApps.filter((a: any) => a.status === 'pending').length;
+        pendingOwnerCount = Math.max(pendingOwnerCount, localPendingCount);
+        if (parsed?.state?.currentUser?.role === 'owner' && totalOwnerCount === 0) {
+          totalOwnerCount = 1;
+        }
+      }
+    } catch (e) {}
+
     return {
       totalRooms: rooms.length,
       pendingRooms: rooms.filter((r) => r.moderation_status === 'pending' || r.status === 'Chờ duyệt').length,
@@ -171,8 +187,8 @@ export async function getAdminMetrics(
       rejectedRooms: rooms.filter((r) => r.moderation_status === 'rejected' || r.status === 'Bị từ chối').length,
 
       totalUsers: profiles.length,
-      totalOwners: profiles.filter((p) => p.role === 'owner').length,
-      pendingOwnerApps: ownerApps.filter((a) => a.status === 'pending').length,
+      totalOwners: totalOwnerCount,
+      pendingOwnerApps: pendingOwnerCount,
 
       totalReports: reports.length,
       pendingReports: reports.filter((r) => r.status === 'pending').length,
@@ -634,34 +650,83 @@ export async function changeUserRole(userId: string, newRole: 'user' | 'owner' |
 }
 
 /**
- * Lấy danh sách đơn đăng ký chủ trọ chờ duyệt
+ * Lấy danh sách đơn đăng ký chủ trọ chờ duyệt (kết hợp Supabase Cloud và Store)
  */
 export async function getPendingOwnerApplications() {
-  if (!isSupabaseConfigured) return [];
+  const map = new Map<string, any>();
 
-  const { data, error } = await supabase
-    .from('owner_applications')
-    .select(`
-      id,
-      user_id,
-      building_name,
-      address,
-      district,
-      cccd_number,
-      cccd_image_url,
-      legal_docs_note,
-      status,
-      created_at,
-      profiles!user_id(id, full_name, phone, avatar_url)
-    `)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false });
+  // 1. Thử lấy từ Supabase Cloud
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('owner_applications')
+        .select('*')
+        .eq('status', 'pending')
+        .order('created_at', { ascending: false });
 
-  if (error) {
-    console.warn('[Admin API] Lỗi getPendingOwnerApplications:', error);
-    return [];
+      if (!error && data && data.length > 0) {
+        data.forEach((item: any) => {
+          map.set(item.id, {
+            id: item.id,
+            user_id: item.user_id,
+            building_name: item.building_name || item.buildingName || 'Cơ sở trọ',
+            address: item.address || '',
+            district: item.district || '',
+            cccd_number: item.cccd_number || item.cccd || '',
+            cccd_image_url: item.cccd_image_url || item.cccdFrontUrl,
+            legal_docs_note: item.legal_docs_note || item.legalDocsNote,
+            status: item.status || 'pending',
+            created_at: item.created_at || new Date().toISOString(),
+            total_rooms: Number(item.total_rooms || item.totalRooms) || 1,
+            profiles: {
+              id: item.user_id,
+              full_name: item.full_name || item.fullName || item.userName || 'Người dùng Trọ Xinh',
+              phone: item.phone || item.userPhone || 'Chưa có SĐT',
+              avatar_url: item.avatar_url || '/images/user-avatar.jpg',
+            },
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('[Admin API] Lỗi query getPendingOwnerApplications từ Supabase:', err);
+    }
   }
-  return data || [];
+
+  // 2. Lấy từ localStorage / Zustand Store để đảm bảo không bị sót đơn nào
+  try {
+    const raw = localStorage.getItem('troxinh-storage');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const storeApps = parsed?.state?.ownerApplications || [];
+      storeApps.filter((a: any) => a.status === 'pending').forEach((a: any) => {
+        if (!map.has(a.id)) {
+          map.set(a.id, {
+            id: a.id,
+            user_id: a.userId,
+            building_name: a.buildingName || 'Cơ sở trọ',
+            address: a.address || '',
+            district: a.district || '',
+            cccd_number: a.cccdNumber || a.taxOrCccdNumber || '',
+            cccd_image_url: a.cccdFrontUrl || a.cccdImageUrl,
+            legal_docs_note: a.legalDocsNote,
+            status: a.status || 'pending',
+            created_at: a.createdAt || new Date().toISOString(),
+            total_rooms: Number(a.totalRooms) || 1,
+            profiles: {
+              id: a.userId,
+              full_name: a.fullName || a.userName || 'Người dùng Trọ Xinh',
+              phone: a.userPhone || a.phone || 'Chưa có SĐT',
+              avatar_url: '/images/user-avatar.jpg',
+            },
+          });
+        }
+      });
+    }
+  } catch (localErr) {
+    console.warn('[Admin API] Lỗi đọc store local cho pending owner applications:', localErr);
+  }
+
+  return Array.from(map.values());
 }
 
 /**
