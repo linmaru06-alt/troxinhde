@@ -1133,19 +1133,26 @@ export const ChatPage: React.FC = () => {
 
     setInputText('');
     setHideQuickReplies(true);
-    await realtimeSendMessage(content);
+    try {
+      await realtimeSendMessage(content);
 
-    // Cập nhật preview tin nhắn cuối và đẩy cuộc hội thoại lên đầu danh sách (Reorder)
-    setConversations((prev) => {
-      const target = prev.find((c) => c.id === activeConversationId);
-      if (!target) return prev;
-      const updated = {
-        ...target,
-        last_message: content,
-        last_message_at: new Date().toISOString(),
-      };
-      return [updated, ...prev.filter((c) => c.id !== activeConversationId)];
-    });
+      // Cập nhật preview tin nhắn cuối và đẩy cuộc hội thoại lên đầu danh sách (Reorder)
+      setConversations((prev) => {
+        const target = prev.find((c) => c.id === activeConversationId);
+        if (!target) return prev;
+        const updated = {
+          ...target,
+          last_message: content,
+          last_message_at: new Date().toISOString(),
+        };
+        return [updated, ...prev.filter((c) => c.id !== activeConversationId)];
+      });
+    } catch (err: any) {
+      console.error('[ChatPage] Lỗi gửi tin nhắn:', err);
+      // Khôi phục lại nội dung vừa nhập để người dùng không bị mất chữ
+      setInputText(content);
+      showToast('Gửi tin nhắn thất bại', err?.message || 'Không thể gửi tin nhắn lúc này. Vui lòng thử lại.', 'error');
+    }
   };
 
   // 3. Chỉ ẩn gợi ý sau khi gửi thành công; gửi lỗi thì hiện lại kèm thông báo lỗi. Vô hiệu hóa nút trong lúc đang gửi.
