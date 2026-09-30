@@ -110,18 +110,36 @@ export async function updateProfile(userId: string, updates: Record<string, any>
     throw new Error('ID người dùng không hợp lệ');
   }
 
-  const updatePayload: Record<string, any> = { ...updates, updated_at: new Date().toISOString() };
-  delete updatePayload.id;
+  const cleanUserId = userId.trim();
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanUserId);
 
-  console.log("Update Payload:", updatePayload);
+  const upsertPayload: Record<string, any> = {
+    ...updates,
+    updated_at: new Date().toISOString(),
+  };
+
+  if (isUUID) {
+    upsertPayload.id = cleanUserId;
+  } else {
+    upsertPayload.firebase_uid = cleanUserId;
+  }
+
+  console.log("Upsert Payload:", upsertPayload);
 
   const { data, error } = await supabase
     .from('profiles')
-    .update(updatePayload)
-    .eq('id', userId)
+    .upsert(upsertPayload, { onConflict: isUUID ? 'id' : 'firebase_uid' })
     .select()
-    .single();
+    .maybeSingle();
 
-  if (error) throw error;
+  if (error) {
+    console.error('[updateProfile] Chi tiết mã lỗi Supabase:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    throw error;
+  }
   return data;
 }

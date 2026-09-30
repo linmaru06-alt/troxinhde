@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { auth, fetchSignInMethodsForEmail } from './firebase';
 import { initialUsers } from '../data/demoUsers';
+import { resolveDemoAlias } from './demoAliases';
 
 export interface SupabaseUserProfile {
   id: string;
@@ -105,8 +106,8 @@ export async function fetchUserProfileFromSupabase(
 }
 
 /**
- * Cập nhật trực tiếp thông tin hồ sơ trong bảng `profiles` trên Supabase
- * Sử dụng Supabase client: supabase.from('profiles').update(updatePayload).eq('id', targetUserId)
+ * Cập nhật hoặc lưu trực tiếp thông tin hồ sơ trong bảng `profiles` trên Supabase
+ * Sử dụng Supabase client: supabase.from('profiles').upsert(...)
  */
 export async function updateUserProfile(
   userId: string,
@@ -117,144 +118,148 @@ export async function updateUserProfile(
   }
 
   try {
-    // 1. Lọc Payload: CHỈ chứa các trường (columns) thực sự có trong bảng profiles
-    const updatePayload: Record<string, any> = {
+    const cleanUserId = userId.trim();
+    const demoResolved = resolveDemoAlias(cleanUserId);
+    const effectiveUserId = demoResolved || cleanUserId;
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(effectiveUserId);
+
+    // 1. Chuẩn bị Payload khớp với schema bảng profiles
+    const upsertPayload: Record<string, any> = {
       updated_at: new Date().toISOString(),
     };
 
     if (data.name !== undefined || data.full_name !== undefined) {
       const resolvedName = (data.full_name || data.name || '').trim();
-      updatePayload.name = resolvedName;
-      updatePayload.full_name = resolvedName;
+      upsertPayload.name = resolvedName;
+      upsertPayload.full_name = resolvedName;
     }
 
-    if (data.email !== undefined) {
-      updatePayload.email = data.email ? data.email.trim().toLowerCase() : null;
-    }
     if (data.phone !== undefined) {
-      updatePayload.phone = data.phone ? data.phone.trim() : null;
+      upsertPayload.phone = data.phone ? data.phone.trim() : null;
     }
     if (data.school !== undefined || data.university !== undefined) {
       const universityVal = (data.university || data.school) ? (data.university || data.school).trim() : null;
-      updatePayload.school = universityVal;
-      updatePayload.university = universityVal;
+      upsertPayload.school = universityVal;
+      upsertPayload.university = universityVal;
     }
     if (data.year !== undefined || data.student_year !== undefined) {
       const yearVal = (data.student_year || data.year) ? (data.student_year || data.year).trim() : null;
-      updatePayload.year = yearVal;
-      updatePayload.student_year = yearVal;
+      upsertPayload.year = yearVal;
+      upsertPayload.student_year = yearVal;
     }
     if (data.bio !== undefined) {
-      updatePayload.bio = data.bio ? data.bio.trim() : null;
+      upsertPayload.bio = data.bio ? data.bio.trim() : null;
     }
     if (data.address !== undefined) {
-      updatePayload.address = data.address ? data.address.trim() : null;
+      upsertPayload.address = data.address ? data.address.trim() : null;
     }
     if (data.social_link !== undefined) {
       const sLink = data.social_link ? data.social_link.trim() : null;
-      updatePayload.social_link = sLink;
-      updatePayload.facebook_link = sLink;
+      upsertPayload.social_link = sLink;
+      upsertPayload.facebook_link = sLink;
     } else if (data.facebook_link !== undefined) {
       const fbLink = data.facebook_link ? data.facebook_link.trim() : null;
-      updatePayload.facebook_link = fbLink;
-      updatePayload.social_link = fbLink;
+      upsertPayload.facebook_link = fbLink;
+      upsertPayload.social_link = fbLink;
     }
     if (data.zalo_link !== undefined) {
-      updatePayload.zalo_link = data.zalo_link ? data.zalo_link.trim() : null;
+      upsertPayload.zalo_link = data.zalo_link ? data.zalo_link.trim() : null;
     }
     if (data.avatar_url !== undefined) {
-      updatePayload.avatar_url = data.avatar_url || '/images/user-avatar.jpg';
+      upsertPayload.avatar_url = data.avatar_url || '/images/user-avatar.jpg';
     }
     if (data.verified !== undefined) {
-      updatePayload.verified = Boolean(data.verified);
+      upsertPayload.verified = Boolean(data.verified);
     }
     if (data.phone_verified !== undefined) {
-      updatePayload.phone_verified = Boolean(data.phone_verified);
+      upsertPayload.phone_verified = Boolean(data.phone_verified);
     }
     if (data.student_verified !== undefined) {
-      updatePayload.student_verified = Boolean(data.student_verified);
+      upsertPayload.student_verified = Boolean(data.student_verified);
     }
     if (data.owner_application_status !== undefined) {
-      updatePayload.owner_application_status = data.owner_application_status;
+      upsertPayload.owner_application_status = data.owner_application_status;
     }
     if (data.role !== undefined || data.app_role !== undefined) {
       const resolvedRole = data.app_role || (data.role === 'user' ? 'renter' : data.role) || 'renter';
-      updatePayload.role = resolvedRole;
-      updatePayload.app_role = resolvedRole;
+      upsertPayload.role = resolvedRole;
+      upsertPayload.app_role = resolvedRole;
     }
 
-    // Tuyệt đối KHÔNG đưa cột id, email, student_card_url vào trong object updatePayload của profiles
-    delete (updatePayload as any).id;
-    delete (updatePayload as any).email;
-    delete (updatePayload as any).student_card_url;
+    // Loại bỏ các trường không thuộc profiles (email và student_card_url được lưu tại profile_private)
+    delete (upsertPayload as any).email;
+    delete (upsertPayload as any).student_card_url;
 
     // Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
-    Object.keys(updatePayload).forEach((key) => {
-      if (updatePayload[key] === undefined) {
-        delete updatePayload[key];
+    Object.keys(upsertPayload).forEach((key) => {
+      if (upsertPayload[key] === undefined) {
+        delete upsertPayload[key];
       }
     });
 
-
-    const cleanUserId = userId.trim();
-    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanUserId);
-
     let savedProfileRecord: any = null;
+    let upsertError: any = null;
 
-    // 2. Gắn ID chính xác: Gọi API update theo đúng khóa
+    // 2. Gắn ID chính xác và thực hiện upsert
     if (isUUID) {
-      const { data: updatedData, error: updateError } = await supabase
+      upsertPayload.id = effectiveUserId;
+      console.log("[updateUserProfile] Upsert Payload (by id):", upsertPayload);
+
+      const res = await supabase
         .from('profiles')
-        .update(updatePayload)
-        .eq('id', cleanUserId)
+        .upsert(upsertPayload, { onConflict: 'id' })
         .select()
         .maybeSingle();
 
-      if (!updateError && updatedData) {
-        savedProfileRecord = updatedData;
-      }
-    }
-
-    // 3. Nếu cleanUserId là Firebase UID hoặc chưa tìm thấy theo id, thử theo firebase_uid
-    let fbError: any = null;
-    if (!savedProfileRecord) {
-      const fbResult = await supabase
-        .from('profiles')
-        .update(updatePayload)
-        .eq('firebase_uid', cleanUserId)
-        .select()
-        .maybeSingle();
-
-      fbError = fbResult.error;
-      if (!fbError && fbResult.data) {
-        savedProfileRecord = fbResult.data;
-      }
-    }
-
-    // 4. Tra cứu UUID thực tế của bản ghi profiles nếu cleanUserId là Firebase UID
-    if (!savedProfileRecord && !isUUID) {
+      savedProfileRecord = res.data;
+      upsertError = res.error;
+    } else {
+      // cleanUserId là Firebase UID: Kiểm tra xem đã có profile nào gắn firebase_uid này chưa
       const { data: matchedProfile } = await supabase
         .from('profiles')
         .select('id')
-        .eq('firebase_uid', cleanUserId)
+        .eq('firebase_uid', effectiveUserId)
         .maybeSingle();
 
+      upsertPayload.firebase_uid = effectiveUserId;
+
       if (matchedProfile?.id) {
-        const { data: reUpdated, error: reError } = await supabase
+        upsertPayload.id = matchedProfile.id;
+        console.log("[updateUserProfile] Upsert Payload (matched UUID):", upsertPayload);
+        const res = await supabase
           .from('profiles')
-          .update(updatePayload)
-          .eq('id', matchedProfile.id)
+          .upsert(upsertPayload, { onConflict: 'id' })
           .select()
           .maybeSingle();
 
-        if (!reError && reUpdated) {
-          savedProfileRecord = reUpdated;
-        }
+        savedProfileRecord = res.data;
+        upsertError = res.error;
+      } else {
+        console.log("[updateUserProfile] Upsert Payload (by firebase_uid):", upsertPayload);
+        const res = await supabase
+          .from('profiles')
+          .upsert(upsertPayload, { onConflict: 'firebase_uid' })
+          .select()
+          .maybeSingle();
+
+        savedProfileRecord = res.data;
+        upsertError = res.error;
       }
     }
 
-    // 5. Cập nhật profile_private nếu có truyền email hoặc student_card_url
-    const finalProfileId = savedProfileRecord?.id || (isUUID ? cleanUserId : null);
+    // 3. Bắt lỗi (Error Handling): In chi tiết mã lỗi Supabase ra console log nếu có
+    if (upsertError) {
+      console.error('[updateUserProfile] Chi tiết mã lỗi Supabase:', {
+        code: upsertError.code,
+        message: upsertError.message,
+        details: upsertError.details,
+        hint: upsertError.hint,
+      });
+      return { success: false, error: upsertError.message || 'Lỗi khi cập nhật hồ sơ người dùng.' };
+    }
+
+    // 4. Cập nhật profile_private nếu có truyền email hoặc student_card_url
+    const finalProfileId = savedProfileRecord?.id || (isUUID ? effectiveUserId : null);
     if (finalProfileId && (data.student_card_url !== undefined || data.email !== undefined)) {
       try {
         const privPayload: Record<string, any> = {
@@ -267,9 +272,18 @@ export async function updateUserProfile(
         if (data.email !== undefined) {
           privPayload.email = data.email ? data.email.trim().toLowerCase() : null;
         }
-        await supabase
+        const { error: privError } = await supabase
           .from('profile_private')
           .upsert(privPayload, { onConflict: 'profile_id' });
+
+        if (privError) {
+          console.error('[updateUserProfile] Chi tiết mã lỗi Supabase (profile_private):', {
+            code: privError.code,
+            message: privError.message,
+            details: privError.details,
+            hint: privError.hint,
+          });
+        }
       } catch (privErr) {
         console.warn('[Supabase Sync] Lỗi cập nhật profile_private:', privErr);
       }
@@ -279,11 +293,7 @@ export async function updateUserProfile(
       return { success: true, data: savedProfileRecord };
     }
 
-    if (fbError && !isUUID) {
-      return { success: false, error: fbError.message };
-    }
-
-    return { success: false, error: 'Không tìm thấy hồ sơ người dùng trong hệ thống để cập nhật.' };
+    return { success: false, error: 'Không thể lưu hồ sơ người dùng vào hệ thống.' };
   } catch (err: any) {
     console.error('[updateUserProfile] Exception:', err);
     return { success: false, error: err?.message || 'Lỗi khi cập nhật hồ sơ người dùng.' };

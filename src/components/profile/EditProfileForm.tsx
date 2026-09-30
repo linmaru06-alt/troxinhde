@@ -502,11 +502,12 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
     const finalSchool = school === 'Khác / Đã đi làm' && customSchool.trim() ? customSchool.trim() : school;
 
-    // 1. Chỉ gửi các trường người dùng được tự sửa. Trạng thái xác minh, vai trò và
-    // trạng thái duyệt chủ trọ do máy chủ quản lý (migration 028), không gửi từ đây.
+    // 1. Tạo biến payload được map (ánh xạ) thủ công từng trường một, chuẩn snake_case khớp 100% schema Supabase
     const updatePayload: Record<string, any> = {
+      id: currentUser.id,
       full_name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
       name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
+      email: currentUser.email,
       phone: phone ? phone.trim() : null,
       avatar_url: avatarUrl || currentUser.avatarUrl || '/images/user-avatar.jpg',
       school: finalSchool ? finalSchool.trim() : null,
@@ -518,18 +519,17 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       updated_at: new Date().toISOString(),
     };
 
-    // 2. Tuyệt đối KHÔNG đưa cột id, email hay biến UI vào trong updatePayload
-    delete (updatePayload as any).id;
-    delete (updatePayload as any).email;
-
-    // 3. Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
+    // 2. Loại bỏ hoàn toàn các keys có giá trị undefined trước khi gửi
     Object.keys(updatePayload).forEach((key) => {
       if (updatePayload[key] === undefined) {
         delete updatePayload[key];
       }
     });
 
-    // 4. Gắn ID chính xác và gọi API cập nhật hồ sơ
+    // 3. Debug console.log payload để kiểm tra dữ liệu gửi đi
+    console.log("Upsert Payload:", updatePayload);
+
+    // 4. Gắn ID chính xác và gọi API lưu hồ sơ
     const res = await updateUserProfile(currentUser.id, updatePayload);
     if (!res.success) {
       throw new Error(res.error || 'Không thể lưu hồ sơ');
@@ -579,9 +579,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     setIsSaving(true);
     try {
       await saveUserData();
-      showToast('Cập nhật thông tin thành công', 'Thông tin hồ sơ của bạn đã được cập nhật vào cơ sở dữ liệu.', 'success');
+      showToast('Cập nhật thành công', 'Thông tin hồ sơ của bạn đã được cập nhật vào cơ sở dữ liệu.', 'success');
       if (onSuccess) onSuccess();
     } catch (err: any) {
+      console.error('[EditProfileForm] Cập nhật hồ sơ thất bại:', err);
       showToast('Cập nhật thất bại', err?.message || 'Không thể lưu thay đổi vào cơ sở dữ liệu. Vui lòng thử lại sau.', 'error');
     } finally {
       setIsSaving(false);
