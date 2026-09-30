@@ -8,7 +8,10 @@ import { AvatarUploader } from '../components/ui/AvatarUploader';
 import { Building2, Phone, Mail, MapPin, ShieldCheck, LogOut } from 'lucide-react';
 
 export const OwnerProfilePage: React.FC = () => {
-  const { currentUser, setCurrentUser, buildings, rooms, logout } = useAppStore();
+  const { currentUser, setCurrentUser, buildings, rooms, logout, showToast } = useAppStore();
+  // Chỉ đếm tòa nhà/phòng của chính chủ trọ đang đăng nhập
+  const myBuildingCount = buildings.filter((b) => b.ownerId === currentUser?.id).length;
+  const myRoomCount = rooms.filter((r) => r.ownerId === currentUser?.id).length;
 
   return (
     <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
@@ -22,25 +25,23 @@ export const OwnerProfilePage: React.FC = () => {
               size="lg"
               folder="troxinh/avatars"
               onComplete={async (urls) => {
-                if (urls[0] && currentUser && currentUser.id) {
-                  const updatedUser = { ...currentUser, avatarUrl: urls[0] };
-                  setCurrentUser(updatedUser);
-                  
-                  try {
-                    const { updateUserProfile } = await import('../lib/supabaseAuthSync');
-                    await updateUserProfile(currentUser.id, {
-                      avatar_url: urls[0],
-                    });
-                  } catch (err) {
-                    console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);
-                  }
+                if (!urls[0] || !currentUser?.id) return;
+                const previousUser = currentUser;
+                setCurrentUser({ ...currentUser, avatarUrl: urls[0] });
+
+                // Lưu lên Supabase; lỗi thì hoàn tác và báo rõ
+                const { updateUserProfile } = await import('../lib/supabaseAuthSync');
+                const res = await updateUserProfile(currentUser.id, { avatar_url: urls[0] });
+                if (!res.success) {
+                  setCurrentUser(previousUser);
+                  showToast('Không thể lưu ảnh đại diện', res.error || 'Vui lòng thử lại sau', 'error');
                 }
               }}
             />
             <div className="space-y-1.5 flex-1">
               <div className="flex items-center justify-center sm:justify-start gap-2">
                 <h1 className="text-2xl font-black text-gray-900">{currentUser?.name}</h1>
-                <Badge variant="verified" size="sm">Chủ trọ uy tín 5★</Badge>
+                <Badge variant="verified" size="sm">Chủ trọ đối tác</Badge>
               </div>
               <div className="flex flex-col gap-1.5 mt-2">
                 <p className="text-xs text-gray-500 flex items-center justify-center sm:justify-start gap-1">
@@ -75,11 +76,11 @@ export const OwnerProfilePage: React.FC = () => {
           <div className="grid grid-cols-2 gap-4">
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
               <span className="text-xs text-emerald-800 font-medium">Tòa nhà đang quản lý:</span>
-              <h3 className="text-xl font-black text-[#006d37] mt-1">{buildings.length} tòa nhà</h3>
+              <h3 className="text-xl font-black text-[#006d37] mt-1">{myBuildingCount} tòa nhà</h3>
             </div>
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100">
               <span className="text-xs text-emerald-800 font-medium">Tổng số phòng trọ:</span>
-              <h3 className="text-xl font-black text-[#006d37] mt-1">{rooms.length} phòng</h3>
+              <h3 className="text-xl font-black text-[#006d37] mt-1">{myRoomCount} phòng</h3>
             </div>
           </div>
         </div>

@@ -7,7 +7,6 @@ import {
   Clock,
   MapPin,
   ShieldCheck,
-  TicketPercent,
   Settings,
   Headphones,
   ChevronRight,
@@ -25,7 +24,7 @@ interface AccountDropdownMenuProps {
   logout: () => void;
 }
 
-// Mascot Vịt Vàng Trọ Xinh Cute chuẩn phong cách Chợ Tốt
+// Mascot Vịt Vàng của Trọ Xinh
 const YellowDuckMascot: React.FC<{ className?: string }> = ({ className = 'w-16 h-16' }) => (
   <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     {/* Body / Head */}
@@ -78,13 +77,8 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  const isLandlord =
-    currentUser?.role === 'owner' ||
-    currentUser?.app_role === 'owner' ||
-    (currentUser as any)?.role === 'landlord' ||
-    (currentUser as any)?.app_role === 'landlord' ||
-    currentUser?.role === 'admin' ||
-    currentUser?.app_role === 'admin';
+  // Khớp điều kiện của OwnerRoute: chỉ chủ trọ mới vào được khu vực /chu-tro
+  const isLandlord = currentUser?.role === 'owner';
 
   if (!isOpen) return null;
 
@@ -312,37 +306,32 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <MapPin className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Đánh giá khu vực</span>
+                  <span>Bản đồ phòng trọ</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="bg-[#ff3b5c] text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                    Tính năng mới
-                  </span>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
             </div>
           </div>
 
-          {/* 3. NHÓM "DỊCH VỤ TRẢ PHÍ" */}
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
-            <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center font-black text-[10px]">
-                    ĐT
+          {/* 3. NHÓM "DỊCH VỤ TRẢ PHÍ": các trang này nằm trong khu vực chủ trọ nên chỉ hiện cho chủ trọ */}
+          {isLandlord && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
+              <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center font-black text-[10px]">
+                      XU
+                    </div>
+                    <span>Trọ Xinh Xu</span>
                   </div>
-                  <span>Đồng Tốt / Trọ Xinh Xu</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
 
-              {isLandlord && (
                 <Link
                   to="/chu-tro/quan-ly-goi"
                   onClick={onClose}
@@ -356,9 +345,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </Link>
-              )}
 
-              {isLandlord && (
                 <Link
                   to="/chu-tro"
                   onClick={onClose}
@@ -372,41 +359,23 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </Link>
-              )}
 
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Lịch sử giao dịch</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
+                    <span>Lịch sử giao dịch</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* 4. NHÓM "ƯU ĐÃI, KHUYẾN MÃI" */}
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-gray-500 px-1 block">Ưu đãi, khuyến mãi</span>
-            <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-              <Link
-                to="/vouchers"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <TicketPercent className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Kho Voucher / Ưu đãi</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-            </div>
-          </div>
-
-          {/* 5. NHÓM "KHÁC" */}
+          {/* 4. NHÓM "KHÁC" */}
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-gray-500 px-1 block">Khác</span>
             <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">

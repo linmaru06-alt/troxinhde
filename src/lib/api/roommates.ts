@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import type { RoommatePost } from '../../types';
+import { attachPublicProfiles } from './publicProfiles';
 
 export function formatRoommatePost(r: any): RoommatePost {
   const poster = r.poster || r.profiles || {};
@@ -66,7 +67,9 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
 
     const { data, error } = await query.order('created_at', { ascending: false });
     if (!error && data) {
-      directPosts = data
+      // Trạng thái khóa của người đăng lấy qua RPC công khai
+      const rows = await attachPublicProfiles(data, 'poster_id', 'poster');
+      directPosts = rows
         .filter((r: any) => !r.poster?.is_banned)
         .map(formatRoommatePost);
     }
@@ -125,8 +128,9 @@ export async function getRoommatePostById(id: string): Promise<RoommatePost | nu
       .maybeSingle();
 
     if (!error && data) {
-      if (data.poster?.is_banned) return null;
-      return formatRoommatePost(data);
+      const [row] = await attachPublicProfiles([data], 'poster_id', 'poster');
+      if (row.poster?.is_banned) return null;
+      return formatRoommatePost(row);
     }
   } catch (err) {
     console.warn('[Roommates API] Lỗi tìm roommate_posts theo ID:', err);

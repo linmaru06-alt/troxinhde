@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "../supabase";
 import { Conversation, Message } from "../../types";
+import { getPublicProfiles } from "./publicProfiles";
 import {
   UUID_REGEX,
   KNOWN_DEMO_UUIDS,
@@ -346,14 +347,8 @@ export async function getOrCreateConversation(
 
   let otherProfile: any = null;
   if (isSupabaseConfigured) {
-    try {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("id, full_name, name, avatar_url, app_role, phone")
-        .eq("id", cleanLandlordId)
-        .maybeSingle();
-      otherProfile = prof;
-    } catch {}
+    const profiles = await getPublicProfiles([cleanLandlordId]);
+    otherProfile = profiles.get(cleanLandlordId) || null;
   }
 
   const fallbackConversation: Conversation = {
@@ -439,6 +434,19 @@ export async function getConversations(
 
       if (!error && data) {
         serverList = data as unknown as Conversation[];
+        // Hồ sơ đối phương bị RLS ẩn khỏi join: bổ sung tên/ảnh qua RPC công khai
+        const missingIds = serverList.flatMap((c: any) => [
+          !c.p1 ? c.participant_1 : null,
+          !c.p2 ? c.participant_2 : null,
+        ]);
+        const profiles = await getPublicProfiles(missingIds);
+        if (profiles.size > 0) {
+          serverList = serverList.map((c: any) => ({
+            ...c,
+            p1: c.p1 || profiles.get(c.participant_1) || null,
+            p2: c.p2 || profiles.get(c.participant_2) || null,
+          }));
+        }
       }
     } catch (error) {
       console.warn("[MessagesAPI] getConversations error:", error);
@@ -811,25 +819,10 @@ export async function findOrCreateConversation(
   }
 
   if (isSupabaseConfigured && cleanSellerId) {
-    try {
-      const { data: sellerProf } = await supabase
-        .from("profiles")
-        .select("id, is_banned, banned_until")
-        .eq("id", cleanSellerId)
-        .maybeSingle();
-
-      if (sellerProf?.is_banned) {
-        const isBannedNow =
-          !sellerProf.banned_until ||
-          new Date(sellerProf.banned_until).getTime() > (options?.now || Date.now());
-        if (isBannedNow) {
-          throw new Error(SELLER_BANNED_ERROR_MSG);
-        }
-      }
-    } catch (profErr: any) {
-      if (profErr?.message === SELLER_BANNED_ERROR_MSG) {
-        throw profErr;
-      }
+    // is_banned từ RPC công khai đã tính cả thời hạn khóa; máy chủ vẫn kiểm tra lại khi tạo hội thoại
+    const profiles = await getPublicProfiles([cleanSellerId]);
+    if (profiles.get(cleanSellerId)?.is_banned) {
+      throw new Error(SELLER_BANNED_ERROR_MSG);
     }
   }
 

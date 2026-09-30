@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { MarketplaceItem } from '../../types';
+import { attachPublicProfiles } from './publicProfiles';
 import {
   mapMarketplaceRow,
   toMarketplaceDbFields,
@@ -7,7 +8,7 @@ import {
   MarketplaceSellerStatus,
 } from '../marketplaceStatus';
 
-const ITEM_SELECT = '*, profiles:seller_id(id, full_name, avatar_url, phone)';
+const ITEM_SELECT = '*, profiles:seller_id(id, full_name, avatar_url, phone, student_verified, phone_verified)';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isMarketplaceItemId(id?: string | null): id is string {
@@ -89,7 +90,8 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
     .order('created_at', { ascending: false });
 
   if (error) throw toMarketplaceError(error, 'Không thể tải danh sách chợ đồ cũ');
-  return (data || []).map(mapMarketplaceRow).filter((item): item is MarketplaceItem => item !== null);
+  const rows = await attachPublicProfiles(data || [], 'seller_id', 'profiles');
+  return rows.map(mapMarketplaceRow).filter((item): item is MarketplaceItem => item !== null);
 }
 
 /**
@@ -105,7 +107,9 @@ export async function getMarketplaceItemById(id: string): Promise<MarketplaceIte
     .maybeSingle();
 
   if (error) throw toMarketplaceError(error, 'Không thể tải thông tin món đồ');
-  return mapMarketplaceRow(data);
+  if (!data) return null;
+  const [row] = await attachPublicProfiles([data], 'seller_id', 'profiles');
+  return mapMarketplaceRow(row);
 }
 
 /**

@@ -379,10 +379,11 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
-            <Route path="/vouchers" element={<Navigate to="/ve-chung-toi" replace />} />
-            <Route path="/offers" element={<Navigate to="/ve-chung-toi" replace />} />
-            <Route path="/uu-dai" element={<Navigate to="/ve-chung-toi" replace />} />
-            <Route path="/kho-voucher" element={<Navigate to="/ve-chung-toi" replace />} />
+            {/* Chưa có trang ưu đãi: đưa link cũ về trang chủ thay vì trang không tồn tại (404) */}
+            <Route path="/vouchers" element={<Navigate to="/" replace />} />
+            <Route path="/offers" element={<Navigate to="/" replace />} />
+            <Route path="/uu-dai" element={<Navigate to="/" replace />} />
+            <Route path="/kho-voucher" element={<Navigate to="/" replace />} />
 
             <Route
               path="/da-luu"

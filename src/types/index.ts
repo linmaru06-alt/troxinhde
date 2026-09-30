@@ -182,6 +182,9 @@ export interface MarketplaceItem {
   isHidden?: boolean;
   showPhone?: boolean;
   closedAt?: string;
+  // Trạng thái xác minh của người bán (lấy từ hồ sơ trên máy chủ)
+  sellerStudentVerified?: boolean;
+  sellerPhoneVerified?: boolean;
   createdAt: string;
   created_at?: string;
   updatedAt?: string;

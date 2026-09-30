@@ -195,8 +195,6 @@ export async function updateUserProfile(
       }
     });
 
-    // Log payload ra console để debug dữ liệu
-    console.log("Update Payload:", updatePayload);
 
     const cleanUserId = userId.trim();
     const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanUserId);
@@ -467,13 +465,10 @@ export async function checkUserExists(params: {
     }
 
     if (cleanPhone) {
-      const { data: profileByPhone, error: phoneErr } = await supabase
-        .from('profiles')
-        .select('id, firebase_uid, phone')
-        .eq('phone', cleanPhone)
-        .maybeSingle();
+      // Chỉ hỏi đúng/sai qua RPC; bảng profiles không cho đọc hồ sơ người khác
+      const { data: phoneTaken, error: phoneErr } = await supabase.rpc('is_phone_registered', { p_phone: cleanPhone });
 
-      if (!phoneErr && profileByPhone) {
+      if (!phoneErr && phoneTaken === true) {
         return {
           exists: true,
           field: 'phone',
@@ -546,7 +541,6 @@ export async function createSupabaseProfile(
       app_role: data.app_role || role,
       role: role,
       avatar_url: avatarUrl,
-      verified: true,
       is_demo_account: Boolean(data.isDemo),
       owner_application_status: role === 'owner' ? 'approved' : 'none',
       updated_at: new Date().toISOString(),
@@ -825,7 +819,6 @@ export async function handleUnifiedAuth(params: {
       app_role: role,
       role: role,
       avatar_url: avatar,
-      verified: true,
       owner_application_status: role === 'owner' ? 'approved' : 'none',
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

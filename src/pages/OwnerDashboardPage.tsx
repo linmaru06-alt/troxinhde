@@ -84,7 +84,7 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
+  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id);
   const currentPlan =
     SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
 

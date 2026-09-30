@@ -827,9 +827,16 @@ export const MarketplaceDetailPage: React.FC = () => {
                       </button>
                     )}
                   </div>
-                  <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
-                    ✓ Đã xác minh sinh viên
-                  </p>
+                  {/* Chỉ hiển thị huy hiệu khi hồ sơ người bán đã được xác minh thật */}
+                  {item.sellerStudentVerified ? (
+                    <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
+                      ✓ Đã xác minh sinh viên
+                    </p>
+                  ) : item.sellerPhoneVerified ? (
+                    <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
+                      ✓ Đã xác minh số điện thoại
+                    </p>
+                  ) : null}
                 </div>
               </div>
 

@@ -44,6 +44,7 @@ export const RenterProfilePage: React.FC = () => {
     blockedUserIds,
     unblockUser,
     roommates,
+    showToast,
   } = useAppStore();
   const navigate = useNavigate();
 
@@ -114,19 +115,16 @@ export const RenterProfilePage: React.FC = () => {
             size="lg"
             folder="troxinh/avatars"
             onComplete={async (urls) => {
-              if (urls[0] && currentUser && currentUser.id) {
-                const updatedUser = { ...currentUser, avatarUrl: urls[0] };
-                setCurrentUser(updatedUser);
-                
-                // Đồng bộ lên Supabase để không bị mất khi F5
-                try {
-                  const { updateUserProfile } = await import('../lib/supabaseAuthSync');
-                  await updateUserProfile(currentUser.id, {
-                    avatar_url: urls[0],
-                  });
-                } catch (err) {
-                  console.warn('Lỗi khi đồng bộ ảnh đại diện:', err);
-                }
+              if (!urls[0] || !currentUser?.id) return;
+              const previousUser = currentUser;
+              setCurrentUser({ ...currentUser, avatarUrl: urls[0] });
+
+              // Đồng bộ lên Supabase để không bị mất khi F5; lỗi thì hoàn tác và báo rõ
+              const { updateUserProfile } = await import('../lib/supabaseAuthSync');
+              const res = await updateUserProfile(currentUser.id, { avatar_url: urls[0] });
+              if (!res.success) {
+                setCurrentUser(previousUser);
+                showToast('Không thể lưu ảnh đại diện', res.error || 'Vui lòng thử lại sau', 'error');
               }
             }}
           />

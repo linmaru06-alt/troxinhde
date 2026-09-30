@@ -86,6 +86,17 @@ test('Không bịa số điện thoại, khu vực hay ảnh khi thiếu dữ li
   assert.notEqual(item.userId, 'user_1');
 });
 
+test('Huy hiệu người bán chỉ bật khi hồ sơ đã xác minh thật', () => {
+  const unverified = mapMarketplaceRow(baseRow);
+  assert.equal(unverified.sellerStudentVerified, false);
+  assert.equal(unverified.sellerPhoneVerified, false);
+  const verified = mapMarketplaceRow({ ...baseRow, profiles: { ...baseRow.profiles, student_verified: true, phone_verified: true } });
+  assert.equal(verified.sellerStudentVerified, true);
+  assert.equal(verified.sellerPhoneVerified, true);
+  const noProfile = mapMarketplaceRow({ ...baseRow, profiles: null });
+  assert.equal(noProfile.sellerStudentVerified, false);
+});
+
 test('Chỉ hiện số điện thoại khi tin đang bán và người bán cho phép', () => {
   assert.equal(mapMarketplaceRow(baseRow).userPhone, '0901234567');
   assert.equal(mapMarketplaceRow({ ...baseRow, show_phone: false }).userPhone, '');

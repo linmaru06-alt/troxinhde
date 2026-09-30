@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../types';
 import { fetchMarketplaceItems } from './api/marketplace';
+import { attachPublicProfiles } from './api/publicProfiles';
 
 /**
  * ==============================================================================
@@ -98,7 +99,10 @@ export async function fetchBuildingsFromSupabase(): Promise<Building[]> {
 
     if (!bldData || bldData.length === 0) return [];
 
-    return bldData.map((b: any) => {
+    // Tên/ảnh chủ trọ khác lấy qua RPC công khai (profiles chỉ trả hồ sơ của chính mình)
+    const bldRows = await attachPublicProfiles(bldData, 'owner_id', 'profiles');
+
+    return bldRows.map((b: any) => {
       const owner = b.profiles || {};
       const lat = Number(b.lat) || 21.0285;
       const lng = Number(b.lng) || 105.8542;
@@ -185,7 +189,8 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       .order('created_at', { ascending: false });
 
     if (!rmErr && rmData) {
-      directPosts = rmData.map(mapRecord);
+      const rmRows = await attachPublicProfiles(rmData, 'poster_id', 'profiles');
+      directPosts = rmRows.map(mapRecord);
     }
   } catch (err) {
     console.warn('[Supabase] Không thể tải roommate_posts:', err);

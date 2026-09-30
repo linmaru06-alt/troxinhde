@@ -5,6 +5,14 @@ import { syncUserToSupabase, fetchUserProfileFromSupabase, updateUserProfile } f
 import { uploadToStorage } from '../../lib/storage';
 import { uploadImage } from '../../lib/cloudinary';
 import {
+  confirmPhoneVerification,
+  getMyStudentVerification,
+  startPhoneVerification,
+  submitStudentVerification,
+  syncVerifiedPhoneToProfile,
+  StudentVerification,
+} from '../../lib/api/verification';
+import {
   User as UserIcon,
   Phone,
   School,
@@ -12,7 +20,6 @@ import {
   ShieldCheck,
   UploadCloud,
   CheckCircle2,
-  Trash2,
   Camera,
   Loader2,
   Link2,
@@ -121,8 +128,13 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [customSchool, setCustomSchool] = useState<string>('');
   const [year, setYear] = useState<string>('');
   const [phone, setPhone] = useState<string>('');
+  // Trạng thái xác minh lấy từ máy chủ; frontend không tự đặt
   const [phoneVerified, setPhoneVerified] = useState<boolean>(false);
-  const [studentCardUrl, setStudentCardUrl] = useState<string>('');
+  const [verifiedPhone, setVerifiedPhone] = useState<string>('');
+  const [studentVerified, setStudentVerified] = useState<boolean>(false);
+  const [studentVerification, setStudentVerification] = useState<StudentVerification | null>(null);
+  const [studentVerificationError, setStudentVerificationError] = useState<string>('');
+  const [cardPreviewUrl, setCardPreviewUrl] = useState<string>('');
   const [socialLink, setSocialLink] = useState<string>('');
 
   // Trạng thái xử lý
@@ -133,10 +145,14 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [errors, setErrors] = useState<FormErrors>({});
 
-  // Modal / Trạng thái xác thực SĐT mini
+  // Modal xác thực SĐT bằng OTP Firebase
   const [showPhoneVerifyModal, setShowPhoneVerifyModal] = useState<boolean>(false);
   const [otpCode, setOtpCode] = useState<string>('');
   const [isVerifyingPhone, setIsVerifyingPhone] = useState<boolean>(false);
+  const [isSendingOtp, setIsSendingOtp] = useState<boolean>(false);
+  const [phoneVerificationId, setPhoneVerificationId] = useState<string>('');
+  const [otpError, setOtpError] = useState<string>('');
+  const [resendSeconds, setResendSeconds] = useState<number>(0);
 
   // DOM Refs phục vụ tự động Scroll và Focus khi validation thất bại
   const nameInputRef = useRef<HTMLInputElement>(null);
@@ -170,7 +186,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             setAvatarUrl(dbProfile.avatar_url || currentUser.avatarUrl || '/images/user-avatar.jpg');
             setPhone(dbProfile.phone || '');
             setPhoneVerified(Boolean(dbProfile.phone_verified));
-            setStudentCardUrl(dbProfile.student_card_url || '');
+            setVerifiedPhone(dbProfile.phone_verified ? dbProfile.phone || '' : '');
+            setStudentVerified(Boolean(dbProfile.student_verified));
             setSocialLink(dbProfile.social_link || dbProfile.facebook_link || '');
 
             const dbSchool = dbProfile.university || dbProfile.school || '';
@@ -199,9 +216,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               university: dbSchool || currentUser.university,
               year: dbYear || currentUser.year,
               student_year: dbYear || currentUser.student_year,
-              studentCardUrl: dbProfile.student_card_url || currentUser.studentCardUrl,
               socialLink: dbProfile.social_link || currentUser.socialLink,
               ownerApplicationStatus: dbProfile.owner_application_status || currentUser.ownerApplicationStatus,
+              studentVerified: Boolean(dbProfile.student_verified),
               verified: Boolean(dbProfile.verified),
             });
           } else {
@@ -210,7 +227,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             setAvatarUrl(currentUser.avatarUrl || '/images/user-avatar.jpg');
             setPhone(currentUser.phone || '');
             setPhoneVerified(Boolean(currentUser.phoneVerified));
-            setStudentCardUrl(currentUser.studentCardUrl || '');
+            setVerifiedPhone(currentUser.phoneVerified ? currentUser.phone || '' : '');
+            setStudentVerified(Boolean(currentUser.studentVerified));
             setSocialLink(currentUser.socialLink || '');
 
             const curSchool = currentUser.school || '';
@@ -239,6 +257,36 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       isMounted = false;
     };
   }, [currentUser?.id]);
+
+  // Tải trạng thái hồ sơ xác minh sinh viên (hàng chờ admin duyệt)
+  useEffect(() => {
+    if (!currentUser?.id) return;
+    let isMounted = true;
+    getMyStudentVerification()
+      .then((verification) => {
+        if (isMounted) {
+          setStudentVerification(verification);
+          setStudentVerificationError('');
+        }
+      })
+      .catch((err: any) => {
+        if (isMounted) setStudentVerificationError(err?.message || 'Không thể tải trạng thái xác minh sinh viên');
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, [currentUser?.id]);
+
+  // Đếm ngược cho nút gửi lại mã OTP
+  useEffect(() => {
+    if (resendSeconds <= 0) return;
+    const timer = setTimeout(() => setResendSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [resendSeconds]);
+
+  const digitsOnly = (value: string) => value.replace(/\D/g, '').replace(/^84/, '0');
+  // Chỉ coi là đã xác minh khi số đang nhập trùng số máy chủ đã xác minh
+  const isCurrentPhoneVerified = phoneVerified && Boolean(phone) && digitsOnly(phone) === digitsOnly(verifiedPhone);
 
   // Kiểm tra trường học có trong danh sách hay là tùy chọn khác
   const isCustomSchool = school === 'Khác / Đã đi làm' || (!UNIVERSITY_OPTIONS.includes(school) && school !== '');
@@ -292,9 +340,9 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
   };
 
-  // Xử lý upload ảnh Thẻ sinh viên / CCCD
+  // Tải ảnh thẻ sinh viên lên kho riêng tư và gửi vào hàng chờ admin duyệt
   const handleCardFileChange = async (file: File | null) => {
-    if (!file) return;
+    if (!file || isUploadingCard) return;
 
     const validationError = validateImageSizeAndType(file);
     if (validationError) {
@@ -303,25 +351,23 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
 
     setIsUploadingCard(true);
-    const preview = URL.createObjectURL(file);
-    setStudentCardUrl(preview);
+    const previousPreview = cardPreviewUrl;
+    setCardPreviewUrl(URL.createObjectURL(file));
 
     if (errors.studentCard) {
       setErrors((prev) => ({ ...prev, studentCard: undefined }));
     }
 
     try {
-      let uploadedUrl = '';
-      try {
-        uploadedUrl = await uploadToStorage(file, 'documents', { folder: 'student_cards' });
-      } catch {
-        uploadedUrl = await uploadImage(file, 'troxinh/documents');
-      }
-
-      setStudentCardUrl(uploadedUrl);
-      showToast('Tải lên ảnh Thẻ SV / CCCD thành công!', '', 'success');
+      // Giấy tờ tùy thân chỉ lưu ở bucket riêng tư, không dùng kho ảnh công khai
+      const cardPath = await uploadToStorage(file, 'documents', { folder: 'student_cards' });
+      const verification = await submitStudentVerification(cardPath);
+      setStudentVerification(verification);
+      setStudentVerificationError('');
+      showToast('Đã gửi ảnh thẻ sinh viên ⏳', 'Quản trị viên sẽ kiểm tra và phản hồi trong vòng 24 giờ.', 'success');
     } catch (err: any) {
-      showToast('Tải tài liệu thất bại', err?.message || 'Vui lòng thử lại', 'error');
+      setCardPreviewUrl(previousPreview);
+      showToast('Không thể gửi xác minh sinh viên', err?.message || 'Vui lòng thử lại', 'error');
     } finally {
       setIsUploadingCard(false);
     }
@@ -336,31 +382,84 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     }
   };
 
-  // Giả lập luồng gửi OTP xác thực số điện thoại
-  const handleSendOtp = () => {
+  // Ghi nhận SĐT đã được máy chủ xác minh vào form và store
+  const applyVerifiedPhone = (verifiedNumber: string) => {
+    setPhone(verifiedNumber);
+    setPhoneVerified(true);
+    setVerifiedPhone(verifiedNumber);
+    const latestUser = useAppStore.getState().currentUser;
+    if (latestUser) {
+      setCurrentUser({ ...latestUser, phone: verifiedNumber, phoneVerified: true });
+    }
+  };
+
+  // Gửi OTP thật qua Firebase tới số điện thoại đang nhập
+  const handleSendOtp = async () => {
     if (!phone || phone.replace(/\D/g, '').length < 9) {
       setErrors((prev) => ({ ...prev, phone: 'Vui lòng nhập số điện thoại hợp lệ' }));
       scrollToFirstError('phone');
       return;
     }
     setErrors((prev) => ({ ...prev, phone: undefined }));
-    setShowPhoneVerifyModal(true);
-    showToast('Mã OTP xác thực đã được gửi tới số điện thoại của bạn!', '', 'info');
+    setOtpError('');
+    setIsSendingOtp(true);
+
+    try {
+      const result = await startPhoneVerification(phone, 'profile-phone-recaptcha');
+      if (result.alreadyVerified) {
+        // Số đã gắn với tài khoản Firebase (vd: đăng ký bằng OTP): chỉ cần đồng bộ lên hồ sơ
+        const verifiedNumber = await syncVerifiedPhoneToProfile();
+        applyVerifiedPhone(verifiedNumber);
+        showToast('Xác thực số điện thoại thành công!', '', 'success');
+        return;
+      }
+      setPhoneVerificationId(result.verificationId || '');
+      setOtpCode('');
+      setResendSeconds(60);
+      setShowPhoneVerifyModal(true);
+      showToast('Đã gửi mã OTP', `Mã gồm 6 chữ số đã được gửi tới ${phone}.`, 'info');
+    } catch (err: any) {
+      showToast('Không thể gửi mã OTP', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsSendingOtp(false);
+    }
   };
 
-  const handleConfirmOtp = () => {
-    if (!otpCode || otpCode.trim().length < 4) {
-      showToast('Vui lòng nhập mã OTP gồm 4-6 chữ số', '', 'error');
+  const handleResendOtp = async () => {
+    if (resendSeconds > 0 || isSendingOtp) return;
+    setOtpError('');
+    setIsSendingOtp(true);
+    try {
+      const result = await startPhoneVerification(phone, 'profile-phone-recaptcha');
+      setPhoneVerificationId(result.verificationId || '');
+      setResendSeconds(60);
+      showToast('Đã gửi lại mã OTP', '', 'info');
+    } catch (err: any) {
+      setOtpError(err?.message || 'Không thể gửi lại mã OTP');
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const handleConfirmOtp = async () => {
+    if (!/^\d{6}$/.test(otpCode.trim())) {
+      setOtpError('Vui lòng nhập đủ mã OTP gồm 6 chữ số');
       return;
     }
+    setOtpError('');
     setIsVerifyingPhone(true);
-    setTimeout(() => {
-      setIsVerifyingPhone(false);
-      setPhoneVerified(true);
+    try {
+      const verifiedNumber = await confirmPhoneVerification(phoneVerificationId, otpCode);
+      applyVerifiedPhone(verifiedNumber);
       setShowPhoneVerifyModal(false);
       setOtpCode('');
+      setPhoneVerificationId('');
       showToast('Xác thực số điện thoại thành công!', '', 'success');
-    }, 600);
+    } catch (err: any) {
+      setOtpError(err?.message || 'Không thể xác thực số điện thoại');
+    } finally {
+      setIsVerifyingPhone(false);
+    }
   };
 
   // =========================================================================
@@ -395,19 +494,16 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
   // =========================================================================
   // HÀM UPDATE DATA THỰC TẾ XUỐNG SUPABASE
   // =========================================================================
-  const saveUserData = async (customOwnerStatus?: 'none' | 'pending' | 'approved' | 'rejected') => {
+  const saveUserData = async () => {
     // Kiểm tra currentUser.id có bị undefined hoặc rỗng không trước khi gọi API
     if (!currentUser || !currentUser.id || currentUser.id === 'undefined' || currentUser.id.trim() === '') {
       throw new Error('Chưa đăng nhập hoặc không tìm thấy ID tài khoản người dùng.');
     }
 
     const finalSchool = school === 'Khác / Đã đi làm' && customSchool.trim() ? customSchool.trim() : school;
-    const isStudentVerified = Boolean(studentCardUrl) || Boolean(currentUser.studentVerified);
-    const targetStatus = customOwnerStatus !== undefined ? customOwnerStatus : (currentUser.ownerApplicationStatus || 'none');
-    const userRole = (currentUser.role === 'user' ? 'renter' : currentUser.role) || 'renter';
 
-    // 1. Tạo biến payload được map (ánh xạ) thủ công từng trường một, chuẩn snake_case khớp 100% schema Supabase
-    // Tuyệt đối KHÔNG truyền thẳng object form data hoặc biến UI, KHÔNG chứa id, email
+    // 1. Chỉ gửi các trường người dùng được tự sửa. Trạng thái xác minh, vai trò và
+    // trạng thái duyệt chủ trọ do máy chủ quản lý (migration 028), không gửi từ đây.
     const updatePayload: Record<string, any> = {
       full_name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
       name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
@@ -419,13 +515,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       student_year: year ? year.trim() : null,
       social_link: socialLink ? socialLink.trim() : null,
       facebook_link: socialLink ? socialLink.trim() : null,
-      student_card_url: studentCardUrl ? studentCardUrl.trim() : null,
-      verified: isStudentVerified || Boolean(currentUser.verified),
-      phone_verified: Boolean(phoneVerified),
-      student_verified: Boolean(isStudentVerified),
-      owner_application_status: targetStatus,
-      role: userRole,
-      app_role: userRole,
       updated_at: new Date().toISOString(),
     };
 
@@ -440,14 +529,18 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       }
     });
 
-    // 4. Debug console.log payload để kiểm tra dữ liệu gửi đi
-    console.log("Update Payload:", updatePayload);
-
-    // 5. Gắn ID chính xác và gọi API cập nhật hồ sơ
+    // 4. Gắn ID chính xác và gọi API cập nhật hồ sơ
     const res = await updateUserProfile(currentUser.id, updatePayload);
-    if (!res.success && res.error) {
-      throw new Error(res.error);
+    if (!res.success) {
+      throw new Error(res.error || 'Không thể lưu hồ sơ');
     }
+
+    // 5. Trạng thái xác minh lấy lại từ máy chủ (vd: đổi số điện thoại thì cần xác thực lại)
+    const saved = res.data || {};
+    const savedPhoneVerified = Boolean(saved.phone_verified);
+    setPhoneVerified(savedPhoneVerified);
+    setVerifiedPhone(savedPhoneVerified ? saved.phone || '' : '');
+    setStudentVerified(Boolean(saved.student_verified));
 
     // 6. Cập nhật Zustand App Store ngay lập tức
     const updatedUser = {
@@ -459,12 +552,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
       year: year,
       student_year: year,
       phone: updatePayload.phone || '',
-      phoneVerified: phoneVerified,
-      studentCardUrl: studentCardUrl,
+      phoneVerified: savedPhoneVerified,
       socialLink: updatePayload.social_link || '',
-      studentVerified: isStudentVerified,
-      verified: updatePayload.verified,
-      ownerApplicationStatus: targetStatus,
+      studentVerified: Boolean(saved.student_verified),
+      verified: Boolean(saved.verified),
     };
 
     setCurrentUser(updatedUser);
@@ -714,13 +805,15 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 <Phone className="w-4 h-4 text-[#00a854]" />
                 Số điện thoại
               </span>
-              {phoneVerified ? (
+              {isCurrentPhoneVerified ? (
                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
                   <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
                   Đã xác minh
                 </span>
               ) : (
-                <span className="text-[11px] text-amber-700 font-medium">Chưa xác minh</span>
+                <span className="text-[11px] text-amber-700 font-medium">
+                  {phoneVerified && verifiedPhone ? 'Số mới — cần xác thực lại' : 'Chưa xác minh'}
+                </span>
               )}
             </label>
 
@@ -732,9 +825,6 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 value={phone}
                 onChange={(e) => {
                   setPhone(e.target.value);
-                  if (phoneVerified && e.target.value !== currentUser?.phone) {
-                    setPhoneVerified(false);
-                  }
                   if (errors.phone) setErrors((prev) => ({ ...prev, phone: undefined }));
                 }}
                 placeholder="Nhập số điện thoại (vd: 0987654321)"
@@ -744,19 +834,20 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               />
 
               <div className="absolute right-2">
-                {phoneVerified ? (
+                {isCurrentPhoneVerified ? (
                   <div className="px-3 py-1.5 bg-emerald-100/70 text-emerald-800 rounded-xl text-xs font-bold flex items-center gap-1">
                     <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                    Đã duyệt
+                    Đã xác minh
                   </div>
                 ) : (
                   <button
                     type="button"
                     onClick={handleSendOtp}
-                    className="px-3 py-1.5 bg-[#00a854] hover:bg-[#009247] text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition flex items-center gap-1 cursor-pointer"
+                    disabled={isSendingOtp}
+                    className="px-3 py-1.5 bg-[#00a854] hover:bg-[#009247] text-white rounded-xl text-xs font-bold shadow-xs active:scale-95 transition flex items-center gap-1 cursor-pointer disabled:opacity-60 disabled:cursor-wait"
                   >
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    Xác thực
+                    {isSendingOtp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ShieldCheck className="w-3.5 h-3.5" />}
+                    {isSendingOtp ? 'Đang gửi...' : 'Xác thực'}
                   </button>
                 )}
               </div>
@@ -768,8 +859,10 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               </p>
             )}
             <p className="text-[11px] text-gray-500">
-              Số điện thoại dùng để nhận tin nhắn lịch hẹn phòng và liên hệ xác thực tài khoản.
+              Số điện thoại dùng để nhận tin nhắn lịch hẹn phòng. Bấm "Xác thực" để nhận mã OTP qua SMS.
             </p>
+            {/* reCAPTCHA ẩn cho Firebase Phone Auth */}
+            <div id="profile-phone-recaptcha" />
           </div>
         </div>
       </section>
@@ -797,7 +890,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
         <div ref={cardSectionRef} className="space-y-2">
           <label className="block text-xs sm:text-sm font-bold text-gray-800 flex items-center justify-between">
             <span>
-              Xác minh sinh viên / CCCD (Mặt trước Thẻ SV hoặc CCCD)
+              Xác minh sinh viên (ảnh mặt trước thẻ sinh viên)
             </span>
             <span className="text-[11px] font-normal text-gray-400">
               (Tùy chọn)
@@ -816,7 +909,61 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             }}
           />
 
-          {!studentCardUrl ? (
+          {studentVerificationError && (
+            <p className="text-xs text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2 flex items-center gap-1.5">
+              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+              {studentVerificationError}
+            </p>
+          )}
+
+          {studentVerified ? (
+            <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 flex items-center gap-3">
+              <ShieldCheck className="w-6 h-6 text-emerald-600 shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-emerald-900">Đã xác minh sinh viên</p>
+                <p className="text-xs text-emerald-800">Huy hiệu đang hiển thị trên hồ sơ và tin đăng của bạn.</p>
+              </div>
+            </div>
+          ) : studentVerification?.status === 'pending' ? (
+            <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3 sm:p-4 flex flex-col sm:flex-row items-center gap-4">
+              {cardPreviewUrl && (
+                <div className="w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-gray-200 border border-amber-200 relative shrink-0">
+                  <img src={cardPreviewUrl} alt="Ảnh thẻ sinh viên đã gửi" className="w-full h-full object-cover" />
+                  {isUploadingCard && (
+                    <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white">
+                      <Loader2 className="w-6 h-6 animate-spin" />
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="space-y-1 flex-1 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs font-bold text-amber-800">
+                  <Clock className="w-4 h-4 text-amber-600" />
+                  Đang chờ quản trị viên duyệt
+                </div>
+                <p className="text-xs text-amber-900">
+                  Đã gửi lúc {new Date(studentVerification.submitted_at).toLocaleString('vi-VN')}. Thường được xử lý trong vòng 24 giờ.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => cardInputRef.current?.click()}
+                  disabled={isUploadingCard}
+                  className="text-xs font-bold text-[#00a854] hover:underline cursor-pointer disabled:opacity-60"
+                >
+                  {isUploadingCard ? 'Đang gửi ảnh mới...' : 'Gửi ảnh khác thay thế'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+            {studentVerification?.status === 'rejected' && (
+              <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-900 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                <span>
+                  <strong>Chưa được duyệt:</strong> {studentVerification.reject_reason || 'Ảnh chưa đạt yêu cầu.'} Bạn có thể tải ảnh khác để gửi lại.
+                </span>
+              </div>
+            )}
             <div
               onDragOver={(e) => {
                 e.preventDefault();
@@ -843,7 +990,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               <div className="space-y-1">
                 <p className={`text-xs sm:text-sm font-bold ${errors.studentCard ? 'text-red-700' : 'text-gray-800'}`}>
                   {isUploadingCard
-                    ? 'Đang tải lên tài liệu xác minh...'
+                    ? 'Đang gửi ảnh thẻ để xác minh...'
                     : 'Kéo thả hoặc bấm vào đây để tải ảnh lên'}
                 </p>
                 <p className="text-[11px] text-gray-500">
@@ -851,50 +998,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
                 </p>
               </div>
             </div>
-          ) : (
-            <div className="relative rounded-2xl border border-gray-200 bg-gray-50 p-3 sm:p-4 flex flex-col sm:flex-row items-center gap-4">
-              <div className="w-full sm:w-44 h-28 rounded-xl overflow-hidden bg-gray-200 border border-gray-300 relative shrink-0">
-                <img
-                  src={studentCardUrl}
-                  alt="Thẻ sinh viên / CCCD"
-                  className="w-full h-full object-cover"
-                />
-                {isUploadingCard && (
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center text-white">
-                    <Loader2 className="w-6 h-6 animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              <div className="space-y-1 flex-1 text-center sm:text-left">
-                <div className="flex items-center justify-center sm:justify-start gap-1.5 text-xs font-bold text-emerald-700">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                  Đã tải lên mặt trước thẻ
-                </div>
-                <p className="text-xs text-gray-600 font-medium">
-                  Hồ sơ đang ở trạng thái xác thực danh tính sinh viên.
-                </p>
-                <div className="flex items-center justify-center sm:justify-start gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => cardInputRef.current?.click()}
-                    disabled={isUploadingCard}
-                    className="text-xs font-bold text-[#00a854] hover:underline cursor-pointer"
-                  >
-                    Đổi ảnh khác
-                  </button>
-                  <span className="text-gray-300">•</span>
-                  <button
-                    type="button"
-                    onClick={() => setStudentCardUrl('')}
-                    disabled={isUploadingCard}
-                    className="text-xs font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Trash2 className="w-3 h-3" /> Xóa
-                  </button>
-                </div>
-              </div>
-            </div>
+            </>
           )}
 
           {errors.studentCard && (
@@ -907,7 +1011,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
           <div className="p-3 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-start gap-2.5">
             <Sparkles className="w-4 h-4 text-[#00a854] shrink-0 mt-0.5" />
             <p className="text-xs text-emerald-950 font-medium">
-              <strong>Ghi chú:</strong> Tải lên để nhận huy hiệu <strong>Đã xác minh sinh viên</strong>. Thông tin được mã hóa bảo mật tuyệt đối.
+              <strong>Ghi chú:</strong> Sau khi quản trị viên duyệt, bạn nhận huy hiệu <strong>Đã xác minh sinh viên</strong>. Ảnh thẻ được lưu ở kho riêng tư, chỉ quản trị viên xem để xác minh.
             </p>
           </div>
         </div>
@@ -1025,7 +1129,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
           <button
             type="submit"
-            disabled={isSaving || isUploadingAvatar || isUploadingCard}
+            disabled={isSaving || isUploadingAvatar}
             className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-green-600 hover:bg-green-700 text-white font-bold text-sm sm:text-base shadow-md hover:shadow-lg transition-all duration-200 active:scale-98 flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSaving ? (
@@ -1062,22 +1166,48 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
             <div className="space-y-2">
               <input
                 type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
                 maxLength={6}
                 value={otpCode}
-                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
-                placeholder="Nhập mã OTP (vd: 123456)"
-                className="w-full px-4 py-3 text-center tracking-widest text-lg font-black rounded-2xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#00a854]"
+                onChange={(e) => {
+                  setOtpCode(e.target.value.replace(/\D/g, ''));
+                  if (otpError) setOtpError('');
+                }}
+                placeholder="______"
+                aria-label="Mã OTP 6 chữ số"
+                className={`w-full px-4 py-3 text-center tracking-widest text-lg font-black rounded-2xl border focus:outline-none focus:ring-2 focus:ring-[#00a854] ${
+                  otpError ? 'border-red-500 bg-red-50/30' : 'border-gray-300'
+                }`}
                 autoFocus
               />
-              <p className="text-[11px] text-gray-400 text-center">
-                Mẹo thử nghiệm: Có thể nhập bất kỳ mã 6 chữ số nào để xác nhận.
-              </p>
+              {otpError && (
+                <p role="alert" className="text-xs text-red-600 font-semibold flex items-center justify-center gap-1">
+                  <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                  {otpError}
+                </p>
+              )}
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={handleResendOtp}
+                  disabled={resendSeconds > 0 || isSendingOtp}
+                  className="text-xs font-bold text-[#00a854] hover:underline disabled:text-gray-400 disabled:no-underline cursor-pointer disabled:cursor-default"
+                >
+                  {isSendingOtp ? 'Đang gửi lại...' : resendSeconds > 0 ? `Gửi lại mã sau ${resendSeconds}s` : 'Gửi lại mã OTP'}
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() => setShowPhoneVerifyModal(false)}
+                onClick={() => {
+                  setShowPhoneVerifyModal(false);
+                  setOtpError('');
+                  setOtpCode('');
+                }}
+                disabled={isVerifyingPhone}
                 className="flex-1 py-3 rounded-xl border border-gray-300 text-xs font-bold text-gray-700 hover:bg-gray-50 cursor-pointer"
               >
                 Hủy
@@ -1085,7 +1215,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
               <button
                 type="button"
                 onClick={handleConfirmOtp}
-                disabled={isVerifyingPhone}
+                disabled={isVerifyingPhone || otpCode.length !== 6}
                 className="flex-1 py-3 rounded-xl bg-[#00a854] hover:bg-[#009247] text-white text-xs font-bold shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
               >
                 {isVerifyingPhone ? (

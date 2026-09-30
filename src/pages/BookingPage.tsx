@@ -67,8 +67,7 @@ export const BookingPage: React.FC = () => {
             status,
             owner_response_note,
             created_at,
-            rooms(id, name, price),
-            owner:profiles!owner_id(id, full_name, name, phone, avatar_url)
+            rooms(id, name, price, owner_name, owner_phone)
           `)
           .eq('renter_id', currentUser!.id)
           .order('created_at', { ascending: false });
@@ -246,7 +245,8 @@ export const BookingPage: React.FC = () => {
 
               const roomTitle = b.rooms?.title || 'Phòng trọ';
               const roomPrice = b.rooms?.price;
-              const ownerPhone = b.owner?.phone;
+              // SĐT liên hệ chủ trọ lấy từ tin phòng (tôn trọng tùy chọn ẩn số của chủ trọ)
+              const ownerPhone = b.rooms?.owner_phone;
 
               return (
                 <div

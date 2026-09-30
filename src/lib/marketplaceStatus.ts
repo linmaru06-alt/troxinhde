@@ -157,6 +157,8 @@ export function mapMarketplaceRow(row: any): MarketplaceItem | null {
     isHidden: row.status === 'hidden',
     showPhone,
     closedAt: row.closed_at || undefined,
+    sellerStudentVerified: seller.student_verified === true,
+    sellerPhoneVerified: seller.phone_verified === true,
     createdAt: row.created_at || '',
     updatedAt: row.updated_at || undefined,
   };

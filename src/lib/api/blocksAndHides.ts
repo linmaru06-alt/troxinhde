@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
 import { resolveUserIdToUuid } from './messages';
+import { getPublicProfiles } from './publicProfiles';
 
 export interface BlockedUserRecord {
   id: string;
@@ -139,39 +140,32 @@ export async function fetchBlockedUsers(userId: string): Promise<BlockedUserReco
 
     const { data, error } = await supabase
       .from('user_blocks')
-      .select(`
-        id,
-        blocked_id,
-        created_at,
-        reason,
-        profiles:blocked_id (
-          id,
-          name,
-          avatar_url,
-          phone,
-          role
-        )
-      `)
+      .select('id, blocked_id, created_at, reason')
       .eq('blocker_id', cleanUserId)
       .order('created_at', { ascending: false });
 
     if (error) throw error;
 
-    return (data || []).map((row: any) => ({
-      id: row.id,
-      blocked_id: row.blocked_id,
-      created_at: row.created_at,
-      reason: row.reason,
-      user: row.profiles
-        ? {
-            id: row.profiles.id,
-            name: row.profiles.name || 'Người dùng Trọ Xinh',
-            avatarUrl: row.profiles.avatar_url,
-            phone: row.profiles.phone,
-            role: row.profiles.role,
-          }
-        : undefined,
-    }));
+    // Hồ sơ người bị chặn lấy qua RPC công khai (không có SĐT)
+    const profiles = await getPublicProfiles((data || []).map((row: any) => row.blocked_id));
+
+    return (data || []).map((row: any) => {
+      const profile = profiles.get(row.blocked_id);
+      return {
+        id: row.id,
+        blocked_id: row.blocked_id,
+        created_at: row.created_at,
+        reason: row.reason,
+        user: profile
+          ? {
+              id: profile.id,
+              name: profile.full_name || 'Người dùng Trọ Xinh',
+              avatarUrl: profile.avatar_url || undefined,
+              role: profile.app_role || undefined,
+            }
+          : undefined,
+      };
+    });
   } catch (err) {
     console.warn('[fetchBlockedUsers] Lỗi tải danh sách người bị chặn:', err);
     return [];

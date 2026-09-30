@@ -6,6 +6,62 @@ import { Card } from '../components/ui/Card';
 import { MapPin, Clock, FileText, CheckCircle2, Clock3 } from 'lucide-react';
 import { OptimizedImage } from '../components/ui/OptimizedImage';
 import { formatTimeAgo } from '../utils/formatters';
+import { AVAILABILITY_LABELS, getItemAvailability, MarketplaceAvailability } from '../lib/marketplaceStatus';
+import { MarketplaceItem, Room, RoommatePost } from '../types';
+
+type BadgeTone = 'pending' | 'active' | 'closed' | 'rejected' | 'hidden';
+
+const BADGE_TONES: Record<BadgeTone, string> = {
+  pending: 'bg-amber-100 text-amber-800',
+  active: 'bg-emerald-100 text-emerald-800',
+  closed: 'bg-slate-200 text-slate-700',
+  rejected: 'bg-rose-100 text-rose-700',
+  hidden: 'bg-gray-100 text-gray-600',
+};
+
+const StatusBadge: React.FC<{ tone: BadgeTone; label: string }> = ({ tone, label }) => (
+  <span className={`inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide ${BADGE_TONES[tone]}`}>
+    {tone === 'pending' ? <Clock3 className="w-3 h-3" /> : tone === 'active' ? <CheckCircle2 className="w-3 h-3" /> : null}
+    {label}
+  </span>
+);
+
+const MARKETPLACE_TONES: Record<MarketplaceAvailability, BadgeTone> = {
+  available: 'active',
+  sold: 'closed',
+  closed: 'closed',
+  pending: 'pending',
+  rejected: 'rejected',
+  hidden: 'hidden',
+};
+
+const marketplaceBadge = (item: MarketplaceItem) => {
+  const availability = getItemAvailability(item);
+  return <StatusBadge tone={MARKETPLACE_TONES[availability]} label={AVAILABILITY_LABELS[availability]} />;
+};
+
+const roomBadge = (room: Room) => {
+  switch (room.status) {
+    case 'Chờ duyệt':
+      return <StatusBadge tone="pending" label="Chờ duyệt" />;
+    case 'Bị từ chối':
+      return <StatusBadge tone="rejected" label="Bị từ chối" />;
+    case 'Đã ẩn':
+      return <StatusBadge tone="hidden" label="Đang ẩn" />;
+    case 'Đã cho thuê':
+      return <StatusBadge tone="closed" label="Đã cho thuê" />;
+    default:
+      return room.verified === false
+        ? <StatusBadge tone="pending" label="Chờ duyệt" />
+        : <StatusBadge tone="active" label="Đang hiển thị" />;
+  }
+};
+
+const roommateBadge = (post: RoommatePost) => {
+  if (post.status === 'Đã ghép') return <StatusBadge tone="closed" label="Đã ghép" />;
+  if ((post as { verified?: boolean }).verified === false) return <StatusBadge tone="pending" label="Chờ duyệt" />;
+  return <StatusBadge tone="active" label="Đang tìm" />;
+};
 
 export const UserPostsPage: React.FC = () => {
   const { currentUser, roommates, marketplaceItems, rooms } = useAppStore();
@@ -18,21 +74,6 @@ export const UserPostsPage: React.FC = () => {
   const userMarketplaceItems = marketplaceItems.filter(item => (item.userId || item.sellerId) === currentUser.id);
   const userRooms = rooms.filter(room => room.ownerId === currentUser.id);
 
-  const getStatusBadge = (status?: string, verified?: boolean) => {
-    if (status === 'pending' || (verified !== undefined && !verified)) {
-      return (
-        <span className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">
-          <Clock3 className="w-3 h-3" /> Chờ duyệt
-        </span>
-      );
-    }
-
-    return (
-      <span className="inline-flex items-center gap-1 bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full uppercase tracking-wide">
-        <CheckCircle2 className="w-3 h-3" /> Đã duyệt
-      </span>
-    );
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fadeIn">
@@ -104,7 +145,7 @@ export const UserPostsPage: React.FC = () => {
                   <Card key={post.id} className="p-4 flex flex-col hover:border-emerald-200 transition-colors">
                     <div className="flex justify-between items-start mb-2">
                       <div className="flex items-center gap-2">
-                        {getStatusBadge(post.status, post.verified)}
+                        {roommateBadge(post)}
                       </div>
                       <Link to={`/tim-ban-cung-phong/${post.id}`} className="text-[#00a854] text-xs font-bold hover:underline">
                         Xem chi tiết
@@ -152,7 +193,7 @@ export const UserPostsPage: React.FC = () => {
                     />
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
-                        {getStatusBadge(item.status)}
+                        {marketplaceBadge(item)}
                       </div>
                       <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{item.title || item.name}</h3>
                       <p className="text-[#00a854] font-black text-sm mt-0.5">
@@ -196,7 +237,7 @@ export const UserPostsPage: React.FC = () => {
                     />
                     <div className="flex flex-col flex-1 min-w-0">
                       <div className="flex justify-between items-start mb-1">
-                        {getStatusBadge(room.status, room.verified)}
+                        {roomBadge(room)}
                       </div>
                       <h3 className="text-sm font-bold text-gray-900 line-clamp-1">{room.title}</h3>
                       <p className="text-[#00a854] font-black text-sm mt-0.5">
