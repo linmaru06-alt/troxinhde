@@ -1215,13 +1215,27 @@ export const ChatPage: React.FC = () => {
     }
   };
 
+  const isCurrentUserAdmin =
+    currentUser?.role === 'admin' || (currentUser as any)?.app_role === 'admin';
+
+  // 1. Cuộc trò chuyện với Ban Quản Trị Trọ Xinh (Ghim ở Phần 1)
+  const adminConversation = useMemo(() => {
+    return conversations.find((c) => isConversationWithAdmin(c, currentUser?.id));
+  }, [conversations, currentUser?.id]);
+
+  // Danh sách các cuộc trò chuyện thông thường (không tính Admin nếu người dùng không phải là admin)
+  const nonAdminConversations = useMemo(() => {
+    if (isCurrentUserAdmin) return conversations;
+    return conversations.filter((c) => !isConversationWithAdmin(c, currentUser?.id));
+  }, [conversations, currentUser?.id, isCurrentUserAdmin]);
+
   const filterCounts = useMemo(() => {
     let unread = 0;
     let roomsCount = 0;
     let marketplaceCount = 0;
     let roommatesCount = 0;
 
-    conversations.forEach((c) => {
+    nonAdminConversations.forEach((c) => {
       const isMe = isSameUserId(c.participant_1, currentUser?.id);
       const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
       if (unreadCount > 0) unread++;
@@ -1233,57 +1247,47 @@ export const ChatPage: React.FC = () => {
     });
 
     return {
-      all: conversations.length,
+      all: nonAdminConversations.length,
       unread,
       rooms: roomsCount,
       marketplace: marketplaceCount,
       roommates: roommatesCount,
     };
-  }, [conversations, currentUser?.id]);
+  }, [nonAdminConversations, currentUser?.id]);
 
-  const filteredConversations = conversations.filter((c) => {
-    // 1. Lọc theo ô tìm kiếm
-    if (convSearch.trim()) {
-      const q = convSearch.toLowerCase().trim();
-      const isMe = isSameUserId(c.participant_1, currentUser?.id);
-      const other = isMe ? c.p2 : c.p1;
-      const otherId = isMe ? c.participant_2 : c.participant_1;
-      const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
-      const name = (c.other_name || other?.full_name || other?.name || known?.name || '').toLowerCase();
-      const room = (c.rooms?.name || c.rooms?.title || '').toLowerCase();
-      const lastMsg = (c.last_message || '').toLowerCase();
-      if (!name.includes(q) && !room.includes(q) && !lastMsg.includes(q)) {
-        return false;
-      }
-    }
-
-    // 2. Lọc theo tab danh mục
-    const isMe = isSameUserId(c.participant_1, currentUser?.id);
-    const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
-    const meta = getConversationMeta(c.id);
-    const hasRoom = Boolean(c.room_id || c.rooms);
-    const hasItem = Boolean(c.item_id || c.last_item_id || meta?.last_item_id);
-    const hasRoommate = Boolean((c as any).roommate_id || meta?.roommate_id);
-
-    if (inboxFilter === 'unread') return unreadCount > 0;
-    if (inboxFilter === 'rooms') return hasRoom;
-    if (inboxFilter === 'marketplace') return hasItem;
-    if (inboxFilter === 'roommates') return hasRoommate;
-    return true;
-  });
-
-  const isCurrentUserAdmin =
-    currentUser?.role === 'admin' || (currentUser as any)?.app_role === 'admin';
-
-  // 1. Cuộc trò chuyện với Ban Quản Trị Trọ Xinh (Ghim ở Phần 1)
-  const adminConversation = useMemo(() => {
-    return conversations.find((c) => isConversationWithAdmin(c, currentUser?.id));
-  }, [conversations, currentUser?.id]);
-
-  // 2. Những đoạn chat nhắn tin với những người đã nhắn (Phần 2, loại trừ Admin)
+  // 2. Những đoạn chat nhắn tin với những người đã nhắn (Phần 2)
   const otherConversations = useMemo(() => {
-    return filteredConversations.filter((c) => !isConversationWithAdmin(c, currentUser?.id));
-  }, [filteredConversations, currentUser?.id]);
+    return nonAdminConversations.filter((c) => {
+      // 1. Lọc theo ô tìm kiếm
+      if (convSearch.trim()) {
+        const q = convSearch.toLowerCase().trim();
+        const isMe = isSameUserId(c.participant_1, currentUser?.id);
+        const other = isMe ? c.p2 : c.p1;
+        const otherId = isMe ? c.participant_2 : c.participant_1;
+        const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+        const name = (c.other_name || other?.full_name || other?.name || known?.name || '').toLowerCase();
+        const room = (c.rooms?.name || c.rooms?.title || '').toLowerCase();
+        const lastMsg = (c.last_message || '').toLowerCase();
+        if (!name.includes(q) && !room.includes(q) && !lastMsg.includes(q)) {
+          return false;
+        }
+      }
+
+      // 2. Lọc theo tab danh mục
+      const isMe = isSameUserId(c.participant_1, currentUser?.id);
+      const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+      const meta = getConversationMeta(c.id);
+      const hasRoom = Boolean(c.room_id || c.rooms);
+      const hasItem = Boolean(c.item_id || c.last_item_id || meta?.last_item_id);
+      const hasRoommate = Boolean((c as any).roommate_id || meta?.roommate_id);
+
+      if (inboxFilter === 'unread') return unreadCount > 0;
+      if (inboxFilter === 'rooms') return hasRoom;
+      if (inboxFilter === 'marketplace') return hasItem;
+      if (inboxFilter === 'roommates') return hasRoommate;
+      return true;
+    });
+  }, [nonAdminConversations, convSearch, inboxFilter, currentUser?.id]);
 
   const handleSelectAdminChat = async () => {
     if (adminConversation) {
