@@ -24,10 +24,7 @@ export const Footer: React.FC = () => {
             <p className="text-xs text-gray-500 leading-relaxed">
               Nền tảng tìm trọ sinh viên Hà Nội uy tín. Mọi phòng trọ đều qua quy trình kiểm duyệt thực tế 100%.
             </p>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full text-xs font-semibold">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Bảo vệ người thuê & giữ cọc an toàn</span>
-            </div>
+
           </div>
 
           {/* Col 2: Liên hệ */}
