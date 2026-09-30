@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
@@ -130,6 +130,7 @@ export const ChatPage: React.FC = () => {
   const [viewportHeight, setViewportHeight] = useState<number | null>(null);
   const [hideQuickReplies, setHideQuickReplies] = useState<boolean>(false);
   const [isSendingQuickReply, setIsSendingQuickReply] = useState<boolean>(false);
+  const [isOpeningAdminChat, setIsOpeningAdminChat] = useState<boolean>(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Đặt lại hiển thị gợi ý khi chuyển sang cuộc trò chuyện khác
@@ -1199,7 +1200,7 @@ export const ChatPage: React.FC = () => {
     }
   };
 
-  const filterCounts = React.useMemo(() => {
+  const filterCounts = useMemo(() => {
     let unread = 0;
     let roomsCount = 0;
     let marketplaceCount = 0;
@@ -1268,8 +1269,6 @@ export const ChatPage: React.FC = () => {
   const otherConversations = useMemo(() => {
     return filteredConversations.filter((c) => !isConversationWithAdmin(c, currentUser?.id));
   }, [filteredConversations, currentUser?.id]);
-
-  const [isOpeningAdminChat, setIsOpeningAdminChat] = useState<boolean>(false);
 
   const handleSelectAdminChat = async () => {
     if (adminConversation) {
