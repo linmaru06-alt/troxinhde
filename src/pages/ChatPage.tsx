@@ -1602,6 +1602,9 @@ export const ChatPage: React.FC = () => {
                               <img
                                 src={avatar}
                                 alt={name}
+                                onError={(e) => {
+                                  e.currentTarget.src = '/images/user-avatar.jpg';
+                                }}
                                 className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100"
                               />
                               {hasUnread && (
@@ -1740,6 +1743,9 @@ export const ChatPage: React.FC = () => {
                     <img
                       src={otherAvatar}
                       alt={otherName}
+                      onError={(e) => {
+                        e.currentTarget.src = isChatWithAdmin ? '/images/logo.png' : '/images/user-avatar.jpg';
+                      }}
                       className="w-10 h-10 rounded-full object-cover"
                     />
                     <span
@@ -2452,23 +2458,32 @@ export const ChatPage: React.FC = () => {
                 <>
                   {/* 6. Gợi ý tin nhắn phản hồi nhanh: Không tràn ngang trên mobile, có thể xuống dòng (flex-wrap) */}
                   {shouldShowQuickReplies && (
-                    <div className="px-3 py-2 bg-white border-t border-gray-100 flex flex-wrap items-center gap-1.5 sm:gap-2 animate-fadeIn">
-                      <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide shrink-0 flex items-center gap-1">
-                        <Sparkles className="w-3 h-3 text-[#006d37]" /> Gợi ý:
-                      </span>
+                    <div className="px-3 py-2 bg-emerald-50/50 border-t border-emerald-100/80 flex items-start sm:items-center justify-between gap-2 animate-fadeIn">
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1">
+                        <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide shrink-0 flex items-center gap-1">
+                          <Sparkles className="w-3 h-3 text-[#006d37]" /> Gợi ý:
+                        </span>
                         {currentQuickReplies.map((r, i) => (
                           <button
                             key={i}
                             type="button"
                             disabled={isSendingQuickReply}
                             onClick={() => handleQuickReply(r)}
-                            className="text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] bg-emerald-50/80 hover:bg-[#006d37] text-[#006d37] hover:text-white border border-emerald-200/80 rounded-xl transition-all font-medium tap-bounce cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed whitespace-normal text-left sm:text-center leading-tight"
+                            className="text-xs px-2.5 sm:px-3 py-1.5 min-h-[32px] bg-white hover:bg-[#006d37] text-[#006d37] hover:text-white border border-emerald-200/80 rounded-xl transition-all font-medium tap-bounce cursor-pointer shadow-2xs disabled:opacity-50 disabled:cursor-not-allowed whitespace-normal text-left sm:text-center leading-tight"
                           >
                             {r}
                           </button>
                         ))}
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => setHideQuickReplies(true)}
+                        className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-emerald-100/50 transition shrink-0 tap-bounce cursor-pointer"
+                        title="Ẩn gợi ý"
+                        aria-label="Ẩn gợi ý"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   )}
 
