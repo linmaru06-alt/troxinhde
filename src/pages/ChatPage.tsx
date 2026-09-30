@@ -309,8 +309,12 @@ export const ChatPage: React.FC = () => {
         if (!isMounted) return;
         setConversations(data);
         if (!activeConversationId && data.length > 0 && !hasDeepLinkParams) {
-          const firstId = conversationId || data[0].id;
-          setActiveConversationId(firstId);
+          const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
+          if (conversationId) {
+            setActiveConversationId(conversationId);
+          } else if (isDesktop) {
+            setActiveConversationId(data[0].id);
+          }
         }
       })
       .catch((err) => {
@@ -421,6 +425,11 @@ export const ChatPage: React.FC = () => {
   useEffect(() => {
     if (conversationId) {
       setActiveConversationId(conversationId);
+    } else {
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      if (isMobile) {
+        setActiveConversationId('');
+      }
     }
   }, [conversationId]);
 
@@ -443,18 +452,24 @@ export const ChatPage: React.FC = () => {
     }
   }, [chatMessages.length]);
 
-  const activeConversation =
-    conversations.find((c) => c.id === activeConversationId) || conversations[0];
+  const activeConversation = useMemo(() => {
+    if (!activeConversationId) return null;
+    return conversations.find((c) => c.id === activeConversationId) || null;
+  }, [conversations, activeConversationId]);
 
-  const isP1Me = isSameUserId(activeConversation?.participant_1, currentUser?.id);
+  const isP1Me = Boolean(activeConversation && isSameUserId(activeConversation.participant_1, currentUser?.id));
 
-  const otherParticipant = isP1Me
-    ? (activeConversation?.p2 || activeConversation?.p1)
-    : (activeConversation?.p1 || activeConversation?.p2);
+  const otherParticipant = activeConversation
+    ? (isP1Me
+        ? (activeConversation.p2 || activeConversation.p1)
+        : (activeConversation.p1 || activeConversation.p2))
+    : null;
 
-  const otherId = isP1Me
-    ? activeConversation?.participant_2
-    : activeConversation?.participant_1;
+  const otherId = activeConversation
+    ? (isP1Me
+        ? activeConversation.participant_2
+        : activeConversation.participant_1)
+    : undefined;
 
   const isBlocked = Boolean(otherId && blockedUserIds.includes(otherId));
   const [canMessageOther, setCanMessageOther] = useState<boolean>(true);
