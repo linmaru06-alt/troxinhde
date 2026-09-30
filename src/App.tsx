@@ -122,6 +122,7 @@ const AppCloudDataLoader: React.FC = () => {
         try {
           const email = fbUser.email?.toLowerCase();
           const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+          const isLandlord = email === 'phuonglinh832005@gmail.com';
           const profile = await getProfileByFirebaseUid(fbUser.uid);
           if (profile) {
             loginWithSocialUser({
@@ -129,19 +130,19 @@ const AppCloudDataLoader: React.FC = () => {
               name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
               email: profile.email || fbUser.email || undefined,
               phone: profile.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : profile.role,
+              role: isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : profile.role),
               avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,
             });
           } else {
-            const synced = await syncFirebaseUserToSupabase(fbUser);
+            const synced = await syncFirebaseUserToSupabase(fbUser, isLandlord ? 'owner' : 'renter');
             loginWithSocialUser({
               id: synced.id,
               name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : synced.name,
               email: synced.email || fbUser.email || undefined,
               phone: synced.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : synced.role,
+              role: isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : synced.role),
               avatarUrl: synced.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,

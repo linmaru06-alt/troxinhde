@@ -240,7 +240,13 @@ export const OtpVerificationPage: React.FC = () => {
             setIsLoading(false);
 
             if (typeof window !== 'undefined') {
-              window.location.href = '/';
+              if (returnUrl && returnUrl !== '/') {
+                window.location.href = decodeURIComponent(returnUrl);
+              } else if (res.user.role === 'owner') {
+                window.location.href = '/chu-tro';
+              } else {
+                window.location.href = '/';
+              }
             }
           } else {
             setIsLoading(false);
@@ -255,6 +261,7 @@ export const OtpVerificationPage: React.FC = () => {
 
           const userId = existingUser?.id || firebaseAuthUser?.uid || `usr_phone_${cleanPhone}`;
           const userName = existingUser?.name || name || `Người dùng ${cleanPhone.slice(-4)}`;
+          const userRole = (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any;
 
           sessionStorage.removeItem('troxinh_current_otp');
           loginWithSocialUser({
@@ -262,7 +269,7 @@ export const OtpVerificationPage: React.FC = () => {
             firebaseUid: existingUser?.id || firebaseAuthUser?.uid || `usr_phone_${cleanPhone}`,
             name: userName,
             phone: cleanPhone,
-            role: (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any,
+            role: userRole,
             avatarUrl: existingUser?.avatar_url || '/images/user-avatar.jpg',
             isDemoAccount: false,
             phoneVerified: true,
@@ -273,7 +280,13 @@ export const OtpVerificationPage: React.FC = () => {
           setIsLoading(false);
 
           if (typeof window !== 'undefined') {
-            window.location.href = '/';
+            if (returnUrl && returnUrl !== '/') {
+              window.location.href = decodeURIComponent(returnUrl);
+            } else if (userRole === 'owner') {
+              window.location.href = '/chu-tro';
+            } else {
+              window.location.href = '/';
+            }
           }
         }
       } catch (err: any) {

@@ -49,23 +49,28 @@ DROP POLICY IF EXISTS "Users insert own owner application" ON public.owner_appli
 DROP POLICY IF EXISTS "Public submit owner applications" ON public.owner_applications;
 DROP POLICY IF EXISTS "Public view owner applications" ON public.owner_applications;
 DROP POLICY IF EXISTS "Public update owner applications" ON public.owner_applications;
+DROP POLICY IF EXISTS "Public delete owner applications" ON public.owner_applications;
 
 -- Policy 1: Cho phép người dùng gửi đơn đăng ký (INSERT)
+DROP POLICY IF EXISTS "Public submit owner applications" ON public.owner_applications;
 CREATE POLICY "Public submit owner applications"
     ON public.owner_applications FOR INSERT
     WITH CHECK (true);
 
 -- Policy 2: Cho phép đọc đơn đăng ký (SELECT)
+DROP POLICY IF EXISTS "Public view owner applications" ON public.owner_applications;
 CREATE POLICY "Public view owner applications"
     ON public.owner_applications FOR SELECT
     USING (true);
 
 -- Policy 3: Cho phép cập nhật đơn đăng ký (UPDATE - duyệt / từ chối)
+DROP POLICY IF EXISTS "Public update owner applications" ON public.owner_applications;
 CREATE POLICY "Public update owner applications"
     ON public.owner_applications FOR UPDATE
     USING (true);
 
 -- Policy 4: Cho phép xóa đơn nếu cần (DELETE)
+DROP POLICY IF EXISTS "Public delete owner applications" ON public.owner_applications;
 CREATE POLICY "Public delete owner applications"
     ON public.owner_applications FOR DELETE
     USING (true);

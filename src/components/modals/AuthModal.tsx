@@ -53,18 +53,25 @@ export const AuthModal: React.FC = () => {
   };
 
   const handleAuthSuccess = (user: any) => {
+    const isLandlord = user.role === 'owner' || user.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
+    const targetRole = isLandlord ? 'owner' : (user.role || 'user');
+
     loginWithSocialUser({
       id: user.id,
       firebaseUid: user.firebaseUid,
       name: user.name,
       email: user.email,
       phone: user.phone,
-      role: 'user', // Always Khách thuê
+      role: targetRole,
       avatarUrl: user.avatarUrl,
       isDemoAccount: Boolean(user.isDemoAccount),
     });
     showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
     handleClose();
+
+    if (targetRole === 'owner') {
+      navigate('/chu-tro');
+    }
   };
 
   // 1. Social Login: Google

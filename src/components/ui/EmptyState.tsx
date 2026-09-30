@@ -1,9 +1,9 @@
 import React from 'react';
 import { Button } from './Button';
-import { SearchX, Inbox, HeartOff, BellOff, ShoppingBag } from 'lucide-react';
+import { SearchX, Inbox, HeartOff, BellOff, ShoppingBag, Calendar } from 'lucide-react';
 
 export interface EmptyStateProps {
-  icon?: 'search' | 'inbox' | 'saved' | 'bell' | 'market';
+  icon?: 'search' | 'inbox' | 'saved' | 'bell' | 'market' | 'calendar';
   title: string;
   description: string;
   actionText?: string;
@@ -27,6 +27,8 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
         return <BellOff className="w-12 h-12 text-gray-400" />;
       case 'market':
         return <ShoppingBag className="w-12 h-12 text-gray-400" />;
+      case 'calendar':
+        return <Calendar className="w-12 h-12 text-gray-400" />;
       default:
         return <SearchX className="w-12 h-12 text-gray-400" />;
     }

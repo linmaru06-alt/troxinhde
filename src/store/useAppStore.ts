@@ -434,8 +434,12 @@ export const useAppStore = create<AppState>()(
       setCurrentUser: (user) => {
         if (user) {
           const isSuperAdmin = user.email?.toLowerCase() === 'quan66934@gmail.com' || user.email?.toLowerCase() === 'admin@troxinh.vn';
+          const isLandlord = user.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
           if (isSuperAdmin) {
             user.role = 'admin';
+          } else if (isLandlord) {
+            user.role = 'owner';
+            user.ownerApplicationStatus = 'approved';
           }
         }
         set({ currentUser: user });
@@ -503,7 +507,8 @@ export const useAppStore = create<AppState>()(
 
       loginWithSocialUser: (userData) => {
         const isSuperAdmin = userData.email?.toLowerCase() === 'quan66934@gmail.com' || userData.email?.toLowerCase() === 'admin@troxinh.vn';
-        const userRole: 'user' | 'owner' | 'admin' = isSuperAdmin ? 'admin' : (userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user');
+        const isLandlord = userData.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
+        const userRole: 'user' | 'owner' | 'admin' = isSuperAdmin ? 'admin' : (isLandlord || userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user');
         const userObj: User = {
           id: userData.id,
           firebaseUid: userData.firebaseUid,
@@ -516,7 +521,7 @@ export const useAppStore = create<AppState>()(
           verified: true,
           emailVerified: userData.emailVerified,
           phoneVerified: userData.phoneVerified,
-          ownerApplicationStatus: userRole === 'owner' ? 'approved' : 'none',
+          ownerApplicationStatus: (isLandlord || userRole === 'owner') ? 'approved' : 'none',
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: userObj });
@@ -606,28 +611,39 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
 
+        const applicantNotif = {
+          id: `notif_${Date.now()}_applicant`,
+          userId: currentUser?.id || 'user_guest',
+          type: 'upgrade' as const,
+          title: 'Hồ sơ nâng cấp Chủ Trọ đã được gửi! ⏳',
+          body: `Hồ sơ đăng ký cơ sở "${data.buildingName}" (${data.totalRooms || 1} phòng) đã được gửi đến Ban Quản Trị để thẩm định trong 24h.`,
+          read: false,
+          actionLink: '/nang-cap-chu-tro/trang-thai',
+          createdAt: new Date().toISOString(),
+        };
+
+        const adminNotif = {
+          id: `notif_${Date.now()}_admin`,
+          userId: 'admin',
+          type: 'system' as const,
+          title: 'Hồ sơ đăng ký Chủ Trọ mới cần duyệt! 🏢',
+          body: `Khách thuê ${data.fullName || currentUser?.name || 'Khách'} vừa gửi đơn đăng ký làm Chủ trọ cơ sở "${data.buildingName}" (${data.totalRooms || 1} phòng).`,
+          read: false,
+          actionLink: '/quan-tri/duyet-chu-tro',
+          createdAt: new Date().toISOString(),
+        };
+
         set((state) => ({
           ownerApplications: [newApp, ...state.ownerApplications],
           currentUser: state.currentUser
             ? { ...state.currentUser, ownerApplicationStatus: 'pending' }
             : null,
-          notifications: [
-            {
-              id: `notif_${Date.now()}`,
-              userId: currentUser?.id || 'user_guest',
-              type: 'upgrade',
-              title: 'Hồ sơ nâng cấp Chủ Trọ đã được gửi! ⏳',
-              body: `Hồ sơ đăng ký cơ sở "${data.buildingName}" đang được Ban Quản Trị thẩm định trong 24h.`,
-              read: false,
-              createdAt: new Date().toISOString(),
-            },
-            ...state.notifications,
-          ],
+          notifications: [applicantNotif, adminNotif, ...state.notifications],
         }));
 
         get().showToast(
           'Đã gửi hồ sơ nâng cấp thành công!',
-          'Ban Quản Trị sẽ liên hệ và phê duyệt trong vòng 24h.',
+          'Hồ sơ đã chuyển đến Admin web. Ban Quản Trị sẽ thẩm định trong vòng 24h.',
           'success'
         );
         return appId;
@@ -646,28 +662,38 @@ export const useAppStore = create<AppState>()(
             updatedUser = { ...updatedUser, role: 'owner', ownerApplicationStatus: 'approved' };
           }
 
+          const renterNotif = {
+            id: `notif_${Date.now()}_approved_renter`,
+            userId: app?.userId || 'user_renter_1',
+            type: 'approval' as const,
+            title: 'Chúc mừng! Hồ sơ Chủ Trọ đã được duyệt! 🎉',
+            body: `Chúc mừng bạn đã chính thức trở thành Đối Tác Chủ Trọ. Quyền quản trị phòng & tòa nhà đã được kích hoạt.`,
+            read: false,
+            actionLink: '/chu-tro',
+            createdAt: new Date().toISOString(),
+          };
+
+          const adminNotif = {
+            id: `notif_${Date.now()}_approved_admin`,
+            userId: 'admin',
+            type: 'system' as const,
+            title: 'Đã phê duyệt Đối Tác Chủ Trọ thành công 🏢',
+            body: `Hồ sơ đăng ký của ${app?.userName || 'người dùng'} đã được phê duyệt và cấp quyền Chủ Trọ chính thức.`,
+            read: false,
+            actionLink: '/quan-tri/duyet-chu-tro',
+            createdAt: new Date().toISOString(),
+          };
+
           return {
             ownerApplications: updatedApps,
             currentUser: updatedUser,
-            notifications: [
-              {
-                id: `notif_${Date.now()}`,
-                userId: app?.userId || 'user_renter_1',
-                type: 'approval',
-                title: 'Hồ sơ nâng cấp Chủ Trọ đã được duyệt! 🎉',
-                body: `Chúc mừng bạn đã chính thức trở thành Đối Tác Chủ Trọ. Bây giờ bạn có thể đăng phòng và quản lý tòa nhà.`,
-                read: false,
-                actionLink: '/chu-tro',
-                createdAt: new Date().toISOString(),
-              },
-              ...state.notifications,
-            ],
+            notifications: [renterNotif, adminNotif, ...state.notifications],
           };
         });
 
         get().showToast(
           'Phê duyệt nâng cấp thành công! 🏢',
-          'Người dùng đã được cấp quyền Chủ Trọ chính thức.',
+          'Người dùng đã được cấp quyền Chủ Trọ chính thức và nhận thông báo.',
           'success'
         );
       },
@@ -691,22 +717,32 @@ export const useAppStore = create<AppState>()(
             updatedUser = { ...updatedUser, ownerApplicationStatus: 'rejected', ownerApplicationReason: reason };
           }
 
+          const renterNotif = {
+            id: `notif_${Date.now()}_rejected_renter`,
+            userId: app?.userId || 'user_renter_1',
+            type: 'rejected' as const,
+            title: 'Hồ sơ nâng cấp Chủ Trọ chưa được duyệt ❌',
+            body: `Lý do: ${reason}. Vui lòng cập nhật lại thông tin và gửi lại hồ sơ.`,
+            read: false,
+            actionLink: '/dang-ky-chu-tro',
+            createdAt: new Date().toISOString(),
+          };
+
+          const adminNotif = {
+            id: `notif_${Date.now()}_rejected_admin`,
+            userId: 'admin',
+            type: 'system' as const,
+            title: 'Đã từ chối đơn đăng ký Chủ Trọ',
+            body: `Bạn đã từ chối đơn của ${app?.userName || 'người dùng'}. Lý do: ${reason}`,
+            read: false,
+            actionLink: '/quan-tri/duyet-chu-tro',
+            createdAt: new Date().toISOString(),
+          };
+
           return {
             ownerApplications: updatedApps,
             currentUser: updatedUser,
-            notifications: [
-              {
-                id: `notif_${Date.now()}`,
-                userId: app?.userId || 'user_renter_1',
-                type: 'rejected',
-                title: 'Hồ sơ nâng cấp Chủ Trọ bị từ chối ❌',
-                body: `Lý do: ${reason}. Vui lòng bổ sung hồ sơ và gửi lại.`,
-                read: false,
-                actionLink: '/landlord-registration',
-                createdAt: new Date().toISOString(),
-              },
-              ...state.notifications,
-            ],
+            notifications: [renterNotif, adminNotif, ...state.notifications],
           };
         });
 
@@ -1402,6 +1438,9 @@ export const useAppStore = create<AppState>()(
           const email = state.currentUser.email?.toLowerCase();
           if (email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn') {
             state.currentUser.role = 'admin';
+          } else if (email === 'phuonglinh832005@gmail.com') {
+            state.currentUser.role = 'owner';
+            state.currentUser.ownerApplicationStatus = 'approved';
           }
         }
       },
