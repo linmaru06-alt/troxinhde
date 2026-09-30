@@ -94,6 +94,7 @@ export interface Room {
   electricityPrice: number;
   waterPrice: number;
   area: number;
+  floor?: number;
   type: "Phòng đơn" | "Studio" | "Phòng ghép" | "Căn hộ mini";
   status: "Còn trống" | "Đã cho thuê" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn";
   verified: boolean;

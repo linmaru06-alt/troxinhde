@@ -92,8 +92,11 @@ export async function getProfileByFirebaseUid(firebaseUid: string): Promise<Auth
 
     if (!profErr && profile) {
       const isSuperAdmin = profile.email === 'quan66934@gmail.com' || profile.email === 'admin@troxinh.vn';
+      const isLandlord = profile.email === 'phuonglinh832005@gmail.com';
       const resolvedRole: AppUserRole = isSuperAdmin
         ? 'admin'
+        : isLandlord
+        ? 'owner'
         : ((profile.app_role || (profile.role === 'user' ? 'renter' : profile.role) || 'renter') as AppUserRole);
 
       return {
@@ -104,7 +107,7 @@ export async function getProfileByFirebaseUid(firebaseUid: string): Promise<Auth
         phone: profile.phone || undefined,
         role: resolvedRole,
         avatarUrl: profile.avatar_url || '/images/user-avatar.jpg',
-        ownerApplicationStatus: profile.owner_application_status || 'none',
+        ownerApplicationStatus: (isLandlord || resolvedRole === 'owner') ? 'approved' : (profile.owner_application_status || 'none'),
         isDemoAccount: Boolean(profile.is_demo_account),
         createdAt: profile.created_at,
       };
@@ -128,7 +131,8 @@ export async function syncFirebaseUserToSupabase(
 ): Promise<AuthUserProfile> {
   const email = fbUser.email ? fbUser.email.trim().toLowerCase() : undefined;
   const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
-  const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : customRole;
+  const isLandlord = email === 'phuonglinh832005@gmail.com';
+  const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : customRole);
   const phone = fbUser.phoneNumber ? fbUser.phoneNumber.replace(/\D/g, '') : undefined;
   const name = customName || fbUser.displayName || (isSuperAdmin ? 'Quản Trị Viên (Quân)' : (email ? email.split('@')[0] : 'Người dùng Trọ Xinh'));
   const avatarUrl = fbUser.photoURL || '/images/user-avatar.jpg';
@@ -621,7 +625,8 @@ export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Pro
 
     const email = fbUser.email ? fbUser.email.toLowerCase() : `google_${fbUser.uid}@troxinh.vn`;
     const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
-    const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : intendedRole;
+    const isLandlord = email === 'phuonglinh832005@gmail.com';
+    const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : intendedRole);
 
     const unifiedRes = await handleUnifiedAuth({
       identifier: email,

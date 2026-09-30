@@ -434,8 +434,12 @@ export const useAppStore = create<AppState>()(
       setCurrentUser: (user) => {
         if (user) {
           const isSuperAdmin = user.email?.toLowerCase() === 'quan66934@gmail.com' || user.email?.toLowerCase() === 'admin@troxinh.vn';
+          const isLandlord = user.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
           if (isSuperAdmin) {
             user.role = 'admin';
+          } else if (isLandlord) {
+            user.role = 'owner';
+            user.ownerApplicationStatus = 'approved';
           }
         }
         set({ currentUser: user });
@@ -503,7 +507,8 @@ export const useAppStore = create<AppState>()(
 
       loginWithSocialUser: (userData) => {
         const isSuperAdmin = userData.email?.toLowerCase() === 'quan66934@gmail.com' || userData.email?.toLowerCase() === 'admin@troxinh.vn';
-        const userRole: 'user' | 'owner' | 'admin' = isSuperAdmin ? 'admin' : (userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user');
+        const isLandlord = userData.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
+        const userRole: 'user' | 'owner' | 'admin' = isSuperAdmin ? 'admin' : (isLandlord || userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user');
         const userObj: User = {
           id: userData.id,
           firebaseUid: userData.firebaseUid,
@@ -516,7 +521,7 @@ export const useAppStore = create<AppState>()(
           verified: true,
           emailVerified: userData.emailVerified,
           phoneVerified: userData.phoneVerified,
-          ownerApplicationStatus: userRole === 'owner' ? 'approved' : 'none',
+          ownerApplicationStatus: (isLandlord || userRole === 'owner') ? 'approved' : 'none',
           createdAt: new Date().toISOString(),
         };
         set({ currentUser: userObj });
@@ -1402,6 +1407,9 @@ export const useAppStore = create<AppState>()(
           const email = state.currentUser.email?.toLowerCase();
           if (email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn') {
             state.currentUser.role = 'admin';
+          } else if (email === 'phuonglinh832005@gmail.com') {
+            state.currentUser.role = 'owner';
+            state.currentUser.ownerApplicationStatus = 'approved';
           }
         }
       },
