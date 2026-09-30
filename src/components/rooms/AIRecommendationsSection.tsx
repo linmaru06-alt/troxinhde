@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useAppStore } from '../../store/useAppStore';
 import { RoomCard } from '../ui/Cards';
-import { Sparkles, Bot, ArrowRight, Zap } from 'lucide-react';
+import { Sparkles, Bot, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const AIRecommendationsSection: React.FC = () => {
   const { rooms = [], currentUser } = useAppStore();
-  const [recommendedRooms, setRecommendedRooms] = useState<Array<{ room: any; reason: string; score: number }>>([]);
+  const [recommendedRooms, setRecommendedRooms] = useState<Array<{ room: any; reason: string }>>([]);
 
   useEffect(() => {
     // Top approved rooms with dynamic AI-like personalized scoring & explanations
@@ -23,7 +23,6 @@ export const AIRecommendationsSection: React.FC = () => {
         return {
           room,
           reason: reasons[idx % reasons.length],
-          score: 9.8 - idx * 0.3,
         };
       });
 
@@ -63,18 +62,10 @@ export const AIRecommendationsSection: React.FC = () => {
         </Link>
       </div>
 
-      {/* Grid of Recommended Rooms with AI Badges */}
+      {/* Grid of Recommended Rooms */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-        {recommendedRooms.map(({ room, reason, score }) => (
-          <div key={room.id} className="flex flex-col space-y-2 relative">
-            {/* AI Match Banner */}
-            <div className="bg-emerald-800 text-white rounded-t-2xl px-3 py-1.5 text-[11px] font-bold flex items-center justify-between shadow-xs">
-              <span className="flex items-center gap-1 text-amber-300">
-                <Zap className="w-3 h-3 fill-current" /> Phù hợp {score.toFixed(1)}/10
-              </span>
-              <span className="text-[10px] text-emerald-200 uppercase tracking-wider font-mono">Trọ Xinh AI</span>
-            </div>
-
+        {recommendedRooms.map(({ room, reason }) => (
+          <div key={room.id} className="flex flex-col space-y-2 relative h-full">
             {/* Main Room Card */}
             <div className="flex-1">
               <RoomCard room={room} />

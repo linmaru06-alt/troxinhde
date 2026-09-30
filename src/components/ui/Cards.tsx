@@ -73,15 +73,15 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   return (
     <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
-      <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
-        <Link to={`/phong/${room.id}`} className="block w-full h-full">
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100 rounded-t-2xl">
+        <Link to={`/phong/${room.id}`} className="block w-full h-full rounded-t-2xl overflow-hidden">
           <ImageWithFallback
             src={room.images?.[0] || '/images/hero-banner.webp'}
             alt={room.title}
             preset="thumbnail"
             loading="lazy"
             fallback="room"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-2xl"
           />
         </Link>
 
