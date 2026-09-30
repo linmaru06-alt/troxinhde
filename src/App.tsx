@@ -124,13 +124,16 @@ const AppCloudDataLoader: React.FC = () => {
           const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
           const isLandlord = email === 'phuonglinh832005@gmail.com';
           const profile = await getProfileByFirebaseUid(fbUser.uid);
+          const isApprovedOwner = profile?.owner_application_status === 'approved' || profile?.role === 'owner' || isLandlord;
+          const targetRole = isSuperAdmin ? 'admin' : (isApprovedOwner ? 'owner' : (profile?.role || 'user'));
+
           if (profile) {
             loginWithSocialUser({
               id: profile.id,
               name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
               email: profile.email || fbUser.email || undefined,
               phone: profile.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : profile.role),
+              role: targetRole,
               avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
               emailVerified: fbUser.emailVerified,
               phoneVerified: !!fbUser.phoneNumber,
@@ -270,6 +273,15 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   return <>{children}</>;
 };
 
+// Smart Home Route: Tự động điều hướng Chủ trọ vào trang Tổng quan & Phòng
+const HomeRoute: React.FC = () => {
+  const { currentUser } = useAppStore();
+  if (currentUser && (currentUser.role === 'owner' || currentUser.ownerApplicationStatus === 'approved')) {
+    return <Navigate to="/chu-tro" replace />;
+  }
+  return <LandingPage />;
+};
+
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
@@ -282,7 +294,7 @@ export const App: React.FC = () => {
           <React.Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Core Routes */}
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/tim-kiem" element={<SearchPage />} />
               <Route path="/tim-phong" element={<SearchPage />} />
               <Route path="/ban-do" element={<MapViewPage />} />

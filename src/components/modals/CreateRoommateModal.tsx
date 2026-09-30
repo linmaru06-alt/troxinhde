@@ -843,7 +843,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
               disabled={isSubmitting || isUploadingImg}
               leftIcon={<Sparkles className="w-4 h-4" />}
             >
-              {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin Tìm Bạn Ngay'}
+              {isSubmitting ? 'Đang Đăng Tin...' : 'Đăng Tin'}
             </Button>
           </div>
         </div>
