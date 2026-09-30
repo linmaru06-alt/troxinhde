@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
-import { useUIStore } from '../store/useUIStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
 import { getConversations } from '../lib/api/messages';
@@ -14,7 +13,6 @@ import {
   Phone,
   Loader2,
   Sparkles,
-  ExternalLink,
   Users,
 } from 'lucide-react';
 
@@ -81,7 +79,6 @@ const FALLBACK_OWNER_CONVERSATIONS: Conversation[] = [
 export const OwnerChatPage: React.FC = () => {
   const { conversationId } = useParams<{ conversationId?: string }>();
   const { currentUser } = useAppStore();
-  const { openFloatingChat } = useUIStore();
 
   const [conversations, setConversations] = useState<Conversation[]>(FALLBACK_OWNER_CONVERSATIONS);
   const [isConvLoading, setIsConvLoading] = useState<boolean>(true);
@@ -206,17 +203,6 @@ export const OwnerChatPage: React.FC = () => {
             <h1 className="text-xl sm:text-2xl font-black text-gray-950">
               Hộp Thư Tin Nhắn Khách Thuê
             </h1>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => openFloatingChat(activeConversationId)}
-              leftIcon={<ExternalLink className="w-3.5 h-3.5" />}
-            >
-              Mở Box Chat Thu Nhỏ FB
-            </Button>
           </div>
         </div>
 

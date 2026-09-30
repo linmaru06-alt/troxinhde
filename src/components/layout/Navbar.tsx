@@ -44,7 +44,7 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { currentUser, logout, savedRoomIds = [] } = useAppStore();
-  const { openAuthModal, openFloatingChat } = useUIStore();
+  const { openAuthModal } = useUIStore();
   const { unreadCount: unreadNotifs, notifications } = useRealtimeNotifications();
 
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -107,6 +107,12 @@ export const Navbar: React.FC = () => {
   const unreadMessages = (notifications || []).filter(
     (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
   ).length;
+
+  const chatUrl = !currentUser
+    ? `/dang-nhap?returnUrl=${encodeURIComponent('/tin-nhan')}`
+    : currentUser.role === 'owner'
+    ? '/chu-tro/tin-nhan'
+    : '/tin-nhan';
 
   // Main navigation links: Room rental, Map, Roommate, Student Marketplace
   const navLinks = [
@@ -256,10 +262,9 @@ export const Navbar: React.FC = () => {
                 />
               </div>
 
-              {/* Chat / Liên hệ Pill (Mở box chat thu nhỏ FB) */}
-              <button
-                type="button"
-                onClick={() => openFloatingChat()}
+              {/* Chat / Liên hệ (Điều hướng sang khung chat tổng) */}
+              <Link
+                to={chatUrl}
                 aria-label="Tin nhắn liên hệ"
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/90 hover:bg-white text-gray-950 text-xs font-black transition shadow-2xs relative cursor-pointer"
                 title="Tin nhắn / Liên hệ"
@@ -271,7 +276,7 @@ export const Navbar: React.FC = () => {
                     {unreadMessages}
                   </span>
                 )}
-              </button>
+              </Link>
 
               {/* ĐĂNG TIN */}
               <button
@@ -519,10 +524,9 @@ export const Navbar: React.FC = () => {
                 />
               </div>
 
-              {/* Nút Liên hệ (Mở Box chat thu nhỏ FB) */}
-              <button
-                type="button"
-                onClick={() => openFloatingChat()}
+              {/* Nút Liên hệ (Điều hướng sang khung chat tổng) */}
+              <Link
+                to={chatUrl}
                 aria-label="Tin nhắn liên hệ"
                 className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-gray-200 hover:bg-gray-100 text-gray-900 text-xs font-bold transition shadow-2xs relative cursor-pointer"
                 title="Tin nhắn / Liên hệ"
@@ -534,7 +538,7 @@ export const Navbar: React.FC = () => {
                     {unreadMessages}
                   </span>
                 )}
-              </button>
+              </Link>
 
               {/* Nút ĐĂNG TIN (Màu xanh Trọ Xinh nổi bật) */}
               <button

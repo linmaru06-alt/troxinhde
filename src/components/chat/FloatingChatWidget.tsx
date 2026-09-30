@@ -60,6 +60,7 @@ const FALLBACK_CHAT_CONVERSATIONS: Conversation[] = [
 ];
 
 export const FloatingChatWidget: React.FC = () => {
+  return null;
   const navigate = useNavigate();
   const { currentUser } = useAppStore();
   const {

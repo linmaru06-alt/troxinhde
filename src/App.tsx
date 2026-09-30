@@ -11,7 +11,6 @@ import { Building2, ArrowRight, ShieldAlert, Home } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
 import { AuthModal } from './components/modals/AuthModal';
-import { FloatingChatWidget } from './components/chat/FloatingChatWidget';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
 
@@ -742,7 +741,6 @@ export const App: React.FC = () => {
         <OfflineBanner />
         <PushPermissionToast />
         <ToastContainer />
-        <FloatingChatWidget />
         <AuthModal />
       </div>
     </BrowserRouter>
