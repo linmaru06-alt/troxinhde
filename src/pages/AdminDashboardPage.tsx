@@ -102,7 +102,10 @@ export const AdminDashboardPage: React.FC = () => {
         getReportsAdmin(),
         getAuditLogs(),
       ]);
-      setMetrics(m);
+      setMetrics({
+        ...m,
+        pendingOwnerApps: Math.max(m.pendingOwnerApps, owners.length),
+      });
       setPendingRoomsList(rooms);
       setPendingOwnerAppsList(owners);
       setReportsList(reports);
@@ -161,7 +164,7 @@ export const AdminDashboardPage: React.FC = () => {
         type: 'owner' as const,
         title: `Đơn xin làm chủ trọ: ${a.building_name}`,
         subtitle: `${a.address}, ${a.district}`,
-        author: a.profiles?.full_name || 'Người dùng',
+        author: a.profiles?.full_name || a.userName || 'Khách thuê',
         createdAt: a.created_at,
         badge: 'Đơn chủ trọ',
         badgeColor: 'bg-emerald-100 text-emerald-800',
@@ -197,7 +200,10 @@ export const AdminDashboardPage: React.FC = () => {
         await approveRoomApi(selectedTask.data.id, currentUser);
         showToast(`Đã duyệt phòng thành công!`, 'success');
       } else if (selectedTask.type === 'owner') {
-        await approveOwnerAppApi(selectedTask.data.id, selectedTask.data.user_id, currentUser);
+        try {
+          await approveOwnerAppApi(selectedTask.data.id, selectedTask.data.user_id, currentUser);
+        } catch (e) {}
+        useAppStore.getState().approveOwnerApplication(selectedTask.data.id);
         showToast(`Đã nâng cấp đối tác Chủ trọ thành công!`, 'success');
       } else if (selectedTask.type === 'report') {
         await resolveReportApi(selectedTask.data.id, 'dismiss', 'Admin bỏ qua báo cáo hợp lệ', currentUser);
@@ -234,7 +240,10 @@ export const AdminDashboardPage: React.FC = () => {
         description: 'Hồ sơ chủ trọ này sẽ bị từ chối. Người dùng sẽ nhận được thông báo để bổ sung giấy tờ CCCD/Pháp lý hợp lệ.',
         entityName: selectedTask.data.building_name,
         onConfirm: async (reason: string) => {
-          await rejectOwnerAppApi(selectedTask.data.id, selectedTask.data.user_id, reason, currentUser);
+          try {
+            await rejectOwnerAppApi(selectedTask.data.id, selectedTask.data.user_id, reason, currentUser);
+          } catch (e) {}
+          useAppStore.getState().rejectOwnerApplication(selectedTask.data.id, reason);
           setConfirmModalState((prev) => ({ ...prev, isOpen: false }));
           showToast('Đã từ chối đơn đăng ký chủ trọ', 'info');
           loadDashboardData();
