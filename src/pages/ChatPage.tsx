@@ -1298,7 +1298,30 @@ export const ChatPage: React.FC = () => {
     try {
       const convId = await getOrCreateAdminConversation(currentUser.id);
       const updatedList = await getConversations(currentUser.id);
-      setConversations(updatedList);
+      const found = updatedList.find((c) => c.id === convId);
+      if (!found) {
+        const syntheticAdminConv: Conversation = {
+          id: convId,
+          participant_1: currentUser.id,
+          participant_2: ADMIN_USER_ID,
+          other_name: 'Ban Quản Trị Trọ Xinh',
+          other_avatar: '/images/logo.png',
+          last_message: 'Bắt đầu cuộc trò chuyện...',
+          last_message_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          unread_count: 0,
+          p2: {
+            id: ADMIN_USER_ID,
+            name: 'Ban Quản Trị Trọ Xinh',
+            full_name: 'Ban Quản Trị Trọ Xinh',
+            avatar_url: '/images/logo.png',
+            app_role: 'admin',
+          },
+        };
+        setConversations([syntheticAdminConv, ...updatedList]);
+      } else {
+        setConversations(updatedList);
+      }
       handleSelectConversation(convId);
     } catch (err: any) {
       console.error('[ChatPage] Lỗi mở hội thoại với Admin:', err);
