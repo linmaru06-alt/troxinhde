@@ -76,7 +76,7 @@ export const Footer: React.FC = () => {
             <ul className="space-y-2.5 text-xs">
               <li>
                 <a
-                  href="https://www.facebook.com/troxinh.vn"
+                  href="https://www.facebook.com/chinh.nguyenvu.05"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:text-[#006d37] transition"
