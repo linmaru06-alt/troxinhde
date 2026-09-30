@@ -10,6 +10,9 @@ import {
   isSameUserId,
   KNOWN_USER_NAMES,
   markConversationAsRead,
+  isConversationWithAdmin,
+  getOrCreateAdminConversation,
+  ADMIN_USER_ID,
 } from '../lib/api/messages';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
@@ -479,18 +482,26 @@ export const ChatPage: React.FC = () => {
 
   const knownOther = otherId ? KNOWN_USER_NAMES[otherId] : null;
 
-  const otherName =
-    activeConversation?.other_name ||
-    otherParticipant?.full_name ||
-    otherParticipant?.name ||
-    knownOther?.name ||
-    (isP1Me ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
-  const otherAvatar =
-    activeConversation?.other_avatar ||
-    otherParticipant?.avatar_url ||
-    knownOther?.avatar ||
-    '/images/user-avatar.jpg';
-  const otherPhone = otherParticipant?.phone;
+  const isChatWithAdmin = Boolean(
+    activeConversation && isConversationWithAdmin(activeConversation, currentUser?.id)
+  );
+
+  const otherName = isChatWithAdmin
+    ? 'Ban Quản Trị Trọ Xinh'
+    : (activeConversation?.other_name ||
+      otherParticipant?.full_name ||
+      otherParticipant?.name ||
+      knownOther?.name ||
+      (isP1Me ? 'Chủ trọ / Người đăng' : 'Khách liên hệ'));
+
+  const otherAvatar = isChatWithAdmin
+    ? '/images/logo.png'
+    : (activeConversation?.other_avatar ||
+      otherParticipant?.avatar_url ||
+      knownOther?.avatar ||
+      '/images/user-avatar.jpg');
+
+  const otherPhone = isChatWithAdmin ? '0888110789' : otherParticipant?.phone;
 
   // Header menu "..." và Báo cáo tin nhắn
   const [isHeaderMenuOpen, setIsHeaderMenuOpen] = useState<boolean>(false);
@@ -994,7 +1005,17 @@ export const ChatPage: React.FC = () => {
     'Cuối tuần này chúng mình gặp nhau uống nước trao đổi nhé!',
   ];
 
-  const currentQuickReplies = attachedItemId
+  // Gợi ý khi nhắn tin với Ban Quản Trị Trọ Xinh
+  const adminQuickReplies = [
+    'Em cần hỗ trợ tìm phòng trọ tại Hà Nội',
+    'Em muốn tư vấn về quy trình kiểm duyệt & cọc an toàn',
+    'Em cần báo cáo sự cố bài đăng hoặc chủ trọ',
+    'Em muốn đăng ký tài khoản chủ trọ đối tác',
+  ];
+
+  const currentQuickReplies = isChatWithAdmin
+    ? adminQuickReplies
+    : attachedItemId
     ? itemQuickReplies
     : roommatePost
     ? roommateQuickReplies
@@ -1005,14 +1026,12 @@ export const ChatPage: React.FC = () => {
   );
 
   // Điều kiện hiển thị gợi ý:
-  // - Chưa có tin nhắn thật nào từ cả hai phía (nếu người bán đã nhắn trước thì không hiện)
-  // - Chỉ hiện cho người mua / người hỏi, không hiện cho chủ bài đăng
-  // - Chưa bị ẩn do đã gửi thành công
+  // - Khi chat với Admin: luôn gợi ý nếu chưa ẩn
+  // - Khi chat với người dùng: chỉ hiện khi chưa có tin nhắn thật và chưa bị ẩn
   const shouldShowQuickReplies =
-    !hasAnyRealMessage &&
-    !isOwnerOfItem &&
-    !isPosterOfRoommate &&
-    !hideQuickReplies &&
+    (isChatWithAdmin
+      ? !hideQuickReplies
+      : (!hasAnyRealMessage && !isOwnerOfItem && !isPosterOfRoommate && !hideQuickReplies)) &&
     currentQuickReplies.length > 0;
 
   const renderOfferCard = (offerData: any, isFromMe: boolean) => {
@@ -1237,6 +1256,50 @@ export const ChatPage: React.FC = () => {
     return true;
   });
 
+  const isCurrentUserAdmin =
+    currentUser?.role === 'admin' || (currentUser as any)?.app_role === 'admin';
+
+  // 1. Cuộc trò chuyện với Ban Quản Trị Trọ Xinh (Ghim ở Phần 1)
+  const adminConversation = useMemo(() => {
+    return conversations.find((c) => isConversationWithAdmin(c, currentUser?.id));
+  }, [conversations, currentUser?.id]);
+
+  // 2. Những đoạn chat nhắn tin với những người đã nhắn (Phần 2, loại trừ Admin)
+  const otherConversations = useMemo(() => {
+    return filteredConversations.filter((c) => !isConversationWithAdmin(c, currentUser?.id));
+  }, [filteredConversations, currentUser?.id]);
+
+  const [isOpeningAdminChat, setIsOpeningAdminChat] = useState<boolean>(false);
+
+  const handleSelectAdminChat = async () => {
+    if (adminConversation) {
+      handleSelectConversation(adminConversation.id);
+      return;
+    }
+    if (!currentUser?.id) {
+      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để chat với Ban Quản Trị', 'warning');
+      return;
+    }
+    setIsOpeningAdminChat(true);
+    try {
+      const convId = await getOrCreateAdminConversation(currentUser.id);
+      const updatedList = await getConversations(currentUser.id);
+      setConversations(updatedList);
+      handleSelectConversation(convId);
+    } catch (err: any) {
+      console.error('[ChatPage] Lỗi mở hội thoại với Admin:', err);
+      showToast('Không thể kết nối', err?.message || 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setIsOpeningAdminChat(false);
+    }
+  };
+
+  const adminUnreadCount = useMemo(() => {
+    if (!adminConversation) return 0;
+    const isMe = isSameUserId(adminConversation.participant_1, currentUser?.id);
+    return adminConversation.unread_count ?? (isMe ? (adminConversation.unread_count_p1 || 0) : (adminConversation.unread_count_p2 || 0));
+  }, [adminConversation, currentUser?.id]);
+
   return (
     <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 sm:py-4">
       <div
@@ -1330,148 +1393,241 @@ export const ChatPage: React.FC = () => {
             })}
           </div>
 
-          <div className="flex-1 overflow-y-auto divide-y divide-gray-100">
+          <div className="flex-1 overflow-y-auto">
             {isConvLoading ? (
               <div className="p-8 text-center text-gray-400 space-y-2">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-[#006d37]" />
                 <p className="text-xs">Đang tải cuộc trò chuyện...</p>
               </div>
-            ) : conversations.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 space-y-2">
-                <MessageSquare className="w-8 h-8 mx-auto text-gray-300" />
-                <p className="text-xs font-semibold">Chưa có tin nhắn nào</p>
-                <p className="text-[11px] text-gray-400">
-                  Hãy bấm "Nhắn tin" trên trang chi tiết phòng để bắt đầu trò chuyện.
-                </p>
-              </div>
-            ) : filteredConversations.length === 0 ? (
-              <div className="p-8 text-center text-gray-400 space-y-2">
-                <Search className="w-7 h-7 mx-auto text-gray-300" />
-                <p className="text-xs font-semibold">Không tìm thấy cuộc trò chuyện</p>
-                <p className="text-[11px] text-gray-400">
-                  {inboxFilter !== 'all' ? 'Không có tin nhắn nào trong mục này.' : 'Thử tìm kiếm với từ khóa khác.'}
-                </p>
-                {inboxFilter !== 'all' && (
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setInboxFilter('all');
-                      setConvSearch('');
-                    }}
-                    className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer pt-1 block mx-auto"
-                  >
-                    Xem tất cả cuộc trò chuyện
-                  </button>
-                )}
-              </div>
             ) : (
-              filteredConversations.map((c) => {
-                const isMe = isSameUserId(c.participant_1, currentUser?.id);
-                const other = isMe ? c.p2 : c.p1;
-                const otherId = isMe ? c.participant_2 : c.participant_1;
-                const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
-                const name =
-                  c.other_name ||
-                  other?.full_name ||
-                  other?.name ||
-                  known?.name ||
-                  (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
-                const avatar =
-                  c.other_avatar ||
-                  other?.avatar_url ||
-                  known?.avatar ||
-                  '/images/user-avatar.jpg';
-                const isActive = c.id === activeConversationId;
-                const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
-                const hasUnread = unreadCount > 0;
-                const cMeta = getConversationMeta(c.id);
-
-                return (
-                  <div
-                    key={c.id}
-                    onClick={() => handleSelectConversation(c.id)}
-                    className={`p-3.5 flex items-start gap-3 cursor-pointer transition tap-bounce relative ${
-                      isActive
-                        ? 'bg-emerald-50/80 border-l-4 border-[#006d37]'
-                        : hasUnread
-                        ? 'bg-emerald-50/30 hover:bg-emerald-50/50'
-                        : 'hover:bg-gray-50'
-                    }`}
-                  >
-                    <div className="relative shrink-0">
-                      <img
-                        src={avatar}
-                        alt={name}
-                        className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100"
-                      />
-                      {hasUnread && (
-                        <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#006d37] rounded-full border-2 border-white ring-1 ring-[#006d37]/20" />
-                      )}
+              <>
+                {/* ========================================================
+                    PHẦN 1: GHIM NHẮN TIN VỚI ADMIN / BAN QUẢN TRỊ TRỌ XINH
+                ======================================================== */}
+                {!isCurrentUserAdmin && (
+                  <div className="bg-white border-b-2 border-emerald-100/90 shrink-0">
+                    <div className="px-3.5 py-1.5 bg-gradient-to-r from-emerald-50 via-emerald-50/80 to-teal-50/40 border-b border-emerald-100 flex items-center justify-between text-[11px] font-bold text-[#006d37]">
+                      <span className="flex items-center gap-1.5">
+                        <span className="text-xs">📌</span>
+                        <span>HỖ TRỢ BAN QUẢN TRỊ</span>
+                      </span>
+                      <span className="text-[10px] bg-emerald-100 text-[#006d37] px-2 py-0.5 rounded-full font-semibold border border-emerald-200 shadow-2xs">
+                        CSKH 24/7
+                      </span>
                     </div>
-                    <div className="flex-1 overflow-hidden space-y-0.5">
-                      <div className="flex items-center justify-between gap-1">
-                        <div className="flex items-center gap-1.5 min-w-0 flex-1">
-                          <h4 className={`text-xs truncate ${hasUnread ? 'font-black text-gray-900' : 'font-bold text-gray-800'}`}>
-                            {name}
-                          </h4>
-                          {otherId && blockedUserIds.includes(otherId) && (
-                            <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded font-bold shrink-0">
-                              Đã chặn
+
+                    <div
+                      onClick={handleSelectAdminChat}
+                      className={`p-3.5 flex items-start gap-3 cursor-pointer transition tap-bounce relative ${
+                        adminConversation && adminConversation.id === activeConversationId
+                          ? 'bg-emerald-50/90 border-l-4 border-[#006d37]'
+                          : adminUnreadCount > 0
+                          ? 'bg-emerald-50/40 hover:bg-emerald-50/70'
+                          : 'hover:bg-gray-50'
+                      }`}
+                    >
+                      <div className="relative shrink-0">
+                        <img
+                          src="/images/logo.png"
+                          alt="Trọ Xinh"
+                          className="w-10 h-10 rounded-xl object-cover ring-2 ring-emerald-500/40 shadow-xs"
+                        />
+                        <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-emerald-500 rounded-full border-2 border-white ring-1 ring-emerald-600/30" />
+                      </div>
+
+                      <div className="flex-1 overflow-hidden space-y-0.5">
+                        <div className="flex items-center justify-between gap-1">
+                          <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                            <h4 className={`text-xs truncate ${adminUnreadCount > 0 ? 'font-black text-gray-900' : 'font-bold text-gray-900'}`}>
+                              Ban Quản Trị Trọ Xinh
+                            </h4>
+                            <span className="text-[9px] bg-[#006d37] text-white px-1.5 py-0.2 rounded font-bold uppercase shrink-0">
+                              BQT
+                            </span>
+                          </div>
+                          {adminConversation?.last_message_at && (
+                            <span className={`text-[10px] shrink-0 ${adminUnreadCount > 0 ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
+                              {new Date(adminConversation.last_message_at).toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
                             </span>
                           )}
                         </div>
-                        {c.last_message_at && (
-                          <span className={`text-[10px] shrink-0 ${hasUnread ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
-                            {new Date(c.last_message_at).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </span>
-                        )}
-                      </div>
-                      {(c.rooms?.name || c.rooms?.title) ? (
+
                         <p className="text-[10px] text-[#006d37] font-semibold truncate flex items-center gap-1">
-                          <Home className="w-3 h-3 shrink-0" /> {c.rooms.name || c.rooms.title}
+                          <ShieldCheck className="w-3 h-3 text-[#006d37] shrink-0" />
+                          Hỗ trợ tìm phòng, cọc an toàn &amp; khiếu nại
                         </p>
-                      ) : (c.item_id || c.last_item_id || cMeta?.last_item_name) ? (
-                        <p className="text-[10px] text-amber-700 font-semibold truncate flex items-center gap-1">
-                          <ShoppingBag className="w-3 h-3 shrink-0 text-amber-600" /> {cMeta?.last_item_name || 'Đồ cũ thanh lý'}
-                        </p>
-                      ) : ((c as any).roommate_id || cMeta?.roommate_id) ? (
-                        <p className="text-[10px] text-indigo-700 font-semibold truncate flex items-center gap-1">
-                          <Users className="w-3 h-3 shrink-0 text-indigo-600" /> Tìm bạn ở ghép
-                        </p>
-                      ) : null}
-                      <div className="flex items-center justify-between gap-1">
-                        <p className={`text-xs truncate leading-snug flex-1 ${hasUnread ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
-                          {(() => {
-                            const raw = c.last_message;
-                            if (!raw) return 'Bắt đầu cuộc trò chuyện...';
-                            const trimmed = raw.trim();
-                            // Đảm bảo tin cảnh báo an toàn không hiển thị ở dòng xem trước tin cuối trong sidebar
-                            if (trimmed.includes('Nên gặp ở nơi công cộng') || trimmed.includes('kiểm tra đồ trước khi chuyển tiền')) {
-                              return 'Bắt đầu cuộc trò chuyện...';
-                            }
-                            if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
-                              try {
-                                const parsed = JSON.parse(trimmed);
-                                if (parsed.summary) return parsed.summary;
-                                if (parsed.title) return `[Món đồ] ${parsed.title}`;
-                              } catch {}
-                            }
-                            return raw;
-                          })()}
-                        </p>
-                        {hasUnread && (
-                          <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 text-[10px] font-bold bg-[#006d37] text-white rounded-full shadow-xs shrink-0 animate-scaleUp">
-                            {unreadCount > 99 ? '99+' : unreadCount}
-                          </span>
-                        )}
+
+                        <div className="flex items-center justify-between gap-1">
+                          <p className={`text-xs truncate leading-snug flex-1 ${adminUnreadCount > 0 ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                            {isOpeningAdminChat
+                              ? 'Đang kết nối tới Ban Quản Trị...'
+                              : adminConversation?.last_message
+                              ? adminConversation.last_message
+                              : 'Bấm vào đây để chat trực tiếp với BQT Trọ Xinh...'}
+                          </p>
+                          {adminUnreadCount > 0 && (
+                            <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 text-[10px] font-bold bg-[#006d37] text-white rounded-full shadow-xs shrink-0 animate-scaleUp">
+                              {adminUnreadCount > 99 ? '99+' : adminUnreadCount}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
-                );
-              })
+                )}
+
+                {/* ========================================================
+                    PHẦN 2: NHỮNG ĐOẠN CHAT NHẮN TIN VỚI NHỮNG NGƯỜI ĐÃ NHẮN
+                ======================================================== */}
+                <div>
+                  <div className="px-3.5 py-1.5 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-500">
+                    <span className="flex items-center gap-1.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
+                      <span>ĐOẠN CHAT GẦN ĐÂY</span>
+                    </span>
+                    <span className="text-[10px] text-gray-400 font-medium">
+                      {otherConversations.length} cuộc trò chuyện
+                    </span>
+                  </div>
+
+                  {otherConversations.length === 0 ? (
+                    <div className="p-8 text-center text-gray-400 space-y-2">
+                      <MessageSquare className="w-7 h-7 mx-auto text-gray-300" />
+                      <p className="text-xs font-semibold">Chưa có tin nhắn nào khác</p>
+                      <p className="text-[11px] text-gray-400 leading-relaxed">
+                        {inboxFilter !== 'all'
+                          ? 'Không có tin nhắn nào trong mục lọc này.'
+                          : 'Các cuộc trò chuyện với chủ trọ, bạn ở ghép hoặc người mua/bán đồ sẽ xuất hiện ở đây.'}
+                      </p>
+                      {inboxFilter !== 'all' && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setInboxFilter('all');
+                            setConvSearch('');
+                          }}
+                          className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer pt-1 block mx-auto"
+                        >
+                          Xem tất cả cuộc trò chuyện
+                        </button>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-100">
+                      {otherConversations.map((c) => {
+                        const isMe = isSameUserId(c.participant_1, currentUser?.id);
+                        const other = isMe ? c.p2 : c.p1;
+                        const otherId = isMe ? c.participant_2 : c.participant_1;
+                        const known = otherId ? KNOWN_USER_NAMES[otherId] : null;
+                        const name =
+                          c.other_name ||
+                          other?.full_name ||
+                          other?.name ||
+                          known?.name ||
+                          (isMe ? 'Chủ trọ / Người đăng' : 'Khách liên hệ');
+                        const avatar =
+                          c.other_avatar ||
+                          other?.avatar_url ||
+                          known?.avatar ||
+                          '/images/user-avatar.jpg';
+                        const isActive = c.id === activeConversationId;
+                        const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
+                        const hasUnread = unreadCount > 0;
+                        const cMeta = getConversationMeta(c.id);
+
+                        return (
+                          <div
+                            key={c.id}
+                            onClick={() => handleSelectConversation(c.id)}
+                            className={`p-3.5 flex items-start gap-3 cursor-pointer transition tap-bounce relative ${
+                              isActive
+                                ? 'bg-emerald-50/80 border-l-4 border-[#006d37]'
+                                : hasUnread
+                                ? 'bg-emerald-50/30 hover:bg-emerald-50/50'
+                                : 'hover:bg-gray-50'
+                            }`}
+                          >
+                            <div className="relative shrink-0">
+                              <img
+                                src={avatar}
+                                alt={name}
+                                className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-100"
+                              />
+                              {hasUnread && (
+                                <span className="absolute -top-1 -right-1 w-3 h-3 bg-[#006d37] rounded-full border-2 border-white ring-1 ring-[#006d37]/20" />
+                              )}
+                            </div>
+                            <div className="flex-1 overflow-hidden space-y-0.5">
+                              <div className="flex items-center justify-between gap-1">
+                                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                                  <h4 className={`text-xs truncate ${hasUnread ? 'font-black text-gray-900' : 'font-bold text-gray-800'}`}>
+                                    {name}
+                                  </h4>
+                                  {otherId && blockedUserIds.includes(otherId) && (
+                                    <span className="text-[10px] bg-gray-100 text-gray-600 px-1.5 py-0.2 rounded font-bold shrink-0">
+                                      Đã chặn
+                                    </span>
+                                  )}
+                                </div>
+                                {c.last_message_at && (
+                                  <span className={`text-[10px] shrink-0 ${hasUnread ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
+                                    {new Date(c.last_message_at).toLocaleTimeString([], {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                    })}
+                                  </span>
+                                )}
+                              </div>
+                              {(c.rooms?.name || c.rooms?.title) ? (
+                                <p className="text-[10px] text-[#006d37] font-semibold truncate flex items-center gap-1">
+                                  <Home className="w-3 h-3 shrink-0" /> {c.rooms.name || c.rooms.title}
+                                </p>
+                              ) : (c.item_id || c.last_item_id || cMeta?.last_item_name) ? (
+                                <p className="text-[10px] text-amber-700 font-semibold truncate flex items-center gap-1">
+                                  <ShoppingBag className="w-3 h-3 shrink-0 text-amber-600" /> {cMeta?.last_item_name || 'Đồ cũ thanh lý'}
+                                </p>
+                              ) : ((c as any).roommate_id || cMeta?.roommate_id) ? (
+                                <p className="text-[10px] text-indigo-700 font-semibold truncate flex items-center gap-1">
+                                  <Users className="w-3 h-3 shrink-0 text-indigo-600" /> Tìm bạn ở ghép
+                                </p>
+                              ) : null}
+                              <div className="flex items-center justify-between gap-1">
+                                <p className={`text-xs truncate leading-snug flex-1 ${hasUnread ? 'font-bold text-gray-900' : 'text-gray-500'}`}>
+                                  {(() => {
+                                    const raw = c.last_message;
+                                    if (!raw) return 'Bắt đầu cuộc trò chuyện...';
+                                    const trimmed = raw.trim();
+                                    // Đảm bảo tin cảnh báo an toàn không hiển thị ở dòng xem trước tin cuối trong sidebar
+                                    if (trimmed.includes('Nên gặp ở nơi công cộng') || trimmed.includes('kiểm tra đồ trước khi chuyển tiền')) {
+                                      return 'Bắt đầu cuộc trò chuyện...';
+                                    }
+                                    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+                                      try {
+                                        const parsed = JSON.parse(trimmed);
+                                        if (parsed.summary) return parsed.summary;
+                                        if (parsed.title) return `[Món đồ] ${parsed.title}`;
+                                      } catch {}
+                                    }
+                                    return raw;
+                                  })()}
+                                </p>
+                                {hasUnread && (
+                                  <span className="inline-flex items-center justify-center min-w-[18px] h-4.5 px-1.5 text-[10px] font-bold bg-[#006d37] text-white rounded-full shadow-xs shrink-0 animate-scaleUp">
+                                    {unreadCount > 99 ? '99+' : unreadCount}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              </>
             )}
           </div>
         </aside>
@@ -1704,8 +1860,39 @@ export const ChatPage: React.FC = () => {
                 </div>
               )}
 
+              {/* Thẻ ghim thông tin hỗ trợ BQT Trọ Xinh */}
+              {isChatWithAdmin && (
+                <div className="bg-gradient-to-r from-emerald-50 via-teal-50/50 to-emerald-50 border-b border-emerald-200/90 px-3.5 py-2.5 flex flex-wrap items-center justify-between gap-3 shadow-2xs shrink-0 z-10">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                      <ShieldCheck className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-gray-900 leading-tight flex items-center gap-1.5">
+                        <span>Kênh Hỗ Trợ Chính Thức Trọ Xinh</span>
+                        <span className="text-[10px] text-emerald-800 bg-emerald-100 px-1.5 py-0.2 rounded font-semibold border border-emerald-200">
+                          CSKH 24/7
+                        </span>
+                      </h4>
+                      <p className="text-[11px] text-emerald-900/80 leading-snug">
+                        Giải đáp tìm phòng trọ, cọc an toàn, hợp đồng mẫu &amp; giải quyết sự cố, khiếu nại.
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <a
+                      href="tel:0888110789"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#006d37] hover:bg-[#005a2e] text-white text-xs font-bold rounded-xl transition shadow-2xs tap-bounce"
+                    >
+                      <Phone className="w-3.5 h-3.5" />
+                      <span>Hotline: 0888 110 789</span>
+                    </a>
+                  </div>
+                </div>
+              )}
+
               {/* Thẻ ghim món đồ gắn kèm phía trên khung chat */}
-              {attachedItemId && (
+              {!isChatWithAdmin && attachedItemId && (
                 <Link
                   to={`/cho-do-cu/${attachedItemId}`}
                   className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group cursor-pointer shrink-0 z-10"
@@ -1787,7 +1974,7 @@ export const ChatPage: React.FC = () => {
               )}
 
               {/* Thẻ ghim Phòng trọ gắn kèm phía trên khung chat */}
-              {!attachedItemId && attachedRoom && (attachedRoom.name || attachedRoom.title) && (
+              {!isChatWithAdmin && !attachedItemId && attachedRoom && (attachedRoom.name || attachedRoom.title) && (
                 <div className="bg-white/95 backdrop-blur-xs border-b border-emerald-100 hover:border-[#006d37]/40 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-emerald-50/40 transition-all group shrink-0 z-10">
                   <Link
                     to={`/phong/${attachedRoom.id || attachedRoomId}`}
@@ -1864,7 +2051,7 @@ export const ChatPage: React.FC = () => {
               )}
 
               {/* Thẻ ghim Bạn ở ghép gắn kèm phía trên khung chat */}
-              {!attachedItemId && (!attachedRoom || (!attachedRoom.name && !attachedRoom.title)) && roommatePost && (
+              {!isChatWithAdmin && !attachedItemId && (!attachedRoom || (!attachedRoom.name && !attachedRoom.title)) && roommatePost && (
                 <div className="bg-white/95 backdrop-blur-xs border-b border-indigo-100 hover:border-indigo-300 px-3 py-2 sm:px-4 sm:py-2.5 flex items-center justify-between gap-2.5 shadow-2xs hover:bg-indigo-50/30 transition-all group shrink-0 z-10">
                   <Link
                     to={`/roommate/${roommatePost.id}`}

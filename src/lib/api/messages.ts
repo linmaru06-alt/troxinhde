@@ -137,6 +137,57 @@ export function saveConversationMeta(
   } catch {}
 }
 
+export const ADMIN_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+/**
+ * Kiểm tra xem một cuộc hội thoại có phải là với Admin / Ban Quản Trị hay không
+ */
+export function isConversationWithAdmin(
+  c: Conversation,
+  currentUserId?: string
+): boolean {
+  if (!c) return false;
+  const isMe = isSameUserId(c.participant_1, currentUserId);
+  const other = isMe ? c.p2 : c.p1;
+  const otherId = isMe ? c.participant_2 : c.participant_1;
+
+  if (
+    otherId === ADMIN_USER_ID ||
+    otherId === "usr_admin_quan66934" ||
+    otherId === "demo_admin_uuid" ||
+    otherId === "demo_admin_troxinh"
+  ) {
+    return true;
+  }
+  if (other?.app_role === "admin" || (other as any)?.role === "admin") {
+    return true;
+  }
+  const name = (
+    c.other_name ||
+    other?.full_name ||
+    other?.name ||
+    ""
+  ).toLowerCase();
+  if (
+    name.includes("ban quản trị") ||
+    name.includes("bqt trọ xinh") ||
+    name.includes("quản trị viên")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Khởi tạo hoặc tìm cuộc hội thoại trực tiếp với Ban Quản Trị Trọ Xinh
+ */
+export async function getOrCreateAdminConversation(userId: string): Promise<string> {
+  return getOrCreateConversation(userId, ADMIN_USER_ID, undefined, {
+    otherName: "Ban Quản Trị Trọ Xinh",
+    otherAvatar: "/images/logo.png",
+  });
+}
+
 function getLocalConversations(): Conversation[] {
   try {
     const raw = safeGetStorage(LOCAL_CONVS_KEY);
