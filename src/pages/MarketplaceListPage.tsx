@@ -624,34 +624,34 @@ export const MarketplaceListPage: React.FC = () => {
         {/* Dark Gradient & Frosted Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
-        {/* Ambient Warm Amber Glow */}
-        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Ambient Emerald Glow */}
+        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Chợ Đồ Cũ Sinh Viên <br />
-              <span className="text-[#f59e0b]">Tiết Kiệm Tối Đa Chi Phí</span>
+              <span className="text-emerald-400">Tiết Kiệm Tối Đa Chi Phí</span>
             </h1>
             <p className="text-gray-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-lg">
               Mua bán bàn ghế, tủ lạnh, quạt điện, giáo trình giá rẻ từ các anh chị khóa trên hoặc nhận đồ tặng 0 đồng tại các cụm trọ sinh viên Hà Nội.
             </p>
           </div>
 
-          {/* Phần đăng món đồ thanh lý nổi bật vượt trội */}
+          {/* Phần đăng món đồ thanh lý đồng nhất màu xanh lá chủ đạo */}
           <div className="shrink-0 flex flex-col items-center md:items-end gap-2.5 w-full md:w-auto">
-            <div className="p-1 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.5)] hover:shadow-[0_0_40px_rgba(245,158,11,0.75)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
+            <div className="p-1 rounded-2xl bg-gradient-to-r from-emerald-400 via-[#006d37] to-emerald-500 shadow-[0_0_25px_rgba(0,109,55,0.45)] hover:shadow-[0_0_35px_rgba(0,109,55,0.7)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
               <button
                 type="button"
                 onClick={handlePostItem}
-                className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
+                className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
               >
                 <span>Đăng Món Đồ Muốn Thanh Lý</span>
               </button>
             </div>
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-amber-500/35 shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-emerald-500/35 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Đăng tin miễn phí • Tặng 0đ hoặc sang nhượng</span>
             </div>
           </div>
