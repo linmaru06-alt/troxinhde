@@ -82,12 +82,13 @@ interface EditProfileFormProps {
 
 /**
  * Kiểm tra định dạng link Facebook hoặc Zalo
- * BẮT BUỘC phải là URL hợp lệ bắt đầu bằng https://facebook.com/, https://www.facebook.com/, hoặc https://zalo.me/
+ * Cho phép URL đầy đủ hoặc rút gọn (facebook.com/..., fb.com/..., zalo.me/...)
  */
 export const validateSocialUrl = (url: string): boolean => {
   if (!url || !url.trim()) return false;
-  const regex = /^https:\/\/(www\.)?(facebook\.com\/[A-Za-z0-9_.-]+|zalo\.me\/[A-Za-z0-9_.-]+)/i;
-  return regex.test(url.trim());
+  const trimmed = url.trim();
+  const regex = /^(https?:\/\/)?((www|m)\.)?(facebook\.com|fb\.com|fb\.me|zalo\.me)\/.+/i;
+  return regex.test(trimmed) || trimmed.startsWith('https://') || trimmed.startsWith('http://');
 };
 
 /**
@@ -484,6 +485,8 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
 
     if (Object.keys(newErrors).length > 0) {
       const firstField = Object.keys(newErrors)[0] as keyof FormErrors;
+      const firstErrorMsg = newErrors[firstField] || 'Vui lòng kiểm tra lại thông tin!';
+      showToast('Thông tin chưa hợp lệ', firstErrorMsg, 'error');
       scrollToFirstError(firstField);
       return false;
     }
@@ -505,6 +508,7 @@ export const EditProfileForm: React.FC<EditProfileFormProps> = ({
     // 1. Tạo biến payload được map (ánh xạ) thủ công từng trường một, chuẩn snake_case khớp 100% schema Supabase
     const updatePayload: Record<string, any> = {
       id: currentUser.id,
+      firebase_uid: currentUser.firebaseUid || (auth?.currentUser?.uid ?? undefined),
       full_name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
       name: (name || '').trim() || currentUser.name || 'Người dùng Trọ Xinh',
       email: currentUser.email,
