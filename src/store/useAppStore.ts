@@ -33,6 +33,7 @@ import {
   syncRoommatePostToSupabase,
 } from '../lib/supabaseDataService';
 import { toggleSaveRoom as apiToggleSaveRoom, getSavedRooms } from '../lib/api/rooms';
+import { getAllOwnerApplicationsAdmin } from '../lib/api/ownerUpgrade';
 import {
   blockUser as apiBlockUser,
   unblockUser as apiUnblockUser,
@@ -1355,7 +1356,7 @@ export const useAppStore = create<AppState>()(
 
       fetchInitialCloudData: async () => {
         try {
-          const [cloudRooms, cloudBuildings, cloudRoommates, cloudItemsResult] = await Promise.all([
+          const [cloudRooms, cloudBuildings, cloudRoommates, cloudItemsResult, cloudOwnerApps] = await Promise.all([
             fetchRoomsFromSupabase(),
             fetchBuildingsFromSupabase(),
             fetchRoommatesFromSupabase(),
@@ -1363,6 +1364,7 @@ export const useAppStore = create<AppState>()(
             fetchMarketplaceItemsFromSupabase()
               .then((items) => ({ items, error: null as string | null }))
               .catch((err: any) => ({ items: [] as MarketplaceItem[], error: (err?.message || 'Không thể tải danh sách chợ đồ cũ') as string | null })),
+            getAllOwnerApplicationsAdmin().catch(() => [] as OwnerApplication[]),
           ]);
           const cloudItems = cloudItemsResult.items;
 
@@ -1393,10 +1395,21 @@ export const useAppStore = create<AppState>()(
               ...cloudRoommates,
             ];
 
+            // Gộp danh sách đơn đăng ký chủ trọ
+            const appMap = new Map<string, OwnerApplication>();
+            cloudOwnerApps.forEach((a) => appMap.set(a.id, a));
+            (state.ownerApplications || []).forEach((a) => {
+              if (!appMap.has(a.id)) {
+                appMap.set(a.id, a);
+              }
+            });
+            const mergedOwnerApps = Array.from(appMap.values());
+
             return {
               rooms: mergedRooms,
               buildings: mergedBuildings,
               roommates: mergedRoommates,
+              ownerApplications: mergedOwnerApps,
               marketplaceItems: cloudItems,
               marketplaceLoadError: cloudItemsResult.error,
             };

@@ -650,6 +650,22 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/admin/owner-applications"
+              element={
+                <AdminRoute>
+                  <AdminOwnerApplicationsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/quan-tri/duyet-chu-tro"
+              element={
+                <AdminRoute>
+                  <AdminOwnerApplicationsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/nguoi-dung"
               element={
                 <AdminRoute>

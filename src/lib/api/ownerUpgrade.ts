@@ -251,58 +251,56 @@ export async function getMyOwnerApplication(userId: string): Promise<OwnerApplic
  * Lấy toàn bộ danh sách đơn đăng ký đối tác chủ trọ cho Ban Quản Trị
  */
 export async function getAllOwnerApplicationsAdmin(): Promise<OwnerApplication[]> {
-  if (!isSupabaseConfigured) return [];
+  const map = new Map<string, OwnerApplication>();
 
-  try {
-    const { data, error } = await supabase
-      .from('owner_applications')
-      .select(`
-        id,
-        user_id,
-        building_name,
-        address,
-        district,
-        total_rooms,
-        cccd_number,
-        cccd_image_url,
-        legal_docs_note,
-        status,
-        rejection_reason,
-        created_at,
-        reviewed_at,
-        profiles!user_id(id, full_name, phone, avatar_url, firebase_uid)
-      `)
-      .order('created_at', { ascending: false });
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('owner_applications')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-    if (error) {
-      console.warn('[Admin API] Lỗi lấy danh sách owner_applications:', error.message);
-      return [];
+      if (!error && data && data.length > 0) {
+        data.forEach((item: any) => {
+          map.set(item.id, {
+            id: item.id,
+            userId: item.user_id || 'unknown_user',
+            userName: item.full_name || item.userName || 'Người dùng Trọ Xinh',
+            userPhone: item.phone || item.userPhone || 'Chưa cung cấp',
+            buildingName: item.building_name || item.buildingName || 'Cơ sở trọ',
+            address: item.address || '',
+            district: item.district || '',
+            totalRooms: Number(item.total_rooms || item.totalRooms) || 1,
+            cccdNumber: item.cccd_number || item.cccd || '',
+            cccdImageUrl: item.cccd_image_url || item.cccdFrontUrl,
+            legalDocsNote: item.legal_docs_note || item.legalDocsNote,
+            status: (item.status || 'pending') as 'pending' | 'approved' | 'rejected',
+            rejectionReason: item.rejection_reason,
+            createdAt: item.created_at || new Date().toISOString(),
+            reviewedAt: item.reviewed_at,
+          });
+        });
+      }
+    } catch (err) {
+      console.warn('[Admin API] Ngoại lệ lấy owner_applications từ Supabase:', err);
     }
-
-    if (!data || data.length === 0) return [];
-
-    return data.map((item: any) => {
-      const profile = item.profiles;
-      return {
-        id: item.id,
-        userId: profile?.firebase_uid || item.user_id || 'unknown_user',
-        userName: profile?.full_name || 'Người dùng Trọ Xinh',
-        userPhone: profile?.phone || 'Chưa cung cấp',
-        buildingName: item.building_name || 'Cơ sở trọ',
-        address: item.address || '',
-        district: item.district || '',
-        totalRooms: Number(item.total_rooms) || 1,
-        cccdNumber: item.cccd_number || '',
-        cccdImageUrl: item.cccd_image_url || undefined,
-        legalDocsNote: item.legal_docs_note || undefined,
-        status: (item.status || 'pending') as 'pending' | 'approved' | 'rejected',
-        rejectionReason: item.rejection_reason || undefined,
-        createdAt: item.created_at || new Date().toISOString(),
-        reviewedAt: item.reviewed_at || undefined,
-      };
-    });
-  } catch (err) {
-    console.warn('[Admin API] Ngoại lệ lấy owner_applications:', err);
-    return [];
   }
+
+  // Luôn hòa nhập với Local Storage / Zustand Store
+  try {
+    const raw = localStorage.getItem('troxinh-storage');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      const storeApps = parsed?.state?.ownerApplications || [];
+      storeApps.forEach((a: OwnerApplication) => {
+        if (!map.has(a.id)) {
+          map.set(a.id, a);
+        }
+      });
+    }
+  } catch (e) {
+    console.warn('[Admin API] Lỗi đọc local store:', e);
+  }
+
+  return Array.from(map.values());
 }
