@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
+import { submitOwnerApplicationApi } from '../lib/api/ownerUpgrade';
 import {
   Building2,
   ShieldCheck,
@@ -293,6 +294,7 @@ export const OwnerUpgradePage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      // 1. Đồng bộ Store nội bộ (tạo hồ sơ chờ duyệt và thông báo 2 chiều)
       submitOwnerApplication({
         fullName,
         organizationType: orgType,
@@ -317,12 +319,24 @@ export const OwnerUpgradePage: React.FC = () => {
         totalRooms: Number(totalRooms) || 1,
         legalDocsNote,
       });
+
+      // 2. Gửi hồ sơ lên Supabase Cloud (nếu có kết nối)
+      try {
+        await submitOwnerApplicationApi({
+          user: currentUser,
+          buildingName,
+          address,
+          district,
+          totalRooms: Number(totalRooms) || 1,
+          cccdNumber: taxOrCccdNumber,
+          cccdImageUrl: cccdFront || undefined,
+          legalDocsNote,
+        });
+      } catch (cloudErr) {
+        console.warn('[OwnerUpgradePage] Lỗi gửi cloud API, hồ sơ đã được lưu cục bộ:', cloudErr);
+      }
+
       setIsSuccess(true);
-      showToast(
-        'Đã gửi hồ sơ nâng cấp thành công!',
-        'Ban Quản Trị Trọ Xinh đã nhận được hồ sơ và sẽ thẩm định trong vòng 24h.',
-        'success'
-      );
     } catch (err: any) {
       showToast('Lỗi khi gửi hồ sơ', err?.message || 'Vui lòng thử lại sau', 'error');
     } finally {

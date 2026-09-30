@@ -49,10 +49,17 @@ export const LoginPage: React.FC = () => {
 
     showToast('Đăng nhập thành công! 🎉', `Chào mừng ${user.name}`, 'success');
 
-    if (returnUrl && !returnUrl.startsWith('/dang-nhap') && !returnUrl.startsWith('/dang-ky')) {
+    if (returnUrl && !returnUrl.startsWith('/dang-nhap') && !returnUrl.startsWith('/dang-ky') && returnUrl !== '/') {
       navigate(decodeURIComponent(returnUrl));
     } else {
-      navigate('/');
+      // Nếu là Chủ trọ (đã được duyệt) -> Tự động vào trang Tổng quan & Phòng của Chủ trọ
+      if (user.role === 'owner' || user.ownerApplicationStatus === 'approved' || user.email?.toLowerCase() === 'phuonglinh832005@gmail.com') {
+        navigate('/chu-tro');
+      } else if (user.role === 'admin' || user.email?.toLowerCase() === 'quan66934@gmail.com' || user.email?.toLowerCase() === 'admin@troxinh.vn') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
     }
   };
 
