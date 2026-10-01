@@ -27,35 +27,10 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
     activeConversationIdRef.current = conversationId;
   }, [conversationId]);
 
-  // 1. Tải lịch sử tin nhắn thật từ Supabase khi mở conversation & đánh dấu đã đọc
+  // 1. Tải lịch sử tin nhắn thật từ Supabase / Local Storage khi mở conversation & đánh dấu đã đọc
   useEffect(() => {
     if (!conversationId) {
       setMessages([]);
-      return;
-    }
-
-    if (conversationId.startsWith('conv_demo') || !isSupabaseConfigured) {
-      setMessages([
-        {
-          id: `msg_${conversationId}_1`,
-          conversation_id: conversationId,
-          sender_id: 'user_renter_1',
-          content: 'Em chào anh, phòng Studio này mình còn trống không ạ? Chiều nay em có thể qua xem trực tiếp được không?',
-          is_read: true,
-          created_at: new Date(Date.now() - 25 * 60000).toISOString(),
-          status: 'sent',
-        },
-        {
-          id: `msg_${conversationId}_2`,
-          conversation_id: conversationId,
-          sender_id: currentUser?.id || 'user_owner_1',
-          content: 'Chào em nhé! Phòng hiện vẫn đang còn trống, đầy đủ máy lạnh, ban công riêng và nội thất.',
-          is_read: true,
-          created_at: new Date(Date.now() - 15 * 60000).toISOString(),
-          status: 'sent',
-        },
-      ]);
-      setIsLoading(false);
       return;
     }
 
@@ -65,7 +40,7 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
     getMessages(conversationId)
       .then((data) => {
         if (isMounted) {
-          setMessages(data);
+          setMessages(data || []);
           // Đánh dấu toàn bộ tin nhắn trong hội thoại là đã đọc
           if (currentUser?.id) {
             markConversationAsRead(conversationId, currentUser.id).then();
@@ -83,17 +58,7 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
       .catch((err) => {
         console.warn('[useRealtimeChat] Lỗi tải tin nhắn:', err);
         if (isMounted) {
-          setMessages([
-            {
-              id: `msg_${conversationId}_1`,
-              conversation_id: conversationId,
-              sender_id: 'user_renter_1',
-              content: 'Chào bạn, phòng này còn trống không ạ?',
-              is_read: true,
-              created_at: new Date(Date.now() - 10 * 60000).toISOString(),
-              status: 'sent',
-            },
-          ]);
+          setMessages([]);
         }
       })
       .finally(() => {
@@ -234,6 +199,79 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
     };
   }, [conversationId]);
 
+  // 2.1 Lắng nghe tin nhắn mới tức thì đa tab & nội bộ qua BroadcastChannel & CustomEvent
+  useEffect(() => {
+    if (!conversationId) return;
+
+    const handleIncomingSync = (payload: any) => {
+      if (!payload || payload.type !== 'NEW_MESSAGE') return;
+      if (payload.conversationId !== activeConversationIdRef.current) return;
+
+      const incomingMsg: Message = payload.message || {
+        id: `msg_sync_${Date.now()}`,
+        conversation_id: payload.conversationId,
+        sender_id: payload.senderId,
+        content: payload.content,
+        is_read: false,
+        created_at: new Date().toISOString(),
+        status: 'sent',
+      };
+
+      setMessages((prev) => {
+        const exists = prev.some(
+          (m) =>
+            m.id === incomingMsg.id ||
+            (m.status === 'sending' &&
+              m.content === incomingMsg.content &&
+              m.sender_id === incomingMsg.sender_id)
+        );
+
+        if (exists) {
+          return prev.map((m) =>
+            m.content === incomingMsg.content &&
+            m.sender_id === incomingMsg.sender_id &&
+            m.status === 'sending'
+              ? incomingMsg
+              : m
+          );
+        }
+
+        return [...prev, incomingMsg];
+      });
+
+      // Nếu tin nhắn do đối phương gửi và mình đang mở hội thoại này, tự động đánh dấu đã đọc
+      if (currentUser?.id && incomingMsg.sender_id !== currentUser.id) {
+        markConversationAsRead(conversationId, currentUser.id).then();
+      }
+    };
+
+    const handleCustomEvent = (e: Event) => {
+      const ce = e as CustomEvent;
+      if (ce.detail) {
+        handleIncomingSync(ce.detail);
+      }
+    };
+
+    window.addEventListener('troxinh:internal-message-sent', handleCustomEvent);
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('troxinh_chat_sync');
+        bc.onmessage = (event) => {
+          handleIncomingSync(event.data);
+        };
+      } catch {}
+    }
+
+    return () => {
+      window.removeEventListener('troxinh:internal-message-sent', handleCustomEvent);
+      if (bc) {
+        bc.close();
+      }
+    };
+  }, [conversationId, currentUser?.id]);
+
   // 3. Quản lý trạng thái trực tuyến (Presence)
   useEffect(() => {
     if (!isSupabaseConfigured || !currentUser?.id) return;
@@ -289,18 +327,6 @@ export function useRealtimeChat(conversationId?: string): UseRealtimeChatReturn 
 
       // Optimistic update vào giao diện ngay lập tức
       setMessages((prev) => [...prev, tempMessage]);
-
-      if (conversationId.startsWith('conv_demo') || !isSupabaseConfigured) {
-        // Trong chế độ demo / offline, cập nhật ngay thành sent
-        setTimeout(() => {
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === tempId ? { ...m, id: `msg_${Date.now()}`, status: 'sent' } : m
-            )
-          );
-        }, 150);
-        return;
-      }
 
       try {
         const savedMessage = await sendMessageApi(
