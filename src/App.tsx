@@ -559,7 +559,7 @@ export const App: React.FC = () => {
               path="/chu-tro/tin-nhan"
               element={
                 <OwnerRoute>
-                  <OwnerChatPage />
+                  <ChatPage />
                 </OwnerRoute>
               }
             />
@@ -567,7 +567,7 @@ export const App: React.FC = () => {
               path="/chu-tro/tin-nhan/:conversationId"
               element={
                 <OwnerRoute>
-                  <OwnerChatPage />
+                  <ChatPage />
                 </OwnerRoute>
               }
             />

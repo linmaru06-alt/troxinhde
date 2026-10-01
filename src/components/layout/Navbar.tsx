@@ -110,8 +110,6 @@ export const Navbar: React.FC = () => {
 
   const chatUrl = !currentUser
     ? `/dang-nhap?returnUrl=${encodeURIComponent('/tin-nhan')}`
-    : currentUser.role === 'owner'
-    ? '/chu-tro/tin-nhan'
     : '/tin-nhan';
 
   // Main navigation links: Room rental, Map, Roommate, Student Marketplace

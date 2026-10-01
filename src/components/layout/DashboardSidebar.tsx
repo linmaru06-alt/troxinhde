@@ -44,7 +44,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
     { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
     { to: '/chu-tro/quan-ly-goi', label: 'Gói dịch vụ & Hóa đơn', icon: Crown },
-    { to: '/chu-tro/tin-nhan', label: 'Tin nhắn khách thuê', icon: MessageSquare, badge: unreadMessages },
+    { to: '/tin-nhan', label: 'Tin nhắn khách thuê', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/thong-bao', label: 'Trung tâm thông báo', icon: Bell, badge: unreadNotifs },
     { to: '/chu-tro/toi', label: 'Hồ sơ chủ trọ', icon: User },
   ];

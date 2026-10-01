@@ -53,7 +53,7 @@ export const MobileBottomNav: React.FC = () => {
     { to: '/chu-tro', label: 'Tổng quan', icon: LayoutDashboard },
     { to: '/chu-tro/toa-nha', label: 'Phòng & Tòa', icon: Building2 },
     { to: '/chu-tro/lich-hen', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).filter(b => b.status === 'Chờ chủ trọ xác nhận').length },
-    { to: '/chu-tro/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
+    { to: '/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/toi', label: 'Tài khoản', icon: UserIcon },
   ];
 

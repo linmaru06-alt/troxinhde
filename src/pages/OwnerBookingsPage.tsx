@@ -202,7 +202,7 @@ export const OwnerBookingsPage: React.FC = () => {
                     </a>
 
                     <Link
-                      to="/chu-tro/tin-nhan"
+                      to="/tin-nhan"
                       className="px-3 py-1.5 bg-white hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl text-xs font-bold flex items-center gap-1 transition shadow-2xs"
                     >
                       <MessageSquare className="w-3.5 h-3.5 text-blue-600" /> Nhắn tin
