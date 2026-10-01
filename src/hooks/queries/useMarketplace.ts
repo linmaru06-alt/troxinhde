@@ -9,6 +9,7 @@ import {
   setMarketplaceItemStatus,
   updateMarketplaceItemContent,
 } from '../../lib/api/marketplace';
+import { resolveSessionProfileId } from '../../lib/authService';
 import { MarketplaceItemInput, MarketplaceSellerStatus } from '../../lib/marketplaceStatus';
 
 export const marketplaceItemKey = (id?: string) => ['marketplace-item', id] as const;
@@ -59,8 +60,15 @@ export function useMarketplaceItemMutations() {
   };
 
   const createItem = useMutation({
-    mutationFn: ({ sellerId, input }: { sellerId: string; input: MarketplaceItemInput }) =>
-      createMarketplaceItem(sellerId, input),
+    mutationFn: async ({ sellerId, input }: { sellerId: string; input: MarketplaceItemInput }) => {
+      // Lấy lại id hồ sơ theo phiên Firebase ngay lúc đăng, sửa luôn currentUser nếu đang giữ id cũ
+      const profileId = await resolveSessionProfileId(sellerId);
+      const storedUser = useAppStore.getState().currentUser;
+      if (storedUser && storedUser.id !== profileId) {
+        useAppStore.getState().setCurrentUser({ ...storedUser, id: profileId });
+      }
+      return createMarketplaceItem(profileId, input);
+    },
     onSuccess: applyItem,
   });
 

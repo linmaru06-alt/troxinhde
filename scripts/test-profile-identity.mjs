@@ -27,7 +27,7 @@ export const getFirebaseIdToken = async () => globalThis.__token ?? null;
 `;
 
 const firebaseStub = `
-export const auth = {};
+export const auth = { get currentUser() { return globalThis.__fbCurrentUser ?? null; } };
 export const googleProvider = {};
 export const facebookProvider = {};
 export const appleProvider = {};
@@ -81,6 +81,7 @@ const {
   isProfileUuid,
   createMarketplaceItem,
   loginWithDemoAccount,
+  resolveSessionProfileId,
 } = lib;
 
 // Supabase giả: ghi lại chuỗi lệnh, trả kết quả theo handler của từng test
@@ -299,6 +300,23 @@ await test('Demo không có token (máy chủ chưa cấu hình): vẫn vào ch�
   assert.equal(res.user.id, '00000000-0000-0000-0000-000000000002');
   assert.equal(res.user.isDemoAccount, true);
   delete globalThis.__invoke;
+});
+
+await test('Bấm đăng tin khi trình duyệt còn id cũ: lấy lại UUID hồ sơ theo phiên Firebase', async () => {
+  globalThis.__fbCurrentUser = fbUser();
+  fakeSupabase((q) => {
+    if (isProfileSelect(q)) return { data: profileRow(), error: null };
+    throw new Error('Không được tạo hồ sơ mới');
+  });
+  assert.equal(await resolveSessionProfileId(FB_UID), PROFILE_ID);
+  assert.equal(await resolveSessionProfileId('usr_phone_0987654321'), PROFILE_ID);
+  delete globalThis.__fbCurrentUser;
+});
+
+await test('Không có phiên Firebase và id cũ không phải UUID: báo đăng nhập lại', async () => {
+  fakeSupabase(() => { throw new Error('Không được gọi máy chủ'); });
+  await assert.rejects(() => resolveSessionProfileId('usr_phone_0987654321'), /đăng nhập lại/);
+  assert.equal(await resolveSessionProfileId(PROFILE_ID), PROFILE_ID);
 });
 
 const itemInput = {

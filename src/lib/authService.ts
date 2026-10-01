@@ -234,6 +234,22 @@ export async function syncFirebaseUserToSupabase(
 }
 
 /**
+ * id hồ sơ (UUID) của phiên hiện tại, dùng ngay trước khi ghi dữ liệu.
+ * currentUser lưu trong trình duyệt có thể còn id cũ (phiên trước bản sửa đồng bộ) hoặc
+ * chưa kịp được ghi đè lúc vừa mở trang; có phiên Firebase thì luôn đồng bộ lại theo Firebase UID.
+ */
+export async function resolveSessionProfileId(storedId?: string | null): Promise<string> {
+  const fbUser = auth?.currentUser;
+  if (!fbUser) {
+    // Không có phiên Firebase (ví dụ demo chỉ xem): giữ id đã lưu, máy chủ sẽ báo lỗi phiên rõ ràng
+    if (isProfileUuid(storedId)) return storedId;
+    throw new Error('Phiên đăng nhập đã hết hạn hoặc chưa đồng bộ hồ sơ. Vui lòng đăng xuất và đăng nhập lại.');
+  }
+  const profile = await syncFirebaseUserToSupabase(fbUser);
+  return profile.id;
+}
+
+/**
  * Hoàn tất đăng nhập sau khi Firebase xác thực thành công: gắn phiên với hồ sơ profiles.
  * Không đồng bộ được hồ sơ thì đăng xuất Firebase và trả lỗi, không cho vào ứng dụng với định danh tạm.
  */
