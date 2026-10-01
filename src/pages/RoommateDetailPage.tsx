@@ -20,6 +20,7 @@ import {
 import { getOrCreateConversation, saveConversationMeta } from '../lib/api/messages';
 import { getRoommatePostById } from '../lib/api/roommates';
 import { SEOHead } from '../components/seo/SEOHead';
+import { extractIdFromParam, buildRoommateUrl } from '../utils/slugify';
 import type { RoommatePost } from '../types';
 
 /**
@@ -38,7 +39,8 @@ function maskContactInfo(text?: string | null): string {
 }
 
 export const RoommateDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
   const {
     roommates = [],
@@ -146,7 +148,7 @@ export const RoommateDetailPage: React.FC = () => {
   const handleContactChat = async () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người đăng bài', 'warning');
-      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/roommate/${post.id}`)}`);
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(buildRoommateUrl(post))}`);
       return;
     }
     if (currentUser.id === post.userId) {
@@ -190,12 +192,12 @@ export const RoommateDetailPage: React.FC = () => {
         title={`Tìm Bạn Ở Ghép: ${post.userName} (${post.userSchool || post.district}) | TroXinh`}
         description={`Tìm bạn cùng phòng: ${post.userName}, ${post.userSchool || ''} tại ${post.district}. Ngân sách chia sẻ ${formatPrice(post.budgetShare)}/tháng. Đã xác thực sinh viên.`}
         image={post.userAvatar || '/roommate-banner.webp'}
-        url={`/roommate/${post.id}`}
+        url={buildRoommateUrl(post)}
         type="article"
         breadcrumbs={[
           { name: 'Trang chủ', url: '/' },
           { name: 'Tìm bạn ở ghép', url: '/roommate' },
-          { name: post.userName || 'Chi tiết', url: `/roommate/${post.id}` },
+          { name: post.userName || 'Chi tiết', url: buildRoommateUrl(post) },
         ]}
       />
 

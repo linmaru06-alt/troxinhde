@@ -55,6 +55,7 @@ import {
   useMarketplaceItem,
   useMarketplaceItemMutations,
 } from '../hooks/queries/useMarketplace';
+import { extractIdFromParam, buildMarketplaceUrl } from '../utils/slugify';
 
 const CATEGORY_ICONS: Record<string, string> = {
   'Nội thất': '🪑',
@@ -64,7 +65,8 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const MarketplaceDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -427,13 +429,19 @@ export const MarketplaceDetailPage: React.FC = () => {
     setShowReportSeller(true);
   };
 
+  const itemUrl = buildMarketplaceUrl({
+    id: item.id,
+    title: item.name,
+    district: (item as any).sellerDistrict || item.location,
+  });
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
       <SEOHead
         title={`${item.name} - ${item.pricingType === 'Miễn phí' ? 'Miễn phí 0đ' : formatCurrency(item.price)} | Chợ Đồ Cũ Trọ Xinh`}
         description={`Thanh lý ${item.name} tại ${(item as any).sellerDistrict || item.location || 'Hà Nội'}. Tình trạng: ${CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}. Giá sinh viên: ${item.pricingType === 'Miễn phí' ? '0đ' : formatCurrency(item.price)}.`}
         image={images[0] || '/images/hero-banner.webp'}
-        url={`/cho-do-cu/${item.id}`}
+        url={itemUrl}
         type="article"
         product={{
           name: item.name,
@@ -445,7 +453,7 @@ export const MarketplaceDetailPage: React.FC = () => {
         breadcrumbs={[
           { name: 'Trang chủ', url: '/' },
           { name: 'Chợ đồ cũ sinh viên', url: '/cho-do-cu' },
-          { name: item.name, url: `/cho-do-cu/${item.id}` },
+          { name: item.name, url: itemUrl },
         ]}
       />
 

@@ -11,6 +11,12 @@ import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Card } from './Card';
 import {
+  buildRoomUrl,
+  buildRoommateUrl,
+  buildMarketplaceUrl,
+  buildBuildingUrl,
+} from '../../utils/slugify';
+import {
   Heart,
   MapPin,
   Sparkles,
@@ -74,7 +80,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
     <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100 rounded-t-2xl">
-        <Link to={`/phong/${room.id}`} className="block w-full h-full rounded-t-2xl overflow-hidden">
+        <Link to={buildRoomUrl(room)} className="block w-full h-full rounded-t-2xl overflow-hidden">
           <ImageWithFallback
             src={room.images?.[0] || '/images/hero-banner.webp'}
             alt={room.title}
@@ -155,7 +161,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
             )}
           </div>
 
-          <Link to={`/phong/${room.id}`}>
+          <Link to={buildRoomUrl(room)}>
             <h3 className="text-sm sm:text-base font-bold text-gray-950 line-clamp-2 group-hover:text-[#00a854] transition-colors leading-snug">
               {room.title}
             </h3>
@@ -249,7 +255,7 @@ export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
           ) : (
             <div></div>
           )}
-          <Link to={`/phong/${room.id}`} onClick={(e) => e.stopPropagation()} className="text-[11px] font-bold text-[#00a854] flex items-center shrink-0 ml-2 hover:underline">
+          <Link to={buildRoomUrl(room)} onClick={(e) => e.stopPropagation()} className="text-[11px] font-bold text-[#00a854] flex items-center shrink-0 ml-2 hover:underline">
             Chi tiết &gt;
           </Link>
         </div>
@@ -437,7 +443,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
         <span className="text-xs text-gray-400">{post.district || 'Hà Nội'}</span>
         <Link
-          to={`/roommate/${post.id}`}
+          to={buildRoommateUrl(post)}
           className="text-xs font-bold text-[#006d37] hover:underline"
         >
           Xem chi tiết →
@@ -519,7 +525,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
 
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
-      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(buildMarketplaceUrl(item))}`);
       return;
     }
     if (isSameUserId(currentUser.id, sellerUserId)) {
@@ -558,7 +564,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
 
   return (
     <Link
-      to={`/cho-do-cu/${item.id}`}
+      to={buildMarketplaceUrl(item)}
       className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
     >
       {/* 1. Hình ảnh sản phẩm + Badges */}
@@ -714,7 +720,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
                   onClick={(e) => {
                     e.preventDefault();
                     e.stopPropagation();
-                    navigate(`/cho-do-cu/${item.id}?edit=true`);
+                    navigate(`${buildMarketplaceUrl(item)}?edit=true`);
                   }}
                   className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
                 >

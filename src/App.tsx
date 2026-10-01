@@ -303,6 +303,8 @@ export const App: React.FC = () => {
             {/* Roommate & Marketplace */}
             <Route path="/roommate" element={<RoommateListPage />} />
             <Route path="/roommate/:id" element={<RoommateDetailPage />} />
+            <Route path="/o-ghep" element={<RoommateListPage />} />
+            <Route path="/o-ghep/:id" element={<RoommateDetailPage />} />
             <Route path="/tim-ban-cung-phong" element={<RoommateListPage />} />
             <Route path="/tim-ban-cung-phong/:id" element={<RoommateDetailPage />} />
             <Route path="/cho-do-cu" element={<MarketplaceListPage />} />

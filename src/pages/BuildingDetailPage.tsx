@@ -18,9 +18,11 @@ import {
 
 import { getOrCreateConversation } from '../lib/api/messages';
 import { SEOHead } from '../components/seo/SEOHead';
+import { extractIdFromParam, buildBuildingUrl } from '../utils/slugify';
 
 export const BuildingDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
   const { buildings, rooms, currentUser, showToast } = useAppStore();
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
@@ -37,9 +39,11 @@ export const BuildingDetailPage: React.FC = () => {
     );
   }
 
+  const buildingUrl = buildBuildingUrl(building);
+
   const handleContactOwner = async () => {
     if (!currentUser) {
-      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/toa-nha/${building.id}`)}`);
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(buildingUrl)}`);
       return;
     }
     if (currentUser.id === building.ownerId) {
@@ -73,11 +77,11 @@ export const BuildingDetailPage: React.FC = () => {
         title={`${building.name} - Tòa Nhà Trọ ${building.district} | TroXinh`}
         description={`Tòa nhà ${building.name} tại ${building.address}, ${building.district}. Còn ${building.availableRooms}/${building.totalRooms} phòng trống. Đầy đủ tiện ích, an ninh đảm bảo.`}
         image={building.images?.[0] || '/images/hero-banner.webp'}
-        url={`/toa-nha/${building.id}`}
+        url={buildingUrl}
         breadcrumbs={[
           { name: 'Trang chủ', url: '/' },
           { name: 'Tòa nhà', url: '/tim-kiem' },
-          { name: building.name, url: `/toa-nha/${building.id}` },
+          { name: building.name, url: buildingUrl },
         ]}
       />
 

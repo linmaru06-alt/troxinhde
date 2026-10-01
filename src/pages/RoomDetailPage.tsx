@@ -44,9 +44,11 @@ import {
 
 
 import { getOrCreateConversation } from "../lib/api/messages";
+import { extractIdFromParam, buildRoomUrl } from "../utils/slugify";
 
 export const RoomDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
   const {
     rooms = [],
@@ -305,7 +307,7 @@ export const RoomDetailPage: React.FC = () => {
         title={`${room.title} - ${formatPrice(room.price)} | TroXinh`}
         description={`${room.area}m² tại ${room.district}, ${room.address}. Gần ${room.nearestSchool}. Đầy đủ tiện nghi: ${(room.amenities || []).slice(0, 4).join(", ")}. Liên hệ ngay để đặt lịch xem phòng.`}
         image={room.images?.[0] || '/images/hero-banner.webp'}
-        url={`/phong/${room.id}`}
+        url={buildRoomUrl(room)}
         type="article"
         accommodation={{
           name: room.title,
@@ -325,8 +327,8 @@ export const RoomDetailPage: React.FC = () => {
         breadcrumbs={[
           { name: 'Trang chủ', url: '/' },
           { name: 'Tìm phòng', url: '/tim-kiem' },
-          { name: room.district || 'Hà Nội', url: `/tim-kiem?district=${encodeURIComponent(room.district || '')}` },
-          { name: room.title, url: `/phong/${room.id}` },
+          { name: room.district || 'Hà Nội', url: `/tim-kiem?khuVuc=${encodeURIComponent(room.district || '')}` },
+          { name: room.title, url: buildRoomUrl(room) },
         ]}
       />
 
