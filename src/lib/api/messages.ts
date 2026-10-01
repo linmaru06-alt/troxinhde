@@ -318,12 +318,12 @@ export async function getOrCreateConversation(
       });
 
       if (!rpcErr && convId) {
-        if (extra?.otherName || extra?.otherAvatar) {
-          saveConversationMeta(convId, {
-            other_name: extra.otherName,
-            other_avatar: extra.otherAvatar,
-          });
-        }
+        saveConversationMeta(convId, {
+          other_name: extra?.otherName,
+          other_avatar: extra?.otherAvatar,
+          partner_id: cleanLandlordId,
+          room_title: extra?.roomTitle,
+        });
         return convId;
       }
 
@@ -372,12 +372,12 @@ export async function getOrCreateConversation(
   }
 
   if (existingId) {
-    if (extra?.otherName || extra?.otherAvatar) {
-      saveConversationMeta(existingId, {
-        other_name: extra.otherName,
-        other_avatar: extra.otherAvatar,
-      });
-    }
+    saveConversationMeta(existingId, {
+      other_name: extra?.otherName,
+      other_avatar: extra?.otherAvatar,
+      partner_id: cleanLandlordId,
+      room_title: extra?.roomTitle,
+    });
     return existingId;
   }
 
@@ -397,12 +397,12 @@ export async function getOrCreateConversation(
         .maybeSingle();
 
       if (!insertErr && created?.id) {
-        if (extra?.otherName || extra?.otherAvatar) {
-          saveConversationMeta(created.id, {
-            other_name: extra.otherName,
-            other_avatar: extra.otherAvatar,
-          });
-        }
+        saveConversationMeta(created.id, {
+          other_name: extra?.otherName,
+          other_avatar: extra?.otherAvatar,
+          partner_id: cleanLandlordId,
+          room_title: extra?.roomTitle,
+        });
         return created.id;
       }
       if (insertErr) {
@@ -819,55 +819,97 @@ export async function sendMessage(
     saveLocalMessage(savedMessage);
   }
 
-  // 3. Gửi thông báo cho người nhận nếu là tin nhắn người dùng (kèm fallback nếu DB trigger chưa chạy)
+  // 3. Xác định người nhận và gửi thông báo 2 chiều
+  let receiverId = "";
   try {
-    if (cleanSenderId && isSupabaseConfigured) {
-      let receiverId = "";
-      const localConvs = getLocalConversations();
-      const conv = localConvs.find((c) => c.id === conversationId);
-      if (conv) {
-        receiverId = isSameUserId(conv.participant_1, cleanSenderId)
-          ? conv.participant_2
-          : conv.participant_1;
-      }
+    const meta = getConversationMeta(conversationId);
+    const localConvs = getLocalConversations();
+    const conv = localConvs.find((c) => c.id === conversationId);
+    if (conv) {
+      receiverId = isSameUserId(conv.participant_1, cleanSenderId)
+        ? conv.participant_2
+        : conv.participant_1;
+    }
+    if (!receiverId && meta?.partner_id && !isSameUserId(meta.partner_id, cleanSenderId)) {
+      receiverId = meta.partner_id;
+    }
 
-      if (!receiverId && UUID_REGEX.test(conversationId.trim())) {
-        const { data: dbConv } = await supabase
-          .from("conversations")
-          .select("participant_1, participant_2")
-          .eq("id", conversationId)
-          .maybeSingle();
+    if (!receiverId && UUID_REGEX.test(conversationId.trim()) && isSupabaseConfigured) {
+      const { data: dbConv } = await supabase
+        .from("conversations")
+        .select("participant_1, participant_2")
+        .eq("id", conversationId)
+        .maybeSingle();
 
-        if (dbConv) {
-          receiverId = isSameUserId(dbConv.participant_1, cleanSenderId)
-            ? dbConv.participant_2
-            : dbConv.participant_1;
-        }
+      if (dbConv) {
+        receiverId = isSameUserId(dbConv.participant_1, cleanSenderId)
+          ? dbConv.participant_2
+          : dbConv.participant_1;
       }
+    }
 
-      if (
-        receiverId &&
-        !isSameUserId(receiverId, cleanSenderId)
-      ) {
-        supabase
-          .from("notifications")
-          .insert({
-            user_id: receiverId,
-            title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
-            body:
-              cleanContent.length > 80
-                ? cleanContent.slice(0, 80) + "..."
-                : cleanContent,
-            type: "chat_message",
-            cta_url: `/tin-nhan/${conversationId}`,
-            cta_label: "Trả lời ngay",
-            is_read: false,
-          })
-          .then();
-      }
+    if (
+      receiverId &&
+      cleanSenderId &&
+      !isSameUserId(receiverId, cleanSenderId) &&
+      isSupabaseConfigured
+    ) {
+      supabase
+        .from("notifications")
+        .insert({
+          user_id: receiverId,
+          title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
+          body:
+            cleanContent.length > 80
+              ? cleanContent.slice(0, 80) + "..."
+              : cleanContent,
+          type: "chat_message",
+          cta_url: `/tin-nhan/${conversationId}`,
+          cta_label: "Trả lời ngay",
+          is_read: false,
+        })
+        .then();
     }
   } catch (notifErr) {
     console.warn("[MessagesAPI] Lỗi gửi thông báo tin nhắn:", notifErr);
+  }
+
+  // 4. Phát sóng thời gian thực đa luồng (BroadcastChannel + CustomEvent) để cả 2 phía nhận được tin nhắn và chuông/toast ngay lập tức
+  try {
+    const syncPayload = {
+      type: "NEW_MESSAGE",
+      conversationId,
+      message: savedMessage,
+      senderId: cleanSenderId,
+      senderName: senderName || "Người dùng",
+      receiverId,
+      content: cleanContent,
+    };
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("troxinh:internal-message-sent", {
+          detail: syncPayload,
+        }),
+      );
+      window.dispatchEvent(
+        new CustomEvent("troxinh:conversation-updated", {
+          detail: {
+            id: conversationId,
+            last_message: cleanContent,
+            last_message_at: savedMessage.created_at,
+          },
+        }),
+      );
+
+      if (typeof BroadcastChannel !== "undefined") {
+        const bc = new BroadcastChannel("troxinh_chat_sync");
+        bc.postMessage(syncPayload);
+        bc.close();
+      }
+    }
+  } catch (syncErr) {
+    console.warn("[MessagesAPI] Lỗi broadcast tin nhắn 2 chiều:", syncErr);
   }
 
   return savedMessage;
@@ -1118,6 +1160,8 @@ export async function findOrCreateConversation(
       last_item_id: cleanItemId,
       last_item_name: itemTitle,
       last_item_price: itemPrice,
+      partner_id: cleanSellerId,
+      other_name: "Người bán đồ cũ",
     });
   }
 
