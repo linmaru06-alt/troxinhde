@@ -320,20 +320,21 @@ export const OwnerUpgradePage: React.FC = () => {
         legalDocsNote,
       });
 
-      // 2. Gửi hồ sơ lên Supabase Cloud (nếu có kết nối)
-      try {
-        await submitOwnerApplicationApi({
-          user: currentUser,
-          buildingName,
-          address,
-          district,
-          totalRooms: Number(totalRooms) || 1,
-          cccdNumber: taxOrCccdNumber,
-          cccdImageUrl: cccdFront || undefined,
-          legalDocsNote,
-        });
-      } catch (cloudErr) {
-        console.warn('[OwnerUpgradePage] Lỗi gửi cloud API, hồ sơ đã được lưu cục bộ:', cloudErr);
+      // 2. Gửi hồ sơ lên Supabase Cloud
+      const result = await submitOwnerApplicationApi({
+        user: currentUser,
+        buildingName,
+        address,
+        district,
+        totalRooms: Number(totalRooms) || 1,
+        cccdNumber: taxOrCccdNumber,
+        cccdImageUrl: cccdFront || undefined,
+        legalDocsNote,
+      });
+
+      if (!result.success) {
+        showToast('Lỗi khi gửi hồ sơ', result.error || 'Vui lòng thử lại sau', 'error');
+        return;
       }
 
       setIsSuccess(true);

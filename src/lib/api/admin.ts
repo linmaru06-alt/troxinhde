@@ -655,7 +655,7 @@ export async function changeUserRole(userId: string, newRole: 'user' | 'owner' |
 export async function getPendingOwnerApplications() {
   const map = new Map<string, any>();
 
-  // 1. Thử lấy từ Supabase Cloud
+  // 1. Lấy trực tiếp từ Supabase Cloud (Single Source of Truth)
   if (isSupabaseConfigured) {
     try {
       const { data, error } = await supabase
@@ -692,9 +692,9 @@ export async function getPendingOwnerApplications() {
     }
   }
 
-  // 2. Lấy từ localStorage / Zustand Store để đảm bảo không bị sót đơn nào
+  // 2. Fallback kiểm tra thêm trong Zustand Store (nếu offline/chế độ demo)
   try {
-    const raw = localStorage.getItem('troxinh-storage');
+    const raw = typeof localStorage !== 'undefined' ? localStorage.getItem('troxinh_storage_v4') : null;
     if (raw) {
       const parsed = JSON.parse(raw);
       const storeApps = parsed?.state?.ownerApplications || [];

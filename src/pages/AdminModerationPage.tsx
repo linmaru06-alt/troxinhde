@@ -20,6 +20,7 @@ import {
   rejectMarketplaceItem as rejectMarketplaceItemApi,
 } from '../lib/api/admin';
 import { CONDITION_LABELS, MarketplaceConditionCode } from '../lib/marketplaceFilter';
+import { supabase } from '../lib/supabase';
 import {
   ShieldCheck,
   Check,
@@ -112,6 +113,22 @@ export const AdminModerationPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Lắng nghe Realtime bảng owner_applications: Tự động cập nhật khi có đơn nộp mới hoặc trạng thái thay đổi
+    const channel = supabase
+      .channel('admin-owner-apps-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'owner_applications' },
+        () => {
+          getPendingOwnerApplications().then(setOwnerApps);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleToggleCheck = (id: string) => {

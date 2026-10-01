@@ -308,9 +308,45 @@ export async function getOrCreateConversation(
   const validRoomId =
     roomId && UUID_REGEX.test(roomId.trim()) ? roomId.trim() : null;
 
-  // 1. Thử gọi Postgres RPC get_or_create_conversation trên Supabase (SECURITY DEFINER)
-  const isDemoOrTest = isDemoUser(cleanTenantId) || isDemoUser(cleanLandlordId);
-  if (isSupabaseConfigured && !isDemoOrTest) {
+  // 1. Đảm bảo hồ sơ 2 bên tồn tại trên Supabase trước khi tạo hội thoại
+  if (isSupabaseConfigured) {
+    try {
+      await Promise.all([
+        supabase.rpc("ensure_profile_exists", {
+          p_user_id: cleanTenantId,
+          p_name: "Khách thuê Trọ Xinh",
+        }),
+        supabase.rpc("ensure_profile_exists", {
+          p_user_id: cleanLandlordId,
+          p_name: extra?.otherName || "Chủ trọ / Người bán",
+        }),
+      ]);
+    } catch {}
+  }
+
+  // 2. Thử gọi Postgres RPC get_or_create_conversation_v2 (v2 hỗ trợ sender_id trực tiếp)
+  if (isSupabaseConfigured) {
+    try {
+      const { data: convId, error: rpcV2Err } = await supabase.rpc("get_or_create_conversation_v2", {
+        p_sender_id: cleanTenantId,
+        p_partner_id: cleanLandlordId,
+        p_room_id: validRoomId,
+      });
+
+      if (!rpcV2Err && convId) {
+        saveConversationMeta(convId, {
+          other_name: extra?.otherName,
+          other_avatar: extra?.otherAvatar,
+          partner_id: cleanLandlordId,
+          room_title: extra?.roomTitle,
+        });
+        return convId;
+      }
+    } catch (errV2) {
+      console.warn("[MessagesAPI] RPC get_or_create_conversation_v2 thử nghiệm:", errV2);
+    }
+
+    // 2b. Fallback gọi RPC v1 get_or_create_conversation
     try {
       const { data: convId, error: rpcErr } = await supabase.rpc("get_or_create_conversation", {
         p_partner_id: cleanLandlordId,
@@ -334,17 +370,15 @@ export async function getOrCreateConversation(
         if (rpcErr.message?.includes('P0004') || rpcErr.message?.includes('tạm khóa')) {
           throw new Error("Tài khoản người dùng hiện đang bị tạm khóa hoặc ngừng hoạt động.");
         }
-        console.warn("[MessagesAPI] RPC get_or_create_conversation báo lỗi, thử truy vấn bảng trực tiếp:", rpcErr.message);
       }
     } catch (err: any) {
       if (err?.message?.includes("Không thể gửi tin nhắn") || err?.message?.includes("tạm khóa")) {
         throw err;
       }
-      console.warn("[MessagesAPI] Ngoại lệ khi gọi get_or_create_conversation RPC:", err);
     }
   }
 
-  // 2. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
+  // 3. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
   let existingId: string | null = null;
   if (isSupabaseConfigured) {
     try {
@@ -381,7 +415,7 @@ export async function getOrCreateConversation(
     return existingId;
   }
 
-  // 2. Thử tạo mới trên Supabase
+  // 4. Thử tạo mới trực tiếp trên Supabase
   if (isSupabaseConfigured) {
     try {
       const { data: created, error: insertErr } = await supabase
@@ -731,10 +765,20 @@ export async function sendMessage(
 
   let savedMessage: Message = msgPayload;
 
-  // 1. Thử gửi lên Supabase
+  // 1. Thử gửi lên Supabase Cloud
   if (isSupabaseConfigured) {
     try {
-      // Đảm bảo cuộc trò chuyện tồn tại
+      // Đảm bảo người gửi đã có hồ sơ trong bảng profiles
+      if (cleanSenderId) {
+        try {
+          await supabase.rpc("ensure_profile_exists", {
+            p_user_id: cleanSenderId,
+            p_name: senderName || "Người dùng Trọ Xinh",
+          });
+        } catch {}
+      }
+
+      // Đảm bảo cuộc trò chuyện tồn tại trên Supabase Cloud
       if (UUID_REGEX.test(conversationId.trim())) {
         const { data: convExists } = await supabase
           .from("conversations")
@@ -743,10 +787,20 @@ export async function sendMessage(
           .maybeSingle();
 
         if (!convExists && cleanSenderId) {
+          const meta = getConversationMeta(conversationId);
+          const partnerId = meta?.partner_id || "00000000-0000-4000-8000-000000000002";
+          try {
+            await supabase.rpc("ensure_profile_exists", {
+              p_user_id: partnerId,
+              p_name: meta?.other_name || "Đối tác Trọ Xinh",
+            });
+          } catch {}
+
+          const [p1, p2] = cleanSenderId < partnerId ? [cleanSenderId, partnerId] : [partnerId, cleanSenderId];
           await supabase.from("conversations").insert({
             id: conversationId,
-            participant_1: cleanSenderId,
-            participant_2: "00000000-0000-0000-0000-000000000001",
+            participant_1: p1,
+            participant_2: p2,
             last_message: cleanContent,
             last_message_at: new Date().toISOString(),
           });
