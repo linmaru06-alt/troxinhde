@@ -53,11 +53,13 @@ export const formatCurrency = (amount?: number | null): string => {
 };
 
 // 1. RoomCard
-export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
-  const { savedRoomIds, toggleSaveRoom, currentUser, removeRoom } = useAppStore();
+export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
+  const isSaved = useAppStore((state) => state.savedRoomIds.includes(room.id));
+  const toggleSaveRoom = useAppStore((state) => state.toggleSaveRoom);
+  const currentUserId = useAppStore((state) => state.currentUser?.id);
+  const removeRoom = useAppStore((state) => state.removeRoom);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isSaved = savedRoomIds.includes(room.id);
-  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, room.ownerId));
+  const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, room.ownerId));
 
   const handleConfirmDelete = () => {
     removeRoom(room.id);
@@ -77,7 +79,7 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
   const totalEstimatedMonthly = room.price + estimatedServices;
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
+    <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain">
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100 rounded-t-2xl">
         <Link to={buildRoomUrl(room)} className="block w-full h-full rounded-t-2xl overflow-hidden">
@@ -190,12 +192,13 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
       />
     </div>
   );
-};
+});
+RoomCard.displayName = 'RoomCard';
 
 // 1.5 HorizontalRoomCard
-export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
+export const HorizontalRoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
   return (
-    <div className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full">
+    <div className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full gpu-layer feed-item-contain">
       {/* Left side: Image */}
       <div className="relative w-[110px] sm:w-[130px] shrink-0 rounded-2xl overflow-hidden bg-gray-100">
         <ImageWithFallback
@@ -262,12 +265,14 @@ export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
       </div>
     </div>
   );
-};
+});
+HorizontalRoomCard.displayName = 'HorizontalRoomCard';
 
-export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => {
-  const { currentUser, removeBuilding } = useAppStore();
+export const BuildingCard: React.FC<{ building: Building }> = React.memo(({ building }) => {
+  const currentUserId = useAppStore((state) => state.currentUser?.id);
+  const removeBuilding = useAppStore((state) => state.removeBuilding);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, building.ownerId));
+  const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, building.ownerId));
 
   const handleConfirmDelete = () => {
     removeBuilding(building.id);
@@ -283,7 +288,7 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
   return (
     <Link
       to={`/toa-nha/${building.id}`}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer"
     >
       <div className="relative aspect-16/10 w-full overflow-hidden bg-gray-100">
         <ImageWithFallback
@@ -348,15 +353,18 @@ export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => 
       />
     </Link>
   );
-};
+});
+BuildingCard.displayName = 'BuildingCard';
 
 // 3. RoommateCard
-export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
-  const { savedRoommateIds, toggleSaveRoommate, currentUser, removeRoommatePost } = useAppStore();
+export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post }) => {
+  const isSaved = useAppStore((state) => state.savedRoommateIds.includes(post.id));
+  const toggleSaveRoommate = useAppStore((state) => state.toggleSaveRoommate);
+  const currentUserId = useAppStore((state) => state.currentUser?.id);
+  const removeRoommatePost = useAppStore((state) => state.removeRoommatePost);
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   
-  const isSaved = savedRoommateIds.includes(post.id);
-  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, post.userId));
+  const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, post.userId));
 
   const handleConfirmDelete = () => {
     removeRoommatePost(post.id);
@@ -370,7 +378,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
   };
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1">
+    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1 gpu-layer feed-item-contain">
       <div>
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
@@ -462,7 +470,8 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
       />
     </div>
   );
-};
+});
+RoommateCard.displayName = 'RoommateCard';
 
 // 4. MarketplaceCard
 const CATEGORY_ICONS: Record<string, string> = {
@@ -472,8 +481,9 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Đồ gia dụng': '🍳',
 };
 
-export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
-  const { currentUser, showToast } = useAppStore();
+export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo(({ item }) => {
+  const currentUser = useAppStore((state) => state.currentUser);
+  const showToast = useAppStore((state) => state.showToast);
   const navigate = useNavigate();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const [isChatLoading, setIsChatLoading] = React.useState(false);
@@ -565,7 +575,7 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
   return (
     <Link
       to={buildMarketplaceUrl(item)}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain"
     >
       {/* 1. Hình ảnh sản phẩm + Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
@@ -783,4 +793,5 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) =
       />
     </Link>
   );
-};
+});
+MarketplaceCard.displayName = 'MarketplaceCard';

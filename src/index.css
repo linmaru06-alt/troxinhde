@@ -43,6 +43,27 @@
 }
 
 @layer utilities {
+  /* GPU Layer Acceleration & 60 FPS Compositing */
+  .gpu-layer {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* DOM Containment & Off-screen Rendering Optimization (Skip off-screen reflow/paint) */
+  .feed-item-contain {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 380px;
+  }
+
+  .contain-paint {
+    contain: paint;
+  }
+
+  .contain-layout {
+    contain: layout paint;
+  }
+
   .glass-card {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(12px);

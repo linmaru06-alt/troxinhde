@@ -74,24 +74,30 @@ export const Navbar: React.FC = () => {
   useOutsideClick(topDropdownRef, () => setIsTopAvatarOpen(false), isTopAvatarOpen);
   useOutsideClick(topNotifRef, () => setIsTopNotifOpen(false), isTopNotifOpen);
 
-  // Lắng nghe sự kiện vuốt/cuộn trang toàn diện (Window, Document, Body)
+  // Lắng nghe sự kiện vuốt/cuộn trang tối ưu hóa bằng requestAnimationFrame (60 FPS)
   useEffect(() => {
+    let ticking = false;
     const handleScroll = () => {
-      const scrollPos =
-        window.pageYOffset ||
-        document.documentElement.scrollTop ||
-        document.body.scrollTop ||
-        window.scrollY ||
-        0;
-      setIsScrolled(scrollPos > 30);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollPos =
+            window.pageYOffset ||
+            document.documentElement.scrollTop ||
+            document.body.scrollTop ||
+            window.scrollY ||
+            0;
+          const shouldBeScrolled = scrollPos > 30;
+          setIsScrolled((prev) => (prev !== shouldBeScrolled ? shouldBeScrolled : prev));
+          ticking = false;
+        });
+        ticking = true;
+      }
     };
 
     window.addEventListener('scroll', handleScroll, { passive: true });
-    document.addEventListener('scroll', handleScroll, { passive: true });
     handleScroll();
     return () => {
       window.removeEventListener('scroll', handleScroll);
-      document.removeEventListener('scroll', handleScroll);
     };
   }, []);
 
