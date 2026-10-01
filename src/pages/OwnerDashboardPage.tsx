@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
 export const OwnerDashboardPage: React.FC = () => {
   const {
@@ -35,14 +36,46 @@ export const OwnerDashboardPage: React.FC = () => {
     buildings,
     currentUser,
     ownerSubscription,
-    bookings,
-    updateBookingStatus,
     updateRoomStatus,
     showToast,
   } = useAppStore();
+  const [cloudBookings, setCloudBookings] = useState<ViewingRequestItem[]>([]);
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleTime, setRescheduleTime] = useState<string>('');
+
+  // Nạp danh sách lịch hẹn thật từ Supabase Cloud
+  React.useEffect(() => {
+    if (!currentUser?.id) return;
+
+    let isMounted = true;
+    async function loadBookings() {
+      try {
+        const data = await getOwnerViewingRequests(currentUser!.id);
+        if (isMounted) setCloudBookings(data);
+      } catch (err) {
+        console.error('[OwnerDashboard] Lỗi tải lịch hẹn:', err);
+      }
+    }
+
+    loadBookings();
+
+    const channel = supabase
+      .channel(`owner-dashboard-bookings-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'viewing_requests' },
+        () => {
+          loadBookings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id]);
 
   // Supabase Real-time Room Status Subscription
   useRealtimeRoomStatus();
@@ -62,25 +95,19 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const handleUpdateBookingStatus = (bookingId: string, status: any, note?: string) => {
-    updateBookingStatus(bookingId, status);
-    if (isSupabaseConfigured && bookingId.length === 36) {
-      const updates: any = {
-        updated_at: new Date().toISOString(),
-      };
-      
-      if (status === 'Đã xác nhận') updates.status = 'confirmed';
-      else if (status === 'Đổi giờ') {
-        updates.status = 'rescheduled';
-        updates.owner_response_note = note;
-      }
-      else updates.status = 'cancelled';
-
-      supabase
-        .from('viewing_requests')
-        .update(updates)
-        .eq('id', bookingId)
-        .then();
+  const handleUpdateBookingStatus = async (bookingId: string, status: any, note?: string) => {
+    const res = await updateViewingRequestStatus(bookingId, status, note);
+    if (res.success) {
+      setCloudBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status } : b))
+      );
+      showToast(
+        status === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
+        'Khách thuê sẽ nhận được thông báo về lịch hẹn của họ.',
+        status === 'Đã xác nhận' ? 'success' : 'info'
+      );
+    } else {
+      showToast('Không thể cập nhật lịch hẹn', res.error || 'Vui lòng thử lại', 'error');
     }
   };
 
@@ -197,19 +224,19 @@ export const OwnerDashboardPage: React.FC = () => {
               <span>Lịch hẹn xem phòng</span>
               <Calendar className="w-4 h-4 text-amber-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-amber-700">{bookings.length}</div>
+            <div className="text-2xl sm:text-3xl font-black text-amber-700">{cloudBookings.length}</div>
             <p className="text-[11px] text-amber-700 font-bold">→ Quản lý lịch hẹn</p>
           </Link>
         </div>
 
         {/* 🌟 2-WAY BOOKING APPOINTMENTS SECTION FOR LANDLORD */}
-        {bookings.length > 0 && (
+        {cloudBookings.length > 0 && (
           <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
                 <h3 className="text-base font-black text-gray-950 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-[#00a854]" />
-                  Khách Đặt Lịch Xem Phòng Trực Tiếp ({bookings.length})
+                  Khách Đặt Lịch Xem Phòng Trực Tiếp ({cloudBookings.length})
                 </h3>
                 <p className="text-xs text-gray-500">Xác nhận để khách chuẩn bị đến xem phòng đúng giờ</p>
               </div>
@@ -222,8 +249,8 @@ export const OwnerDashboardPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {bookings.map((b: BookingRequest) => {
-                const currentStatus: BookingRequest['status'] = b.status;
+              {cloudBookings.map((b: ViewingRequestItem) => {
+                const currentStatus = b.status;
                 return (
                 <div
                   key={b.id}

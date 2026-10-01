@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -88,6 +89,23 @@ export const AdminReportsPage: React.FC = () => {
 
   useEffect(() => {
     fetchReports();
+
+    if (!isSupabaseConfigured) return;
+
+    const channel = supabase
+      .channel('admin_reports_realtime_channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'reports' },
+        () => {
+          fetchReports();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchReports]);
 
   // Thống kê đếm

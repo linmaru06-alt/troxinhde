@@ -740,16 +740,23 @@ export async function approveOwnerApplication(applicationId: string, userId: str
     .update({ status: 'approved', reviewed_at: new Date().toISOString() })
     .eq('id', applicationId);
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      role: 'owner',
-      owner_application_status: 'approved',
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', userId);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+  let profileUpdateQuery = supabase.from('profiles').update({
+    role: 'owner',
+    owner_application_status: 'approved',
+    updated_at: new Date().toISOString(),
+  });
 
-  if (error) throw error;
+  if (isUuid) {
+    profileUpdateQuery = profileUpdateQuery.or(`id.eq.${userId},firebase_uid.eq.${userId}`);
+  } else {
+    profileUpdateQuery = profileUpdateQuery.eq('firebase_uid', userId);
+  }
+  const { error } = await profileUpdateQuery;
+
+  if (error) {
+    console.warn('[Admin API] Cảnh báo cập nhật role owner trên profiles:', error);
+  }
 
   await logAdminAudit({
     action: 'approve_owner_application',
@@ -761,15 +768,23 @@ export async function approveOwnerApplication(applicationId: string, userId: str
 
   // Gửi thông báo cho người dùng
   try {
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      type: 'owner_approved',
-      title: 'Hồ sơ Đối tác Chủ trọ đã được phê duyệt! 🏢',
-      body: 'Chúc mừng bạn! Tài khoản đã được nâng cấp lên Chủ trọ. Bạn có thể bắt đầu đăng phòng và quản lý tòa nhà ngay.',
-      cta_url: '/chu-tro/phong/tao-moi',
-      cta_label: 'Đăng phòng ngay',
-      is_read: false,
-    });
+    let targetProfileId = userId;
+    if (!isUuid) {
+      const { data: prof } = await supabase.from('profiles').select('id').eq('firebase_uid', userId).maybeSingle();
+      if (prof?.id) targetProfileId = prof.id;
+    }
+
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetProfileId)) {
+      await supabase.from('notifications').insert({
+        user_id: targetProfileId,
+        type: 'owner_approved',
+        title: 'Hồ sơ Đối tác Chủ trọ đã được phê duyệt! 🏢',
+        body: 'Chúc mừng bạn! Tài khoản đã được nâng cấp lên Chủ trọ. Bạn có thể bắt đầu đăng phòng và quản lý tòa nhà ngay.',
+        cta_url: '/chu-tro/phong/tao-moi',
+        cta_label: 'Đăng phòng ngay',
+        is_read: false,
+      });
+    }
   } catch (notifErr) {
     console.warn('[Admin] Lỗi gửi thông báo duyệt chủ trọ:', notifErr);
   }
@@ -797,16 +812,23 @@ export async function rejectOwnerApplication(
     })
     .eq('id', applicationId);
 
-  const { error } = await supabase
-    .from('profiles')
-    .update({
-      owner_application_status: 'rejected',
-      owner_rejection_reason: reason,
-      updated_at: new Date().toISOString(),
-    })
-    .eq('id', userId);
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+  let profileUpdateQuery = supabase.from('profiles').update({
+    owner_application_status: 'rejected',
+    owner_rejection_reason: reason,
+    updated_at: new Date().toISOString(),
+  });
 
-  if (error) throw error;
+  if (isUuid) {
+    profileUpdateQuery = profileUpdateQuery.or(`id.eq.${userId},firebase_uid.eq.${userId}`);
+  } else {
+    profileUpdateQuery = profileUpdateQuery.eq('firebase_uid', userId);
+  }
+  const { error } = await profileUpdateQuery;
+
+  if (error) {
+    console.warn('[Admin API] Cảnh báo cập nhật trạng thái rejected trên profiles:', error);
+  }
 
   await logAdminAudit({
     action: 'reject_owner_application',
@@ -815,6 +837,29 @@ export async function rejectOwnerApplication(
     reason,
     admin,
   });
+
+  // Gửi thông báo cho người dùng
+  try {
+    let targetProfileId = userId;
+    if (!isUuid) {
+      const { data: prof } = await supabase.from('profiles').select('id').eq('firebase_uid', userId).maybeSingle();
+      if (prof?.id) targetProfileId = prof.id;
+    }
+
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetProfileId)) {
+      await supabase.from('notifications').insert({
+        user_id: targetProfileId,
+        type: 'rejected',
+        title: 'Hồ sơ Đối tác Chủ trọ cần bổ sung thông tin ⚠️',
+        body: `Hồ sơ của bạn chưa được duyệt. Lý do: ${reason}. Vui lòng cập nhật lại hồ sơ.`,
+        cta_url: '/dang-ky-chu-tro',
+        cta_label: 'Cập nhật hồ sơ',
+        is_read: false,
+      });
+    }
+  } catch (notifErr) {
+    console.warn('[Admin] Lỗi gửi thông báo từ chối chủ trọ:', notifErr);
+  }
 
   return true;
 }
@@ -896,45 +941,74 @@ export async function getGroupedReportsAdmin(filters?: {
 
   if (isSupabaseConfigured) {
     try {
+      // 1. Truy vấn trực tiếp bảng reports (không dùng PostgREST foreign key join để tránh lỗi schema cache)
       const { data, error } = await supabase
         .from('reports')
-        .select(`
-          *,
-          reporter:profiles!reporter_id(id, full_name, avatar_url, phone),
-          resolver:profiles!resolved_by(id, full_name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
       if (!error && data) {
-        reports = data.map((r: any) => ({
-          id: r.id,
-          reporter_id: r.reporter_id,
-          target_type: r.target_type,
-          target_id: r.target_id,
-          target_owner_id: r.target_owner_id,
-          reason: r.reason,
-          description: r.description || r.details,
-          content_snapshot: r.content_snapshot,
-          status: r.status,
-          admin_notes: r.admin_notes,
-          reporter_name: r.reporter?.full_name || r.reporter_name,
-          reporter_phone: r.reporter?.phone || r.reporter_phone,
-          resolved_by: r.resolved_by,
-          resolved_by_name: r.resolver?.full_name,
-          resolved_at: r.resolved_at,
-          created_at: r.created_at,
-          updated_at: r.updated_at,
-          auto_moderated: r.auto_moderated,
-        }));
+        // Lấy danh sách ID người báo cáo và người xử lý
+        const userIds = Array.from(
+          new Set(
+            [
+              ...data.map((r: any) => r.reporter_id),
+              ...data.map((r: any) => r.resolved_by),
+            ].filter((id) => Boolean(id) && typeof id === 'string')
+          )
+        );
+
+        const profilesMap = new Map<string, any>();
+        if (userIds.length > 0) {
+          try {
+            const { data: profs } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url, phone')
+              .in('id', userIds);
+            if (profs) {
+              for (const p of profs) {
+                profilesMap.set(p.id, p);
+              }
+            }
+          } catch (profErr) {
+            console.warn('[Admin API] Lỗi tải profiles cho reports:', profErr);
+          }
+        }
+
+        reports = data.map((r: any) => {
+          const reporter = profilesMap.get(r.reporter_id);
+          const resolver = profilesMap.get(r.resolved_by);
+          return {
+            id: r.id,
+            reporter_id: r.reporter_id,
+            target_type: r.target_type,
+            target_id: r.target_id,
+            target_owner_id: r.target_owner_id,
+            reason: r.reason,
+            description: r.description || r.details,
+            content_snapshot: r.content_snapshot,
+            status: r.status,
+            admin_notes: r.admin_notes,
+            reporter_name: reporter?.full_name || r.reporter_name,
+            reporter_phone: reporter?.phone || r.reporter_phone,
+            resolved_by: r.resolved_by,
+            resolved_by_name: resolver?.full_name,
+            resolved_at: r.resolved_at,
+            created_at: r.created_at,
+            updated_at: r.updated_at,
+            auto_moderated: r.auto_moderated,
+          };
+        });
       } else if (error) {
         console.warn('[Admin API] Lỗi getGroupedReportsAdmin từ Supabase:', error);
-        reports = getAllStoredReports();
       }
     } catch (err) {
       console.warn('[Admin API] Exception getGroupedReportsAdmin:', err);
-      reports = getAllStoredReports();
     }
-  } else {
+  }
+
+  // Fallback sang local store chỉ khi Supabase không được cấu hình hoặc danh sách rỗng trong chế độ offline
+  if (reports.length === 0 && !isSupabaseConfigured) {
     reports = getAllStoredReports();
   }
 

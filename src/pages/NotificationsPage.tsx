@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -13,10 +14,13 @@ import {
   Sparkles,
   Calendar,
   CheckCheck,
+  RefreshCw,
 } from 'lucide-react';
 
 export const NotificationsPage: React.FC = () => {
-  const { notifications, markNotificationRead, markAllNotificationsRead, currentUser } = useAppStore();
+  const { currentUser } = useAppStore();
+  const { notifications, markAsRead, markAllAsRead, refetchNotifications } = useRealtimeNotifications();
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'system'>('all');
 
@@ -67,14 +71,30 @@ export const NotificationsPage: React.FC = () => {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={markAllNotificationsRead}
-          leftIcon={<CheckCheck className="w-4 h-4 text-[#006d37]" />}
-        >
-          Đọc tất cả
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              setIsRefreshing(true);
+              await refetchNotifications();
+              setIsRefreshing(false);
+            }}
+            isLoading={isRefreshing}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRefreshing ? 'animate-spin' : ''}`} />}
+          >
+            Làm mới
+          </Button>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={markAllAsRead}
+            leftIcon={<CheckCheck className="w-4 h-4 text-[#006d37]" />}
+          >
+            Đọc tất cả
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -110,7 +130,7 @@ export const NotificationsPage: React.FC = () => {
           {filteredNotifs.map((item) => (
             <div
               key={item.id}
-              onClick={() => markNotificationRead(item.id)}
+              onClick={() => markAsRead(item.id)}
               className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-start gap-3.5 ${
                 item.read
                   ? 'bg-white border-gray-200 opacity-80'
@@ -132,12 +152,12 @@ export const NotificationsPage: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-600 leading-relaxed">{item.body}</p>
 
-                {item.actionLink && (
+                {(item.actionLink || item.ctaUrl) && (
                   <Link
-                    to={item.actionLink}
+                    to={item.actionLink || item.ctaUrl || '#'}
                     className="inline-block text-xs font-bold text-[#006d37] hover:underline pt-1"
                   >
-                    Xem chi tiết →
+                    {item.ctaLabel || 'Xem chi tiết →'}
                   </Link>
                 )}
               </div>

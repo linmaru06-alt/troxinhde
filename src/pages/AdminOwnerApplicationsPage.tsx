@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -68,6 +69,23 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
 
   useEffect(() => {
     loadData();
+
+    if (!isSupabaseConfigured) return;
+
+    const channel = supabase
+      .channel('admin_owner_applications_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'owner_applications' },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [loadData]);
 
   const filteredApps = applications.filter((app) => {

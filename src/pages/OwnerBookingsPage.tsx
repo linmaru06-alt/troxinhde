@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { supabase } from '../lib/supabase';
+import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
-import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import {
   Calendar,
@@ -17,12 +18,54 @@ import {
   User,
   Home,
   AlertCircle,
+  Loader2,
+  RefreshCw,
 } from 'lucide-react';
 
 export const OwnerBookingsPage: React.FC = () => {
-  const { bookings, updateBookingStatus, showToast } = useAppStore();
+  const { currentUser, showToast } = useAppStore();
+  const [bookings, setBookings] = useState<ViewingRequestItem[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  const loadBookings = useCallback(async (silent = false) => {
+    if (!currentUser?.id) {
+      setIsLoading(false);
+      return;
+    }
+    if (!silent) setIsLoading(true);
+    try {
+      const data = await getOwnerViewingRequests(currentUser.id);
+      setBookings(data);
+    } catch (err) {
+      console.error('[OwnerBookingsPage] Lỗi tải lịch hẹn từ Supabase Cloud:', err);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, [currentUser?.id]);
+
+  useEffect(() => {
+    loadBookings();
+
+    if (!currentUser?.id) return;
+
+    // Lắng nghe Realtime: khi có khách thuê đặt lịch mới hoặc hủy lịch
+    const channel = supabase
+      .channel(`owner-bookings-live-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'viewing_requests' },
+        () => {
+          loadBookings(true);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id, loadBookings]);
 
   const pendingCount = bookings.filter((b) => b.status === 'Chờ chủ trọ xác nhận').length;
   const confirmedCount = bookings.filter((b) => b.status === 'Đã xác nhận').length;
@@ -40,13 +83,20 @@ export const OwnerBookingsPage: React.FC = () => {
     return true;
   });
 
-  const handleUpdateStatus = (id: string, status: any) => {
-    updateBookingStatus(id, status);
-    showToast(
-      status === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
-      `Khách thuê sẽ nhận được thông báo về lịch hẹn của họ.`,
-      status === 'Đã xác nhận' ? 'success' : 'info'
-    );
+  const handleUpdateStatus = async (id: string, status: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy' | 'Đã hoàn thành') => {
+    const res = await updateViewingRequestStatus(id, status);
+    if (res.success) {
+      setBookings((prev) =>
+        prev.map((b) => (b.id === id ? { ...b, status } : b))
+      );
+      showToast(
+        status === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
+        `Khách thuê sẽ nhận được thông báo về lịch hẹn của họ.`,
+        status === 'Đã xác nhận' ? 'success' : 'info'
+      );
+    } else {
+      showToast('Không thể cập nhật lịch hẹn', res.error || 'Vui lòng thử lại', 'error');
+    }
   };
 
   return (
@@ -67,9 +117,19 @@ export const OwnerBookingsPage: React.FC = () => {
               Quản Lý Lịch Hẹn Xem Phòng
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
-              Theo dõi và xác nhận các yêu cầu hẹn xem phòng trực tiếp từ khách thuê Trọ Xinh
+              Theo dõi và xác nhận các yêu cầu hẹn xem phòng trực tiếp từ khách thuê Trọ Xinh (Đồng bộ Cloud Realtime)
             </p>
           </div>
+
+          <button
+            type="button"
+            onClick={() => loadBookings()}
+            disabled={isLoading}
+            className="self-start sm:self-auto px-3.5 py-2 bg-white hover:bg-gray-100 text-gray-700 border border-gray-200 rounded-2xl text-xs font-bold flex items-center gap-2 transition cursor-pointer shadow-2xs disabled:opacity-50"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            Làm mới
+          </button>
         </div>
 
         {/* 3 Metric Cards */}
@@ -137,7 +197,12 @@ export const OwnerBookingsPage: React.FC = () => {
           </div>
 
           {/* Bookings List */}
-          {filteredBookings.length === 0 ? (
+          {isLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center space-y-3">
+              <Loader2 className="w-8 h-8 text-[#00a854] animate-spin" />
+              <p className="text-xs text-gray-500 font-medium">Đang đồng bộ danh sách lịch hẹn từ Cloud...</p>
+            </div>
+          ) : filteredBookings.length === 0 ? (
             <EmptyState
               icon="calendar"
               title="Không tìm thấy lịch hẹn phù hợp"
@@ -156,7 +221,9 @@ export const OwnerBookingsPage: React.FC = () => {
                         <User className="w-4 h-4 text-gray-500" />
                         {b.renterName}
                       </span>
-                      <span className="text-xs text-gray-500 font-mono">({b.renterPhone})</span>
+                      {b.renterPhone && (
+                        <span className="text-xs text-gray-500 font-mono">({b.renterPhone})</span>
+                      )}
                       <span
                         className={`text-[10px] font-black px-2.5 py-0.5 rounded-full ${
                           b.status === 'Đã xác nhận'
@@ -194,12 +261,14 @@ export const OwnerBookingsPage: React.FC = () => {
 
                   {/* Actions */}
                   <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-200/60">
-                    <a
-                      href={`tel:${b.renterPhone}`}
-                      className="px-3 py-1.5 bg-white hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl text-xs font-bold flex items-center gap-1 transition shadow-2xs"
-                    >
-                      <Phone className="w-3.5 h-3.5 text-emerald-600" /> Gọi khách
-                    </a>
+                    {b.renterPhone && (
+                      <a
+                        href={`tel:${b.renterPhone}`}
+                        className="px-3 py-1.5 bg-white hover:bg-gray-100 text-gray-800 border border-gray-200 rounded-xl text-xs font-bold flex items-center gap-1 transition shadow-2xs"
+                      >
+                        <Phone className="w-3.5 h-3.5 text-emerald-600" /> Gọi khách
+                      </a>
+                    )}
 
                     <Link
                       to="/tin-nhan"
