@@ -241,6 +241,10 @@ export const SearchPage: React.FC = () => {
         title={matchedDistrict ? `Tìm Phòng Trọ ${matchedDistrict} | Trọ Xinh Hà Nội` : `Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội (${totalRooms} phòng) | Trọ Xinh`}
         description={`Xem ${totalRooms} phòng trọ sinh viên đã đối chiếu thực tế tại Hà Nội. Minh bạch tổng chi phí, lọc theo trường ĐH, mức giá, tiện nghi.`}
         url={`/tim-kiem${searchParams.toString() ? `?${searchParams.toString()}` : ''}`}
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: matchedDistrict ? `Phòng trọ ${matchedDistrict}` : 'Tìm phòng trọ', url: `/tim-kiem${searchParams.toString() ? `?${searchParams.toString()}` : ''}` },
+        ]}
       />
 
       {/* Top Search Autocomplete Bar */}

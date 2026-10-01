@@ -568,6 +568,28 @@ export const HelpPage: React.FC = () => {
         title="Trung Tâm Trợ Giúp & FAQ – Trọ Xinh"
         description="Giải đáp mọi thắc mắc về tài khoản, Trọ Xinh Xu, tìm phòng trọ, đăng tin cho thuê, dịch vụ VIP và an toàn đặt cọc trên Trọ Xinh."
         url="/help"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Trung tâm trợ giúp', url: '/help' },
+        ]}
+        faqs={[
+          {
+            question: 'Làm thế nào để đăng ký và đăng nhập tài khoản Trọ Xinh?',
+            answer: 'Bạn có thể đăng ký tài khoản Trọ Xinh miễn phí bằng Google, Email hoặc số điện thoại qua mã OTP để kích hoạt tính năng chat và đặt cọc an toàn.',
+          },
+          {
+            question: 'Trọ Xinh Xu là gì và cách sử dụng điểm thưởng ra sao?',
+            answer: 'Trọ Xinh Xu là điểm thưởng tích lũy khi hoàn thiện hồ sơ, đánh giá phòng hoặc giới thiệu bạn bè, dùng để đổi lượt đẩy tin (Boost) và voucher giảm giá.',
+          },
+          {
+            question: 'Quy trình kiểm duyệt phòng trọ PCCC trên Trọ Xinh hoạt động như thế nào?',
+            answer: 'Đội ngũ Trọ Xinh trực tiếp đối chiếu thông tin pháp lý, kiểm tra thiết bị PCCC, lối thoát hiểm và hình ảnh thực tế 100% trước khi cấp huy hiệu Đã Kiểm Duyệt.',
+          },
+          {
+            question: 'Cách đặt cọc giữ phòng an toàn và nhận biên lai điện tử?',
+            answer: 'Người thuê có thể đặt cọc trực tuyến qua hệ thống Trọ Xinh có hợp đồng mẫu, biên nhận điện tử và mã QR bảo vệ tiền cọc an toàn 100%.',
+          },
+        ]}
       />
 
       {/* Header (Top): Search Bar on Green Background (bg-green-600) */}

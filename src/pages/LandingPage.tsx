@@ -63,6 +63,7 @@ export const LandingPage: React.FC = () => {
         title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
         description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, tìm bạn ở ghép và chợ đồ cũ sinh viên."
         url="/"
+        isHome={true}
       />
 
       {/* 1. HERO BANNER WITH CUSTOM ILLUSTRATION BACKGROUND */}

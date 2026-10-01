@@ -19,6 +19,7 @@ import {
 
 import { getOrCreateConversation, saveConversationMeta } from '../lib/api/messages';
 import { getRoommatePostById } from '../lib/api/roommates';
+import { SEOHead } from '../components/seo/SEOHead';
 import type { RoommatePost } from '../types';
 
 /**
@@ -185,6 +186,19 @@ export const RoommateDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title={`Tìm Bạn Ở Ghép: ${post.userName} (${post.userSchool || post.district}) | TroXinh`}
+        description={`Tìm bạn cùng phòng: ${post.userName}, ${post.userSchool || ''} tại ${post.district}. Ngân sách chia sẻ ${formatPrice(post.budgetShare)}/tháng. Đã xác thực sinh viên.`}
+        image={post.userAvatar || '/roommate-banner.webp'}
+        url={`/roommate/${post.id}`}
+        type="article"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tìm bạn ở ghép', url: '/roommate' },
+          { name: post.userName || 'Chi tiết', url: `/roommate/${post.id}` },
+        ]}
+      />
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <Link to="/" className="hover:text-[#006d37]">Trang chủ</Link>

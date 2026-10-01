@@ -5,6 +5,7 @@ import { MarketplaceCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Pagination } from '../components/ui/Pagination';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   Sparkles,
   Tag,
@@ -614,6 +615,18 @@ export const MarketplaceListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title="Chợ Đồ Cũ Sinh Viên Hà Nội - Thanh Lý Bàn Ghế, Tủ Lạnh, Đồ Dùng Trọ Giá Rẻ | TroXinh"
+        description="Chợ thanh lý đồ cũ sinh viên Hà Nội: bàn học, tủ quần áo, đệm, tủ lạnh, quạt điện, đồ gia dụng chuyển trọ giá rẻ từ 50k - 500k. Nhận đồ tặng 0đ an toàn."
+        image="/images/marketplace-banner.webp"
+        url="/cho-do-cu"
+        keywords="chợ đồ cũ sinh viên, thanh lý đồ chuyển trọ hà nội, bàn học sinh viên cũ, tủ lạnh cũ hà nội, đồ gia dụng cũ cầu giấy, bách khoa"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Chợ đồ cũ sinh viên', url: '/cho-do-cu' },
+        ]}
+      />
+
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
         {/* Background Image */}

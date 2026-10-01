@@ -442,6 +442,11 @@ export const MarketplaceDetailPage: React.FC = () => {
           price: item.price || 0,
           condition: item.condition,
         }}
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Chợ đồ cũ sinh viên', url: '/cho-do-cu' },
+          { name: item.name, url: `/cho-do-cu/${item.id}` },
+        ]}
       />
 
       {/* 1. Breadcrumb Navigation */}

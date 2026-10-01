@@ -12,6 +12,9 @@ export interface AccommodationSchema {
   amenities?: string[];
   avgRating?: number;
   reviewCount?: number;
+  latitude?: number;
+  longitude?: number;
+  pcccPassed?: boolean;
 }
 
 export interface ProductSchema {
@@ -22,6 +25,16 @@ export interface ProductSchema {
   condition?: string;
 }
 
+export interface BreadcrumbItem {
+  name: string;
+  url: string;
+}
+
+export interface FAQItemSchema {
+  question: string;
+  answer: string;
+}
+
 export interface SEOProps {
   title?: string;
   description?: string;
@@ -30,8 +43,11 @@ export interface SEOProps {
   type?: 'website' | 'article';
   keywords?: string;
   noindex?: boolean;
+  isHome?: boolean;
   accommodation?: AccommodationSchema;
   product?: ProductSchema;
+  breadcrumbs?: BreadcrumbItem[];
+  faqs?: FAQItemSchema[];
 }
 
 export const SEOHead: React.FC<SEOProps> = ({
@@ -42,19 +58,50 @@ export const SEOHead: React.FC<SEOProps> = ({
   type = 'website',
   keywords = 'phòng trọ hà nội, thuê phòng sinh viên, nhà trọ cầu giấy, phòng trọ đống đa, bách khoa, đhqg hà nội',
   noindex = false,
+  isHome = false,
   accommodation,
   product,
+  breadcrumbs,
+  faqs,
 }) => {
   const siteUrl = typeof window !== 'undefined' ? window.location.origin : 'https://troxinh.vn';
   const currentUrl = url ? `${siteUrl}${url}` : typeof window !== 'undefined' ? window.location.href : 'https://troxinh.vn';
   const fullTitle = title.includes('TroXinh') || title.includes('Trọ Xinh') ? title : `${title} | TroXinh.vn`;
 
-  // Schema.org JSON-LD Structured Data
-  let structuredData: any = null;
+  // Schema.org JSON-LD Structured Data Builder (Using Google @graph Recommended Format)
+  const graph: any[] = [];
 
+  // 1. BreadcrumbList Schema
+  if (breadcrumbs && breadcrumbs.length > 0) {
+    graph.push({
+      '@type': 'BreadcrumbList',
+      itemListElement: breadcrumbs.map((item, index) => ({
+        '@type': 'ListItem',
+        position: index + 1,
+        name: item.name,
+        item: item.url.startsWith('http') ? item.url : `${siteUrl}${item.url}`,
+      })),
+    });
+  }
+
+  // 2. FAQPage Schema
+  if (faqs && faqs.length > 0) {
+    graph.push({
+      '@type': 'FAQPage',
+      mainEntity: faqs.map((f) => ({
+        '@type': 'Question',
+        name: f.question,
+        acceptedAnswer: {
+          '@type': 'Answer',
+          text: f.answer,
+        },
+      })),
+    });
+  }
+
+  // 3. Primary Entity Schemas
   if (accommodation) {
-    structuredData = {
-      '@context': 'https://schema.org',
+    graph.push({
       '@type': 'Apartment',
       name: accommodation.name,
       description: accommodation.description || description,
@@ -65,6 +112,11 @@ export const SEOHead: React.FC<SEOProps> = ({
         addressLocality: accommodation.district || 'Hà Nội',
         addressRegion: 'Hà Nội',
         addressCountry: 'VN',
+      },
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: accommodation.latitude || 21.0285,
+        longitude: accommodation.longitude || 105.8542,
       },
       numberOfRooms: 1,
       ...(accommodation.area
@@ -108,10 +160,9 @@ export const SEOHead: React.FC<SEOProps> = ({
               reviewCount: accommodation.reviewCount,
             }
           : undefined,
-    };
+    });
   } else if (product) {
-    structuredData = {
-      '@context': 'https://schema.org',
+    graph.push({
       '@type': 'Product',
       name: product.name,
       image: product.images && product.images.length > 0 ? product.images : [image],
@@ -123,10 +174,55 @@ export const SEOHead: React.FC<SEOProps> = ({
         availability: 'https://schema.org/InStock',
         itemCondition: 'https://schema.org/UsedCondition',
       },
-    };
+    });
+  } else if (isHome) {
+    // Homepage Rich Entities: WebSite + RealEstateAgent (Local Business)
+    graph.push(
+      {
+        '@type': 'WebSite',
+        name: 'Trọ Xinh Việt Nam',
+        url: 'https://troxinh.vn',
+        potentialAction: {
+          '@type': 'SearchAction',
+          target: 'https://troxinh.vn/tim-kiem?q={search_term_string}',
+          'query-input': 'required name=search_term_string',
+        },
+      },
+      {
+        '@type': 'RealEstateAgent',
+        name: 'Trọ Xinh - Nền Tảng Tìm Trọ & Quản Lý Nhà Trọ Đã Kiểm Duyệt',
+        url: 'https://troxinh.vn',
+        logo: `${siteUrl}/images/logo.png`,
+        image: `${siteUrl}/images/hero-banner.webp`,
+        description: 'Nền tảng kết nối trực tiếp chủ trọ và người thuê phòng, tìm bạn ở ghép, thanh lý đồ cũ sinh viên tại Hà Nội với 100% phòng được kiểm duyệt PCCC.',
+        telephone: '0888110789',
+        priceRange: '1.500.000 VND - 10.000.000 VND',
+        address: {
+          '@type': 'PostalAddress',
+          streetAddress: '18 Ngõ 167 Tây Sơn, P. Quang Trung',
+          addressLocality: 'Đống Đa',
+          addressRegion: 'Hà Nội',
+          addressCountry: 'VN',
+        },
+        geo: {
+          '@type': 'GeoCoordinates',
+          latitude: 21.0117,
+          longitude: 105.8236,
+        },
+        areaServed: {
+          '@type': 'AdministrativeArea',
+          name: 'Hà Nội, Việt Nam',
+        },
+        sameAs: [
+          'https://www.facebook.com/troxinh.vn',
+          'https://www.tiktok.com/@troxinh.vn',
+          'https://zalo.me/0888110789',
+        ],
+      }
+    );
   } else {
-    structuredData = {
-      '@context': 'https://schema.org',
+    // Default Website Schema
+    graph.push({
       '@type': 'WebSite',
       name: 'Trọ Xinh Việt Nam',
       url: 'https://troxinh.vn',
@@ -135,8 +231,13 @@ export const SEOHead: React.FC<SEOProps> = ({
         target: 'https://troxinh.vn/tim-kiem?q={search_term_string}',
         'query-input': 'required name=search_term_string',
       },
-    };
+    });
   }
+
+  const structuredData = {
+    '@context': 'https://schema.org',
+    '@graph': graph,
+  };
 
   return (
     <Helmet>
@@ -156,7 +257,7 @@ export const SEOHead: React.FC<SEOProps> = ({
       <meta property="og:url" content={currentUrl} />
       <meta property="og:title" content={fullTitle} />
       <meta property="og:description" content={description} />
-      <meta property="og:image" content={image} />
+      <meta property="og:image" content={image.startsWith('http') ? image : `${siteUrl}${image}`} />
       <meta property="og:image:width" content="1200" />
       <meta property="og:image:height" content="630" />
       <meta property="og:site_name" content="Trọ Xinh Hà Nội" />
@@ -167,7 +268,7 @@ export const SEOHead: React.FC<SEOProps> = ({
       <meta name="twitter:url" content={currentUrl} />
       <meta name="twitter:title" content={fullTitle} />
       <meta name="twitter:description" content={description} />
-      <meta name="twitter:image" content={image} />
+      <meta name="twitter:image" content={image.startsWith('http') ? image : `${siteUrl}${image}`} />
 
       {/* JSON-LD Script */}
       <script type="application/ld+json">{JSON.stringify(structuredData)}</script>

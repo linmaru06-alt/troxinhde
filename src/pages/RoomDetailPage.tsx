@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useRealtimeRoomStatus } from "../hooks/useRealtimeRoomStatus";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
@@ -7,7 +7,7 @@ import { useAppStore } from "../store/useAppStore";
 import { BookingRequest } from "../types";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
-import { formatPrice, formatCurrency } from "../components/ui/Cards";
+import { formatPrice, formatCurrency, RoomCard } from "../components/ui/Cards";
 import { ReportModal } from "../components/modals/ReportModal";
 import { LoginPromptModal } from "../components/modals/LoginPromptModal";
 import { getReviews, createReview } from "../lib/api/reviews";
@@ -75,6 +75,18 @@ export const RoomDetailPage: React.FC = () => {
     (b) => room && b.id === room.buildingId,
   );
   const isSaved = room ? (savedRoomIds || []).includes(room.id) : false;
+
+  const similarRooms = useMemo(() => {
+    if (!room) return [];
+    return (rooms || [])
+      .filter(
+        (r) =>
+          r.id !== room.id &&
+          (r.status === "Còn trống" || (r as any).status === "available") &&
+          (r.district === room.district || Math.abs(r.price - room.price) <= 1000000)
+      )
+      .slice(0, 3);
+  }, [rooms, room]);
 
   const isUnavailable =
     room?.status === "Đã cho thuê" ||
@@ -306,7 +318,16 @@ export const RoomDetailPage: React.FC = () => {
           amenities: room.amenities,
           avgRating: 4.9,
           reviewCount: userReviews.length || 5,
+          latitude: building?.geo?.lat || 21.0285,
+          longitude: building?.geo?.lng || 105.8542,
+          pcccPassed: room.verified,
         }}
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tìm phòng', url: '/tim-kiem' },
+          { name: room.district || 'Hà Nội', url: `/tim-kiem?district=${encodeURIComponent(room.district || '')}` },
+          { name: room.title, url: `/phong/${room.id}` },
+        ]}
       />
 
       {/* Breadcrumb Header */}
@@ -1078,6 +1099,39 @@ export const RoomDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* SỰ THẬT NAVBOOST: KHỐI PHÒNG TƯƠNG TỰ CÙNG KHU VỰC ĐỂ CHỐNG POGO-STICKING */}
+      {similarRooms.length > 0 && (
+        <section className="pt-8 border-t border-gray-200/80 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg sm:text-xl font-black text-gray-900">
+                Phòng Trọ Tương Tự Tại {room.district}
+              </h2>
+              <p className="text-xs text-gray-500">
+                Gợi ý các phòng cùng khu vực và mức giá để bạn dễ dàng so sánh
+              </p>
+            </div>
+            <Link
+              to={`/tim-kiem?khuVuc=${encodeURIComponent(room.district)}`}
+              className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1"
+            >
+              Xem tất cả ({room.district}) <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {similarRooms.map((sRoom) => (
+              <RoomCard
+                key={sRoom.id}
+                room={sRoom}
+                onSave={toggleSaveRoom}
+                isSaved={savedRoomIds.includes(sRoom.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* MOBILE STICKY BOTTOM ACTION CTA BAR - DUY NHẤT 1 THANH TRÊN MOBILE */}
       <div

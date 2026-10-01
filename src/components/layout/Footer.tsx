@@ -6,6 +6,58 @@ export const Footer: React.FC = () => {
   return (
     <footer className="bg-white border-t border-gray-200 mt-16 pt-12 pb-24 md:pb-12 text-sm text-gray-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Internal Linking Matrix for SEO (Reasonable Surfer Patent US7912842B1 & Topic-Sensitive PageRank) */}
+        <div className="mb-10 pb-8 border-b border-gray-200/80 space-y-6">
+          {/* Cụm 12 Quận Hà Nội */}
+          <div>
+            <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">
+              Phòng Trọ 12 Quận Trọng Điểm Hà Nội
+            </h4>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                'Cầu Giấy', 'Đống Đa', 'Thanh Xuân', 'Nam Từ Liêm', 
+                'Bắc Từ Liêm', 'Hai Bà Trưng', 'Ba Đình', 'Hà Đông', 
+                'Hoàng Mai', 'Tây Hồ', 'Long Biên', 'Hoàn Kiếm'
+              ].map((district) => (
+                <Link
+                  key={district}
+                  to={`/tim-kiem?khuVuc=${encodeURIComponent(district)}`}
+                  className="px-2.5 py-1 rounded-lg bg-gray-100/80 hover:bg-emerald-50 text-gray-700 hover:text-[#006d37] font-medium transition-colors"
+                >
+                  Phòng trọ {district}
+                </Link>
+              ))}
+            </div>
+          </div>
+
+          {/* Cụm Trường Đại Học */}
+          <div>
+            <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">
+              Tìm Phòng Trọ Gần Trường Đại Học
+            </h4>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                { name: 'ĐH Quốc Gia Hà Nội', short: 'ĐHQG Hà Nội' },
+                { name: 'Đại học Bách Khoa Hà Nội', short: 'ĐH Bách Khoa' },
+                { name: 'Đại học Kinh Tế Quốc Dân', short: 'ĐH Kinh Tế Quốc Dân' },
+                { name: 'Đại học Ngoại Thương', short: 'ĐH Ngoại Thương' },
+                { name: 'Đại học Sư Phạm Hà Nội', short: 'ĐH Sư Phạm' },
+                { name: 'Học viện Ngân Hàng', short: 'HV Ngân Hàng' },
+                { name: 'Học viện Bưu Chính Viễn Thông', short: 'HV Bưu Chính (PTIT)' },
+                { name: 'Đại học Hà Nội', short: 'ĐH Hà Nội (HANU)' },
+              ].map((school) => (
+                <Link
+                  key={school.name}
+                  to={`/tim-kiem?truong=${encodeURIComponent(school.name)}`}
+                  className="px-2.5 py-1 rounded-lg bg-gray-100/80 hover:bg-emerald-50 text-gray-700 hover:text-[#006d37] font-medium transition-colors"
+                >
+                  Trọ gần {school.short}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
 
           {/* Col 1: Liên hệ */}

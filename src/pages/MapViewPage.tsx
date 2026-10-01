@@ -5,6 +5,7 @@ import { Room } from '../types';
 import { HorizontalRoomCard, formatPrice } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { TroXinhMap, HANOI_UNIVERSITIES, DISTRICT_CENTERS } from '../components/map/TroXinhMap';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   List,
   MapPin,
@@ -217,6 +218,17 @@ export const MapViewPage: React.FC = () => {
 
   return (
     <div className="h-[calc(100dvh-70px)] lg:h-[calc(100dvh-76px)] flex flex-col overflow-hidden bg-gray-50 relative -mt-[1px]">
+      <SEOHead
+        title="Bản Đồ Tìm Phòng Trọ Trực Quan Hà Nội - Quét Phòng Quanh Đây | TroXinh"
+        description="Xem vị trí thực tế hơn 1.000+ phòng trọ sinh viên tại Hà Nội trên bản đồ tương tác. Định vị GPS tìm phòng quanh trường ĐH và trục đường lớn."
+        url="/ban-do"
+        keywords="bản đồ phòng trọ hà nội, tìm phòng trọ quanh đây, tìm phòng trọ gần trường đại học, bản đồ nhà trọ sinh viên"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Bản đồ phòng trọ', url: '/ban-do' },
+        ]}
+      />
+
       {/* Top Map Filter Sub-bar */}
       <div className="bg-white border-b border-gray-200 z-20 shrink-0 shadow-xs relative">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 py-2.5 space-y-2">

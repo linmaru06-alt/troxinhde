@@ -12,8 +12,12 @@
 - **Khu vực đại học**: Gần ĐH Quốc gia Hà Nội, ĐH Bách Khoa Hà Nội, ĐH Kinh tế Quốc dân, ĐH Ngoại Thương, ĐH Sư Phạm Hà Nội, Học viện Ngân Hàng, Học viện Bưu chính Viễn thông.
 - **Giao thông công cộng**: Tuyến Metro Cát Linh - Hà Đông, Tuyến Metro Nhổn - Ga Hà Nội, các tuyến xe bus nội đô.
 
-## Đường Dẫn Tham Khảo
-- Danh sách phòng trọ: https://troxinh.vn/rooms
-- Tìm bạn ở ghép: https://troxinh.vn/roommates
-- Chợ đồ cũ sinh viên: https://troxinh.vn/marketplace
-- Đăng tin cho thuê / tìm người ở ghép: https://troxinh.vn/post
+## Đường Dẫn Tham Khảo Chính Thức
+- Trang chủ & Tổng quan dịch vụ: https://troxinh.vn/
+- Danh sách phòng trọ đã kiểm duyệt: https://troxinh.vn/tim-kiem
+- Bản đồ phòng trọ trực quan: https://troxinh.vn/ban-do
+- Tìm bạn ở ghép sinh viên: https://troxinh.vn/roommate
+- Chợ đồ cũ sinh viên: https://troxinh.vn/cho-do-cu
+- Quy trình kiểm duyệt phòng trọ: https://troxinh.vn/ve-chung-toi/kiem-duyet
+- Hợp đồng mẫu & Đặt cọc an toàn: https://troxinh.vn/hop-dong-mau
+- Hotline hỗ trợ chính thức: 0888 110 789 (Zalo: https://zalo.me/0888110789)

@@ -4,6 +4,7 @@ import { useAppStore } from '../store/useAppStore';
 import { RoommateCard } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import { CreateRoommateModal } from '../components/modals/CreateRoommateModal';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   Search,
   X,
@@ -179,6 +180,18 @@ export const RoommateListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title="Tìm Bạn Ở Ghép Hà Nội 2026 - Ghép Phòng Sinh Viên Đã Xác Minh | TroXinh"
+        description="Kết nối tìm bạn ở ghép, tìm người chia sẻ tiền phòng trọ sinh viên tại Hà Nội. Phù hợp theo trường ĐH, lối sống, ngân sách từ 1.5 - 3 triệu/tháng."
+        image="/roommate-banner.webp"
+        url="/roommate"
+        keywords="tìm bạn ở ghép hà nội, ở ghép sinh viên, tìm người ở cùng cầu giấy, đống đa, bách khoa, đhqg"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tìm bạn ở ghép', url: '/roommate' },
+        ]}
+      />
+
       {/* Create Roommate Modal */}
       <CreateRoommateModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 

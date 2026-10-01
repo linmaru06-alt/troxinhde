@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 
 import { getOrCreateConversation } from '../lib/api/messages';
+import { SEOHead } from '../components/seo/SEOHead';
 
 export const BuildingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +69,18 @@ export const BuildingDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title={`${building.name} - Tòa Nhà Trọ ${building.district} | TroXinh`}
+        description={`Tòa nhà ${building.name} tại ${building.address}, ${building.district}. Còn ${building.availableRooms}/${building.totalRooms} phòng trống. Đầy đủ tiện ích, an ninh đảm bảo.`}
+        image={building.images?.[0] || '/images/hero-banner.webp'}
+        url={`/toa-nha/${building.id}`}
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tòa nhà', url: '/tim-kiem' },
+          { name: building.name, url: `/toa-nha/${building.id}` },
+        ]}
+      />
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <Link to="/" className="hover:text-[#006d37]">Trang chủ</Link>

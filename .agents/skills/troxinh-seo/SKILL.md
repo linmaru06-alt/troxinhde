@@ -5,7 +5,7 @@ description: Cẩm nang thực thi và checklist chuẩn SEO toàn diện tối 
 
 # Trọ Xinh — Cẩm Nang & Checklist SEO Toàn Diện (troxinh-seo)
 
-Tài liệu này được tinh chỉnh chuyên sâu từ bộ quy chuẩn `claude-seo` dành riêng cho hệ thống **Trọ Xinh (troxinh.com)**. Áp dụng khi tạo mới, tối ưu trang, kiểm tra audit hoặc lập trình dữ liệu hiển thị trên Google và các công cụ tìm kiếm AI (ChatGPT, Perplexity, Google AI Overviews).
+Tài liệu này được tinh chỉnh chuyên sâu từ bộ quy chuẩn `claude-seo` dành riêng cho hệ thống **Trọ Xinh (troxinh.vn)**. Áp dụng khi tạo mới, tối ưu trang, kiểm tra audit hoặc lập trình dữ liệu hiển thị trên Google và các công cụ tìm kiếm AI (ChatGPT, Perplexity, Google AI Overviews).
 
 ---
 
@@ -14,7 +14,7 @@ Tài liệu này được tinh chỉnh chuyên sâu từ bộ quy chuẩn `claud
 Mọi trang chi tiết phòng trọ, sản phẩm đồ cũ hoặc danh mục tìm kiếm đều phải nhúng thẻ `<script type="application/ld+json">` tương ứng.
 
 ### 1.1. Schema Chi Tiết Phòng Trọ (`Accommodation` / `Apartment`)
-Dành cho trang chi tiết phòng `/rooms/:id`:
+Dành cho trang chi tiết phòng `/phong/:id`:
 ```json
 {
   "@context": "https://schema.org",
@@ -22,7 +22,7 @@ Dành cho trang chi tiết phòng `/rooms/:id`:
   "name": "Phòng trọ khép kín full đồ ban công thoáng mát",
   "description": "Phòng trọ cao cấp diện tích 28m2, có gác xép, điều hòa, nóng lạnh, gần ĐH Sư Phạm, Cầu Giấy, Hà Nội.",
   "image": [
-    "https://troxinh.com/images/room-1.jpg"
+    "https://troxinh.vn/images/room-1.jpg"
   ],
   "address": {
     "@type": "PostalAddress",
@@ -66,13 +66,13 @@ Dành cho trang chi tiết phòng `/rooms/:id`:
 ```
 
 ### 1.2. Schema Chợ Đồ Cũ Sinh Viên (`Product`)
-Dành cho trang chợ đồ cũ `/marketplace/:id`:
+Dành cho trang chợ đồ cũ `/cho-do-cu/:id`:
 ```json
 {
   "@context": "https://schema.org",
   "@type": "Product",
   "name": "Bàn học sinh viên gỗ ép còn mới 95%",
-  "image": ["https://troxinh.com/images/ban-hoc.jpg"],
+  "image": ["https://troxinh.vn/images/ban-hoc.jpg"],
   "description": "Bàn học kèm giá sách chuyển trọ cần thanh lý gấp, kích thước 1m2 x 60cm.",
   "offers": {
     "@type": "Offer",
@@ -91,16 +91,18 @@ Dành cho trang chủ `/` và chân trang (Footer):
   "@context": "https://schema.org",
   "@type": "RealEstateAgent",
   "name": "Trọ Xinh - Nền tảng tìm phòng trọ, ở ghép & thanh lý đồ sinh viên",
-  "url": "https://troxinh.com",
-  "logo": "https://troxinh.com/logo.png",
+  "url": "https://troxinh.vn",
+  "logo": "https://troxinh.vn/logo.png",
   "description": "Nền tảng kết nối trực tiếp chủ trọ và người thuê phòng, sinh viên tìm người ở ghép, thanh lý đồ cũ minh bạch và uy tín tại Hà Nội.",
+  "telephone": "0888110789",
+  "priceRange": "1.500.000 VND - 10.000.000 VND",
   "areaServed": {
     "@type": "AdministrativeArea",
     "name": "Hà Nội, Việt Nam"
   },
   "potentialAction": {
     "@type": "SearchAction",
-    "target": "https://troxinh.com/rooms?q={search_term_string}",
+    "target": "https://troxinh.vn/tim-kiem?q={search_term_string}",
     "query-input": "required name=search_term_string"
   }
 }
@@ -170,7 +172,7 @@ Vì Trọ Xinh là SPA (Single Page Application), cần đảm bảo mỗi màn 
   Disallow: /deposit/
   Disallow: /owner/
   
-  Sitemap: https://troxinh.com/sitemap.xml
+  Sitemap: https://troxinh.vn/sitemap.xml
   ```
 - Các trang riêng tư của người dùng (Hộp thư `/chat`, Hợp đồng cọc `/deposit/:id`, Dashboard `/admin`) phải luôn có thẻ meta:
   `<meta name="robots" content="noindex, nofollow" />`.
