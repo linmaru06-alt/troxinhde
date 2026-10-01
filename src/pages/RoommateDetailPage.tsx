@@ -17,7 +17,7 @@ import {
   Trash2,
 } from 'lucide-react';
 
-import { getOrCreateConversation, saveConversationMeta } from '../lib/api/messages';
+import { getOrCreateConversation, saveConversationMeta, isSameUserId } from '../lib/api/messages';
 import { getRoommatePostById } from '../lib/api/roommates';
 import { SEOHead } from '../components/seo/SEOHead';
 import { extractIdFromParam, buildRoommateUrl } from '../utils/slugify';
@@ -151,7 +151,7 @@ export const RoommateDetailPage: React.FC = () => {
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(buildRoommateUrl(post))}`);
       return;
     }
-    if (currentUser.id === post.userId) {
+    if (isSameUserId(currentUser.id, post.userId)) {
       showToast('Đây là bài đăng của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
       return;
     }

@@ -43,7 +43,7 @@ import {
 } from "lucide-react";
 
 
-import { getOrCreateConversation } from "../lib/api/messages";
+import { getOrCreateConversation, isSameUserId, ADMIN_USER_ID } from "../lib/api/messages";
 import { extractIdFromParam, buildRoomUrl } from "../utils/slugify";
 
 export const RoomDetailPage: React.FC = () => {
@@ -188,7 +188,14 @@ export const RoomDetailPage: React.FC = () => {
       setShowLoginModal(true);
       return;
     }
-    if (currentUser.id === room.ownerId) {
+    const targetOwnerId =
+      room?.ownerId ||
+      (room as any)?.landlord_id ||
+      (room as any)?.owner_id ||
+      (room as any)?.userId ||
+      ADMIN_USER_ID;
+
+    if (isSameUserId(currentUser.id, targetOwnerId)) {
       showToast(
         "Bạn là chủ bài đăng này",
         "Không thể tự nhắn tin cho chính mình.",
@@ -201,12 +208,12 @@ export const RoomDetailPage: React.FC = () => {
     try {
       const convId = await getOrCreateConversation(
         currentUser.id,
-        room.ownerId,
-        room.id,
+        targetOwnerId,
+        room?.id,
         {
-          otherName: room.ownerName || "Chủ trọ",
-          otherAvatar: room.ownerAvatar,
-          roomTitle: room.title,
+          otherName: room?.ownerName || (room as any)?.landlordName || "Chủ trọ",
+          otherAvatar: room?.ownerAvatar || (room as any)?.landlordAvatar,
+          roomTitle: room?.title || room?.name,
         },
       );
       navigate(`/tin-nhan/${convId}`);

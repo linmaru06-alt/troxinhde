@@ -243,24 +243,38 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
   if (!userId) return "";
   const trimmed = userId.trim();
 
+  // 1. Đã là UUID chuẩn -> trả về ngay
   if (UUID_REGEX.test(trimmed)) {
     return trimmed;
   }
 
+  // 2. Demo alias (usr_admin_quan66934, usr_renter_..., usr_owner_...) -> lấy UUID tương ứng
   const demoUuid = resolveDemoAlias(trimmed);
   if (demoUuid) {
     return demoUuid;
   }
 
+  // 3. Nếu là currentUser trong Zustand store đã có profile id là UUID -> lấy ngay (0ms)
+  try {
+    const { useAppStore } = await import("../../store/useAppStore");
+    const current = useAppStore.getState().currentUser;
+    if (current?.id && UUID_REGEX.test(current.id)) {
+      if (current.id === trimmed || current.firebaseUid === trimmed || isSameUserId(current.id, trimmed)) {
+        return current.id;
+      }
+    }
+  } catch {}
+
+  // 4. Tra cứu trên bảng profiles bằng firebase_uid (LƯU Ý: profiles KHÔNG CÓ cột email)
   if (isSupabaseConfigured) {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("id")
-        .or(`firebase_uid.eq.${trimmed},email.eq.${trimmed}`)
+        .eq("firebase_uid", trimmed)
         .maybeSingle();
 
-      if (profile?.id && UUID_REGEX.test(profile.id)) {
+      if (!error && profile?.id && UUID_REGEX.test(profile.id)) {
         return profile.id;
       }
     } catch (err) {
@@ -272,8 +286,15 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
     }
   }
 
-  // Fallback an toàn về ID demo renter để không làm gãy câu lệnh SQL nếu ở chế độ demo
-  return "00000000-0000-4000-8000-000000000003";
+  // 5. Fallback an toàn: Sinh UUID xác định (deterministic) từ chuỗi ID để không bao giờ bị trùng đối tác
+  //    Đồng thời không làm gãy câu lệnh PostgreSQL UUID
+  let hash = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    hash = (hash << 5) - hash + trimmed.charCodeAt(i);
+    hash |= 0;
+  }
+  const hexPart = Math.abs(hash).toString(16).padStart(12, "0").slice(0, 12);
+  return `00000000-0000-4000-8000-${hexPart}`;
 }
 
 /**
@@ -532,8 +553,16 @@ export async function getConversations(
   const cleanUserId = await resolveUserIdToUuid(userId);
   let serverList: Conversation[] = [];
 
-  if (isSupabaseConfigured && cleanUserId) {
+  const candidateIds = Array.from(
+    new Set([cleanUserId, userId].filter((id) => id && UUID_REGEX.test(id.trim())))
+  );
+
+  if (isSupabaseConfigured && candidateIds.length > 0) {
     try {
+      const orFilter = candidateIds
+        .flatMap((id) => [`participant_1.eq.${id}`, `participant_2.eq.${id}`])
+        .join(",");
+
       const { data, error } = await supabase
         .from("conversations")
         .select(
@@ -549,27 +578,25 @@ export async function getConversations(
           unread_count_p1,
           unread_count_p2,
           created_at,
-          rooms(id, name, price),
-          p1:profiles!participant_1(id, full_name, name, avatar_url, app_role, phone),
-          p2:profiles!participant_2(id, full_name, name, avatar_url, app_role, phone)
+          rooms(id, name, price)
         `,
         )
-        .or(`participant_1.eq.${cleanUserId},participant_2.eq.${cleanUserId}`)
+        .or(orFilter)
         .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
         serverList = data as unknown as Conversation[];
-        // Hồ sơ đối phương bị RLS ẩn khỏi join: bổ sung tên/ảnh qua RPC công khai
-        const missingIds = serverList.flatMap((c: any) => [
-          !c.p1 ? c.participant_1 : null,
-          !c.p2 ? c.participant_2 : null,
+        // Hồ sơ người dùng lấy qua RPC công khai (không phụ thuộc RLS join)
+        const allParticipantIds = serverList.flatMap((c: any) => [
+          c.participant_1,
+          c.participant_2,
         ]);
-        const profiles = await getPublicProfiles(missingIds);
+        const profiles = await getPublicProfiles(allParticipantIds);
         if (profiles.size > 0) {
           serverList = serverList.map((c: any) => ({
             ...c,
-            p1: c.p1 || profiles.get(c.participant_1) || null,
-            p2: c.p2 || profiles.get(c.participant_2) || null,
+            p1: profiles.get(c.participant_1) || null,
+            p2: profiles.get(c.participant_2) || null,
           }));
         }
       }
@@ -581,8 +608,7 @@ export async function getConversations(
   // Kết hợp an toàn với các cuộc trò chuyện cục bộ trong phiên
   const localList = getLocalConversations().filter(
     (c) =>
-      isSameUserId(c.participant_1, cleanUserId) ||
-      isSameUserId(c.participant_2, cleanUserId),
+      candidateIds.some((uid) => isSameUserId(c.participant_1, uid) || isSameUserId(c.participant_2, uid))
   );
 
   const convMap = new Map<string, Conversation>();
@@ -597,7 +623,7 @@ export async function getConversations(
   });
 
   const merged = Array.from(convMap.values()).map((c) => {
-    const isMe = isSameUserId(c.participant_1, cleanUserId);
+    const isMe = candidateIds.some((uid) => isSameUserId(c.participant_1, uid));
     const other = isMe ? c.p2 : c.p1;
     const otherId = isMe ? c.participant_2 : c.participant_1;
     const known = KNOWN_USER_NAMES[otherId];
@@ -743,7 +769,26 @@ export async function sendMessage(
     throw new Error("Nội dung tin nhắn không được để trống.");
   }
 
-  const cleanSenderId = senderId ? await resolveUserIdToUuid(senderId) : null;
+  let cleanSenderId = senderId ? await resolveUserIdToUuid(senderId) : null;
+  if (!cleanSenderId || !UUID_REGEX.test(cleanSenderId)) {
+    try {
+      const { useAppStore } = await import("../../store/useAppStore");
+      const current = useAppStore.getState().currentUser;
+      if (current?.id && UUID_REGEX.test(current.id)) {
+        cleanSenderId = current.id;
+      }
+    } catch {}
+  }
+
+  if (!cleanSenderId || !UUID_REGEX.test(cleanSenderId)) {
+    throw new Error("Không thể xác định danh tính người gửi. Vui lòng đăng nhập lại.");
+  }
+
+  const cleanConvId = conversationId?.trim();
+  if (!cleanConvId || !UUID_REGEX.test(cleanConvId)) {
+    throw new Error("Mã cuộc trò chuyện không hợp lệ.");
+  }
+
   const newMsgId =
     messageId && UUID_REGEX.test(messageId.trim())
       ? messageId.trim()
@@ -753,7 +798,7 @@ export async function sendMessage(
 
   const msgPayload: Message = {
     id: newMsgId,
-    conversation_id: conversationId,
+    conversation_id: cleanConvId,
     sender_id: cleanSenderId,
     content: cleanContent,
     type,
@@ -779,32 +824,32 @@ export async function sendMessage(
       }
 
       // Đảm bảo cuộc trò chuyện tồn tại trên Supabase Cloud
-      if (UUID_REGEX.test(conversationId.trim())) {
-        const { data: convExists } = await supabase
-          .from("conversations")
-          .select("id")
-          .eq("id", conversationId)
-          .maybeSingle();
+      const { data: convExists } = await supabase
+        .from("conversations")
+        .select("id, participant_1, participant_2")
+        .eq("id", cleanConvId)
+        .maybeSingle();
 
-        if (!convExists && cleanSenderId) {
-          const meta = getConversationMeta(conversationId);
-          const partnerId = meta?.partner_id || "00000000-0000-4000-8000-000000000002";
-          try {
-            await supabase.rpc("ensure_profile_exists", {
-              p_user_id: partnerId,
-              p_name: meta?.other_name || "Đối tác Trọ Xinh",
-            });
-          } catch {}
-
-          const [p1, p2] = cleanSenderId < partnerId ? [cleanSenderId, partnerId] : [partnerId, cleanSenderId];
-          await supabase.from("conversations").insert({
-            id: conversationId,
-            participant_1: p1,
-            participant_2: p2,
-            last_message: cleanContent,
-            last_message_at: new Date().toISOString(),
+      if (!convExists && cleanSenderId) {
+        const meta = getConversationMeta(cleanConvId);
+        const partnerId = meta?.partner_id && UUID_REGEX.test(meta.partner_id)
+          ? meta.partner_id
+          : "00000000-0000-0000-0000-000000000001"; // Fallback về Admin BQT
+        try {
+          await supabase.rpc("ensure_profile_exists", {
+            p_user_id: partnerId,
+            p_name: meta?.other_name || "Đối tác Trọ Xinh",
           });
-        }
+        } catch {}
+
+        const [p1, p2] = cleanSenderId < partnerId ? [cleanSenderId, partnerId] : [partnerId, cleanSenderId];
+        await supabase.from("conversations").insert({
+          id: cleanConvId,
+          participant_1: p1,
+          participant_2: p2,
+          last_message: cleanContent,
+          last_message_at: new Date().toISOString(),
+        });
       }
 
       const { data, error } = await supabase
@@ -812,7 +857,7 @@ export async function sendMessage(
         .upsert(
           {
             id: newMsgId,
-            conversation_id: conversationId,
+            conversation_id: cleanConvId,
             sender_id: cleanSenderId,
             content: cleanContent,
             type,
@@ -830,8 +875,7 @@ export async function sendMessage(
           type,
           item_id,
           is_read,
-          created_at,
-          sender:profiles!sender_id(id, full_name, name, avatar_url)
+          created_at
         `,
         )
         .maybeSingle();
@@ -843,18 +887,18 @@ export async function sendMessage(
         if (error.message?.includes('No suitable key') || (error as any).code === 'PGRST301') {
           throw new Error("Supabase chưa bật Firebase Third-Party Auth. Vui lòng thêm Firebase Project ID (troxinh-eb) vào Supabase Dashboard.");
         }
-        if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
+        if (!isDemoUser(cleanSenderId) && !isDemoUser(cleanConvId)) {
           throw new Error(`Lỗi gửi tin nhắn Supabase: ${error.message}`);
         }
       } else if (data) {
-        savedMessage = data as unknown as Message;
+        savedMessage = { ...msgPayload, ...(data as any) };
         supabase
           .from("conversations")
           .update({
             last_message: cleanContent,
             last_message_at: new Date().toISOString(),
           })
-          .eq("id", conversationId)
+          .eq("id", cleanConvId)
           .then();
       }
     } catch (error: any) {

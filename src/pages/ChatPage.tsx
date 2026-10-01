@@ -14,6 +14,8 @@ import {
   getOrCreateAdminConversation,
   ADMIN_USER_ID,
 } from '../lib/api/messages';
+import { UUID_REGEX } from '../lib/demoAliases';
+import { getPublicProfiles } from '../lib/api/publicProfiles';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getMarketplaceItemById } from '../lib/api/marketplace';
 import { getRoommatePostById } from '../lib/api/roommates';
@@ -307,12 +309,44 @@ export const ChatPage: React.FC = () => {
       .then((data) => {
         if (!isMounted) return;
         setConversations(data);
-        if (!activeConversationId && data.length > 0 && !hasDeepLinkParams) {
+        if (!activeConversationId && !hasDeepLinkParams) {
           const isDesktop = typeof window !== 'undefined' && window.innerWidth >= 768;
           if (conversationId) {
             setActiveConversationId(conversationId);
-          } else if (isDesktop) {
-            setActiveConversationId(data[0].id);
+          } else if (data.length > 0) {
+            if (isDesktop) {
+              setActiveConversationId(data[0].id);
+            }
+          } else {
+            // Khi chưa có cuộc trò chuyện nào trong danh sách:
+            // Tự động kết nối với Ban Quản Trị Trọ Xinh (BQT) để hỗ trợ người dùng ngay!
+            getOrCreateAdminConversation(currentUser.id)
+              .then((adminConvId) => {
+                if (!isMounted) return;
+                const syntheticAdminConv: Conversation = {
+                  id: adminConvId,
+                  participant_1: currentUser.id,
+                  participant_2: ADMIN_USER_ID,
+                  other_name: 'Ban Quản Trị Trọ Xinh',
+                  other_avatar: '/images/logo.png',
+                  last_message: 'Bắt đầu cuộc trò chuyện...',
+                  last_message_at: new Date().toISOString(),
+                  created_at: new Date().toISOString(),
+                  unread_count: 0,
+                  p2: {
+                    id: ADMIN_USER_ID,
+                    name: 'Ban Quản Trị Trọ Xinh',
+                    full_name: 'Ban Quản Trị Trọ Xinh',
+                    avatar_url: '/images/logo.png',
+                    app_role: 'admin',
+                  },
+                };
+                setConversations([syntheticAdminConv]);
+                if (isDesktop) {
+                  setActiveConversationId(adminConvId);
+                }
+              })
+              .catch((adminErr) => console.warn('[ChatPage] Lỗi tạo chat BQT mặc định:', adminErr));
           }
         }
       })
@@ -329,7 +363,7 @@ export const ChatPage: React.FC = () => {
     return () => {
       isMounted = false;
     };
-  }, [currentUser?.id, conversationId, showToast]);
+  }, [currentUser?.id, conversationId, showToast, hasDeepLinkParams]);
 
   // 1.1 Lắng nghe thay đổi danh sách cuộc trò chuyện qua Supabase Realtime & Custom Events
   useEffect(() => {
@@ -455,6 +489,53 @@ export const ChatPage: React.FC = () => {
     if (!activeConversationId) return null;
     return conversations.find((c) => c.id === activeConversationId) || null;
   }, [conversations, activeConversationId]);
+
+  // Tự động nạp cuộc trò chuyện riêng lẻ nếu URL có activeConversationId nhưng chưa kịp có trong danh sách
+  useEffect(() => {
+    if (!activeConversationId || !UUID_REGEX.test(activeConversationId)) return;
+    const exists = conversations.some((c) => c.id === activeConversationId);
+    if (exists) return;
+
+    let isMounted = true;
+    (async () => {
+      try {
+        const { data: conv, error } = await supabase
+          .from('conversations')
+          .select('id, participant_1, participant_2, room_id, last_message, last_message_at, unread_count_p1, unread_count_p2, created_at, rooms(id, name, price)')
+          .eq('id', activeConversationId)
+          .maybeSingle();
+
+        if (error || !conv || !isMounted) return;
+
+        const isMe = isSameUserId(conv.participant_1, currentUser?.id);
+        const otherId = isMe ? conv.participant_2 : conv.participant_1;
+        const profiles = await getPublicProfiles([otherId]);
+        const otherProf = profiles.get(otherId);
+
+        const loadedConv: Conversation = {
+          ...conv,
+          unread_count: 0,
+          other_name: otherProf?.full_name || KNOWN_USER_NAMES[otherId]?.name || 'Người dùng Trọ Xinh',
+          other_avatar: otherProf?.avatar_url || KNOWN_USER_NAMES[otherId]?.avatar || '/images/user-avatar.jpg',
+          p1: isMe ? undefined : (otherProf ? { ...otherProf, name: otherProf.full_name || '' } : undefined),
+          p2: isMe ? (otherProf ? { ...otherProf, name: otherProf.full_name || '' } : undefined) : undefined,
+        };
+
+        if (isMounted) {
+          setConversations((prev) => {
+            if (prev.some((c) => c.id === loadedConv.id)) return prev;
+            return [loadedConv, ...prev];
+          });
+        }
+      } catch (err) {
+        console.warn('[ChatPage] Không thể nạp cuộc trò chuyện chi tiết:', err);
+      }
+    })();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeConversationId, conversations, currentUser?.id]);
 
   const isP1Me = Boolean(activeConversation && isSameUserId(activeConversation.participant_1, currentUser?.id));
 
@@ -1268,31 +1349,28 @@ export const ChatPage: React.FC = () => {
     setIsOpeningAdminChat(true);
     try {
       const convId = await getOrCreateAdminConversation(currentUser.id);
-      const updatedList = await getConversations(currentUser.id);
-      const found = updatedList.find((c) => c.id === convId);
-      if (!found) {
-        const syntheticAdminConv: Conversation = {
-          id: convId,
-          participant_1: currentUser.id,
-          participant_2: ADMIN_USER_ID,
-          other_name: 'Ban Quản Trị Trọ Xinh',
-          other_avatar: '/images/logo.png',
-          last_message: 'Bắt đầu cuộc trò chuyện...',
-          last_message_at: new Date().toISOString(),
-          created_at: new Date().toISOString(),
-          unread_count: 0,
-          p2: {
-            id: ADMIN_USER_ID,
-            name: 'Ban Quản Trị Trọ Xinh',
-            full_name: 'Ban Quản Trị Trọ Xinh',
-            avatar_url: '/images/logo.png',
-            app_role: 'admin',
-          },
-        };
-        setConversations([syntheticAdminConv, ...updatedList]);
-      } else {
-        setConversations(updatedList);
-      }
+      const syntheticAdminConv: Conversation = {
+        id: convId,
+        participant_1: currentUser.id,
+        participant_2: ADMIN_USER_ID,
+        other_name: 'Ban Quản Trị Trọ Xinh',
+        other_avatar: '/images/logo.png',
+        last_message: 'Bắt đầu cuộc trò chuyện...',
+        last_message_at: new Date().toISOString(),
+        created_at: new Date().toISOString(),
+        unread_count: 0,
+        p2: {
+          id: ADMIN_USER_ID,
+          name: 'Ban Quản Trị Trọ Xinh',
+          full_name: 'Ban Quản Trị Trọ Xinh',
+          avatar_url: '/images/logo.png',
+          app_role: 'admin',
+        },
+      };
+      setConversations((prev) => {
+        const without = prev.filter((c) => c.id !== convId);
+        return [syntheticAdminConv, ...without];
+      });
       handleSelectConversation(convId);
     } catch (err: any) {
       console.error('[ChatPage] Lỗi mở hội thoại với Admin:', err);
@@ -2473,6 +2551,18 @@ export const ChatPage: React.FC = () => {
                 </>
               )}
             </>
+          ) : activeConversationId ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-gray-50/50">
+              <div className="bg-white p-6 sm:p-8 rounded-3xl border border-emerald-100 shadow-md max-w-sm w-full space-y-4 text-center animate-scaleUp">
+                <div className="w-14 h-14 mx-auto rounded-2xl bg-emerald-50 text-[#006d37] flex items-center justify-center">
+                  <Loader2 className="w-7 h-7 animate-spin" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-gray-900">Đang mở cuộc trò chuyện...</h3>
+                  <p className="text-xs text-gray-500 mt-1">Đang chuẩn bị tin nhắn an toàn.</p>
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="flex-1 flex items-center justify-center text-center p-8 text-gray-400">
               <div className="space-y-2 max-w-xs">
