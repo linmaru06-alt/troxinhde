@@ -35,7 +35,7 @@ const bundled = await build({
 });
 
 const env = {};
-globalThis.Deno = { env: { get: (k) => env[k] } };
+globalThis.Deno = { env: { get: (k) => env[k], toObject: () => ({ ...env }) } };
 const auditCalls = [];
 globalThis.fetch = async (url, init) => {
   auditCalls.push({ url, body: JSON.parse(init.body) });
@@ -76,6 +76,23 @@ await test('Chưa cấu hình FIREBASE_SERVICE_ACCOUNT: không cấp token, báo
   assert.match(body.tokenError, /FIREBASE_SERVICE_ACCOUNT/);
   assert.equal(auditCalls.length, 1);
   assert.equal(auditCalls[0].body.action, 'demo_login');
+});
+
+await test('Secret sai JSON: báo rõ lý do, không lộ nội dung khóa', async () => {
+  env.FIREBASE_SERVICE_ACCOUNT = '{"client_email": "x@y", "private_key": "SECRET-KEY-MATERIAL"';
+  const { body } = await call('renter');
+  assert.equal(body.customToken, null);
+  assert.match(body.tokenError, /không phải JSON hợp lệ/);
+  assert.ok(!body.tokenError.includes('SECRET-KEY-MATERIAL'));
+});
+
+await test('Đặt sai tên secret: liệt kê tên secret có chữ FIREBASE để phát hiện', async () => {
+  delete env.FIREBASE_SERVICE_ACCOUNT;
+  env.FIREBASE_SERVICE_ACCOUN = 'value-should-not-leak';
+  const { body } = await call('renter');
+  assert.match(body.tokenError, /có chữ FIREBASE đang có: FIREBASE_SERVICE_ACCOUN./);
+  assert.ok(!body.tokenError.includes('value-should-not-leak'));
+  delete env.FIREBASE_SERVICE_ACCOUN;
 });
 
 await test('Demo Sinh viên: cấp Firebase custom token RS256 hợp lệ cho uid demo_renter_troxinh', async () => {

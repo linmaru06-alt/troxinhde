@@ -104,18 +104,35 @@ async function createFirebaseCustomToken(
   return `${signingInput}.${base64Url(new Uint8Array(signature))}`;
 }
 
-function readServiceAccount(): { client_email: string; private_key: string } | null {
+type ServiceAccount = { client_email: string; private_key: string };
+
+/**
+ * Đọc secret FIREBASE_SERVICE_ACCOUNT. Lỗi trả về lý do cụ thể để người cấu hình biết sửa gì;
+ * tuyệt đối không đưa nội dung khóa vào thông báo.
+ */
+function readServiceAccount(): { account: ServiceAccount } | { reason: string } {
   const raw = Deno.env.get('FIREBASE_SERVICE_ACCOUNT');
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw);
-    if (typeof parsed.client_email === 'string' && typeof parsed.private_key === 'string') {
-      return parsed;
-    }
-  } catch {
-    // Secret sai định dạng: xử lý như chưa cấu hình, lỗi được báo qua tokenError
+  if (!raw || !raw.trim()) {
+    // Chỉ liệt kê TÊN các secret có chữ FIREBASE để phát hiện gõ sai tên (không lộ giá trị)
+    const similar = Object.keys(Deno.env.toObject()).filter((k) => /firebase/i.test(k));
+    return {
+      reason: `Không tìm thấy secret FIREBASE_SERVICE_ACCOUNT. Tên secret có chữ FIREBASE đang có: ${similar.length ? similar.join(', ') : '(không có)'}.`,
+    };
   }
-  return null;
+
+  let parsed: any;
+  try {
+    parsed = JSON.parse(raw.trim());
+  } catch {
+    return {
+      reason: `Secret FIREBASE_SERVICE_ACCOUNT không phải JSON hợp lệ (dài ${raw.length} ký tự). Hãy dán lại toàn bộ file JSON, từ dấu { đầu đến dấu } cuối.`,
+    };
+  }
+
+  if (typeof parsed?.client_email !== 'string' || typeof parsed?.private_key !== 'string') {
+    return { reason: 'Secret FIREBASE_SERVICE_ACCOUNT thiếu client_email hoặc private_key. Hãy dùng file JSON tải từ Firebase > Service accounts.' };
+  }
+  return { account: parsed };
 }
 
 /**
@@ -173,13 +190,17 @@ serve(async (req) => {
       tokenError = 'Tài khoản demo Quản trị chỉ dùng để xem giao diện, không có quyền thao tác dữ liệu.';
     } else {
       const serviceAccount = readServiceAccount();
-      if (!serviceAccount) {
-        tokenError = 'Máy chủ chưa cấu hình FIREBASE_SERVICE_ACCOUNT nên tài khoản demo chỉ xem được, không đăng tin hay ghi dữ liệu.';
+      if ('reason' in serviceAccount) {
+        tokenError = `${serviceAccount.reason} Tài khoản demo tạm thời chỉ xem được.`;
       } else {
-        customToken = await createFirebaseCustomToken(serviceAccount, account.uid, {
-          role: 'authenticated',
-          is_demo_account: true,
-        });
+        try {
+          customToken = await createFirebaseCustomToken(serviceAccount.account, account.uid, {
+            role: 'authenticated',
+            is_demo_account: true,
+          });
+        } catch (signErr: any) {
+          tokenError = `Không ký được Firebase custom token (private_key không hợp lệ): ${signErr?.message || 'lỗi không xác định'}.`;
+        }
       }
     }
 
