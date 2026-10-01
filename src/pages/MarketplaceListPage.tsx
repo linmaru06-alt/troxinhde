@@ -548,15 +548,22 @@ export const MarketplaceListPage: React.FC = () => {
 
   useEffect(() => {
     const STICKY_NAV_HEIGHT = 64;
+    let frame = 0;
+    // Gộp các sự kiện cuộn vào một khung hình (requestAnimationFrame) như thanh menu
     const handleScroll = () => {
-      const hero = heroRef.current;
-      if (!hero) return;
-      setShowStickyBar(hero.getBoundingClientRect().bottom < STICKY_NAV_HEIGHT);
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const hero = heroRef.current;
+        if (!hero) return;
+        setShowStickyBar(hero.getBoundingClientRect().bottom < STICKY_NAV_HEIGHT);
+      });
     };
     window.addEventListener('scroll', handleScroll, { passive: true });
     window.addEventListener('resize', handleScroll);
     handleScroll();
     return () => {
+      if (frame) window.cancelAnimationFrame(frame);
       window.removeEventListener('scroll', handleScroll);
       window.removeEventListener('resize', handleScroll);
     };
