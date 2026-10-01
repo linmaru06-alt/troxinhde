@@ -4,6 +4,9 @@
 -- An toàn 100%: Non-destructive, không làm mất dữ liệu hiện có
 -- ==============================================================================
 
+-- 0. ĐẢM BẢO CỘT ID LUÔN CÓ DEFAULT UUID (CHỐNG LỖI NOT-NULL CONSTRAINT)
+ALTER TABLE public.profiles ALTER COLUMN id SET DEFAULT gen_random_uuid();
+
 -- 1. HÀM ĐẢM BẢO PROFILE LUÔN TỒN TẠI (CHỐNG LỖI FOREIGN KEY 23503)
 CREATE OR REPLACE FUNCTION public.ensure_profile_exists(
   p_user_id UUID,

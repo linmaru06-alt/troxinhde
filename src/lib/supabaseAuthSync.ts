@@ -267,7 +267,10 @@ export async function updateUserProfile(
         savedProfileRecord = res.data;
         upsertError = res.error;
       } else {
-        console.log("[updateUserProfile] Upsert Payload (by firebase_uid):", upsertPayload);
+        if (!upsertPayload.id) {
+          upsertPayload.id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
+        }
+        console.log("[updateUserProfile] Upsert Payload (by firebase_uid with generated UUID):", upsertPayload);
         const res = await supabase
           .from('profiles')
           .upsert(upsertPayload, { onConflict: 'firebase_uid' })
@@ -590,6 +593,26 @@ export async function createSupabaseProfile(
   const avatarUrl = data.avatar_url || data.avatarUrl || '/images/user-avatar.jpg';
 
   try {
+    // 1. Kiểm tra xem profile đã tồn tại theo firebase_uid chưa để giữ nguyên ID
+    let targetProfileId: string | undefined;
+    try {
+      const { data: existingProf } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('firebase_uid', firebaseUid)
+        .maybeSingle();
+      if (existingProf?.id) {
+        targetProfileId = existingProf.id;
+      }
+    } catch {
+      // Bỏ qua lỗi query kiểm tra
+    }
+
+    // Nếu chưa có, sinh sẵn UUID mới chuẩn RFC4122 để không bao giờ vi phạm NOT NULL constraint
+    if (!targetProfileId) {
+      targetProfileId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
+    }
+
     const profilePayload: Record<string, any> = {
       firebase_uid: firebaseUid,
       full_name: data.full_name || data.name.trim(),
@@ -602,6 +625,10 @@ export async function createSupabaseProfile(
       owner_application_status: role === 'owner' ? 'approved' : 'none',
       updated_at: new Date().toISOString(),
     };
+
+    if (targetProfileId) {
+      profilePayload.id = targetProfileId;
+    }
 
     const { data: createdProfile, error: profErr } = await supabase
       .from('profiles')
