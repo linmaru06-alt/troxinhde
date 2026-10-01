@@ -24,7 +24,8 @@ const bundled = await build({
 });
 const code = bundled.outputFiles[0].text;
 const lib = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-const { toItemStatus, mapMarketplaceRow, toMarketplaceDbFields, getItemAvailability, getUnavailableReason, filterMarketplaceItems } = lib;
+const { toItemStatus, mapMarketplaceRow, toMarketplaceDbFields, getItemAvailability, getUnavailableReason, filterMarketplaceItems, normalizePriceInput, formatPriceInput } = lib;
+
 
 let passed = 0;
 function test(name, fn) {
@@ -173,6 +174,25 @@ test('Danh sách công khai: ẩn tin đã đóng/đang ẩn/chờ duyệt, vẫ
   assert.deepEqual(publicIds, ['i1', 'i2']);
   const mine = filterMarketplaceItems(items, { viewMode: 'my_items', currentUserId: baseRow.seller_id }).map((i) => i.id).sort();
   assert.deepEqual(mine, ['i1', 'i2', 'i3', 'i4', 'i5']);
+});
+
+test('Ô giá bán: bỏ số 0 thừa ở đầu, chỉ giữ chữ số, cho phép xóa trống', () => {
+  assert.equal(normalizePriceInput('005555'), '5555');
+  assert.equal(normalizePriceInput('0150000'), '150000');
+  assert.equal(normalizePriceInput('0'), '0');
+  assert.equal(normalizePriceInput('000'), '0');
+  assert.equal(normalizePriceInput(''), '');
+  assert.equal(normalizePriceInput('150.000đ'), '150000');
+  assert.equal(normalizePriceInput('12a3'), '123');
+});
+
+test('Ô giá bán hiển thị dấu chấm ngăn cách hàng nghìn', () => {
+  assert.equal(formatPriceInput('150000'), '150.000');
+  assert.equal(formatPriceInput('005555'), '5.555');
+  assert.equal(formatPriceInput('1.500.0001'), '15.000.001');
+  assert.equal(formatPriceInput('999'), '999');
+  assert.equal(formatPriceInput('0'), '0');
+  assert.equal(formatPriceInput(''), '');
 });
 
 console.log(`\nĐẠT ${passed}/${passed} KIỂM THỬ TRẠNG THÁI CHỢ ĐỒ CŨ\n`);

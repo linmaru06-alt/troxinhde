@@ -132,6 +132,11 @@ export const Navbar: React.FC = () => {
   };
 
   const handlePostClick = () => {
+    // Đang ở chợ đồ cũ: nút ĐĂNG TIN mở form đăng đồ thanh lý thay vì đăng phòng trọ
+    if (location.pathname === '/cho-do-cu' || location.pathname.startsWith('/cho-do-cu/')) {
+      navigate('/cho-do-cu?dangTin=1');
+      return;
+    }
     if (currentUser?.role === 'owner') {
       navigate('/chu-tro/phong/tao-moi');
     } else {

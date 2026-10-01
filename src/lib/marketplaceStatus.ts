@@ -181,6 +181,21 @@ export interface MarketplaceItemInput {
 /**
  * Chuyển dữ liệu biểu mẫu sang cột DB (dùng cho tạo tin và sửa tin).
  */
+/**
+ * Chuẩn hóa chuỗi người dùng gõ vào ô giá: chỉ giữ chữ số và bỏ số 0 thừa ở đầu
+ * ('005555' → '5555', '0' giữ nguyên, '150.000đ' → '150000'). Chuỗi rỗng nghĩa là đang xóa trống.
+ */
+export function normalizePriceInput(raw: string): string {
+  return raw.replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+}
+
+/**
+ * Hiển thị giá đang gõ cho dễ đọc: chữ số kèm dấu chấm ngăn cách hàng nghìn ('150000' → '150.000').
+ */
+export function formatPriceInput(raw: string): string {
+  return normalizePriceInput(raw).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
 export function toMarketplaceDbFields(input: MarketplaceItemInput) {
   const isFree = input.pricingType === 'Miễn phí';
   return {

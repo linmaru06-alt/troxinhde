@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { MarketplaceCard } from '../components/ui/Cards';
@@ -37,7 +37,7 @@ import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { useMarketplaceItemMutations } from '../hooks/queries/useMarketplace';
-import { getItemAvailability, MarketplaceItemInput } from '../lib/marketplaceStatus';
+import { getItemAvailability, MarketplaceItemInput, normalizePriceInput, formatPriceInput } from '../lib/marketplaceStatus';
 import {
   filterMarketplaceItems,
   validatePriceRange,
@@ -93,6 +93,64 @@ const CATEGORY_SHOWCASE = [
     image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=80',
   },
 ];
+
+/**
+ * Ô nhập giá bán: hiển thị dấu chấm ngăn cách hàng nghìn (150.000), tự bỏ số 0 thừa ở đầu
+ * (005555 → 5.555) và cho xóa trống khi đang gõ.
+ * (input type="number" với state kiểu số ép ô trống về 0 nên gõ tiếp bị dính số 0 phía trước)
+ */
+const PriceInput: React.FC<{ value: number; onChange: (value: number) => void; placeholder: string }> = ({
+  value,
+  onChange,
+  placeholder,
+}) => {
+  const [text, setText] = useState<string>(formatPriceInput(String(value)));
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Số chữ số đứng trước con trỏ, để đặt lại con trỏ đúng chỗ sau khi chèn dấu chấm
+  const caretDigitsRef = useRef<number | null>(null);
+
+  // Giá đổi từ bên ngoài (mở bản nháp, sửa tin, đặt lại form) thì hiển thị theo
+  useEffect(() => {
+    if (Number(normalizePriceInput(text) || 0) !== value) setText(formatPriceInput(String(value)));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    const digitsBefore = caretDigitsRef.current;
+    if (!el || digitsBefore === null || document.activeElement !== el) return;
+    caretDigitsRef.current = null;
+    let pos = 0;
+    let seen = 0;
+    while (pos < el.value.length && seen < digitsBefore) {
+      if (/\d/.test(el.value[pos])) seen++;
+      pos++;
+    }
+    el.setSelectionRange(pos, pos);
+  }, [text]);
+
+  return (
+    <Input
+      label="Mức giá bán (VNĐ)"
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      required
+      ref={inputRef}
+      value={text}
+      onChange={(e) => {
+        const raw = e.target.value;
+        const caret = e.target.selectionStart ?? raw.length;
+        const digits = normalizePriceInput(raw);
+        const digitsAfterCaret = raw.slice(caret).replace(/\D/g, '').length;
+        caretDigitsRef.current = Math.max(0, digits.length - digitsAfterCaret);
+        setText(formatPriceInput(digits));
+        onChange(digits === '' ? 0 : Number(digits));
+      }}
+      placeholder={placeholder}
+    />
+  );
+};
 
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -484,14 +542,50 @@ export const MarketplaceListPage: React.FC = () => {
     window.scrollTo({ top: 350, behavior: 'smooth' });
   };
 
+  // Thanh "Chợ đồ cũ sinh viên" bám theo khi banner đầu trang đã cuộn khuất dưới thanh menu
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState<boolean>(false);
+
+  useEffect(() => {
+    const STICKY_NAV_HEIGHT = 64;
+    const handleScroll = () => {
+      const hero = heroRef.current;
+      if (!hero) return;
+      setShowStickyBar(hero.getBoundingClientRect().bottom < STICKY_NAV_HEIGHT);
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    handleScroll();
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, []);
+
   const handlePostItem = () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đăng tin thanh lý đồ cũ', 'warning');
-      navigate('/dang-nhap?returnUrl=/cho-do-cu');
+      // Đăng nhập xong quay lại và mở luôn form đăng tin
+      navigate('/dang-nhap?returnUrl=' + encodeURIComponent('/cho-do-cu?dangTin=1'));
       return;
     }
     setIsModalOpen(true);
   };
+
+  // Nút ĐĂNG TIN trên thanh menu (hoặc quay lại sau đăng nhập) mở form qua ?dangTin=1
+  useEffect(() => {
+    if (searchParams.get('dangTin') !== '1') return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('dangTin');
+        return next;
+      },
+      { replace: true }
+    );
+    handlePostItem();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const isSubmitting = createItem.isPending;
 
@@ -627,8 +721,36 @@ export const MarketplaceListPage: React.FC = () => {
         ]}
       />
 
+      {/* Thanh chợ đồ cũ bám dưới thanh menu khi cuộn: nút đăng tin thanh lý luôn trong tầm tay,
+          tách bạch với nút "ĐĂNG TIN" phòng trọ trên thanh menu */}
+      <div
+        className={`fixed top-14 sm:top-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200/90 shadow-sm transition-all duration-300 ease-in-out ${
+          showStickyBar ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={!showStickyBar}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 sm:h-14 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="text-sm sm:text-base font-black text-gray-900 tracking-tight truncate cursor-pointer hover:text-[#006d37] transition"
+            tabIndex={showStickyBar ? 0 : -1}
+          >
+            Chợ đồ cũ sinh viên
+          </button>
+          <button
+            type="button"
+            onClick={handlePostItem}
+            className="shrink-0 px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-xs sm:text-sm tracking-wide shadow-md cursor-pointer transition"
+            tabIndex={showStickyBar ? 0 : -1}
+          >
+            Đăng tin thanh lý
+          </button>
+        </div>
+      </div>
+
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
+      <div ref={heroRef} className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -1404,14 +1526,9 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
 
           {pricingType === 'Giá rẻ' && (
-            <Input
-              label="Mức giá bán (VNĐ)"
-              type="number"
-              required
-              min={0}
-              step={10000}
+            <PriceInput
               value={price}
-              onChange={(e) => setPrice(Number(e.target.value))}
+              onChange={setPrice}
               placeholder="150000 (Nhập 0 nếu là giá thỏa thuận / chưa nhập giá)"
             />
           )}
@@ -1638,14 +1755,9 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
 
           {resubmitPricingType === 'Giá rẻ' && (
-            <Input
-              label="Mức giá bán (VNĐ)"
-              type="number"
-              required
-              min={0}
-              step={10000}
+            <PriceInput
               value={resubmitPrice}
-              onChange={(e) => setResubmitPrice(Number(e.target.value))}
+              onChange={setResubmitPrice}
               placeholder="150000 (Nhập 0 nếu là giá thỏa thuận)"
             />
           )}

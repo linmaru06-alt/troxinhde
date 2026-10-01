@@ -6,7 +6,7 @@ import { Bell, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const PushPermissionToast: React.FC = () => {
-  const { showPrompt, setShowPrompt, requestPermission } = usePushNotification();
+  const { showPrompt, dismissPrompt, isLastPrompt, requestPermission } = usePushNotification();
 
   if (!showPrompt) return null;
 
@@ -26,10 +26,13 @@ export const PushPermissionToast: React.FC = () => {
         <div className="flex-1 space-y-2">
           <div>
             <h4 className="text-xs font-bold text-gray-900 leading-tight">
-              Bật thông báo phòng mới & tin nhắn
+              Đừng để lỡ phòng đẹp và tin nhắn quan trọng
             </h4>
             <p className="text-[11px] text-gray-500 mt-0.5 leading-snug">
-              Nhận thông báo tức thì khi có người nhắn tin hoặc phòng trọ giá tốt vừa đăng.
+              Biết ngay khi chủ trọ trả lời, có người hỏi mua món đồ bạn đăng, hoặc có phòng giá tốt vừa lên sàn.
+            </p>
+            <p className="text-[10px] text-gray-400 mt-1 leading-snug">
+              Bạn có thể tắt bất cứ lúc nào trong cài đặt trình duyệt.
             </p>
           </div>
 
@@ -45,16 +48,16 @@ export const PushPermissionToast: React.FC = () => {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => setShowPrompt(false)}
+              onClick={dismissPrompt}
               className="text-xs py-1.5 px-2 text-gray-500 hover:text-gray-700"
             >
-              Để sau
+              {isLastPrompt ? 'Không, cảm ơn' : 'Để sau'}
             </Button>
           </div>
         </div>
 
         <button
-          onClick={() => setShowPrompt(false)}
+          onClick={dismissPrompt}
           className="p-1 text-gray-400 hover:text-gray-600 rounded-lg"
           aria-label="Đóng"
         >
