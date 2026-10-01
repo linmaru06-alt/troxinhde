@@ -104,14 +104,16 @@ const PriceInput: React.FC<{ value: number; onChange: (value: number) => void; p
   onChange,
   placeholder,
 }) => {
-  const [text, setText] = useState<string>(formatPriceInput(String(value)));
+  // Giá 0 (thỏa thuận / chưa nhập) hiển thị ô trống thay vì số 0 đứng sẵn
+  const toDisplay = (price: number) => (price > 0 ? formatPriceInput(String(price)) : '');
+  const [text, setText] = useState<string>(toDisplay(value));
   const inputRef = useRef<HTMLInputElement>(null);
   // Số chữ số đứng trước con trỏ, để đặt lại con trỏ đúng chỗ sau khi chèn dấu chấm
   const caretDigitsRef = useRef<number | null>(null);
 
   // Giá đổi từ bên ngoài (mở bản nháp, sửa tin, đặt lại form) thì hiển thị theo
   useEffect(() => {
-    if (Number(normalizePriceInput(text) || 0) !== value) setText(formatPriceInput(String(value)));
+    if (Number(normalizePriceInput(text) || 0) !== value) setText(toDisplay(value));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
@@ -135,7 +137,6 @@ const PriceInput: React.FC<{ value: number; onChange: (value: number) => void; p
       type="text"
       inputMode="numeric"
       autoComplete="off"
-      required
       ref={inputRef}
       value={text}
       onChange={(e) => {
@@ -1536,7 +1537,7 @@ export const MarketplaceListPage: React.FC = () => {
             <PriceInput
               value={price}
               onChange={setPrice}
-              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận / chưa nhập giá)"
+              placeholder="Ví dụ: 150.000 (để trống nếu giá thỏa thuận)"
             />
           )}
 
@@ -1765,7 +1766,7 @@ export const MarketplaceListPage: React.FC = () => {
             <PriceInput
               value={resubmitPrice}
               onChange={setResubmitPrice}
-              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận)"
+              placeholder="Ví dụ: 150.000 (để trống nếu giá thỏa thuận)"
             />
           )}
 

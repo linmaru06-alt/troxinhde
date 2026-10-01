@@ -7,6 +7,11 @@ import { ErrorBoundary } from './components/ui/ErrorBoundary';
 import App from './App';
 import 'leaflet/dist/leaflet.css';
 import './index.css';
+import { registerSW } from 'virtual:pwa-register';
+
+// Có bản deploy mới: service worker mới kích hoạt rồi tự tải lại trang một lần,
+// người dùng không bị kẹt ở giao diện cũ trong bộ nhớ đệm
+registerSW({ immediate: true });
 
 const queryClient = new QueryClient({
   defaultOptions: {

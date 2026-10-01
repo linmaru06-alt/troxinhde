@@ -10,6 +10,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Đăng ký trong src/main.tsx bằng virtual:pwa-register để tự tải lại khi có bản mới
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'Trọ Xinh - Nền Tảng Tìm Trọ An Tâm tại Hà Nội',
