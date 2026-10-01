@@ -108,7 +108,6 @@ export const ChatPage: React.FC = () => {
   const rawRoommateId = searchParams.get('roommateId') || searchParams.get('oGhep');
   const hasDeepLinkParams = searchParams.has('nguoiBan') || searchParams.has('monDo');
 
-  const [inboxFilter, setInboxFilter] = useState<'all' | 'unread' | 'rooms' | 'marketplace' | 'roommates'>('all');
 
   const [deepLinkState, setDeepLinkState] = useState<{
     isLoading: boolean;
@@ -1236,36 +1235,10 @@ export const ChatPage: React.FC = () => {
     return conversations.filter((c) => !isConversationWithAdmin(c, currentUser?.id));
   }, [conversations, currentUser?.id, isCurrentUserAdmin]);
 
-  const filterCounts = useMemo(() => {
-    let unread = 0;
-    let roomsCount = 0;
-    let marketplaceCount = 0;
-    let roommatesCount = 0;
-
-    nonAdminConversations.forEach((c) => {
-      const isMe = isSameUserId(c.participant_1, currentUser?.id);
-      const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
-      if (unreadCount > 0) unread++;
-
-      const meta = getConversationMeta(c.id);
-      if (c.room_id || c.rooms) roomsCount++;
-      if (c.item_id || c.last_item_id || meta?.last_item_id) marketplaceCount++;
-      if ((c as any).roommate_id || meta?.roommate_id) roommatesCount++;
-    });
-
-    return {
-      all: nonAdminConversations.length,
-      unread,
-      rooms: roomsCount,
-      marketplace: marketplaceCount,
-      roommates: roommatesCount,
-    };
-  }, [nonAdminConversations, currentUser?.id]);
-
-  // 2. Những đoạn chat nhắn tin với những người đã nhắn (Phần 2)
+  // 2. Những người đã từng nhắn tin (Phần 2)
   const otherConversations = useMemo(() => {
     return nonAdminConversations.filter((c) => {
-      // 1. Lọc theo ô tìm kiếm
+      // Lọc theo từ khóa tìm kiếm (nếu có)
       if (convSearch.trim()) {
         const q = convSearch.toLowerCase().trim();
         const isMe = isSameUserId(c.participant_1, currentUser?.id);
@@ -1279,22 +1252,9 @@ export const ChatPage: React.FC = () => {
           return false;
         }
       }
-
-      // 2. Lọc theo tab danh mục
-      const isMe = isSameUserId(c.participant_1, currentUser?.id);
-      const unreadCount = c.unread_count ?? (isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0));
-      const meta = getConversationMeta(c.id);
-      const hasRoom = Boolean(c.room_id || c.rooms);
-      const hasItem = Boolean(c.item_id || c.last_item_id || meta?.last_item_id);
-      const hasRoommate = Boolean((c as any).roommate_id || meta?.roommate_id);
-
-      if (inboxFilter === 'unread') return unreadCount > 0;
-      if (inboxFilter === 'rooms') return hasRoom;
-      if (inboxFilter === 'marketplace') return hasItem;
-      if (inboxFilter === 'roommates') return hasRoommate;
       return true;
     });
-  }, [nonAdminConversations, convSearch, inboxFilter, currentUser?.id]);
+  }, [nonAdminConversations, convSearch, currentUser?.id]);
 
   const handleSelectAdminChat = async () => {
     if (adminConversation) {
@@ -1399,48 +1359,6 @@ export const ChatPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Thanh Tab phân loại danh bạ hộp thư */}
-          <div className="px-2.5 py-2 border-b border-gray-100 bg-gray-50/70 flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth">
-            {[
-              { id: 'all' as const, label: 'Tất cả', count: filterCounts.all },
-              { id: 'unread' as const, label: 'Chưa đọc', count: filterCounts.unread, isAlert: true },
-              { id: 'rooms' as const, label: 'Phòng trọ', count: filterCounts.rooms, icon: Home },
-              { id: 'marketplace' as const, label: 'Đồ cũ', count: filterCounts.marketplace, icon: ShoppingBag },
-              { id: 'roommates' as const, label: 'Ở ghép', count: filterCounts.roommates, icon: Users },
-            ].map((tab) => {
-              const isActive = inboxFilter === tab.id;
-              const IconComp = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => setInboxFilter(tab.id)}
-                  className={`px-2.5 py-1 rounded-xl text-[11px] font-semibold flex items-center gap-1 shrink-0 transition-all cursor-pointer select-none tap-bounce ${
-                    isActive
-                      ? 'bg-[#006d37] text-white shadow-2xs font-bold'
-                      : 'bg-white hover:bg-gray-100 text-gray-600 border border-gray-200/80'
-                  }`}
-                >
-                  {IconComp && <IconComp className="w-3 h-3" />}
-                  <span>{tab.label}</span>
-                  {tab.count > 0 && (
-                    <span
-                      className={`text-[9px] px-1.5 py-0.2 rounded-full font-bold leading-none ${
-                        isActive
-                          ? 'bg-white/25 text-white'
-                          : tab.isAlert
-                          ? 'bg-rose-500 text-white'
-                          : 'bg-gray-100 text-gray-600'
-                      }`}
-                    >
-                      {tab.count > 99 ? '99+' : tab.count}
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-
           <div className="flex-1 overflow-y-auto">
             {isConvLoading ? (
               <div className="p-8 text-center text-gray-400 space-y-2">
@@ -1528,38 +1446,35 @@ export const ChatPage: React.FC = () => {
                 )}
 
                 {/* ========================================================
-                    PHẦN 2: NHỮNG ĐOẠN CHAT NHẮN TIN VỚI NHỮNG NGƯỜI ĐÃ NHẮN
+                    PHẦN 2: NHỮNG NGƯỜI ĐÃ TỪNG NHẮN TIN
                 ======================================================== */}
                 <div>
-                  <div className="px-3.5 py-1.5 bg-gray-50/80 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-500">
+                  <div className="px-3.5 py-2 bg-gray-50 border-b border-gray-100 flex items-center justify-between text-[11px] font-bold text-gray-600">
                     <span className="flex items-center gap-1.5">
-                      <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-                      <span>ĐOẠN CHAT GẦN ĐÂY</span>
+                      <Users className="w-3.5 h-3.5 text-gray-500" />
+                      <span>NHỮNG NGƯỜI ĐÃ TỪNG NHẮN TIN</span>
                     </span>
-                    <span className="text-[10px] text-gray-400 font-medium">
-                      {otherConversations.length} cuộc trò chuyện
+                    <span className="text-[10px] text-gray-500 font-semibold bg-gray-200/80 px-2 py-0.5 rounded-full">
+                      {otherConversations.length}
                     </span>
                   </div>
 
                   {otherConversations.length === 0 ? (
                     <div className="p-8 text-center text-gray-400 space-y-2">
                       <MessageSquare className="w-7 h-7 mx-auto text-gray-300" />
-                      <p className="text-xs font-semibold">Chưa có tin nhắn nào khác</p>
+                      <p className="text-xs font-semibold">Chưa có cuộc trò chuyện nào khác</p>
                       <p className="text-[11px] text-gray-400 leading-relaxed">
-                        {inboxFilter !== 'all'
-                          ? 'Không có tin nhắn nào trong mục lọc này.'
-                          : 'Các cuộc trò chuyện với chủ trọ, bạn ở ghép hoặc người mua/bán đồ sẽ xuất hiện ở đây.'}
+                        {convSearch.trim()
+                          ? 'Không tìm thấy cuộc trò chuyện phù hợp với từ khóa.'
+                          : 'Các cuộc trò chuyện giữa bạn với chủ trọ, bạn tìm ở ghép hoặc người giao đồ cũ sẽ xuất hiện ở đây khi bạn bắt đầu liên hệ.'}
                       </p>
-                      {inboxFilter !== 'all' && (
+                      {convSearch.trim() && (
                         <button
                           type="button"
-                          onClick={() => {
-                            setInboxFilter('all');
-                            setConvSearch('');
-                          }}
+                          onClick={() => setConvSearch('')}
                           className="text-xs font-bold text-[#006d37] hover:underline cursor-pointer pt-1 block mx-auto"
                         >
-                          Xem tất cả cuộc trò chuyện
+                          Xóa từ khóa tìm kiếm
                         </button>
                       )}
                     </div>
