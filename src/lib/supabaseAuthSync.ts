@@ -3,6 +3,19 @@ import { auth, fetchSignInMethodsForEmail } from './firebase';
 import { initialUsers } from '../data/demoUsers';
 import { resolveDemoAlias } from './demoAliases';
 
+function generateRobustUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    try {
+      return crypto.randomUUID();
+    } catch {}
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export interface SupabaseUserProfile {
   id: string;
   name: string;
@@ -268,7 +281,7 @@ export async function updateUserProfile(
         upsertError = res.error;
       } else {
         if (!upsertPayload.id) {
-          upsertPayload.id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
+          upsertPayload.id = generateRobustUUID();
         }
         console.log("[updateUserProfile] Upsert Payload (by firebase_uid with generated UUID):", upsertPayload);
         const res = await supabase
@@ -610,7 +623,7 @@ export async function createSupabaseProfile(
 
     // Nếu chưa có, sinh sẵn UUID mới chuẩn RFC4122 để không bao giờ vi phạm NOT NULL constraint
     if (!targetProfileId) {
-      targetProfileId = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : undefined;
+      targetProfileId = generateRobustUUID();
     }
 
     const profilePayload: Record<string, any> = {
