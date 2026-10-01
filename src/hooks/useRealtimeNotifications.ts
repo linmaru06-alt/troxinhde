@@ -203,6 +203,97 @@ export function useRealtimeNotifications() {
     };
   }, [currentUser?.id, fetchInitialNotifications, showToast]);
 
+  // Lắng nghe tin nhắn mới 2 chiều qua BroadcastChannel & CustomEvent để phát chuông và hiển thị thông báo
+  useEffect(() => {
+    if (!currentUser?.id) return;
+
+    const handleSyncNotification = (payload: any) => {
+      if (!payload || payload.type !== 'NEW_MESSAGE') return;
+
+      // Không tự thông báo tin nhắn do chính mình gửi đi
+      if (payload.senderId && isSameUserId(payload.senderId, currentUser.id)) return;
+
+      // Kiểm tra nếu có receiverId rõ ràng thì chỉ thông báo cho đúng người nhận
+      if (payload.receiverId && !isSameUserId(payload.receiverId, currentUser.id)) {
+        return;
+      }
+
+      const currentPath = typeof window !== 'undefined' ? window.location.pathname : '';
+      const isViewingChat = currentPath.includes(`/tin-nhan/${payload.conversationId}`);
+
+      const notifItem: NotificationItem = {
+        id: `notif_msg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        userId: currentUser.id,
+        title: `Tin nhắn từ ${payload.senderName || 'Người dùng'} 💬`,
+        body: payload.content || '',
+        type: 'chat_message',
+        read: isViewingChat,
+        ctaUrl: `/tin-nhan/${payload.conversationId}`,
+        ctaLabel: 'Trả lời ngay',
+        priority: 'high',
+        createdAt: new Date().toISOString(),
+      };
+
+      // Đưa thông báo vào Store để cập nhật badge số tin nhắn trên Navbar
+      useAppStore.setState((state) => {
+        const exists = (state.notifications || []).some(
+          (n) => n.id === notifItem.id || (n.ctaUrl === notifItem.ctaUrl && n.body === notifItem.body && !n.read)
+        );
+        if (exists) return state;
+        return {
+          notifications: [notifItem, ...(state.notifications || [])],
+        };
+      });
+
+      // Nếu đang không mở cuộc trò chuyện này: Phát âm thanh chuông + Hiện Toast thông báo nổi
+      if (!isViewingChat) {
+        playNotificationSound();
+        showToast(
+          notifItem.title,
+          notifItem.body.length > 80 ? notifItem.body.slice(0, 80) + '...' : notifItem.body,
+          'info'
+        );
+      }
+
+      // Kích hoạt cập nhật danh sách cuộc trò chuyện ở thanh bên ChatPage
+      window.dispatchEvent(
+        new CustomEvent('troxinh:conversation-updated', {
+          detail: {
+            id: payload.conversationId,
+            last_message: payload.content,
+            last_message_at: new Date().toISOString(),
+          },
+        })
+      );
+    };
+
+    const handleCustomMsg = (e: Event) => {
+      const ce = e as CustomEvent;
+      if (ce.detail) {
+        handleSyncNotification(ce.detail);
+      }
+    };
+
+    window.addEventListener('troxinh:internal-message-sent', handleCustomMsg);
+
+    let bc: BroadcastChannel | null = null;
+    if (typeof BroadcastChannel !== 'undefined') {
+      try {
+        bc = new BroadcastChannel('troxinh_chat_sync');
+        bc.onmessage = (event) => {
+          handleSyncNotification(event.data);
+        };
+      } catch {}
+    }
+
+    return () => {
+      window.removeEventListener('troxinh:internal-message-sent', handleCustomMsg);
+      if (bc) {
+        bc.close();
+      }
+    };
+  }, [currentUser?.id, showToast]);
+
   return {
     notifications: storeNotifications,
     unreadCount,
