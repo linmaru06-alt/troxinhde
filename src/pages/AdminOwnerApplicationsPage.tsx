@@ -359,7 +359,7 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                   <div className="flex justify-between">
                     <span className="text-gray-500">Số điện thoại liên hệ:</span>
                     <span className="font-mono font-bold text-[#006d37] flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> {selectedApp.userPhone} (Đã xác thực OTP)
+                      {selectedApp.userPhone}
                     </span>
                   </div>
                   <div className="flex justify-between">

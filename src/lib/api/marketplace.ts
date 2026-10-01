@@ -1,4 +1,4 @@
-import { supabase, isSupabaseConfigured } from '../supabase';
+import { supabase, isSupabaseConfigured, getFirebaseIdToken } from '../supabase';
 import { MarketplaceItem } from '../../types';
 import { attachPublicProfiles } from './publicProfiles';
 import {
@@ -24,7 +24,7 @@ function toMarketplaceError(error: any, fallback: string): Error {
     return new Error('Máy chủ chưa hỗ trợ chức năng quản lý tin (thiếu migration 025). Vui lòng báo quản trị viên.');
   }
   if (error?.code === '42501' && /row-level security/i.test(message)) {
-    return new Error('Bạn không có quyền thực hiện thao tác này với tin đăng.');
+    return new Error('Bạn không có quyền thực hiện thao tác này với tin đăng. Nếu vừa đăng nhập, hãy đăng xuất và đăng nhập lại để đồng bộ tài khoản.');
   }
   return new Error(message || fallback);
 }
@@ -125,6 +125,11 @@ export async function createMarketplaceItem(sellerId: string, input: Marketplace
   ensureConfigured();
   if (!isMarketplaceItemId(sellerId)) {
     throw new Error('Tài khoản chưa được đồng bộ hồ sơ. Vui lòng đăng xuất và đăng nhập lại trước khi đăng tin.');
+  }
+  // Máy chủ xác định người bán qua token Firebase (RLS: seller_id = current_profile_id()),
+  // nên không có phiên Firebase thì không thể đăng tin (ví dụ tài khoản demo chưa có custom token)
+  if (!(await getFirebaseIdToken())) {
+    throw new Error('Phiên đăng nhập đã hết hạn hoặc tài khoản demo không đăng tin được. Vui lòng đăng nhập lại bằng tài khoản thật.');
   }
 
   const { data, error } = await supabase

@@ -95,7 +95,8 @@ export async function submitOwnerApplicationApi(
     id: appId,
     user_id: profileId,
     full_name: user.name || 'Người dùng Trọ Xinh',
-    phone: user.phone || '0987654321',
+    // Không gán số mẫu: chưa có số thì để chuỗi rỗng (cột NOT NULL), trang admin hiển thị "Chưa cung cấp"
+    phone: user.phone || '',
     cccd: cccdNumber.trim(),
     cccd_number: cccdNumber.trim(),
     room_count: String(totalRooms || 1),

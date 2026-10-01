@@ -611,9 +611,29 @@ export async function createSupabaseProfile(
 
     if (profErr) {
       console.error('[Supabase Auth Sync] Lỗi khi tạo profile trong bảng profiles:', profErr);
+      if (profErr.code === '23505' && /phone/i.test(`${profErr.message} ${profErr.details || ''}`)) {
+        return {
+          success: false,
+          error: 'Số điện thoại này đã gắn với một tài khoản Trọ Xinh khác. Vui lòng đăng nhập đúng tài khoản đó hoặc liên hệ quản trị viên.',
+        };
+      }
+      if (profErr.code === '42501') {
+        return {
+          success: false,
+          error: 'Máy chủ dữ liệu chưa nhận phiên đăng nhập Firebase nên không thể tạo hồ sơ. Vui lòng báo quản trị viên kiểm tra cấu hình xác thực Supabase.',
+        };
+      }
       return {
         success: false,
         error: `Lỗi khởi tạo dữ liệu trên Supabase: ${profErr.message}`,
+      };
+    }
+
+    // Không đọc lại được hồ sơ thì không có id thật; không dùng Firebase UID thay thế
+    if (!createdProfile?.id) {
+      return {
+        success: false,
+        error: 'Đã gửi yêu cầu tạo hồ sơ nhưng không đọc lại được hồ sơ trên Supabase. Vui lòng đăng nhập lại.',
       };
     }
 
@@ -627,12 +647,12 @@ export async function createSupabaseProfile(
       }
     }
 
-    const resProfile = createdProfile || profilePayload;
+    const resProfile = createdProfile;
 
     return {
       success: true,
       data: {
-        id: resProfile.id || firebaseUid,
+        id: resProfile.id,
         name: resProfile.full_name || resProfile.name || data.name.trim(),
         full_name: resProfile.full_name || resProfile.name || data.name.trim(),
         email: resProfile.email || (cleanEmail ?? undefined),

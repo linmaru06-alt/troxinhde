@@ -99,7 +99,7 @@ const PageSkeleton = () => (
 
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
 import { auth, onAuthStateChanged, onIdTokenChanged } from './lib/firebase';
-import { getProfileByFirebaseUid, syncFirebaseUserToSupabase } from './lib/authService';
+import { logoutAuth, syncFirebaseUserToSupabase } from './lib/authService';
 import { setAnalyticsUser } from './lib/analytics';
 
 // Global Firebase Auth & Cloud Data Loader
@@ -118,47 +118,45 @@ const AppCloudDataLoader: React.FC = () => {
     // 2. Lắng nghe trạng thái đăng nhập Firebase Auth duy nhất
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
+        const email = fbUser.email?.toLowerCase();
+        const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+        const isLandlord = email === 'phuonglinh832005@gmail.com';
         try {
-          const email = fbUser.email?.toLowerCase();
-          const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
-          const isLandlord = email === 'phuonglinh832005@gmail.com';
-          const profile = await getProfileByFirebaseUid(fbUser.uid);
-          const isApprovedOwner = profile?.owner_application_status === 'approved' || profile?.role === 'owner' || isLandlord;
-          const targetRole = isSuperAdmin ? 'admin' : (isApprovedOwner ? 'owner' : (profile?.role || 'user'));
+          // Hồ sơ luôn lấy theo Firebase UID của phiên thật, ghi đè currentUser cũ còn lưu trong trình duyệt
+          const profile = await syncFirebaseUserToSupabase(fbUser, isLandlord ? 'owner' : 'renter');
+          const isApprovedOwner = profile.ownerApplicationStatus === 'approved' || profile.role === 'owner' || isLandlord;
+          const targetRole = isSuperAdmin ? 'admin' : (isApprovedOwner ? 'owner' : (profile.role || 'user'));
 
-          if (profile) {
-            loginWithSocialUser({
-              id: profile.id,
-              name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
-              email: profile.email || fbUser.email || undefined,
-              phone: profile.phone || fbUser.phoneNumber || undefined,
-              role: targetRole,
-              avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
-              emailVerified: fbUser.emailVerified,
-              phoneVerified: !!fbUser.phoneNumber,
-            });
-          } else {
-            const synced = await syncFirebaseUserToSupabase(fbUser, isLandlord ? 'owner' : 'renter');
-            loginWithSocialUser({
-              id: synced.id,
-              name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : synced.name,
-              email: synced.email || fbUser.email || undefined,
-              phone: synced.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : synced.role),
-              avatarUrl: synced.avatarUrl || fbUser.photoURL || undefined,
-              emailVerified: fbUser.emailVerified,
-              phoneVerified: !!fbUser.phoneNumber,
-            });
-          }
-        } catch (err) {
+          loginWithSocialUser({
+            id: profile.id,
+            firebaseUid: fbUser.uid,
+            isDemoAccount: profile.isDemoAccount,
+            name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
+            email: profile.email || fbUser.email || undefined,
+            phone: profile.phone || fbUser.phoneNumber || undefined,
+            role: targetRole,
+            avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
+            emailVerified: fbUser.emailVerified,
+            phoneVerified: !!fbUser.phoneNumber,
+          });
+        } catch (err: any) {
+          // Không gắn được phiên với hồ sơ: không giữ định danh tạm, báo lỗi và đăng xuất an toàn
           console.warn('[Auth] Lỗi đồng bộ profile Firebase:', err);
+          useAppStore.getState().setCurrentUser(null);
+          logoutAuth().catch(() => {});
+          useAppStore.getState().showToast(
+            'Không thể đồng bộ tài khoản',
+            err?.message || 'Vui lòng đăng nhập lại.',
+            'error'
+          );
         }
         // Tải lại chợ đồ cũ bằng phiên Firebase để người bán thấy cả tin chờ duyệt của mình
         useAppStore.getState().refreshMarketplaceItems();
       } else {
-        // Nếu không có Firebase user và không phải tài khoản demo đang đăng nhập
-        if (currentUser && !currentUser.isDemoAccount && !currentUser.id.startsWith('demo_')) {
-          // logout();
+        // Không có phiên Firebase: bỏ currentUser cũ lưu trong trình duyệt (trừ tài khoản demo)
+        const storedUser = useAppStore.getState().currentUser;
+        if (storedUser && !storedUser.isDemoAccount && !storedUser.id.startsWith('demo_')) {
+          useAppStore.getState().setCurrentUser(null);
         }
       }
     });
