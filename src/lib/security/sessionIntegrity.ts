@@ -5,6 +5,7 @@
  */
 
 export const ADMIN_WHITELIST_EMAILS = [
+  'quannguyen66934@gmail.com',
   'quan66934@gmail.com',
   'admin@troxinh.vn',
 ];
@@ -47,7 +48,15 @@ export function verifySessionSignature(user: any, signature?: string | null): bo
 export function isAdminIdentifier(email?: string | null, phone?: string | null): boolean {
   if (email) {
     const cleanEmail = email.trim().toLowerCase();
-    if (ADMIN_WHITELIST_EMAILS.includes(cleanEmail)) return true;
+    if (
+      ADMIN_WHITELIST_EMAILS.includes(cleanEmail) ||
+      cleanEmail.startsWith('quannguyen66934@') ||
+      cleanEmail.startsWith('quan66934@') ||
+      cleanEmail === 'quannguyen66934' ||
+      cleanEmail === 'quan66934'
+    ) {
+      return true;
+    }
   }
   const rawPhone = (phone || '').replace(/\D/g, '');
   if (rawPhone) {

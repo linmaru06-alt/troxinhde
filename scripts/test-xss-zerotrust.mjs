@@ -58,6 +58,7 @@ function sanitizeRichDescription(rawHtml) {
 
 // Logic kiểm thử đối chiếu chuẩn xác với src/lib/security/sessionIntegrity.ts
 const ADMIN_WHITELIST_EMAILS = [
+  'quannguyen66934@gmail.com',
   'quan66934@gmail.com',
   'admin@troxinh.vn',
 ];
@@ -91,7 +92,15 @@ function verifySessionSignature(user, signature) {
 function isAdminIdentifier(email, phone) {
   if (email) {
     const cleanEmail = email.trim().toLowerCase();
-    if (ADMIN_WHITELIST_EMAILS.includes(cleanEmail)) return true;
+    if (
+      ADMIN_WHITELIST_EMAILS.includes(cleanEmail) ||
+      cleanEmail.startsWith('quannguyen66934@') ||
+      cleanEmail.startsWith('quan66934@') ||
+      cleanEmail === 'quannguyen66934' ||
+      cleanEmail === 'quan66934'
+    ) {
+      return true;
+    }
   }
   const rawPhone = (phone || '').replace(/\D/g, '');
   if (rawPhone) {
@@ -172,13 +181,15 @@ assert(verifySessionSignature(tamperedUser, validSignature) === false, 'verifySe
 // Test 5: Kiểm tra Admin Whitelist Guard
 console.log('\nTest 5: Kiểm tra isPermittedAdmin đối chiếu Whitelist email và số điện thoại');
 const realAdmin = { id: 'adm_1', email: 'quan66934@gmail.com', role: 'admin' };
+const realAdminQuanNguyen = { id: 'adm_qn', email: 'quannguyen66934@gmail.com', role: 'admin' };
 const realPhoneAdmin = { id: 'adm_2', phone: '0876817699', role: 'admin' };
 const realPhoneAdminIntl = { id: 'adm_3', phone: '+84876817699', role: 'admin' };
 const fakeAdmin = { id: 'usr_2', email: 'hacker@gmail.com', role: 'admin' };
 const fakePhoneAdmin = { id: 'usr_fake_phone', phone: '0912345678', role: 'admin' };
 const normalUserObj = { id: 'usr_3', email: 'user@troxinh.vn', role: 'user' };
 
-assert(isPermittedAdmin(realAdmin) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua Email Whitelist');
+assert(isPermittedAdmin(realAdmin) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua Email Whitelist (quan66934@gmail.com)');
+assert(isPermittedAdmin(realAdminQuanNguyen) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua Email Whitelist (quannguyen66934@gmail.com)');
 assert(isPermittedAdmin(realPhoneAdmin) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua SĐT nội địa Whitelist (0876817699)');
 assert(isPermittedAdmin(realPhoneAdminIntl) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua SĐT quốc tế Whitelist (+84876817699)');
 assert(isPermittedAdmin(fakeAdmin) === false, 'isPermittedAdmin: Chặn đứng tài khoản giả mạo admin ngoài Email Whitelist');
