@@ -295,9 +295,11 @@ export function setupRecaptchaVerifier(
     }
 
     const containerEl = document.getElementById(containerId);
-    if (containerEl) {
-      containerEl.innerHTML = '';
+    if (!containerEl) {
+      console.warn(`[Firebase Auth] Không tìm thấy phần tử HTML #${containerId} trong DOM`);
+      return null;
     }
+    containerEl.innerHTML = '';
 
     const verifier = new RecaptchaVerifier(auth, containerId, {
       size,
