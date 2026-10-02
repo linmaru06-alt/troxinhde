@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { useOutsideClick } from '../../hooks/useOutsideClick';
+import { useDebounce } from '../../hooks/useDebounce';
 import { Search, X, Sparkles, MapPin, School, Building, ArrowRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
@@ -97,7 +98,7 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
 }) => {
   const navigate = useNavigate();
   const [inputValue, setInputValue] = useState<string>(initialValue);
-  const [debouncedQuery, setDebouncedQuery] = useState<string>(initialValue);
+  const debouncedQuery = useDebounce(inputValue.trim(), 250);
   const [isOpen, setIsOpen] = useState<boolean>(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -107,14 +108,6 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   useEffect(() => {
     setInputValue(initialValue || '');
   }, [initialValue]);
-
-  // Debounce 200ms
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setDebouncedQuery(inputValue.trim());
-    }, 200);
-    return () => clearTimeout(timer);
-  }, [inputValue]);
 
   // Match items across 3 groups
   const suggestions = useMemo(() => {

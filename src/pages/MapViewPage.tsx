@@ -1,6 +1,7 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { useDebounce } from '../hooks/useDebounce';
 import { Room } from '../types';
 import { HorizontalRoomCard, formatPrice } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
@@ -122,15 +123,14 @@ export const MapViewPage: React.FC = () => {
     setKeywordInput(searchQuery);
   }, [searchQuery]);
 
-  // Debounce cập nhật từ khóa 'q' lên URL
+  // Debounce cập nhật từ khóa 'q' lên URL bằng hook chuẩn mực
+  const debouncedKeyword = useDebounce(keywordInput.trim(), 350);
+
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (keywordInput.trim() !== searchQuery) {
-        updateParam('q', keywordInput.trim());
-      }
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [keywordInput, searchQuery]);
+    if (debouncedKeyword !== searchQuery) {
+      updateParam('q', debouncedKeyword);
+    }
+  }, [debouncedKeyword, searchQuery]);
 
   const handleSelectUniversity = (uni: { name: string; coords: [number, number] }) => {
     setActiveUniversity(uni);

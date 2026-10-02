@@ -11,6 +11,7 @@ const testSuites = [
   { name: '4. Kiểm Tra Toàn Bộ Quy Tắc Báo Cáo Vi Phạm', script: 'scripts/test-report-rules.mjs' },
   { name: '5. Kiểm Tra Khởi Tạo Hội Thoại & Chợ Đồ Cũ', script: 'scripts/test-find-or-create-conversation.mjs' },
   { name: '6. Cổng Thanh Toán Webhook & Kích Hoạt Tự Động (Plan 2)', script: 'scripts/test-payment-webhooks.mjs' },
+  { name: '7. Động Cơ Debounce & Throttle Engine (Plan 3)', script: 'scripts/test-debounce-throttle.mjs' },
 ];
 
 let totalPassed = 0;
