@@ -16,6 +16,7 @@ const testSuites = [
   { name: '9. Giao Diện Phản Hồi Lạc Quan Optimistic UI (Plan 5)', script: 'scripts/test-optimistic-ui.mjs' },
   { name: '10. Khung Xương Phát Sáng Shimmer Skeleton 1:1 (Plan 6)', script: 'scripts/test-skeleton-parity.mjs' },
   { name: '11. Quản Lý V8 Garbage Collection & Triệt Tiêu Rò Rỉ RAM (Plan 7)', script: 'scripts/test-v8-cleanup.mjs' },
+  { name: '12. Phòng Ngự XSS Đa Tầng & Zero-Trust LocalStorage (Plan 8)', script: 'scripts/test-xss-zerotrust.mjs' },
 ];
 
 let totalPassed = 0;

@@ -1477,6 +1477,11 @@ export const useAppStore = create<AppState>()(
           } else if (email === 'phuonglinh832005@gmail.com') {
             state.currentUser.role = 'owner';
             state.currentUser.ownerApplicationStatus = 'approved';
+          } else if (state.currentUser.role === 'admin') {
+            // ZERO-TRUST LOCALSTORAGE GUARD:
+            // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng email không thuộc whitelist quản trị
+            console.warn('[Security Guard] Phát hiện role admin giả mạo trong LocalStorage! Tự động hạ cấp về user an toàn.');
+            state.currentUser.role = 'user';
           }
         }
       },
