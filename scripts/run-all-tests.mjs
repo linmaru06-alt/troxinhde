@@ -13,6 +13,7 @@ const testSuites = [
   { name: '6. Cổng Thanh Toán Webhook & Kích Hoạt Tự Động (Plan 2)', script: 'scripts/test-payment-webhooks.mjs' },
   { name: '7. Động Cơ Debounce & Throttle Engine (Plan 3)', script: 'scripts/test-debounce-throttle.mjs' },
   { name: '8. Tải Trước Khi Rê Chuột Hover Pre-fetching (Plan 4)', script: 'scripts/test-hover-prefetch.mjs' },
+  { name: '9. Giao Diện Phản Hồi Lạc Quan Optimistic UI (Plan 5)', script: 'scripts/test-optimistic-ui.mjs' },
 ];
 
 let totalPassed = 0;

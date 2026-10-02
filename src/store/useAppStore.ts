@@ -750,41 +750,57 @@ export const useAppStore = create<AppState>()(
         get().showToast('Đã từ chối hồ sơ nâng cấp', `Lý do: ${reason}`, 'warning');
       },
 
-      toggleSaveRoom: (roomId) => {
+      toggleSaveRoom: async (roomId) => {
         const { savedRoomIds, currentUser, showToast } = get();
         if (!currentUser) {
           showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để lưu phòng trọ yêu thích', 'warning');
           return false;
         }
+        const previousSaved = [...savedRoomIds];
         const isSaved = savedRoomIds.includes(roomId);
         const next = isSaved ? savedRoomIds.filter((id) => id !== roomId) : [...savedRoomIds, roomId];
+        
+        // 1. Optimistic Update ngay tức thì trong 1ms
         set({ savedRoomIds: next });
         showToast(isSaved ? 'Đã xóa khỏi danh sách lưu' : 'Đã lưu phòng thành công ❤️', '', isSaved ? 'info' : 'success');
-        apiToggleSaveRoom(currentUser.id, roomId).catch((err) => console.warn('Lỗi sync lưu phòng', err));
-        return !isSaved;
+
+        // 2. Chạy ngầm API với cơ chế Safe Rollback khi gặp lỗi
+        try {
+          await apiToggleSaveRoom(currentUser.id, roomId);
+          return !isSaved;
+        } catch (err: any) {
+          console.warn('[Optimistic UI] Lỗi sync lưu phòng, đang rollback:', err);
+          set({ savedRoomIds: previousSaved });
+          showToast('Không thể lưu phòng', 'Đã có sự cố kết nối. Dữ liệu đã được khôi phục.', 'error');
+          return isSaved;
+        }
       },
 
-      toggleSaveRoommate: (id) => {
+      toggleSaveRoommate: async (id) => {
         const { savedRoommateIds, currentUser, showToast } = get();
         if (!currentUser) {
           showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để lưu bài tìm bạn ghép', 'warning');
           return false;
         }
+        const previousSaved = [...savedRoommateIds];
         const isSaved = savedRoommateIds.includes(id);
         const next = isSaved ? savedRoommateIds.filter((item) => item !== id) : [...savedRoommateIds, id];
+        
         set({ savedRoommateIds: next });
         showToast(isSaved ? 'Đã bỏ lưu bài tìm bạn' : 'Đã lưu bài tìm bạn cùng phòng ❤️', '', 'success');
         return !isSaved;
       },
 
-      toggleSaveItem: (id) => {
+      toggleSaveItem: async (id) => {
         const { savedItemIds, currentUser, showToast } = get();
         if (!currentUser) {
           showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để lưu món đồ', 'warning');
           return false;
         }
+        const previousSaved = [...savedItemIds];
         const isSaved = savedItemIds.includes(id);
         const next = isSaved ? savedItemIds.filter((item) => item !== id) : [...savedItemIds, id];
+        
         set({ savedItemIds: next });
         showToast(isSaved ? 'Đã bỏ lưu món đồ' : 'Đã lưu món đồ thanh lý ❤️', '', 'success');
         return !isSaved;
