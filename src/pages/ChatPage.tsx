@@ -1387,18 +1387,11 @@ export const ChatPage: React.FC = () => {
   }, [adminConversation, currentUser?.id]);
 
   return (
-    <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 py-2 sm:py-4">
-      <div
-        className="bg-white rounded-3xl border border-gray-200 shadow-md flex overflow-hidden"
-        style={{
-          height: viewportHeight
-            ? `${Math.max(320, viewportHeight - 110)}px`
-            : 'calc(100dvh - 7.5rem)',
-        }}
-      >
+    <div className="w-full h-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-3 flex flex-col min-h-0 overflow-hidden flex-1">
+      <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-200 shadow-md flex overflow-hidden w-full h-full flex-1 min-h-0">
         {/* Cột trái: Danh sách cuộc trò chuyện thật từ Supabase */}
         <aside
-          className={`w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0 ${
+          className={`w-full md:w-80 border-r border-gray-200 flex flex-col shrink-0 h-full min-h-0 overflow-hidden ${
             (conversationId || hasDeepLinkParams) ? 'hidden md:flex' : 'flex'
           }`}
         >
@@ -1677,7 +1670,7 @@ export const ChatPage: React.FC = () => {
         </aside>
 
         {/* Cột phải: Vùng trò chuyện chi tiết */}
-        <main className={`flex-1 flex flex-col bg-gray-50/50 ${(!conversationId && !hasDeepLinkParams) ? 'hidden md:flex' : 'flex'}`}>
+        <main className={`flex-1 flex flex-col bg-gray-50/50 h-full min-h-0 overflow-hidden ${(!conversationId && !hasDeepLinkParams) ? 'hidden md:flex' : 'flex'}`}>
           {deepLinkState.isLoading ? (
             <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 text-center bg-gray-50/50">
               <div className="bg-white p-6 sm:p-8 rounded-3xl border border-emerald-100 shadow-md max-w-sm w-full space-y-4 text-center animate-scaleUp">
@@ -1724,7 +1717,7 @@ export const ChatPage: React.FC = () => {
           ) : activeConversation ? (
             <>
               {/* Header của đoạn chat */}
-              <div className="p-3 bg-white border-b border-gray-200 flex items-center justify-between z-10 shadow-2xs">
+              <div className="p-3 bg-white border-b border-gray-200 flex items-center justify-between z-10 shadow-2xs shrink-0">
                 <div className="flex items-center gap-3">
                   <Link
                     to="/tin-nhan"
@@ -2173,7 +2166,7 @@ export const ChatPage: React.FC = () => {
               )}
 
               {/* Vùng hiển thị tin nhắn (Scroll Area) */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3">
                 {/* Tin nhắn hệ thống hướng dẫn an toàn ở đầu hội thoại món đồ */}
                 {attachedItemId && (
                   <div className="flex justify-center my-1.5 w-full">
@@ -2192,9 +2185,10 @@ export const ChatPage: React.FC = () => {
                     <p className="text-xs">Đang tải tin nhắn...</p>
                   </div>
                 ) : chatMessages.length === 0 ? (
-                  <div className="py-12 text-center text-gray-400 space-y-2">
-                    <p className="text-xs">Chưa có tin nhắn nào trong cuộc trò chuyện này.</p>
-                    <p className="text-[11px]">Hãy gửi tin nhắn đầu tiên để kết nối!</p>
+                  <div className="py-8 sm:py-12 text-center text-gray-400 space-y-2">
+                    <MessageSquare className="w-8 h-8 mx-auto text-[#006d37]/60" />
+                    <p className="text-xs font-bold text-gray-700">Chưa có tin nhắn nào trong cuộc trò chuyện này.</p>
+                    <p className="text-[11px] text-gray-500">Hãy chọn gợi ý phản hồi nhanh bên dưới hoặc nhập tin nhắn để kết nối với chủ bài đăng!</p>
                   </div>
                 ) : (
                   chatMessages.map((msg) => {
@@ -2451,7 +2445,7 @@ export const ChatPage: React.FC = () => {
                 <>
                   {/* 6. Gợi ý tin nhắn phản hồi nhanh: Không tràn ngang trên mobile, có thể xuống dòng (flex-wrap) */}
                   {shouldShowQuickReplies && (
-                    <div className="px-3 py-2 bg-emerald-50/50 border-t border-emerald-100/80 flex items-start sm:items-center justify-between gap-2 animate-fadeIn">
+                    <div className="px-3 py-2 bg-emerald-50/50 border-t border-emerald-100/80 flex items-start sm:items-center justify-between gap-2 shrink-0 z-10 animate-fadeIn">
                       <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 flex-1">
                         <span className="text-[10px] font-bold text-emerald-800 uppercase tracking-wide shrink-0 flex items-center gap-1">
                           <Sparkles className="w-3 h-3 text-[#006d37]" /> Gợi ý:
@@ -2483,7 +2477,7 @@ export const ChatPage: React.FC = () => {
                   {/* Hộp nhập tin nhắn */}
                   <form
                     onSubmit={handleSend}
-                    className="p-2.5 bg-white border-t border-gray-200 flex items-center gap-1.5 sm:gap-2"
+                    className="p-2.5 sm:p-3 bg-white border-t border-gray-200 flex items-center gap-1.5 sm:gap-2 shrink-0 z-20 shadow-xs"
                     style={{ paddingBottom: 'max(0.625rem, env(safe-area-inset-bottom, 0px))' }}
                   >
                     {/* Input chọn ảnh ẩn */}
@@ -2533,8 +2527,8 @@ export const ChatPage: React.FC = () => {
                           }
                         }
                       }}
-                      placeholder="Nhập tin nhắn (hỗ trợ dán ảnh Ctrl+V)..."
-                      className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl px-3.5 sm:px-4 py-2.5 min-h-[44px] text-base sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37] touch-manipulation"
+                      placeholder={isChatWithAdmin ? "Nhập câu hỏi cần hỗ trợ từ BQT Trọ Xinh..." : "Nhập tin nhắn gửi cho chủ bài đăng... (Enter để gửi)"}
+                      className="flex-1 bg-gray-50 hover:bg-white focus:bg-white border border-gray-200 focus:border-[#006d37] rounded-2xl px-3.5 sm:px-4 py-2.5 min-h-[44px] text-sm sm:text-xs text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#006d37]/20 transition-all touch-manipulation placeholder:text-gray-400"
                     />
 
                     <Button

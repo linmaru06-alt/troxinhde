@@ -279,17 +279,24 @@ const HomeRoute: React.FC = () => {
   return <LandingPage />;
 };
 
-export const App: React.FC = () => {
-  return (
-    <BrowserRouter>
-      <FramebustingGuard />
-      <RouteNavigationHandler />
-      <AppCloudDataLoader />
-      <div className="flex flex-col min-h-screen">
-        <Navbar />
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isChatRoute =
+    location.pathname.startsWith('/tin-nhan') ||
+    location.pathname.startsWith('/chu-tro/tin-nhan');
 
-        <div className="flex-1">
-          <React.Suspense fallback={<PageSkeleton />}>
+  return (
+    <div className={`flex flex-col ${isChatRoute ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      <Navbar />
+
+      <div
+        className={`flex-1 ${
+          isChatRoute
+            ? 'h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] overflow-hidden flex flex-col min-h-0'
+            : ''
+        }`}
+      >
+        <React.Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Core Routes */}
               <Route path="/" element={<HomeRoute />} />
@@ -737,14 +744,24 @@ export const App: React.FC = () => {
         </React.Suspense>
       </div>
 
-        <Footer />
-        <MobileBottomNav />
-        <BackToTopButton />
-        <OfflineBanner />
-        <PushPermissionToast />
-        <ToastContainer />
-        <AuthModal />
-      </div>
+      {!isChatRoute && <Footer />}
+      {!isChatRoute && <MobileBottomNav />}
+      {!isChatRoute && <BackToTopButton />}
+      <OfflineBanner />
+      <PushPermissionToast />
+      <ToastContainer />
+      <AuthModal />
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <FramebustingGuard />
+      <RouteNavigationHandler />
+      <AppCloudDataLoader />
+      <AppContent />
     </BrowserRouter>
   );
 };
