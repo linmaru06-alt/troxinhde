@@ -16,6 +16,7 @@ import {
   buildMarketplaceUrl,
   buildBuildingUrl,
 } from '../../utils/slugify';
+import { usePrefetch } from '../../hooks/usePrefetch';
 import {
   Heart,
   MapPin,
@@ -61,6 +62,12 @@ export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, room.ownerId));
 
+  const { prefetchProps } = usePrefetch({
+    type: 'room',
+    id: room.id,
+    imageUrl: room.images?.[0],
+  });
+
   const handleConfirmDelete = () => {
     removeRoom(room.id);
     setShowDeleteConfirm(false);
@@ -79,7 +86,10 @@ export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
   const totalEstimatedMonthly = room.price + estimatedServices;
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain">
+    <div
+      {...prefetchProps}
+      className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain"
+    >
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100 rounded-t-2xl">
         <Link to={buildRoomUrl(room)} className="block w-full h-full rounded-t-2xl overflow-hidden">
@@ -197,8 +207,17 @@ RoomCard.displayName = 'RoomCard';
 
 // 1.5 HorizontalRoomCard
 export const HorizontalRoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
+  const { prefetchProps } = usePrefetch({
+    type: 'room',
+    id: room.id,
+    imageUrl: room.images?.[0],
+  });
+
   return (
-    <div className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full gpu-layer feed-item-contain">
+    <div
+      {...prefetchProps}
+      className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full gpu-layer feed-item-contain"
+    >
       {/* Left side: Image */}
       <div className="relative w-[110px] sm:w-[130px] shrink-0 rounded-2xl overflow-hidden bg-gray-100">
         <ImageWithFallback
@@ -366,6 +385,12 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post
   
   const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, post.userId));
 
+  const { prefetchProps } = usePrefetch({
+    type: 'roommate',
+    id: post.id,
+    imageUrl: post.userAvatar,
+  });
+
   const handleConfirmDelete = () => {
     removeRoommatePost(post.id);
     setShowDeleteConfirm(false);
@@ -378,7 +403,10 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post
   };
 
   return (
-    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1 gpu-layer feed-item-contain">
+    <div
+      {...prefetchProps}
+      className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1 gpu-layer feed-item-contain"
+    >
       <div>
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
@@ -572,9 +600,16 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo((
   const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
   const hasMultipleImages = Array.isArray(item.images) && item.images.length > 1;
 
+  const { prefetchProps } = usePrefetch({
+    type: 'market',
+    id: item.id,
+    imageUrl: item.images?.[0],
+  });
+
   return (
     <Link
       to={buildMarketplaceUrl(item)}
+      {...prefetchProps}
       className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain"
     >
       {/* 1. Hình ảnh sản phẩm + Badges */}

@@ -47,6 +47,18 @@
   </head>
   <body class="bg-[#f9f9f9] text-[#1a1c1c] font-sans antialiased min-h-screen selection:bg-brand-100 selection:text-brand-900">
     <div id="root"></div>
+    <!-- W3C Speculation Rules: Nạp trước các chuyên mục chính trên trình duyệt Chromium -->
+    <script type="speculationrules">
+    {
+      "prefetch": [
+        {
+          "source": "list",
+          "urls": ["/tim-kiem", "/tim-ban-cung-phong", "/cho-do-cu"],
+          "eagerness": "moderate"
+        }
+      ]
+    }
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
