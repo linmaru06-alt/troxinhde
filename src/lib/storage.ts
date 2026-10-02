@@ -27,7 +27,7 @@ function generateUniqueFileName(originalName: string): string {
  * @returns Đường dẫn URL công khai (nếu là public bucket) hoặc path nội bộ (nếu là private)
  */
 export async function uploadToStorage(
-  file: File,
+  file: File | Blob,
   bucket: StorageBucket = 'room-images',
   options?: UploadOptions
 ): Promise<string> {
@@ -47,7 +47,8 @@ export async function uploadToStorage(
   }
 
   // 2. Tạo đường dẫn lưu trữ
-  const fileName = generateUniqueFileName(file.name);
+  const originalName = file instanceof File ? file.name : 'upload.webp';
+  const fileName = generateUniqueFileName(originalName);
   const filePath = options?.folder ? `${options.folder.replace(/^\/+|\/+$/g, '')}/${fileName}` : fileName;
 
   // 3. Thực hiện tải lên Supabase Storage

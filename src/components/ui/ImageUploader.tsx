@@ -1,5 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { UploadFolder, uploadImage, validateImageFile } from '../../lib/cloudinary';
+import { compressImageToBlob } from '../../lib/storage/imageCompressor';
+import { uploadWithConcurrencyPool } from '../../lib/storage/concurrencyUploader';
 import { useAppStore } from '../../store/useAppStore';
 import { Image as ImageIcon, X, Check, AlertCircle, Loader2, GripVertical, Plus, ChevronLeft, ChevronRight, Star, RotateCw } from 'lucide-react';
 
@@ -131,31 +133,46 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     notifyUrls(nextItems);
     setIsUploading(true);
 
-    // Sequential Upload UX
+    // Qiangu Web: Concurrency Pool (Max 3 Workers) + Client Pre-compression
     let updatedItemsState = [...nextItems];
 
-    for (let i = 0; i < filesToUpload.length; i++) {
-      const { file, id } = filesToUpload[i];
-      try {
-        const secureUrl = await uploadImage(file, folder);
-        // V8 Garbage Collection: Thu hồi Blob URL ngay khi nhận link ảnh từ Cloud, giải phóng hàng chục MB RAM
+    try {
+      const uploadTasks = filesToUpload.map(({ file, id }) => ({
+        id,
+        file,
+        folder,
+        onProgress: (p: number) => {
+          setItems((prev) =>
+            prev.map((it) => (it.id === id ? { ...it, progress: p } : it))
+          );
+        },
+      }));
+
+      const results = await uploadWithConcurrencyPool(
+        uploadTasks,
+        (fileOrBlob, f) => uploadImage(fileOrBlob, f as UploadFolder),
+        3
+      );
+
+      results.forEach(({ id, url }) => {
         const prevItem = updatedItemsState.find((it) => it.id === id);
         if (prevItem && prevItem.url.startsWith('blob:')) {
           URL.revokeObjectURL(prevItem.url);
         }
         updatedItemsState = updatedItemsState.map((it) =>
-          it.id === id ? { ...it, url: secureUrl, status: 'done', progress: 100 } : it
+          it.id === id ? { ...it, url, status: 'done', progress: 100 } : it
         );
-        setItems([...updatedItemsState]);
-        notifyUrls(updatedItemsState);
-      } catch (err: any) {
-        const errorMsg = err?.message || 'Tải lên thất bại';
-        updatedItemsState = updatedItemsState.map((it) =>
-          it.id === id ? { ...it, status: 'error', errorMsg } : it
-        );
-        setItems([...updatedItemsState]);
-        showToast(`Tải lên ảnh ${file.name} thất bại`, errorMsg, 'error');
-      }
+      });
+
+      setItems([...updatedItemsState]);
+      notifyUrls(updatedItemsState);
+    } catch (poolErr: any) {
+      console.warn('[ImageUploader] Một số ảnh upload lỗi, cho phép retry:', poolErr);
+      // Đánh dấu ảnh chưa done thành error
+      updatedItemsState = updatedItemsState.map((it) =>
+        it.status === 'uploading' ? { ...it, status: 'error', errorMsg: 'Tải lên thất bại' } : it
+      );
+      setItems([...updatedItemsState]);
     }
 
     setIsUploading(false);
@@ -207,7 +224,15 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
     setIsUploading(true);
 
     try {
-      const secureUrl = await uploadImage(itemToRetry.file, folder);
+      let uploadPayload: File | Blob = itemToRetry.file;
+      try {
+        const compression = await compressImageToBlob(itemToRetry.file);
+        uploadPayload = compression.blob;
+      } catch (cErr) {
+        console.warn('[ImageUploader] Nén retry thất bại, dùng file gốc:', cErr);
+      }
+
+      const secureUrl = await uploadImage(uploadPayload, folder);
       if (itemToRetry.url.startsWith('blob:')) {
         URL.revokeObjectURL(itemToRetry.url);
       }

@@ -9,7 +9,7 @@ export type UploadFolder =
 
 // Upload 1 ảnh
 export async function uploadImage(
-  file: File,
+  file: File | Blob,
   folder: UploadFolder = 'troxinh/rooms'
 ): Promise<string> {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -33,7 +33,8 @@ export async function uploadImage(
 
   try {
     const formData = new FormData();
-    formData.append('file', file);
+    const fileName = file instanceof File ? file.name : 'upload.webp';
+    formData.append('file', file, fileName);
     formData.append('upload_preset', uploadPreset);
     formData.append('folder', folder);
 
