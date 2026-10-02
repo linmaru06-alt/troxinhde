@@ -663,6 +663,8 @@ export async function loginWithGoogle(intendedRole: AppUserRole = 'renter'): Pro
       msg = 'Google Sign-In chưa được bật trên Firebase Console (Vào Authentication > Sign-in method > Google > Enable).';
     } else if (error.code === 'auth/popup-blocked') {
       msg = 'Trình duyệt đã chặn cửa sổ bật lên (popup). Vui lòng bấm vào biểu tượng chặn popup trên thanh địa chỉ và chọn "Luôn cho phép".';
+    } else if (error.code === 'auth/internal-error') {
+      msg = 'Lỗi kết nối Firebase (auth/internal-error): Kết nối mạng đến Google bị gián đoạn hoặc tên miền hiện tại chưa được cấp quyền trong Firebase Console (Authentication > Settings > Authorized domains).';
     } else if (error.message) {
       msg = `Lỗi Google OAuth (${error.code || 'unknown'}): ${error.message}`;
     }
