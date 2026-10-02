@@ -75,6 +75,8 @@ export const LandingPage: React.FC = () => {
             alt="Trọ Xinh Hero Background"
             className="w-full h-full object-cover object-center"
             loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
         </div>
 

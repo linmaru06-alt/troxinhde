@@ -25,6 +25,10 @@
       "source": "/(.*)",
       "headers": [
         {
+          "key": "Link",
+          "value": "<https://nanhmbnpihlaojbwfebb.supabase.co>; rel=preconnect; crossorigin, <https://identitytoolkit.googleapis.com>; rel=preconnect; crossorigin"
+        },
+        {
           "key": "X-Content-Type-Options",
           "value": "nosniff"
         },

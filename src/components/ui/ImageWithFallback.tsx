@@ -9,8 +9,11 @@ export interface ImageWithFallbackProps {
   fallback?: 'room' | 'building' | 'avatar' | 'item';
   className?: string;
   loading?: 'lazy' | 'eager';
+  fetchPriority?: 'high' | 'low' | 'auto';
+  aspectRatio?: string;
   width?: number | string;
   height?: number | string;
+  style?: React.CSSProperties;
   onClick?: () => void;
 }
 
@@ -21,11 +24,25 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
   fallback = 'room',
   className = 'w-full h-full object-cover',
   loading = 'lazy',
+  fetchPriority,
+  aspectRatio,
   width,
   height,
+  style,
   onClick,
 }) => {
   const [hasError, setHasError] = useState(false);
+
+  // Tính toán aspect ratio mặc định theo ngữ cảnh để triệt tiêu CLS tuyệt đối
+  const defaultAspectRatio = fallback === 'avatar' ? '1 / 1' : fallback === 'building' ? '16 / 10' : '4 / 3';
+  const resolvedAspectRatio = aspectRatio || (!width || !height ? defaultAspectRatio : undefined);
+
+  const containerStyle: React.CSSProperties = {
+    width,
+    height,
+    aspectRatio: resolvedAspectRatio,
+    ...style,
+  };
 
   const optimizedSrc = src ? getOptimizedImageUrl(src, preset) : '';
 
@@ -41,7 +58,7 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         className={`flex flex-col items-center justify-center select-none ${
           fallback === 'avatar' ? 'bg-emerald-50 text-[#006d37]' : 'bg-gray-100 text-gray-400'
         } ${className}`}
-        style={{ width, height }}
+        style={containerStyle}
         onClick={onClick}
       >
         {fallback === 'room' && (
@@ -84,11 +101,14 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
         src={optimizedSrc}
         alt={alt}
         loading={loading}
+        // @ts-ignore fetchPriority is valid in modern React/DOM
+        fetchPriority={fetchPriority}
         decoding="async"
         width={width}
         height={height}
         onError={() => setHasError(true)}
         className={className}
+        style={containerStyle}
         onClick={onClick}
       />
     </picture>
