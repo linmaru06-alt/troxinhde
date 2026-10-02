@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- TRỌ XINH — HỆ THỐNG GHI NHẬN CẢNH BÁO BẢO MẬT & CLICKJACKING LOGS
--- Migration: 035_security_events_and_monitoring.sql
+-- Migration: 042_security_events_and_monitoring.sql
 -- An toàn 100%: Chạy lại nhiều lần không mất dữ liệu hiện có
 -- ==============================================================================
 

@@ -75,15 +75,15 @@ try {
   assert(false, `Lỗi đọc App.tsx: ${e.message}`);
 }
 
-// Test 4: Kiểm tra migration SQL 035
-console.log('\nTest 4: Kiểm tra migration SQL 035_security_events_and_monitoring.sql');
+// Test 4: Kiểm tra migration SQL 042
+console.log('\nTest 4: Kiểm tra migration SQL 042_security_events_and_monitoring.sql');
 try {
-  const migrationContent = fs.readFileSync(path.resolve('supabase/migrations/035_security_events_and_monitoring.sql'), 'utf-8');
-  assert(migrationContent.includes('CREATE TABLE IF NOT EXISTS public.security_events'), 'Migration 035: Tạo bảng security_events ghi nhận cảnh báo');
-  assert(migrationContent.includes('ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY'), 'Migration 035: Đã bật RLS cho bảng security_events');
-  assert(migrationContent.includes('USING (false)'), 'Migration 035: Cấm tuyệt đối client sửa hoặc xóa log an ninh');
+  const migrationContent = fs.readFileSync(path.resolve('supabase/migrations/042_security_events_and_monitoring.sql'), 'utf-8');
+  assert(migrationContent.includes('CREATE TABLE IF NOT EXISTS public.security_events'), 'Migration 042: Tạo bảng security_events ghi nhận cảnh báo');
+  assert(migrationContent.includes('ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY'), 'Migration 042: Đã bật RLS cho bảng security_events');
+  assert(migrationContent.includes('USING (false)'), 'Migration 042: Cấm tuyệt đối client sửa hoặc xóa log an ninh');
 } catch (e) {
-  assert(false, `Lỗi đọc migration 035: ${e.message}`);
+  assert(false, `Lỗi đọc migration 042: ${e.message}`);
 }
 
 console.log('\n======================================================================');

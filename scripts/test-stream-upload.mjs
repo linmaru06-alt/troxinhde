@@ -119,15 +119,15 @@ try {
   assert(false, `Lỗi đọc storage.ts hoặc cloudinary.ts: ${e.message}`);
 }
 
-// Test 6: Kiểm tra migration SQL 036
-console.log('\nTest 6: Kiểm tra migration SQL 036_storage_optimization_and_metrics.sql');
+// Test 6: Kiểm tra migration SQL 043
+console.log('\nTest 6: Kiểm tra migration SQL 043_storage_optimization_and_metrics.sql');
 try {
-  const migrationCode = fs.readFileSync(path.resolve('supabase/migrations/036_storage_optimization_and_metrics.sql'), 'utf-8');
-  assert(migrationCode.includes('CREATE TABLE IF NOT EXISTS public.storage_upload_metrics'), 'Migration 036: Tạo bảng lưu trữ số liệu nén ảnh');
-  assert(migrationCode.includes("ARRAY['image/jpeg', 'image/png', 'image/webp']"), 'Migration 036: Cấu hình bucket cho phép đầy đủ định dạng WebP');
-  assert(migrationCode.includes('ALTER TABLE public.storage_upload_metrics ENABLE ROW LEVEL SECURITY'), 'Migration 036: Bật RLS bảo vệ bảng số liệu lưu trữ');
+  const migrationCode = fs.readFileSync(path.resolve('supabase/migrations/043_storage_optimization_and_metrics.sql'), 'utf-8');
+  assert(migrationCode.includes('CREATE TABLE IF NOT EXISTS public.storage_upload_metrics'), 'Migration 043: Tạo bảng lưu trữ số liệu nén ảnh');
+  assert(migrationCode.includes("ARRAY['image/jpeg', 'image/png', 'image/webp']"), 'Migration 043: Cấu hình bucket cho phép đầy đủ định dạng WebP');
+  assert(migrationCode.includes('ALTER TABLE public.storage_upload_metrics ENABLE ROW LEVEL SECURITY'), 'Migration 043: Bật RLS bảo vệ bảng số liệu lưu trữ');
 } catch (e) {
-  assert(false, `Lỗi đọc migration 036: ${e.message}`);
+  assert(false, `Lỗi đọc migration 043: ${e.message}`);
 }
 
 console.log('\n======================================================================');

@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- TRỌ XINH — LÁ CHẮN BẢO MẬT DATABASE & PHÒNG NGỰ PHÂN QUYỀN BẤT BIẾN
--- Migration: 034_zero_trust_role_tampering_defense.sql
+-- Migration: 041_zero_trust_role_tampering_defense.sql
 -- An toàn 100%: Chạy lại nhiều lần không mất dữ liệu hiện có
 -- ==============================================================================
 

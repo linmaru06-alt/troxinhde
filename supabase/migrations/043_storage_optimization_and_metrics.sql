@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- TRỌ XINH — CẤU HÌNH LƯU TRỮ SUPABASE STORAGE & METRICS ENGINE
--- Migration: 036_storage_optimization_and_metrics.sql
+-- Migration: 043_storage_optimization_and_metrics.sql
 -- An toàn 100%: Chạy lại nhiều lần không mất dữ liệu hiện có
 -- ==============================================================================
 
