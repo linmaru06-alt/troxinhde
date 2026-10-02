@@ -4,8 +4,8 @@ import { useAppStore } from '../store/useAppStore';
 import { useUIStore } from '../store/useUIStore';
 import { useOutsideClick } from '../hooks/useOutsideClick';
 import { RoomCard } from '../components/ui/Cards';
+import { RoomCardSkeleton } from '../components/ui/CardsSkeleton';
 import { Button } from '../components/ui/Button';
-import { Skeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { GuestPromptBanner } from '../components/search/GuestPromptBanner';
 import { SEOHead } from '../components/seo/SEOHead';
@@ -699,11 +699,7 @@ export const SearchPage: React.FC = () => {
           {isLoading ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
               {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div key={i} className="bg-white rounded-2xl p-4 border border-gray-100 space-y-3">
-                  <Skeleton className="h-44 w-full rounded-xl" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
+                <RoomCardSkeleton key={i} />
               ))}
             </div>
           ) : filteredRooms.length === 0 ? (

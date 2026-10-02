@@ -132,6 +132,39 @@
   }
 }
 
+@keyframes shimmerWave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-wave {
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f3f4;
+}
+
+.shimmer-wave::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmerWave 1.6s infinite;
+  content: '';
+  will-change: transform;
+}
+
 /* Leaflet Custom Pin & Popup Styles */
 .leaflet-container {
   font-family: inherit !important;
