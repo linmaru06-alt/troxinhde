@@ -49,24 +49,29 @@ BEGIN
 END $$;
 
 -- 3. CỦNG CỐ RLS BẢNG AUDIT LOGS — CHỈ ADMIN ĐỌC, CẤM CLIENT SỬA HOẶC XÓA
-ALTER TABLE public.admin_audit_logs ENABLE ROW LEVEL SECURITY;
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'audit_logs') THEN
+    ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
-DROP POLICY IF EXISTS "Admins can view audit logs" ON public.admin_audit_logs;
-CREATE POLICY "Admins can view audit logs"
-  ON public.admin_audit_logs FOR SELECT
-  USING (public.is_admin());
+    DROP POLICY IF EXISTS "Admins can view audit logs" ON public.audit_logs;
+    CREATE POLICY "Admins can view audit logs"
+      ON public.audit_logs FOR SELECT
+      USING (public.is_admin());
 
-DROP POLICY IF EXISTS "System insert audit logs" ON public.admin_audit_logs;
-CREATE POLICY "System insert audit logs"
-  ON public.admin_audit_logs FOR INSERT
-  WITH CHECK (true);
+    DROP POLICY IF EXISTS "System insert audit logs" ON public.audit_logs;
+    CREATE POLICY "System insert audit logs"
+      ON public.audit_logs FOR INSERT
+      WITH CHECK (true);
 
-DROP POLICY IF EXISTS "No one can update audit logs" ON public.admin_audit_logs;
-CREATE POLICY "No one can update audit logs"
-  ON public.admin_audit_logs FOR UPDATE
-  USING (false);
+    DROP POLICY IF EXISTS "No one can update audit logs" ON public.audit_logs;
+    CREATE POLICY "No one can update audit logs"
+      ON public.audit_logs FOR UPDATE
+      USING (false);
 
-DROP POLICY IF EXISTS "No one can delete audit logs" ON public.admin_audit_logs;
-CREATE POLICY "No one can delete audit logs"
-  ON public.admin_audit_logs FOR DELETE
-  USING (false);
+    DROP POLICY IF EXISTS "No one can delete audit logs" ON public.audit_logs;
+    CREATE POLICY "No one can delete audit logs"
+      ON public.audit_logs FOR DELETE
+      USING (false);
+  END IF;
+END $$;
