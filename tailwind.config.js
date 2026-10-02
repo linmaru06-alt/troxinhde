@@ -44,7 +44,16 @@ export default {
         rejected: '#ef4444',
       },
       fontFamily: {
-        sans: ['"Be Vietnam Pro"', 'Inter', 'sans-serif'],
+        sans: [
+          '"Be Vietnam Pro"',
+          'Inter',
+          '"Segoe UI"',
+          '-apple-system',
+          'BlinkMacSystemFont',
+          'Roboto',
+          'Arial',
+          'sans-serif',
+        ],
       },
       borderRadius: {
         DEFAULT: '0.375rem',

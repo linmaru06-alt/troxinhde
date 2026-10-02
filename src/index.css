@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&subset=vietnamese&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,9 +13,13 @@
     --mobile-bottom-offset: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
+  html, body, button, input, select, textarea {
+    font-family: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  }
+
   body {
-    @apply bg-[#f9f9f9] text-[#1a1c1c] font-sans antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-[#f9f9f9] text-[#1a1c1c] antialiased;
+    font-family: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     overflow-x: clip;
