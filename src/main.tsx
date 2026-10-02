@@ -17,6 +17,7 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000, // V8 Garbage Collection: Thu gom rác các cache không dùng sau 10 phút
       retry: 1,
       refetchOnWindowFocus: false,
     },

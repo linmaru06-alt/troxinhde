@@ -51,6 +51,20 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   const [isUploading, setIsUploading] = useState<boolean>(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+
+  // V8 Memory Cleanup: Thu hồi toàn bộ blob URLs khi unmount
+  useEffect(() => {
+    return () => {
+      itemsRef.current.forEach((it) => {
+        if (it.url && it.url.startsWith('blob:')) {
+          URL.revokeObjectURL(it.url);
+        }
+      });
+    };
+  }, []);
+
   // Sync external existingUrls when changed
   useEffect(() => {
     if (existingUrls.length > 0 && items.length === 0) {
@@ -124,6 +138,11 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
       const { file, id } = filesToUpload[i];
       try {
         const secureUrl = await uploadImage(file, folder);
+        // V8 Garbage Collection: Thu hồi Blob URL ngay khi nhận link ảnh từ Cloud, giải phóng hàng chục MB RAM
+        const prevItem = updatedItemsState.find((it) => it.id === id);
+        if (prevItem && prevItem.url.startsWith('blob:')) {
+          URL.revokeObjectURL(prevItem.url);
+        }
         updatedItemsState = updatedItemsState.map((it) =>
           it.id === id ? { ...it, url: secureUrl, status: 'done', progress: 100 } : it
         );
@@ -144,6 +163,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
   };
 
   const handleRemove = (idToRemove: string) => {
+    const itemToRemove = items.find((it) => it.id === idToRemove);
+    if (itemToRemove && itemToRemove.url.startsWith('blob:')) {
+      URL.revokeObjectURL(itemToRemove.url);
+    }
     const filtered = items.filter((it) => it.id !== idToRemove);
     setItems(filtered);
     notifyUrls(filtered);
@@ -185,6 +208,9 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({
 
     try {
       const secureUrl = await uploadImage(itemToRetry.file, folder);
+      if (itemToRetry.url.startsWith('blob:')) {
+        URL.revokeObjectURL(itemToRetry.url);
+      }
       setItems((prev) => {
         const next = prev.map((it) =>
           it.id === idToRetry ? { ...it, url: secureUrl, status: 'done' as const, progress: 100 } : it

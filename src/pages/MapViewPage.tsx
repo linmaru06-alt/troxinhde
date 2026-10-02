@@ -161,6 +161,16 @@ export const MapViewPage: React.FC = () => {
     }
   }, [filteredRooms, activeRoomId]);
 
+  // V8 Garbage Collection: Dọn sạch Detached DOM Nodes trong cardRefs khi filteredRooms thay đổi
+  useEffect(() => {
+    const currentIds = new Set(filteredRooms.map((r) => r.id));
+    Object.keys(cardRefs.current).forEach((id) => {
+      if (!currentIds.has(id)) {
+        delete cardRefs.current[id];
+      }
+    });
+  }, [filteredRooms]);
+
   const handleSelectRoom = (roomId: string) => {
     setActiveRoomId(roomId);
     const cardEl = cardRefs.current[roomId];

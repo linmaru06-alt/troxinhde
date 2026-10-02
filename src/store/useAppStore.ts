@@ -758,7 +758,10 @@ export const useAppStore = create<AppState>()(
         }
         const previousSaved = [...savedRoomIds];
         const isSaved = savedRoomIds.includes(roomId);
-        const next = isSaved ? savedRoomIds.filter((id) => id !== roomId) : [...savedRoomIds, roomId];
+        // V8 Memory Management: Đưa mục mới lên đầu và giới hạn trần 50 phần tử gần nhất (LRU Cap)
+        const next = isSaved
+          ? savedRoomIds.filter((id) => id !== roomId)
+          : [roomId, ...savedRoomIds.filter((id) => id !== roomId)].slice(0, 50);
         
         // 1. Optimistic Update ngay tức thì trong 1ms
         set({ savedRoomIds: next });
@@ -784,7 +787,9 @@ export const useAppStore = create<AppState>()(
         }
         const previousSaved = [...savedRoommateIds];
         const isSaved = savedRoommateIds.includes(id);
-        const next = isSaved ? savedRoommateIds.filter((item) => item !== id) : [...savedRoommateIds, id];
+        const next = isSaved
+          ? savedRoommateIds.filter((item) => item !== id)
+          : [id, ...savedRoommateIds.filter((item) => item !== id)].slice(0, 50);
         
         set({ savedRoommateIds: next });
         showToast(isSaved ? 'Đã bỏ lưu bài tìm bạn' : 'Đã lưu bài tìm bạn cùng phòng ❤️', '', 'success');
@@ -799,7 +804,9 @@ export const useAppStore = create<AppState>()(
         }
         const previousSaved = [...savedItemIds];
         const isSaved = savedItemIds.includes(id);
-        const next = isSaved ? savedItemIds.filter((item) => item !== id) : [...savedItemIds, id];
+        const next = isSaved
+          ? savedItemIds.filter((item) => item !== id)
+          : [id, ...savedItemIds.filter((item) => item !== id)].slice(0, 50);
         
         set({ savedItemIds: next });
         showToast(isSaved ? 'Đã bỏ lưu món đồ' : 'Đã lưu món đồ thanh lý ❤️', '', 'success');

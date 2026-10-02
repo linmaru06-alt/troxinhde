@@ -22,6 +22,17 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | undefined>(currentUrl);
   const [isUploading, setIsUploading] = useState<boolean>(false);
+  const previewUrlRef = useRef<string | undefined>(previewUrl);
+  previewUrlRef.current = previewUrl;
+
+  // V8 Memory Cleanup: Thu hồi Blob URL khi component unmount
+  React.useEffect(() => {
+    return () => {
+      if (previewUrlRef.current && previewUrlRef.current.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrlRef.current);
+      }
+    };
+  }, []);
 
   const sizeClasses = {
     sm: 'w-12 h-12',
@@ -40,6 +51,11 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
       return;
     }
 
+    // Thu hồi blob cũ nếu có trước khi tạo blob mới
+    if (previewUrl && previewUrl.startsWith('blob:')) {
+      URL.revokeObjectURL(previewUrl);
+    }
+
     // Optimistic local preview
     const localUrl = URL.createObjectURL(file);
     setPreviewUrl(localUrl);
@@ -47,10 +63,13 @@ export const AvatarUploader: React.FC<AvatarUploaderProps> = ({
 
     try {
       const secureUrl = await uploadImage(file, folder);
+      // V8 Garbage Collection: Giải phóng Blob URL ngay khi nhận link từ Cloud
+      URL.revokeObjectURL(localUrl);
       setPreviewUrl(secureUrl);
       onComplete([secureUrl]);
       showToast('Đổi ảnh đại diện thành công!', '', 'success');
     } catch (err: any) {
+      URL.revokeObjectURL(localUrl);
       showToast('Tải lên ảnh thất bại', err?.message || '', 'error');
       setPreviewUrl(currentUrl);
     } finally {
