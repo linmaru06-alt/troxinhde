@@ -15,6 +15,7 @@ import {
   ChevronLeft,
 } from 'lucide-react';
 import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
+import { isPermittedAdmin } from '../lib/security/sessionIntegrity';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
@@ -55,7 +56,7 @@ export const LoginPage: React.FC = () => {
       // Nếu là Chủ trọ (đã được duyệt) -> Tự động vào trang Tổng quan & Phòng của Chủ trọ
       if (user.role === 'owner' || user.ownerApplicationStatus === 'approved' || user.email?.toLowerCase() === 'phuonglinh832005@gmail.com') {
         navigate('/chu-tro');
-      } else if (user.role === 'admin' || user.email?.toLowerCase() === 'quan66934@gmail.com' || user.email?.toLowerCase() === 'admin@troxinh.vn') {
+      } else if (isPermittedAdmin(user)) {
         navigate('/admin');
       } else {
         navigate('/');

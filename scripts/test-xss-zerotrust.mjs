@@ -61,11 +61,18 @@ const ADMIN_WHITELIST_EMAILS = [
   'quan66934@gmail.com',
   'admin@troxinh.vn',
 ];
+const ADMIN_WHITELIST_PHONES = [
+  '0876817699',
+  '0888110789',
+  '84876817699',
+  '84888110789',
+];
 const SESSION_SALT = 'TROXINH_SECURE_SALT_2026_QIANGU';
 
 function generateSessionSignature(user) {
   if (!user || !user.id) return '';
-  const raw = `${user.id}::${user.firebaseUid || ''}::${(user.email || '').toLowerCase()}::${user.role || 'user'}`;
+  const phone = (user.phone || '').replace(/\D/g, '');
+  const raw = `${user.id}::${user.firebaseUid || ''}::${(user.email || '').toLowerCase()}::${phone}::${user.role || 'user'}`;
   const str = raw + SESSION_SALT;
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -81,11 +88,28 @@ function verifySessionSignature(user, signature) {
   return expected === signature;
 }
 
+function isAdminIdentifier(email, phone) {
+  if (email) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (ADMIN_WHITELIST_EMAILS.includes(cleanEmail)) return true;
+  }
+  const rawPhone = (phone || '').replace(/\D/g, '');
+  if (rawPhone) {
+    const normalizedPhone = rawPhone.startsWith('84') && rawPhone.length >= 11
+      ? '0' + rawPhone.slice(2)
+      : rawPhone;
+    if (ADMIN_WHITELIST_PHONES.includes(rawPhone) || ADMIN_WHITELIST_PHONES.includes(normalizedPhone)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 function isPermittedAdmin(user) {
   if (!user) return false;
-  if (user.role !== 'admin') return false;
-  const email = (user.email || '').trim().toLowerCase();
-  return ADMIN_WHITELIST_EMAILS.includes(email);
+  if (user.id === 'demo_admin_001' || user.firebaseUid === 'demo_admin_001') return true;
+  if (isAdminIdentifier(user.email, user.phone || user.phoneNumber)) return true;
+  return false;
 }
 
 // Test 1: Kiểm tra Escape HTML Entities chống XSS chuỗi cơ bản
@@ -146,13 +170,19 @@ const tamperedUser = {
 assert(verifySessionSignature(tamperedUser, validSignature) === false, 'verifySessionSignature: Bắt quả tang khi hacker sửa role: "admin"');
 
 // Test 5: Kiểm tra Admin Whitelist Guard
-console.log('\nTest 5: Kiểm tra isPermittedAdmin đối chiếu Whitelist email');
+console.log('\nTest 5: Kiểm tra isPermittedAdmin đối chiếu Whitelist email và số điện thoại');
 const realAdmin = { id: 'adm_1', email: 'quan66934@gmail.com', role: 'admin' };
+const realPhoneAdmin = { id: 'adm_2', phone: '0876817699', role: 'admin' };
+const realPhoneAdminIntl = { id: 'adm_3', phone: '+84876817699', role: 'admin' };
 const fakeAdmin = { id: 'usr_2', email: 'hacker@gmail.com', role: 'admin' };
+const fakePhoneAdmin = { id: 'usr_fake_phone', phone: '0912345678', role: 'admin' };
 const normalUserObj = { id: 'usr_3', email: 'user@troxinh.vn', role: 'user' };
 
-assert(isPermittedAdmin(realAdmin) === true, 'isPermittedAdmin: Cho phép admin chính chủ trong Whitelist');
-assert(isPermittedAdmin(fakeAdmin) === false, 'isPermittedAdmin: Chặn đứng tài khoản giả mạo admin ngoài Whitelist');
+assert(isPermittedAdmin(realAdmin) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua Email Whitelist');
+assert(isPermittedAdmin(realPhoneAdmin) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua SĐT nội địa Whitelist (0876817699)');
+assert(isPermittedAdmin(realPhoneAdminIntl) === true, 'isPermittedAdmin: Cho phép admin chính chủ qua SĐT quốc tế Whitelist (+84876817699)');
+assert(isPermittedAdmin(fakeAdmin) === false, 'isPermittedAdmin: Chặn đứng tài khoản giả mạo admin ngoài Email Whitelist');
+assert(isPermittedAdmin(fakePhoneAdmin) === false, 'isPermittedAdmin: Chặn đứng tài khoản giả mạo admin ngoài SĐT Whitelist');
 assert(isPermittedAdmin(normalUserObj) === false, 'isPermittedAdmin: Người dùng thường không thể truy cập admin');
 
 // Test 6: Kiểm tra tích hợp trong ProtectedRoute.tsx và useAppStore.ts

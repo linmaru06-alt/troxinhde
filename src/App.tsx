@@ -14,7 +14,7 @@ import { FramebustingGuard } from './components/common/FramebustingGuard';
 import { AuthModal } from './components/modals/AuthModal';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
-import { isPermittedAdmin } from './lib/security/sessionIntegrity';
+import { isPermittedAdmin, isAdminIdentifier } from './lib/security/sessionIntegrity';
 
 // Lazy Loaded Pages
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
@@ -121,7 +121,7 @@ const AppCloudDataLoader: React.FC = () => {
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const email = fbUser.email?.toLowerCase();
-        const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+        const isSuperAdmin = isAdminIdentifier(fbUser.email, fbUser.phoneNumber);
         const isLandlord = email === 'phuonglinh832005@gmail.com';
         try {
           // Hồ sơ luôn lấy theo Firebase UID của phiên thật, ghi đè currentUser cũ còn lưu trong trình duyệt
@@ -228,10 +228,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     return <Navigate to={`/dang-nhap?returnUrl=${returnUrl}`} replace />;
   }
 
-  const isAdmin =
-    isPermittedAdmin(currentUser) ||
-    ((currentUser.app_role === 'admin' || currentUser.role === 'admin') &&
-      ['quan66934@gmail.com', 'admin@troxinh.vn'].includes((currentUser.email || '').toLowerCase()));
+  const isAdmin = isPermittedAdmin(currentUser);
 
   if (!isAdmin) {
     return (
@@ -243,7 +240,7 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <div className="space-y-2">
             <h2 className="text-xl font-black text-gray-900">Không có quyền truy cập</h2>
             <p className="text-sm text-gray-600 leading-relaxed">
-              Tài khoản của bạn ({currentUser.email || currentUser.name}) không có quyền quản trị viên để truy cập khu vực này.
+              Tài khoản của bạn ({currentUser.phone || currentUser.email || currentUser.name}) không có quyền quản trị viên để truy cập khu vực này.
             </p>
           </div>
           <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">

@@ -46,6 +46,7 @@ import {
   HiddenItemRecord,
 } from '../lib/api/blocksAndHides';
 import { onAutoModerationTriggered } from '../lib/api/reports';
+import { isAdminIdentifier } from '../lib/security/sessionIntegrity';
 
 export type { BlockedUserRecord, HiddenItemRecord };
 
@@ -434,7 +435,7 @@ export const useAppStore = create<AppState>()(
 
       setCurrentUser: (user) => {
         if (user) {
-          const isSuperAdmin = user.email?.toLowerCase() === 'quan66934@gmail.com' || user.email?.toLowerCase() === 'admin@troxinh.vn';
+          const isSuperAdmin = isAdminIdentifier(user.email, user.phone);
           const isLandlord = user.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
           if (isSuperAdmin) {
             user.role = 'admin';
@@ -507,14 +508,14 @@ export const useAppStore = create<AppState>()(
       },
 
       loginWithSocialUser: (userData) => {
-        const isSuperAdmin = userData.email?.toLowerCase() === 'quan66934@gmail.com' || userData.email?.toLowerCase() === 'admin@troxinh.vn';
+        const isSuperAdmin = isAdminIdentifier(userData.email, userData.phone);
         const isLandlord = userData.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
         const userRole: 'user' | 'owner' | 'admin' = isSuperAdmin ? 'admin' : (isLandlord || userData.role === 'owner' ? 'owner' : userData.role === 'admin' ? 'admin' : 'user');
         const userObj: User = {
           id: userData.id,
           firebaseUid: userData.firebaseUid,
           isDemoAccount: userData.isDemoAccount,
-          name: userData.name || 'Người Dùng Trọ Xinh',
+          name: isSuperAdmin ? (userData.name && userData.name !== 'Người dùng Trọ Xinh' ? userData.name : 'Quản Trị Viên (Quân)') : (userData.name || 'Người Dùng Trọ Xinh'),
           email: userData.email,
           phone: userData.phone,
           role: userRole,
@@ -1471,15 +1472,16 @@ export const useAppStore = create<AppState>()(
       name: 'troxinh_storage_v4',
       onRehydrateStorage: () => (state) => {
         if (state?.currentUser) {
+          const isSuperAdmin = isAdminIdentifier(state.currentUser.email, state.currentUser.phone);
           const email = state.currentUser.email?.toLowerCase();
-          if (email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn') {
+          if (isSuperAdmin) {
             state.currentUser.role = 'admin';
           } else if (email === 'phuonglinh832005@gmail.com') {
             state.currentUser.role = 'owner';
             state.currentUser.ownerApplicationStatus = 'approved';
           } else if (state.currentUser.role === 'admin') {
             // ZERO-TRUST LOCALSTORAGE GUARD:
-            // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng email không thuộc whitelist quản trị
+            // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng email/SĐT không thuộc whitelist quản trị
             console.warn('[Security Guard] Phát hiện role admin giả mạo trong LocalStorage! Tự động hạ cấp về user an toàn.');
             state.currentUser.role = 'user';
           }

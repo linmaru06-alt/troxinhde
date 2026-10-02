@@ -9,6 +9,13 @@ export const ADMIN_WHITELIST_EMAILS = [
   'admin@troxinh.vn',
 ];
 
+export const ADMIN_WHITELIST_PHONES = [
+  '0876817699',
+  '0888110789',
+  '84876817699',
+  '84888110789',
+];
+
 const SESSION_SALT = 'TROXINH_SECURE_SALT_2026_QIANGU';
 
 /**
@@ -17,7 +24,8 @@ const SESSION_SALT = 'TROXINH_SECURE_SALT_2026_QIANGU';
  */
 export function generateSessionSignature(user: any): string {
   if (!user || !user.id) return '';
-  const raw = `${user.id}::${user.firebaseUid || ''}::${(user.email || '').toLowerCase()}::${user.role || 'user'}`;
+  const phone = (user.phone || '').replace(/\D/g, '');
+  const raw = `${user.id}::${user.firebaseUid || ''}::${(user.email || '').toLowerCase()}::${phone}::${user.role || 'user'}`;
   const str = raw + SESSION_SALT;
   let hash = 5381;
   for (let i = 0; i < str.length; i++) {
@@ -36,13 +44,41 @@ export function verifySessionSignature(user: any, signature?: string | null): bo
   return expected === signature;
 }
 
+export function isAdminIdentifier(email?: string | null, phone?: string | null): boolean {
+  if (email) {
+    const cleanEmail = email.trim().toLowerCase();
+    if (ADMIN_WHITELIST_EMAILS.includes(cleanEmail)) return true;
+  }
+  const rawPhone = (phone || '').replace(/\D/g, '');
+  if (rawPhone) {
+    const normalizedPhone = rawPhone.startsWith('84') && rawPhone.length >= 11
+      ? '0' + rawPhone.slice(2)
+      : rawPhone;
+    if (['0876817699', '0888110789'].includes(normalizedPhone)) {
+      return true;
+    }
+  }
+  return false;
+}
+
 /**
  * Kiểm tra phân quyền kép Quản trị viên (Admin Whitelist Check)
+ * Hỗ trợ xác thực cả Email và Số điện thoại chính chủ của Quản trị viên
  * Chống việc hacker mở F12 Console sửa role: "admin"
  */
 export function isPermittedAdmin(user: any): boolean {
   if (!user) return false;
-  if (user.role !== 'admin') return false;
-  const email = (user.email || '').trim().toLowerCase();
-  return ADMIN_WHITELIST_EMAILS.includes(email);
+
+  // 1. Tài khoản Demo Admin
+  if (user.id === 'demo_admin_001' || user.firebaseUid === 'demo_admin_001') {
+    return true;
+  }
+
+  // 2. Định danh Email hoặc Số điện thoại thuộc Whitelist Quản trị viên chính thức
+  if (isAdminIdentifier(user.email, user.phone || user.phoneNumber)) {
+    return true;
+  }
+
+  // 3. Nếu role/app_role là 'admin' nhưng không thỏa mãn các điều kiện trên -> Từ chối (Zero-Trust)
+  return false;
 }

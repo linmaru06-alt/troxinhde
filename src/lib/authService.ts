@@ -21,6 +21,7 @@ import {
   getSupabaseUserByEmail,
 } from './supabaseAuthSync';
 import { initialUsers } from '../data/demoUsers';
+import { isAdminIdentifier } from './security/sessionIntegrity';
 
 declare global {
   interface Window {
@@ -102,8 +103,8 @@ export function isProfileUuid(id?: string | null): id is string {
 }
 
 function mapProfileRow(profile: any): AuthUserProfile {
-  const isSuperAdmin = profile.email === 'quan66934@gmail.com' || profile.email === 'admin@troxinh.vn';
-  const isLandlord = profile.email === 'phuonglinh832005@gmail.com';
+  const isSuperAdmin = isAdminIdentifier(profile.email, profile.phone);
+  const isLandlord = profile.email?.toLowerCase() === 'phuonglinh832005@gmail.com';
   const resolvedRole: AppUserRole = isSuperAdmin
     ? 'admin'
     : isLandlord
@@ -174,7 +175,7 @@ export async function syncFirebaseUserToSupabase(
   isDemo = false
 ): Promise<AuthUserProfile> {
   const email = fbUser.email ? fbUser.email.trim().toLowerCase() : undefined;
-  const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
+  const isSuperAdmin = isAdminIdentifier(fbUser.email, fbUser.phoneNumber);
   const isLandlord = email === 'phuonglinh832005@gmail.com';
   const effectiveRole: AppUserRole = isSuperAdmin ? 'admin' : (isLandlord ? 'owner' : customRole);
   const phone = toNationalVietnamesePhone(fbUser.phoneNumber);
