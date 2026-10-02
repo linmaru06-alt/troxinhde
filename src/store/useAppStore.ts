@@ -46,7 +46,7 @@ import {
   HiddenItemRecord,
 } from '../lib/api/blocksAndHides';
 import { onAutoModerationTriggered } from '../lib/api/reports';
-import { isAdminIdentifier } from '../lib/security/sessionIntegrity';
+import { isAdminIdentifier, isPermittedAdmin } from '../lib/security/sessionIntegrity';
 
 export type { BlockedUserRecord, HiddenItemRecord };
 
@@ -1472,18 +1472,22 @@ export const useAppStore = create<AppState>()(
       name: 'troxinh_storage_v4',
       onRehydrateStorage: () => (state) => {
         if (state?.currentUser) {
-          const isSuperAdmin = isAdminIdentifier(state.currentUser.email, state.currentUser.phone);
-          const email = state.currentUser.email?.toLowerCase();
-          if (isSuperAdmin) {
+          if (isPermittedAdmin(state.currentUser)) {
             state.currentUser.role = 'admin';
-          } else if (email === 'phuonglinh832005@gmail.com') {
-            state.currentUser.role = 'owner';
-            state.currentUser.ownerApplicationStatus = 'approved';
-          } else if (state.currentUser.role === 'admin') {
-            // ZERO-TRUST LOCALSTORAGE GUARD:
-            // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng email/SĐT không thuộc whitelist quản trị
-            console.warn('[Security Guard] Phát hiện role admin giả mạo trong LocalStorage! Tự động hạ cấp về user an toàn.');
-            state.currentUser.role = 'user';
+            if (state.currentUser.name === 'Người dùng Trọ Xinh' || !state.currentUser.name) {
+              state.currentUser.name = 'Quản Trị Viên (Quân)';
+            }
+          } else {
+            const email = state.currentUser.email?.toLowerCase();
+            if (email === 'phuonglinh832005@gmail.com') {
+              state.currentUser.role = 'owner';
+              state.currentUser.ownerApplicationStatus = 'approved';
+            } else if (state.currentUser.role === 'admin') {
+              // ZERO-TRUST LOCALSTORAGE GUARD:
+              // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng không thỏa mãn bất kỳ điều kiện admin nào
+              console.warn('[Security Guard] Phát hiện role admin giả mạo trong LocalStorage! Tự động hạ cấp về user an toàn.');
+              state.currentUser.role = 'user';
+            }
           }
         }
       },
