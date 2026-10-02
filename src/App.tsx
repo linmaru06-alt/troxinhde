@@ -10,9 +10,11 @@ import { Button } from './components/ui/Button';
 import { Building2, ArrowRight, ShieldAlert, Home } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
+import { FramebustingGuard } from './components/common/FramebustingGuard';
 import { AuthModal } from './components/modals/AuthModal';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
+import { isPermittedAdmin } from './lib/security/sessionIntegrity';
 
 // Lazy Loaded Pages
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
@@ -227,11 +229,9 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   }
 
   const isAdmin =
-    currentUser.app_role === 'admin' ||
-    currentUser.appRole === 'admin' ||
-    currentUser.role === 'admin' ||
-    (currentUser as any).admin_role === 'superadmin' ||
-    (currentUser as any).admin_role === 'super_admin';
+    isPermittedAdmin(currentUser) ||
+    ((currentUser.app_role === 'admin' || currentUser.role === 'admin') &&
+      ['quan66934@gmail.com', 'admin@troxinh.vn'].includes((currentUser.email || '').toLowerCase()));
 
   if (!isAdmin) {
     return (
@@ -282,6 +282,7 @@ const HomeRoute: React.FC = () => {
 export const App: React.FC = () => {
   return (
     <BrowserRouter>
+      <FramebustingGuard />
       <RouteNavigationHandler />
       <AppCloudDataLoader />
       <div className="flex flex-col min-h-screen">
