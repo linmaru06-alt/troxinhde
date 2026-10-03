@@ -126,3 +126,10 @@ export function formatChatDateDivider(dateString?: string | number | Date | null
 
   return `${dayOfWeek}, ${dateFormatted}`;
 }
+
+/**
+ * Format conversation last message time for sidebar list (e.g. "20:37 • 03/10/2026")
+ */
+export function formatConversationTime(dateString?: string | number | Date | null): string {
+  return formatMessageDateTime(dateString);
+}
