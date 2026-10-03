@@ -14,7 +14,14 @@ import {
   Loader2,
   Sparkles,
   Users,
+  Calendar,
 } from 'lucide-react';
+import {
+  formatMessageDateTime,
+  isSameCalendarDay,
+  formatChatDateDivider,
+  formatConversationTime,
+} from '../utils/formatters';
 
 const FALLBACK_OWNER_CONVERSATIONS: Conversation[] = [
   {
@@ -256,12 +263,9 @@ export const OwnerChatPage: React.FC = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h4 className="text-xs font-bold text-gray-900 truncate">{name}</h4>
-                          <span className="text-[10px] text-gray-400">
+                          <span className="text-[10px] text-gray-400 shrink-0 whitespace-nowrap">
                             {c.last_message_at
-                              ? new Date(c.last_message_at).toLocaleTimeString('vi-VN', {
-                                  hour: '2-digit',
-                                  minute: '2-digit',
-                                })
+                              ? formatConversationTime(c.last_message_at)
                               : ''}
                           </span>
                         </div>
@@ -330,33 +334,39 @@ export const OwnerChatPage: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                messages.map((msg) => {
+                messages.map((msg, index) => {
+                  const prevMsg = index > 0 ? messages[index - 1] : null;
+                  const isNewDay = !prevMsg || !isSameCalendarDay(msg.created_at, prevMsg.created_at);
                   const isMe = msg.sender_id === currentUser?.id || msg.sender_id === 'user_owner_1';
-                  const formattedTime = msg.created_at
-                    ? new Date(msg.created_at).toLocaleTimeString('vi-VN', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })
-                    : '';
+                  const formattedTime = formatMessageDateTime(msg.created_at);
                   return (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                    >
+                    <React.Fragment key={msg.id || `owner-msg-${index}`}>
+                      {isNewDay && msg.created_at && (
+                        <div className="flex items-center justify-center pt-2 pb-1 w-full">
+                          <div className="inline-flex items-center gap-1.5 bg-gray-100/90 text-gray-500 text-[11px] font-medium px-3 py-1 rounded-full border border-gray-200/80 shadow-2xs select-none">
+                            <Calendar className="w-3 h-3 text-gray-400" />
+                            <span>{formatChatDateDivider(msg.created_at)}</span>
+                          </div>
+                        </div>
+                      )}
                       <div
-                        className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
-                          isMe
-                            ? 'bg-[#006d37] text-white rounded-br-xs shadow-xs'
-                            : 'bg-white text-gray-900 rounded-bl-xs border border-gray-200 shadow-xs'
-                        }`}
+                        className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                       >
-                        <p className="whitespace-pre-line">{msg.content}</p>
+                        <div
+                          className={`max-w-[75%] px-4 py-2.5 rounded-2xl text-xs sm:text-sm leading-relaxed ${
+                            isMe
+                              ? 'bg-[#006d37] text-white rounded-br-xs shadow-xs'
+                              : 'bg-white text-gray-900 rounded-bl-xs border border-gray-200 shadow-xs'
+                          }`}
+                        >
+                          <p className="whitespace-pre-line">{msg.content}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-1 px-1 whitespace-nowrap">
+                          <span>{formattedTime}</span>
+                          {isMe && <CheckCheck className="w-3 h-3 text-[#006d37]" />}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-[10px] text-gray-400 mt-1 px-1">
-                        <span>{formattedTime}</span>
-                        {isMe && <CheckCheck className="w-3 h-3 text-[#006d37]" />}
-                      </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })
               )}
