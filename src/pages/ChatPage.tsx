@@ -22,7 +22,11 @@ import { getRoommatePostById } from '../lib/api/roommates';
 import { getItemAvailability } from '../lib/marketplaceStatus';
 import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 import { formatCurrency } from '../components/ui/Cards';
-import { formatMessageDateTime } from '../utils/formatters';
+import {
+  formatMessageDateTime,
+  isSameCalendarDay,
+  formatChatDateDivider,
+} from '../utils/formatters';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
 import {
@@ -2192,7 +2196,10 @@ export const ChatPage: React.FC = () => {
                     <p className="text-[11px] text-gray-500">Hãy chọn gợi ý phản hồi nhanh bên dưới hoặc nhập tin nhắn để kết nối với chủ bài đăng!</p>
                   </div>
                 ) : (
-                  chatMessages.map((msg) => {
+                  chatMessages.map((msg, index) => {
+                    const prevMsg = index > 0 ? chatMessages[index - 1] : null;
+                    const isNewDay = !prevMsg || !isSameCalendarDay(msg.created_at, prevMsg.created_at);
+
                     const isMe = isSameUserId(msg.sender_id, currentUser?.id);
                     const msgSenderName = isMe
                       ? (currentUser?.name || 'Bạn')
@@ -2221,12 +2228,22 @@ export const ChatPage: React.FC = () => {
                       } catch {}
 
                       return (
-                        <div key={msg.id} className="flex justify-center my-3 w-full">
-                          <div className="bg-emerald-50/90 border border-emerald-200/90 text-emerald-800 text-xs px-3.5 py-1.5 rounded-full shadow-2xs max-w-[90%] text-center flex items-center justify-center gap-1.5">
-                            <span className="font-semibold">{displayText}</span>
-                            {timeStr && <span className="text-[10px] text-emerald-600/80 whitespace-nowrap">({timeStr})</span>}
+                        <React.Fragment key={msg.id || `sys-${index}`}>
+                          {isNewDay && msg.created_at && (
+                            <div className="flex items-center justify-center pt-2 pb-1 w-full">
+                              <div className="inline-flex items-center gap-1.5 bg-gray-100/90 text-gray-500 text-[11px] font-medium px-3 py-1 rounded-full border border-gray-200/80 shadow-2xs select-none">
+                                <Calendar className="w-3 h-3 text-gray-400" />
+                                <span>{formatChatDateDivider(msg.created_at)}</span>
+                              </div>
+                            </div>
+                          )}
+                          <div className="flex justify-center my-3 w-full">
+                            <div className="bg-emerald-50/90 border border-emerald-200/90 text-emerald-800 text-xs px-3.5 py-1.5 rounded-full shadow-2xs max-w-[90%] text-center flex items-center justify-center gap-1.5">
+                              <span className="font-semibold">{displayText}</span>
+                              {timeStr && <span className="text-[10px] text-emerald-600/80 whitespace-nowrap">({timeStr})</span>}
+                            </div>
                           </div>
-                        </div>
+                        </React.Fragment>
                       );
                     }
 
@@ -2241,10 +2258,18 @@ export const ChatPage: React.FC = () => {
                     }
 
                     return (
-                      <div
-                        key={msg.id}
-                        className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
-                      >
+                      <React.Fragment key={msg.id || `msg-${index}`}>
+                        {isNewDay && msg.created_at && (
+                          <div className="flex items-center justify-center pt-2 pb-1 w-full">
+                            <div className="inline-flex items-center gap-1.5 bg-gray-100/90 text-gray-500 text-[11px] font-medium px-3 py-1 rounded-full border border-gray-200/80 shadow-2xs select-none">
+                              <Calendar className="w-3 h-3 text-gray-400" />
+                              <span>{formatChatDateDivider(msg.created_at)}</span>
+                            </div>
+                          </div>
+                        )}
+                        <div
+                          className={`flex w-full ${isMe ? 'justify-end' : 'justify-start'}`}
+                        >
                         {isMe ? (
                           /* Phần mình nhắn: Nằm bên PHẢI, có tên người nhắn + bong bóng màu xanh + thời gian */
                           <div className="flex flex-col items-end max-w-[85%] sm:max-w-[70%]">
@@ -2405,8 +2430,9 @@ export const ChatPage: React.FC = () => {
                           })()
                         )}
                       </div>
-                    );
-                  })
+                    </React.Fragment>
+                  );
+                })
                 )}
                 <div ref={messagesEndRef} />
               </div>
