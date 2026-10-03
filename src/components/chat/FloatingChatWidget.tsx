@@ -16,7 +16,13 @@ import {
   Sparkles,
   CheckCheck,
   Loader2,
+  Calendar,
 } from 'lucide-react';
+import {
+  formatMessageDateTime,
+  isSameCalendarDay,
+  formatChatDateDivider,
+} from '../../utils/formatters';
 
 const FALLBACK_CHAT_CONVERSATIONS: Conversation[] = [
   {
@@ -314,32 +320,40 @@ export const FloatingChatWidget: React.FC = () => {
                   </p>
                 </div>
               ) : (
-                messages.map((msg) => {
+                messages.map((msg, index) => {
+                  const prevMsg = index > 0 ? messages[index - 1] : null;
+                  const isNewDay = !prevMsg || !isSameCalendarDay(msg.created_at, prevMsg.created_at);
                   const isMe = msg.sender_id === currentUser.id;
                   return (
-                    <div
-                      key={msg.id}
-                      className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
-                    >
+                    <React.Fragment key={msg.id || `float-msg-${index}`}>
+                      {isNewDay && msg.created_at && (
+                        <div className="flex items-center justify-center pt-1.5 pb-0.5 w-full">
+                          <div className="inline-flex items-center gap-1 bg-gray-100/90 text-gray-500 text-[10px] font-medium px-2.5 py-0.5 rounded-full border border-gray-200/80 shadow-2xs select-none">
+                            <Calendar className="w-2.5 h-2.5 text-gray-400" />
+                            <span>{formatChatDateDivider(msg.created_at)}</span>
+                          </div>
+                        </div>
+                      )}
                       <div
-                        className={`max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
-                          isMe
-                            ? 'bg-[#006d37] text-white rounded-br-xs shadow-2xs'
-                            : 'bg-white text-gray-900 rounded-bl-xs border border-gray-200 shadow-2xs'
-                        }`}
+                        className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}
                       >
-                        <p className="whitespace-pre-line">{msg.content}</p>
+                        <div
+                          className={`max-w-[78%] px-3 py-2 rounded-2xl text-xs leading-relaxed ${
+                            isMe
+                              ? 'bg-[#006d37] text-white rounded-br-xs shadow-2xs'
+                              : 'bg-white text-gray-900 rounded-bl-xs border border-gray-200 shadow-2xs'
+                          }`}
+                        >
+                          <p className="whitespace-pre-line">{msg.content}</p>
+                        </div>
+                        <div className="flex items-center gap-1 text-[9px] text-gray-400 mt-0.5 px-1 whitespace-nowrap">
+                          <span>
+                            {formatMessageDateTime(msg.created_at)}
+                          </span>
+                          {isMe && <CheckCheck className="w-3 h-3 text-[#006d37]" />}
+                        </div>
                       </div>
-                      <div className="flex items-center gap-1 text-[9px] text-gray-400 mt-0.5 px-1">
-                        <span>
-                          {new Date(msg.created_at).toLocaleTimeString('vi-VN', {
-                            hour: '2-digit',
-                            minute: '2-digit',
-                          })}
-                        </span>
-                        {isMe && <CheckCheck className="w-3 h-3 text-[#006d37]" />}
-                      </div>
-                    </div>
+                    </React.Fragment>
                   );
                 })
               )}
