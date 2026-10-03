@@ -22,6 +22,7 @@ import { getRoommatePostById } from '../lib/api/roommates';
 import { getItemAvailability } from '../lib/marketplaceStatus';
 import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 import { formatCurrency } from '../components/ui/Cards';
+import { formatMessageDateTime } from '../utils/formatters';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
 import {
@@ -2200,12 +2201,7 @@ export const ChatPage: React.FC = () => {
                       ? (currentUser?.avatarUrl || '/images/user-avatar.jpg')
                       : (msg.sender?.avatar_url || (msg.sender_id ? KNOWN_USER_NAMES[msg.sender_id]?.avatar : undefined) || otherAvatar);
 
-                    const timeStr = msg.created_at
-                      ? new Date(msg.created_at).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : '';
+                    const timeStr = formatMessageDateTime(msg.created_at);
 
                     // Tin nhắn hệ thống / ngữ cảnh món đồ (sender_id null hoặc type item_context/system):
                     // Hiển thị dạng dòng chữ giữa khung chat theo yêu cầu 5
@@ -2258,7 +2254,7 @@ export const ChatPage: React.FC = () => {
                             {offerData ? (
                               <div className="w-fit">
                                 {renderOfferCard(offerData, isMe)}
-                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-gray-400">
+                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-gray-400 whitespace-nowrap">
                                   <span>{timeStr}</span>
                                   {msg.status === 'sending' ? (
                                     <Clock className="w-2.5 h-2.5 animate-spin text-gray-400" />
@@ -2283,7 +2279,7 @@ export const ChatPage: React.FC = () => {
                                     <Maximize2 className="w-5 h-5 drop-shadow" />
                                   </div>
                                 </div>
-                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-gray-400">
+                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-gray-400 whitespace-nowrap">
                                   <span>{timeStr}</span>
                                   {msg.status === 'sending' ? (
                                     <Clock className="w-2.5 h-2.5 animate-spin text-gray-400" />
@@ -2297,7 +2293,7 @@ export const ChatPage: React.FC = () => {
                                 <p className="whitespace-pre-wrap break-words text-xs leading-relaxed">
                                   {msg.content}
                                 </p>
-                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-emerald-100">
+                                <div className="flex items-center justify-end gap-1.5 mt-1 text-[10px] text-emerald-100 whitespace-nowrap">
                                   <span>{timeStr}</span>
                                   {msg.status === 'sending' ? (
                                     <Clock className="w-2.5 h-2.5 animate-spin text-emerald-200" />
