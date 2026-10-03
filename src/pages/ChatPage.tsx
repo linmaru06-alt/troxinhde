@@ -26,6 +26,7 @@ import {
   formatMessageDateTime,
   isSameCalendarDay,
   formatChatDateDivider,
+  formatConversationTime,
 } from '../utils/formatters';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
@@ -1488,11 +1489,8 @@ export const ChatPage: React.FC = () => {
                             </span>
                           </div>
                           {adminConversation?.last_message_at && (
-                            <span className={`text-[10px] shrink-0 ${adminUnreadCount > 0 ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
-                              {new Date(adminConversation.last_message_at).toLocaleTimeString([], {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
+                            <span className={`text-[10px] shrink-0 whitespace-nowrap ${adminUnreadCount > 0 ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
+                              {formatConversationTime(adminConversation.last_message_at)}
                             </span>
                           )}
                         </div>
@@ -1615,11 +1613,8 @@ export const ChatPage: React.FC = () => {
                                   )}
                                 </div>
                                 {c.last_message_at && (
-                                  <span className={`text-[10px] shrink-0 ${hasUnread ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
-                                    {new Date(c.last_message_at).toLocaleTimeString([], {
-                                      hour: '2-digit',
-                                      minute: '2-digit',
-                                    })}
+                                  <span className={`text-[10px] shrink-0 whitespace-nowrap ${hasUnread ? 'text-[#006d37] font-bold' : 'text-gray-400'}`}>
+                                    {formatConversationTime(c.last_message_at)}
                                   </span>
                                 )}
                               </div>
