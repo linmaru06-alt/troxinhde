@@ -76,3 +76,21 @@ export function formatMessageDateTime(dateString?: string | number | Date | null
   const year = d.getFullYear();
   return `${hours}:${minutes} • ${day}/${month}/${year}`;
 }
+
+/**
+ * Check if two dates represent the same calendar day
+ */
+export function isSameCalendarDay(
+  d1?: string | number | Date | null,
+  d2?: string | number | Date | null
+): boolean {
+  if (!d1 || !d2) return false;
+  const a = new Date(d1);
+  const b = new Date(d2);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return false;
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
