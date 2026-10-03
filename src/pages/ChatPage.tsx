@@ -2224,7 +2224,7 @@ export const ChatPage: React.FC = () => {
                         <div key={msg.id} className="flex justify-center my-3 w-full">
                           <div className="bg-emerald-50/90 border border-emerald-200/90 text-emerald-800 text-xs px-3.5 py-1.5 rounded-full shadow-2xs max-w-[90%] text-center flex items-center justify-center gap-1.5">
                             <span className="font-semibold">{displayText}</span>
-                            {timeStr && <span className="text-[10px] text-emerald-600/80">({timeStr})</span>}
+                            {timeStr && <span className="text-[10px] text-emerald-600/80 whitespace-nowrap">({timeStr})</span>}
                           </div>
                         </div>
                       );
@@ -2373,7 +2373,7 @@ export const ChatPage: React.FC = () => {
                                           {msg.content}
                                         </p>
                                       )}
-                                      <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400">
+                                      <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-gray-400 whitespace-nowrap">
                                         <span>{timeStr}</span>
                                       </div>
                                     </div>
