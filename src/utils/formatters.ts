@@ -94,3 +94,35 @@ export function isSameCalendarDay(
     a.getDate() === b.getDate()
   );
 }
+
+/**
+ * Format date divider pill for chat message streams (e.g. "Hôm nay, 03/10/2026", "Hôm qua, 02/10/2026", "Thứ Bảy, 03/10/2026")
+ */
+export function formatChatDateDivider(dateString?: string | number | Date | null): string {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '';
+  const now = new Date();
+
+  const isToday = isSameCalendarDay(d, now);
+  const yesterday = new Date(now);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const isYesterday = isSameCalendarDay(d, yesterday);
+
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const dateFormatted = `${day}/${month}/${year}`;
+
+  if (isToday) {
+    return `Hôm nay, ${dateFormatted}`;
+  }
+  if (isYesterday) {
+    return `Hôm qua, ${dateFormatted}`;
+  }
+
+  const daysOfWeek = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+  const dayOfWeek = daysOfWeek[d.getDay()];
+
+  return `${dayOfWeek}, ${dateFormatted}`;
+}
