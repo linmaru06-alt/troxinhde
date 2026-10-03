@@ -61,3 +61,18 @@ export function formatDate(dateString?: string | number | Date): string {
   if (!dateString) return '';
   return new Date(dateString).toLocaleDateString('vi-VN');
 }
+
+/**
+ * Format message timestamp into "HH:mm • DD/MM/YYYY" (e.g. "20:37 • 03/10/2026")
+ */
+export function formatMessageDateTime(dateString?: string | number | Date | null): string {
+  if (!dateString) return '';
+  const d = new Date(dateString);
+  if (isNaN(d.getTime())) return '';
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  return `${hours}:${minutes} • ${day}/${month}/${year}`;
+}
