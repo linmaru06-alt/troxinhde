@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { useRealtimeChat } from '../hooks/useRealtimeChat';
-import { getConversations } from '../lib/api/messages';
+import { getConversations, markConversationAsRead } from '../lib/api/messages';
 import { Conversation } from '../types';
 import { Button } from '../components/ui/Button';
 import {
@@ -32,7 +32,7 @@ const FALLBACK_OWNER_CONVERSATIONS: Conversation[] = [
     last_message: 'Em chào anh, phòng Studio P.305 chiều nay em qua xem được không ạ?',
     last_message_at: new Date(Date.now() - 10 * 60000).toISOString(),
     created_at: new Date(Date.now() - 3600000).toISOString(),
-    unread_count_p1: 1,
+    unread_count_p1: 0,
     unread_count_p2: 0,
     p2: {
       id: 'user_renter_1',
@@ -111,8 +111,13 @@ export const OwnerChatPage: React.FC = () => {
         if (!isMounted) return;
         if (data && data.length > 0) {
           setConversations(data);
+          const initialId = conversationId || data[0].id;
           if (!activeConversationId) {
-            setActiveConversationId(conversationId || data[0].id);
+            setActiveConversationId(initialId);
+          }
+          if (initialId) {
+            markConversationAsRead(initialId, currentUser.id).then();
+            useAppStore.getState().markChatNotificationsRead(initialId);
           }
         } else {
           setConversations(FALLBACK_OWNER_CONVERSATIONS);
@@ -136,6 +141,20 @@ export const OwnerChatPage: React.FC = () => {
     };
   }, [currentUser?.id, conversationId]);
 
+  // Đánh dấu đã đọc khi chủ trọ chọn hoặc mở cuộc hội thoại
+  useEffect(() => {
+    if (!activeConversationId) return;
+    markConversationAsRead(activeConversationId, currentUser?.id).then();
+    useAppStore.getState().markChatNotificationsRead(activeConversationId);
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.id === activeConversationId
+          ? { ...c, unread_count: 0, unread_count_p1: 0, unread_count_p2: 0 }
+          : c
+      )
+    );
+  }, [activeConversationId, currentUser?.id]);
+
   // 2. Realtime Chat hook
   const {
     messages,
@@ -146,7 +165,11 @@ export const OwnerChatPage: React.FC = () => {
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.length]);
+    if (activeConversationId) {
+      markConversationAsRead(activeConversationId, currentUser?.id).then();
+      useAppStore.getState().markChatNotificationsRead(activeConversationId);
+    }
+  }, [messages.length, activeConversationId, currentUser?.id]);
 
   const activeConversation =
     conversations.find((c) => c.id === activeConversationId) || conversations[0] || FALLBACK_OWNER_CONVERSATIONS[0];
@@ -172,10 +195,20 @@ export const OwnerChatPage: React.FC = () => {
     setInputText('');
     await sendMessage(content);
 
+    markConversationAsRead(activeConversationId, currentUser?.id).then();
+    useAppStore.getState().markChatNotificationsRead(activeConversationId);
+
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConversationId
-          ? { ...c, last_message: content, last_message_at: new Date().toISOString() }
+          ? {
+              ...c,
+              last_message: content,
+              last_message_at: new Date().toISOString(),
+              unread_count: 0,
+              unread_count_p1: 0,
+              unread_count_p2: 0,
+            }
           : c
       )
     );
@@ -184,10 +217,21 @@ export const OwnerChatPage: React.FC = () => {
   const handleQuickReply = async (text: string) => {
     if (!activeConversationId) return;
     await sendMessage(text);
+
+    markConversationAsRead(activeConversationId, currentUser?.id).then();
+    useAppStore.getState().markChatNotificationsRead(activeConversationId);
+
     setConversations((prev) =>
       prev.map((c) =>
         c.id === activeConversationId
-          ? { ...c, last_message: text, last_message_at: new Date().toISOString() }
+          ? {
+              ...c,
+              last_message: text,
+              last_message_at: new Date().toISOString(),
+              unread_count: 0,
+              unread_count_p1: 0,
+              unread_count_p2: 0,
+            }
           : c
       )
     );

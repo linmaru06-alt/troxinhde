@@ -21,6 +21,8 @@ import {
   ShieldAlert,
 } from 'lucide-react';
 
+import { deduplicateChatNotifications } from '../../utils/formatters';
+
 interface NavLinkItem {
   to: string;
   label: string;
@@ -31,8 +33,9 @@ interface NavLinkItem {
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
   const { logout, currentUser, notifications, ownerApplications, bookings = [] } = useAppStore();
 
-  const unreadNotifs = notifications.filter((n) => !n.read).length;
-  const unreadMessages = notifications.filter(
+  const cleanNotifs = deduplicateChatNotifications(notifications || []);
+  const unreadNotifs = cleanNotifs.filter((n) => !n.read).length;
+  const unreadMessages = cleanNotifs.filter(
     (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
   ).length;
   const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;

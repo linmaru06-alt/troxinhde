@@ -704,6 +704,12 @@ export async function markConversationAsRead(
     });
     safeSetStorage(LOCAL_CONVS_KEY, JSON.stringify(updated));
   } catch {}
+
+  // Tự động xóa thông báo chưa đọc của cuộc hội thoại này
+  try {
+    const { useAppStore } = await import("../../store/useAppStore");
+    useAppStore.getState().markChatNotificationsRead(conversationId);
+  } catch {}
 }
 
 /**

@@ -8,6 +8,7 @@ import { OptimizedImage } from '../ui/OptimizedImage';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AccountDropdownMenu } from './AccountDropdownMenu';
 import { NotificationDropdown } from './NotificationDropdown';
+import { deduplicateChatNotifications } from '../../utils/formatters';
 import {
   Compass,
   MapPin,
@@ -110,7 +111,7 @@ export const Navbar: React.FC = () => {
     if (khuVuc !== null) setSelectedDistrict(khuVuc);
   }, [location.search]);
 
-  const unreadMessages = (notifications || []).filter(
+  const unreadMessages = deduplicateChatNotifications(notifications || []).filter(
     (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
   ).length;
 

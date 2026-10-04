@@ -240,6 +240,7 @@ interface AppState {
 
   // Notifications
   markNotificationRead: (id: string) => void;
+  markChatNotificationsRead: (conversationIdOrUrl: string) => void;
   markAllNotificationsRead: () => void;
 
   // Toast
@@ -1467,6 +1468,38 @@ export const useAppStore = create<AppState>()(
         }));
         if (isSupabaseConfigured && !id.startsWith('notif_')) {
           supabase.from('notifications').update({ is_read: true }).eq('id', id).then();
+        }
+      },
+
+      markChatNotificationsRead: (conversationIdOrUrl) => {
+        if (!conversationIdOrUrl) return;
+        const cleanKey = conversationIdOrUrl.trim().toLowerCase();
+        set((state) => ({
+          notifications: state.notifications.map((n) => {
+            const isChat = n.type === 'chat_message' || n.type === 'message';
+            if (!isChat) return n;
+            const cta = (n.ctaUrl || n.actionLink || '').toLowerCase();
+            const id = (n.id || '').toLowerCase();
+            if (cta.includes(cleanKey) || id.includes(cleanKey) || cleanKey.includes(id)) {
+              return { ...n, read: true };
+            }
+            return n;
+          }),
+        }));
+        if (isSupabaseConfigured) {
+          const currentUser = get().currentUser;
+          if (currentUser) {
+            resolveUserIdToUuid(currentUser.id).then((cleanId) => {
+              if (cleanId) {
+                supabase
+                  .from('notifications')
+                  .update({ is_read: true })
+                  .eq('user_id', cleanId)
+                  .ilike('cta_url', `%${cleanKey}%`)
+                  .then();
+              }
+            });
+          }
         }
       },
 
