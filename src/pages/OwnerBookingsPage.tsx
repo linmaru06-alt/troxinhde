@@ -114,7 +114,7 @@ export const OwnerBookingsPage: React.FC = () => {
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [currentUser?.id, myRoomIds, bookingRequests]);
+  }, [currentUser?.id, myRoomIds, storeBookings]);
 
   useEffect(() => {
     loadBookings();
