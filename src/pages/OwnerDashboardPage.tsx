@@ -430,99 +430,104 @@ export const OwnerDashboardPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Right Top: Status Pill + Action Buttons */}
-                    <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                      {/* Status indicator */}
-                      {isPending && (
-                        <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-                          <Clock className="w-3.5 h-3.5 text-amber-600" />
-                          <span>Chờ duyệt</span>
-                        </span>
-                      )}
+                    {/* Right Column: Status Badge + Action Buttons + Toggle Button underneath */}
+                    <div className="flex flex-col items-stretch sm:items-end gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                      {/* Top Row: Status indicator + Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end w-full">
+                        {/* Status indicator */}
+                        {isPending && (
+                          <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Chờ duyệt</span>
+                          </span>
+                        )}
 
-                      {isNeedsInfo && (
-                        <Link
-                          to={`/chu-tro/phong/chinh-sua/${room.id}`}
-                          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
-                        >
-                          <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
-                          <span>Bổ sung thông tin</span>
+                        {isNeedsInfo && (
+                          <Link
+                            to={`/chu-tro/phong/chinh-sua/${room.id}`}
+                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Bổ sung thông tin</span>
+                          </Link>
+                        )}
+
+                        {isApproved && room.status === 'Còn trống' && (
+                          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Còn trống</span>
+                          </span>
+                        )}
+
+                        {isApproved && room.status === 'Đã cho thuê' && (
+                          <span className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 border border-gray-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <Home className="w-3.5 h-3.5 text-gray-500" />
+                            <span>Đã cho thuê</span>
+                          </span>
+                        )}
+
+                        <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}
+                          >
+                            Đẩy Tin
+                          </Button>
                         </Link>
-                      )}
 
-                      {isApproved && room.status === 'Còn trống' && (
-                        <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Còn trống</span>
-                        </span>
-                      )}
+                        <Link to={`/chu-tro/phong/${room.id}`}>
+                          <Button variant="outline" size="sm">
+                            Chi tiết →
+                          </Button>
+                        </Link>
+                      </div>
 
-                      {isApproved && room.status === 'Đã cho thuê' && (
-                        <span className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 border border-gray-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
-                          <Home className="w-3.5 h-3.5 text-gray-500" />
-                          <span>Đã cho thuê</span>
-                        </span>
-                      )}
-
-                      <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}
-                        >
-                          Đẩy Tin
-                        </Button>
-                      </Link>
-
-                      <Link to={`/chu-tro/phong/${room.id}`}>
-                        <Button variant="outline" size="sm">
-                          Chi tiết →
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-
-                  {/* Bottom Row: Full-width Long Button */}
-                  <div className="pt-2 border-t border-gray-100">
-                    {isApproved ? (
-                      room.status === 'Còn trống' ? (
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateRoomStatus(room.id, 'Đã cho thuê')}
-                          className="w-full py-2.5 px-4 rounded-2xl bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 hover:border-gray-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.99] shadow-2xs"
-                        >
-                          <Home className="w-4 h-4 text-gray-500" />
-                          <span>
-                            Đánh dấu phòng: <strong>Đã cho thuê</strong> (Tạm ngừng đón khách)
-                          </span>
-                        </button>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => handleUpdateRoomStatus(room.id, 'Còn trống')}
-                          className="w-full py-2.5 px-4 rounded-2xl bg-emerald-50 hover:bg-emerald-100 text-[#006d37] border border-emerald-200 hover:border-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.99] shadow-2xs"
-                        >
-                          <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                          <span>
-                            Đánh dấu phòng: <strong>Còn trống</strong> (Sẵn sàng mở đón khách thuê)
-                          </span>
-                        </button>
-                      )
-                    ) : (
-                      <div className="w-full py-2.5 px-4 rounded-2xl bg-gray-100 border border-gray-200 text-gray-400 text-xs font-semibold flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80">
-                        {isPending ? (
-                          <>
-                            <Clock className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Đang chờ Admin duyệt — Chưa thể đổi trạng thái hoạt động</span>
-                          </>
+                      {/* Bottom Row under 3 buttons: Action Button to toggle Còn trống / Đã cho thuê */}
+                      <div className="w-full flex justify-end">
+                        {isApproved ? (
+                          room.status === 'Còn trống' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateRoomStatus(room.id, 'Đã cho thuê')}
+                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 hover:border-gray-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-2xs"
+                              title="Nhấn để đổi trạng thái sang Đã cho thuê"
+                            >
+                              <Home className="w-3.5 h-3.5 text-gray-500" />
+                              <span>
+                                Đánh dấu phòng: <strong>Đã cho thuê</strong> (Tạm ngừng đón khách)
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateRoomStatus(room.id, 'Còn trống')}
+                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#006d37] border border-emerald-200 hover:border-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-2xs"
+                              title="Nhấn để đổi trạng thái sang Còn trống"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>
+                                Đánh dấu phòng: <strong>Còn trống</strong> (Sẵn sàng mở đón khách)
+                              </span>
+                            </button>
+                          )
                         ) : (
-                          <>
-                            <AlertTriangle className="w-3.5 h-3.5 text-gray-400" />
-                            <span>Cần bổ sung thông tin theo yêu cầu của Admin để mở khóa hoạt động</span>
-                          </>
+                          <div className="w-full py-2 px-3.5 rounded-xl bg-gray-100 border border-gray-200 text-gray-400 text-xs font-semibold flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80">
+                            {isPending ? (
+                              <>
+                                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                <span>Đang chờ Admin duyệt — Chưa thể đổi trạng thái hoạt động</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-3.5 h-3.5 text-gray-400" />
+                                <span>Cần bổ sung thông tin để mở khóa hoạt động</span>
+                              </>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
               );
