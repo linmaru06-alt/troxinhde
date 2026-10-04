@@ -490,38 +490,38 @@ export const OwnerDashboardPage: React.FC = () => {
                             <button
                               type="button"
                               onClick={() => handleUpdateRoomStatus(room.id, 'Đã cho thuê')}
-                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-800 border border-gray-200 hover:border-gray-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-2xs"
+                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-950 border border-orange-300 hover:border-orange-400 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-xs"
                               title="Nhấn để đổi trạng thái sang Đã cho thuê"
                             >
-                              <Home className="w-3.5 h-3.5 text-gray-500" />
+                              <Home className="w-3.5 h-3.5 text-orange-600" />
                               <span>
-                                Đánh dấu phòng: <strong>Đã cho thuê</strong> (Tạm ngừng đón khách)
+                                Đánh dấu phòng: <strong className="text-orange-700 underline underline-offset-2">Đã cho thuê</strong> (Tạm ngừng đón khách)
                               </span>
                             </button>
                           ) : (
                             <button
                               type="button"
                               onClick={() => handleUpdateRoomStatus(room.id, 'Còn trống')}
-                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#006d37] border border-emerald-200 hover:border-emerald-300 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-2xs"
+                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 hover:border-emerald-400 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-xs"
                               title="Nhấn để đổi trạng thái sang Còn trống"
                             >
                               <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                               <span>
-                                Đánh dấu phòng: <strong>Còn trống</strong> (Sẵn sàng mở đón khách)
+                                Đánh dấu phòng: <strong className="text-emerald-700 underline underline-offset-2">Còn trống</strong> (Sẵn sàng mở đón khách)
                               </span>
                             </button>
                           )
                         ) : (
-                          <div className="w-full py-2 px-3.5 rounded-xl bg-gray-100 border border-gray-200 text-gray-400 text-xs font-semibold flex items-center justify-center gap-2 cursor-not-allowed select-none opacity-80">
+                          <div className="w-full py-2 px-3.5 rounded-xl bg-gray-100/90 border border-dashed border-gray-300 text-gray-400 text-xs font-semibold flex items-center justify-center gap-2 cursor-not-allowed select-none">
                             {isPending ? (
                               <>
                                 <Clock className="w-3.5 h-3.5 text-gray-400" />
-                                <span>Đang chờ Admin duyệt — Chưa thể đổi trạng thái hoạt động</span>
+                                <span>🔒 Đang chờ Admin duyệt — Chưa thể đổi trạng thái</span>
                               </>
                             ) : (
                               <>
                                 <AlertTriangle className="w-3.5 h-3.5 text-gray-400" />
-                                <span>Cần bổ sung thông tin để mở khóa hoạt động</span>
+                                <span>🔒 Cần bổ sung thông tin để mở khóa hoạt động</span>
                               </>
                             )}
                           </div>
