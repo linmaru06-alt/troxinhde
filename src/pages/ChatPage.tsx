@@ -60,6 +60,7 @@ import {
   FileCheck,
 } from 'lucide-react';
 import { ReportModal } from '../components/modals/ReportModal';
+import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { hasUserReported, getReportedTargetIds } from '../lib/api/reports';
 import { canMessage } from '../lib/api/blocksAndHides';
 
@@ -1392,7 +1393,7 @@ export const ChatPage: React.FC = () => {
     return adminConversation.unread_count ?? (isMe ? (adminConversation.unread_count_p1 || 0) : (adminConversation.unread_count_p2 || 0));
   }, [adminConversation, currentUser?.id]);
 
-  return (
+  const chatMainContent = (
     <div className="w-full h-full max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-2 sm:py-3 flex flex-col min-h-0 overflow-hidden flex-1">
       <div className="bg-white rounded-2xl md:rounded-3xl border border-gray-200 shadow-md flex overflow-hidden w-full h-full flex-1 min-h-0">
         {/* Cột trái: Danh sách cuộc trò chuyện thật từ Supabase */}
@@ -2747,5 +2748,21 @@ export const ChatPage: React.FC = () => {
       )}
     </div>
   );
+
+  const isOwner = currentUser?.role === 'owner' || location.pathname.startsWith('/chu-tro');
+  const isAdmin = !isOwner && (currentUser?.role === 'admin' || location.pathname.startsWith('/admin'));
+
+  if (isOwner || isAdmin) {
+    return (
+      <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)] h-[calc(100vh-4rem)] overflow-hidden">
+        <DashboardSidebar role={isOwner ? 'owner' : 'admin'} />
+        <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
+          {chatMainContent}
+        </main>
+      </div>
+    );
+  }
+
+  return chatMainContent;
 };
 
