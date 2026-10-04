@@ -374,7 +374,7 @@ export const OwnerBookingsPage: React.FC = () => {
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight flex items-center gap-2.5">
               <CalendarIcon className="w-7 h-7 text-[#00a854]" />
-              Lịch Hẹn Xem Phòng (Google Calendar)
+              Lịch Hẹn Xem Phòng
             </h1>
             <p className="text-xs text-gray-500 mt-0.5">
               Theo dõi lịch hẹn trực quan theo ngày/giờ, tự động đồng bộ từ tất cả các phòng trọ bạn đang quản lý
@@ -557,7 +557,7 @@ export const OwnerBookingsPage: React.FC = () => {
           {isLoading ? (
             <div className="py-20 flex flex-col items-center justify-center space-y-3">
               <Loader2 className="w-8 h-8 text-[#00a854] animate-spin" />
-              <p className="text-xs text-gray-500 font-medium">Đang tải dữ liệu Google Calendar từ Cloud Realtime...</p>
+              <p className="text-xs text-gray-500 font-medium">Đang tải dữ liệu lịch hẹn từ Cloud Realtime...</p>
             </div>
           ) : viewMode === 'month' ? (
             /* 1. GOOGLE CALENDAR MONTH GRID VIEW */
