@@ -41,7 +41,7 @@ const TIME_HOURS = [
 ];
 
 export const OwnerBookingsPage: React.FC = () => {
-  const { currentUser, rooms, bookingRequests = [], showToast } = useAppStore();
+  const { currentUser, rooms, bookings: storeBookings = [], showToast } = useAppStore();
   const navigate = useNavigate();
   const [bookings, setBookings] = useState<ViewingRequestItem[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -83,7 +83,7 @@ export const OwnerBookingsPage: React.FC = () => {
       cloudData.forEach((b) => mergedMap.set(b.id, b));
 
       // Add local store bookings for owner's rooms if not in cloud
-      bookingRequests.forEach((lb) => {
+      storeBookings.forEach((lb) => {
         const isMyRoom = myRoomIds.includes(lb.roomId) || lb.renterId !== currentUser.id;
         if (isMyRoom && !mergedMap.has(lb.id)) {
           mergedMap.set(lb.id, {
