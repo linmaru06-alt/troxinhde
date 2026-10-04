@@ -841,6 +841,7 @@ export async function rejectOwnerApplication(
   // Gửi thông báo cho người dùng
   try {
     let targetProfileId = userId;
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
     if (!isUuid) {
       const { data: prof } = await supabase.from('profiles').select('id').eq('firebase_uid', userId).maybeSingle();
       if (prof?.id) targetProfileId = prof.id;
@@ -849,17 +850,88 @@ export async function rejectOwnerApplication(
     if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetProfileId)) {
       await supabase.from('notifications').insert({
         user_id: targetProfileId,
-        type: 'rejected',
-        title: 'Hồ sơ Đối tác Chủ trọ cần bổ sung thông tin ⚠️',
-        body: `Hồ sơ của bạn chưa được duyệt. Lý do: ${reason}. Vui lòng cập nhật lại hồ sơ.`,
+        type: 'owner_rejected',
+        title: 'Hồ sơ nâng cấp Chủ Trọ chưa được duyệt ❌',
+        body: `Lý do: ${reason}. Vui lòng cập nhật lại thông tin và gửi lại hồ sơ.`,
         cta_url: '/dang-ky-chu-tro',
-        cta_label: 'Cập nhật hồ sơ',
+        cta_label: 'Cập nhật ngay',
         is_read: false,
       });
     }
   } catch (notifErr) {
     console.warn('[Admin] Lỗi gửi thông báo từ chối chủ trọ:', notifErr);
   }
+
+  return true;
+}
+
+/**
+ * Yêu cầu bổ sung thông tin hồ sơ nâng cấp chủ trọ
+ */
+export async function requestOwnerApplicationInfo(
+  applicationId: string,
+  userId: string,
+  reason: string,
+  admin?: User | null
+) {
+  if (!isSupabaseConfigured) return true;
+
+  await supabase
+    .from('owner_applications')
+    .update({
+      status: 'needs_info',
+      rejection_reason: reason,
+      reviewed_at: new Date().toISOString(),
+    })
+    .eq('id', applicationId);
+
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(userId);
+  let profileUpdateQuery = supabase.from('profiles').update({
+    owner_application_status: 'needs_info',
+    owner_rejection_reason: reason,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (isUuid) {
+    profileUpdateQuery = profileUpdateQuery.or(`id.eq.${userId},firebase_uid.eq.${userId}`);
+  } else {
+    profileUpdateQuery = profileUpdateQuery.eq('firebase_uid', userId);
+  }
+  const { error } = await profileUpdateQuery;
+  if (error) {
+    console.warn('[Admin API] Cảnh báo cập nhật trạng thái needs_info trên profiles:', error);
+  }
+
+  await logAdminAudit({
+    action: 'request_owner_application_info',
+    entity_type: 'owner_application',
+    entity_id: applicationId,
+    reason,
+    admin,
+  });
+
+  try {
+    let targetProfileId = userId;
+    if (!isUuid) {
+      const { data: prof } = await supabase.from('profiles').select('id').eq('firebase_uid', userId).maybeSingle();
+      if (prof?.id) targetProfileId = prof.id;
+    }
+
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(targetProfileId)) {
+      await supabase.from('notifications').insert({
+        user_id: targetProfileId,
+        type: 'needs_info',
+        title: 'Cần bổ sung thông tin hồ sơ Chủ trọ',
+        body: `Ban Quản Trị Trọ Xinh yêu cầu bạn bổ sung thông tin: ${reason}. Vui lòng cập nhật để tiếp tục xét duyệt.`,
+        cta_url: '/dang-ky-chu-tro',
+        cta_label: 'Cập nhật ngay',
+        is_read: false,
+      });
+    }
+  } catch (e) {}
+
+  return true;
+}
 
   return true;
 }

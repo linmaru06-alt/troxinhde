@@ -2,6 +2,7 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../types';
+import { useAppStore } from '../../store/useAppStore';
 import {
   Bookmark,
   Clock,
@@ -14,6 +15,8 @@ import {
   User as UserIcon,
   Building2,
   FileText,
+  AlertTriangle,
+  Edit3,
 } from 'lucide-react';
 
 interface AccountDropdownMenuProps {
@@ -76,6 +79,14 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
   logout,
 }) => {
   const navigate = useNavigate();
+  const { ownerApplications } = useAppStore();
+
+  const userApp = ownerApplications.find(
+    (a) => a.userId === currentUser?.id || (currentUser?.id && a.id === `app_${currentUser.id}`)
+  );
+  const ownerAppStatus = currentUser?.ownerApplicationStatus || userApp?.status;
+  const isNeedsInfo = ownerAppStatus === 'needs_info';
+  const isPending = ownerAppStatus === 'pending';
 
   // Khớp điều kiện của OwnerRoute: chỉ chủ trọ mới vào được khu vực /chu-tro
   const isLandlord = currentUser?.role === 'owner';
@@ -215,6 +226,24 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   >
                     Quản lý phòng
                   </Link>
+                ) : isNeedsInfo ? (
+                  <Link
+                    to="/dang-ky-chu-tro"
+                    onClick={onClose}
+                    className="text-center py-2 px-2 bg-amber-500 hover:bg-amber-600 text-xs font-black text-gray-950 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-gray-950" />
+                    Cập nhật hồ sơ
+                  </Link>
+                ) : isPending ? (
+                  <Link
+                    to="/nang-cap-chu-tro/trang-thai"
+                    onClick={onClose}
+                    className="text-center py-2 px-2 bg-amber-100 hover:bg-amber-200 text-xs font-bold text-amber-900 rounded-xl transition flex items-center justify-center gap-1"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Hồ sơ chờ duyệt
+                  </Link>
                 ) : (
                   <Link
                     to="/dang-ky-chu-tro"
@@ -229,31 +258,81 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
             </div>
           )}
 
-          {/* BANNER NỔI BẬT: ĐĂNG KÝ CHỦ TRỌ CHO KHÁCH THUÊ */}
+          {/* BANNER NỔI BẬT: ĐĂNG KÝ CHỦ TRỌ HOẶC CẬP NHẬT HỒ SƠ CHO KHÁCH THUÊ */}
           {currentUser && currentUser.role !== 'owner' && currentUser.role !== 'admin' && (
-            <Link
-              to="/dang-ky-chu-tro"
-              onClick={onClose}
-              className="block p-3.5 bg-gradient-to-r from-emerald-900 to-[#006d37] rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden"
-            >
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5 max-w-[220px]">
-                  <div className="flex items-center gap-1.5">
-                    <Building2 className="w-4 h-4 text-amber-300" />
-                    <span className="text-xs font-black text-white">Đăng Ký Chủ Trọ</span>
-                    <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
-                      Mở duyệt
-                    </span>
+            isNeedsInfo ? (
+              <Link
+                to="/dang-ky-chu-tro"
+                onClick={onClose}
+                className="block p-3.5 bg-gradient-to-r from-amber-900 via-amber-800 to-emerald-900 rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden border border-amber-500/30"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[220px]">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0" />
+                      <span className="text-xs font-black text-white">Cập Nhật Hồ Sơ Chủ Trọ</span>
+                      <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                        Cần bổ sung
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-100 font-medium leading-tight line-clamp-2">
+                      {currentUser.ownerApplicationReason || userApp?.rejectionReason || 'Admin yêu cầu bổ sung thông tin. Nhấn để cập nhật ngay.'}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-emerald-100 font-medium leading-tight">
-                    Điền biểu mẫu 3 bước để đăng tin và quản lý phòng trọ
-                  </p>
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-amber-800 transition shrink-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-[#006d37] transition">
-                  <ChevronRight className="w-4 h-4" />
+              </Link>
+            ) : isPending ? (
+              <Link
+                to="/nang-cap-chu-tro/trang-thai"
+                onClick={onClose}
+                className="block p-3.5 bg-gradient-to-r from-emerald-950 to-emerald-800 rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[220px]">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-300" />
+                      <span className="text-xs font-black text-white">Hồ Sơ Đang Chờ Duyệt</span>
+                      <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                        Đang xét duyệt
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-100 font-medium leading-tight">
+                      Ban quản trị đang thẩm định hồ sơ trong vòng 24 giờ làm việc
+                    </p>
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-[#006d37] transition shrink-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            ) : (
+              <Link
+                to="/dang-ky-chu-tro"
+                onClick={onClose}
+                className="block p-3.5 bg-gradient-to-r from-emerald-900 to-[#006d37] rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[220px]">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-amber-300" />
+                      <span className="text-xs font-black text-white">Đăng Ký Chủ Trọ</span>
+                      <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                        Mở duyệt
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-100 font-medium leading-tight">
+                      Điền biểu mẫu 3 bước để đăng tin và quản lý phòng trọ
+                    </p>
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-[#006d37] transition shrink-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            )
           )}
 
           {/* BAN QUẢN TRỊ SHORTCUT */}

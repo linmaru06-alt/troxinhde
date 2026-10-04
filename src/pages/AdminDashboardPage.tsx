@@ -15,6 +15,7 @@ import {
   rejectRoom as rejectRoomApi,
   approveOwnerApplication as approveOwnerAppApi,
   rejectOwnerApplication as rejectOwnerAppApi,
+  requestOwnerApplicationInfo as requestOwnerAppInfoApi,
   resolveReport as resolveReportApi,
 } from '../lib/api/admin';
 import { AdminMetrics, AuditLog, ReportItem } from '../types';
@@ -264,6 +265,28 @@ export const AdminDashboardPage: React.FC = () => {
         },
       });
     }
+  };
+
+  const handleOpenRequestInfoOwnerModal = () => {
+    if (!selectedTask || selectedTask.type !== 'owner') return;
+    setConfirmModalState({
+      isOpen: true,
+      type: 'owner',
+      variant: 'warning',
+      title: 'Yêu cầu bổ sung thông tin Chủ trọ',
+      description: 'Hồ sơ sẽ được chuyển sang trạng thái "Cần bổ sung". Người dùng sẽ nhận được thông báo kèm nút "Cập nhật ngay" để hoàn thiện hồ sơ.',
+      confirmText: 'Gửi yêu cầu bổ sung',
+      entityName: selectedTask.data.building_name,
+      onConfirm: async (reason: string) => {
+        try {
+          await requestOwnerAppInfoApi(selectedTask.data.id, selectedTask.data.user_id, reason, currentUser);
+        } catch (e) {}
+        useAppStore.getState().requestInfoOwnerApplication(selectedTask.data.id, reason);
+        setConfirmModalState((prev) => ({ ...prev, isOpen: false }));
+        showToast('Đã gửi yêu cầu bổ sung thông tin cho người dùng', 'info');
+        loadDashboardData();
+      },
+    });
   };
 
   return (
@@ -688,24 +711,35 @@ export const AdminDashboardPage: React.FC = () => {
                     </p>
                   </div>
 
-                  <div className="flex gap-3 pt-4 border-t border-gray-100">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 py-2 text-rose-600 border-rose-200 hover:bg-rose-50"
-                      onClick={handleOpenRejectModal}
-                    >
-                      <X className="w-4 h-4 mr-1" />
-                      Từ chối hồ sơ
-                    </Button>
+                  <div className="flex flex-col gap-2 pt-4 border-t border-gray-100">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 py-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+                        onClick={handleOpenRequestInfoOwnerModal}
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                        Yêu cầu bổ sung
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 py-2 text-rose-600 border-rose-200 hover:bg-rose-50"
+                        onClick={handleOpenRejectModal}
+                      >
+                        <X className="w-4 h-4 mr-1" />
+                        Từ chối
+                      </Button>
+                    </div>
                     <Button
                       variant="primary"
                       size="sm"
-                      className="flex-1 py-2"
+                      className="w-full py-2"
                       onClick={handleApproveSelectedTask}
                     >
                       <Check className="w-4 h-4 mr-1" />
-                      Phê duyệt đối tác
+                      Phê duyệt làm Chủ trọ
                     </Button>
                   </div>
                 </div>

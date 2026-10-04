@@ -6,7 +6,11 @@ import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { OwnerApplication } from '../types';
 import { getAllOwnerApplicationsAdmin } from '../lib/api/ownerUpgrade';
-import { approveOwnerApplication as approveOwnerApplicationCloud, rejectOwnerApplication as rejectOwnerApplicationCloud } from '../lib/api/admin';
+import {
+  approveOwnerApplication as approveOwnerApplicationCloud,
+  rejectOwnerApplication as rejectOwnerApplicationCloud,
+  requestOwnerApplicationInfo as requestOwnerApplicationInfoCloud,
+} from '../lib/api/admin';
 import {
   Building2,
   Search,
@@ -24,21 +28,33 @@ import {
   AlertTriangle,
   RefreshCw,
   Loader2,
+  HelpCircle,
+  Edit3,
 } from 'lucide-react';
 
 export const AdminOwnerApplicationsPage: React.FC = () => {
-  const { ownerApplications, approveOwnerApplication, rejectOwnerApplication, currentUser, showToast } = useAppStore();
+  const {
+    ownerApplications,
+    approveOwnerApplication,
+    rejectOwnerApplication,
+    requestInfoOwnerApplication,
+    currentUser,
+    showToast,
+  } = useAppStore();
 
   const [applications, setApplications] = useState<OwnerApplication[]>(ownerApplications);
   const [isLoading, setIsLoading] = useState<boolean>(true);
-  const [filterTab, setFilterTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [filterTab, setFilterTab] = useState<'pending' | 'needs_info' | 'approved' | 'rejected' | 'all'>('pending');
   const [search, setSearch] = useState<string>('');
   const [selectedApp, setSelectedApp] = useState<OwnerApplication | null>(null);
 
-  // Rejection Form state
+  // Rejection & Supplement Form state
   const [isRejectFormOpen, setIsRejectFormOpen] = useState<boolean>(false);
+  const [isRequestInfoFormOpen, setIsRequestInfoFormOpen] = useState<boolean>(false);
   const [rejectReason, setRejectReason] = useState<string>('Ảnh CCCD không rõ hoặc không hợp lệ');
   const [customRejectNote, setCustomRejectNote] = useState<string>('');
+  const [requestInfoReason, setRequestInfoReason] = useState<string>('Ảnh CCCD mờ, lóa hoặc mất 4 góc');
+  const [customRequestInfoNote, setCustomRequestInfoNote] = useState<string>('');
   const [showConfirmApprove, setShowConfirmApprove] = useState<boolean>(false);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -102,6 +118,7 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
   });
 
   const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  const needsInfoCount = applications.filter((a) => a.status === 'needs_info').length;
 
   const handleApprove = async (id: string) => {
     setIsProcessing(true);
@@ -175,6 +192,44 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
     }
   };
 
+  const handleRequestInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApp) return;
+    const finalReason = customRequestInfoNote ? `${requestInfoReason}: ${customRequestInfoNote}` : requestInfoReason;
+
+    setIsProcessing(true);
+    try {
+      // 1. Cập nhật trên Supabase Cloud
+      try {
+        await requestOwnerApplicationInfoCloud(selectedApp.id, selectedApp.userId, finalReason, currentUser);
+      } catch (cloudErr) {
+        console.warn('[Admin] Lỗi cập nhật cloud, tiếp tục cập nhật store:', cloudErr);
+      }
+
+      // 2. Cập nhật Store cục bộ
+      requestInfoOwnerApplication(selectedApp.id, finalReason);
+
+      // 3. Cập nhật state trang hiện tại
+      setApplications((prev) =>
+        prev.map((a) => (a.id === selectedApp.id ? { ...a, status: 'needs_info', rejectionReason: finalReason, reviewedAt: new Date().toISOString() } : a))
+      );
+
+      setIsRequestInfoFormOpen(false);
+      setSelectedApp({
+        ...selectedApp,
+        status: 'needs_info',
+        rejectionReason: finalReason,
+        reviewedAt: new Date().toISOString(),
+      });
+
+      showToast('Đã gửi yêu cầu bổ sung thông tin', `Thông báo kèm tùy chọn "Cập nhật ngay" đã gửi đến người dùng.`, 'info');
+    } catch (err: any) {
+      showToast('Lỗi khi gửi yêu cầu bổ sung', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
       <DashboardSidebar role="admin" />
@@ -208,6 +263,7 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
             {[
               { key: 'pending', label: `Chờ duyệt (${pendingCount})` },
+              { key: 'needs_info', label: `Cần bổ sung (${needsInfoCount})` },
               { key: 'approved', label: 'Đã duyệt' },
               { key: 'rejected', label: 'Bị từ chối' },
               { key: 'all', label: 'Tất cả' },
@@ -280,10 +336,24 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                       </td>
                       <td className="p-4">
                         <Badge
-                          variant={app.status === 'approved' ? 'verified' : app.status === 'pending' ? 'pending' : 'rejected'}
+                          variant={
+                            app.status === 'approved'
+                              ? 'verified'
+                              : app.status === 'needs_info'
+                              ? 'pending'
+                              : app.status === 'pending'
+                              ? 'pending'
+                              : 'rejected'
+                          }
                           size="sm"
                         >
-                          {app.status === 'approved' ? 'Đã duyệt' : app.status === 'pending' ? 'Chờ duyệt' : 'Từ chối'}
+                          {app.status === 'approved'
+                            ? 'Đã duyệt'
+                            : app.status === 'needs_info'
+                            ? 'Cần bổ sung'
+                            : app.status === 'pending'
+                            ? 'Chờ duyệt'
+                            : 'Từ chối'}
                         </Badge>
                       </td>
                       <td className="p-4 text-right">
@@ -293,6 +363,7 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                           onClick={() => {
                             setSelectedApp(app);
                             setIsRejectFormOpen(false);
+                            setIsRequestInfoFormOpen(false);
                           }}
                         >
                           Xem Chi Tiết →
@@ -337,10 +408,24 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
                 <span className="font-semibold text-gray-500">Trạng thái hồ sơ:</span>
                 <Badge
-                  variant={selectedApp.status === 'approved' ? 'verified' : selectedApp.status === 'pending' ? 'pending' : 'rejected'}
+                  variant={
+                    selectedApp.status === 'approved'
+                      ? 'verified'
+                      : selectedApp.status === 'needs_info'
+                      ? 'pending'
+                      : selectedApp.status === 'pending'
+                      ? 'pending'
+                      : 'rejected'
+                  }
                   size="md"
                 >
-                  {selectedApp.status === 'approved' ? '✓ Đã Phê Duyệt' : selectedApp.status === 'pending' ? '⏳ Chờ Duyệt (24h)' : '✗ Bị Từ Chối'}
+                  {selectedApp.status === 'approved'
+                    ? '✓ Đã Phê Duyệt'
+                    : selectedApp.status === 'needs_info'
+                    ? '⚠️ Cần Bổ Sung Thông Tin'
+                    : selectedApp.status === 'pending'
+                    ? '⏳ Chờ Duyệt (24h)'
+                    : '✗ Bị Từ Chối'}
                 </Badge>
               </div>
 
@@ -525,8 +610,17 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Rejection Reason display if rejected */}
-              {selectedApp.rejectionReason && (
+              {/* Rejection / Needs info display */}
+              {selectedApp.status === 'needs_info' && selectedApp.rejectionReason && (
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" /> Lý do yêu cầu bổ sung thông tin:
+                  </span>
+                  <p className="leading-relaxed">{selectedApp.rejectionReason}</p>
+                </div>
+              )}
+
+              {selectedApp.status === 'rejected' && selectedApp.rejectionReason && (
                 <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-rose-900 space-y-1">
                   <span className="font-bold flex items-center gap-1 text-rose-700">
                     <XCircle className="w-4 h-4" /> Lý do từ chối trước đó:
@@ -538,33 +632,123 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
 
             {/* Action Zone (Sticky bottom) */}
             <div className="p-4 border-t border-gray-200 bg-white space-y-3">
-              {selectedApp.status === 'pending' && !isRejectFormOpen && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="md"
-                    className="flex-1 text-rose-600 border-rose-200 hover:bg-rose-50"
-                    onClick={() => setIsRejectFormOpen(true)}
-                    leftIcon={<XCircle className="w-4 h-4" />}
-                  >
-                    Từ Chối Đơn
-                  </Button>
+              {(selectedApp.status === 'pending' || selectedApp.status === 'needs_info') &&
+                !isRejectFormOpen &&
+                !isRequestInfoFormOpen && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="md"
+                        className="flex-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                        onClick={() => {
+                          setIsRequestInfoFormOpen(true);
+                          setIsRejectFormOpen(false);
+                        }}
+                        leftIcon={<HelpCircle className="w-4 h-4" />}
+                      >
+                        Yêu Cầu Bổ Sung
+                      </Button>
 
-                  <Button
-                    variant="primary"
-                    size="md"
-                    className="flex-1"
-                    onClick={() => setShowConfirmApprove(true)}
-                    leftIcon={<CheckCircle2 className="w-4 h-4" />}
-                  >
-                    Phê Duyệt Làm Chủ Trọ
-                  </Button>
-                </div>
+                      <Button
+                        variant="outline"
+                        size="md"
+                        className="flex-1 text-rose-600 border-rose-200 hover:bg-rose-50"
+                        onClick={() => {
+                          setIsRejectFormOpen(true);
+                          setIsRequestInfoFormOpen(false);
+                        }}
+                        leftIcon={<XCircle className="w-4 h-4" />}
+                      >
+                        Từ Chối Đơn
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full"
+                      onClick={() => setShowConfirmApprove(true)}
+                      leftIcon={<CheckCircle2 className="w-4 h-4" />}
+                    >
+                      Phê Duyệt Làm Chủ Trọ
+                    </Button>
+                  </div>
+                )}
+
+              {/* Expanded Request Info Form */}
+              {isRequestInfoFormOpen && (
+                <form
+                  onSubmit={handleRequestInfo}
+                  className="space-y-3 p-3 bg-amber-50/70 rounded-2xl border border-amber-200 animate-fadeIn"
+                >
+                  <div className="flex items-center justify-between pb-1 border-b border-amber-200">
+                    <span className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4 text-amber-600" /> Yêu cầu người dùng bổ sung thông tin
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRequestInfoFormOpen(false)}
+                      className="text-gray-400 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-900 uppercase">Hạng mục cần bổ sung *:</label>
+                    <select
+                      value={requestInfoReason}
+                      onChange={(e) => setRequestInfoReason(e.target.value)}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2 text-xs focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="Ảnh CCCD mờ, lóa hoặc mất 4 góc">Ảnh CCCD mờ, lóa hoặc mất 4 góc</option>
+                      <option value="Cần bổ sung giấy chứng nhận PCCC / Giấy phép kinh doanh">Cần bổ sung giấy chứng nhận PCCC / Giấy phép kinh doanh</option>
+                      <option value="Thông tin tài khoản ngân hàng chưa khớp với CCCD">Thông tin tài khoản ngân hàng chưa khớp với CCCD</option>
+                      <option value="Địa chỉ cơ sở nhà trọ chưa rõ số nhà / tên đường">Địa chỉ cơ sở nhà trọ chưa rõ số nhà / tên đường</option>
+                      <option value="Cần làm rõ quy mô và số lượng phòng cho thuê">Cần làm rõ quy mô và số lượng phòng cho thuê</option>
+                      <option value="Lý do khác">Lý do khác...</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-gray-700">Hướng dẫn cụ thể cho người đăng ký:</label>
+                    <textarea
+                      rows={2}
+                      value={customRequestInfoNote}
+                      onChange={(e) => setCustomRequestInfoNote(e.target.value)}
+                      placeholder="Ví dụ: Vui lòng chụp lại ảnh mặt sau CCCD rõ nét không bị chói sáng..."
+                      className="w-full bg-white border border-gray-300 rounded-xl p-2 text-xs focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 justify-end pt-1">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsRequestInfoFormOpen(false)}>
+                      Hủy
+                    </Button>
+                    <Button type="submit" variant="primary" size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
+                      Gửi Yêu Cầu Bổ Sung
+                    </Button>
+                  </div>
+                </form>
               )}
 
               {/* Expanded Rejection Form */}
               {isRejectFormOpen && (
                 <form onSubmit={handleReject} className="space-y-3 p-3 bg-rose-50/50 rounded-2xl border border-rose-200 animate-fadeIn">
+                  <div className="flex items-center justify-between pb-1 border-b border-rose-200">
+                    <span className="text-xs font-black text-rose-900 flex items-center gap-1.5">
+                      <XCircle className="w-4 h-4 text-rose-600" /> Từ chối hồ sơ đăng ký
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRejectFormOpen(false)}
+                      className="text-gray-400 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-rose-900 uppercase">Lý do từ chối *:</label>
                     <select

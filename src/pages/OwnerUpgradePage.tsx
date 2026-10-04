@@ -47,7 +47,11 @@ const VIETNAM_BANKS = [
 
 export const OwnerUpgradePage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser, submitOwnerApplication, showToast } = useAppStore();
+  const { currentUser, ownerApplications, submitOwnerApplication, showToast } = useAppStore();
+
+  const existingApp = ownerApplications.find(
+    (a) => a.userId === currentUser?.id || (currentUser?.id && a.id === `app_${currentUser.id}`)
+  );
 
   // 1. Thông tin cá nhân / Tổ chức cho thuê
   const [orgType, setOrgType] = useState<'personal' | 'business'>('personal');
@@ -109,14 +113,37 @@ export const OwnerUpgradePage: React.FC = () => {
     }
   }, [fullName]);
 
-  // Sync user info on mount if available
+  // Sync previous application data or user info on mount
   useEffect(() => {
-    if (currentUser) {
+    if (existingApp) {
+      if (existingApp.fullName) setFullName(existingApp.fullName);
+      if (existingApp.organizationType) setOrgType(existingApp.organizationType);
+      if (existingApp.taxOrCccdNumber || existingApp.cccdNumber)
+        setTaxOrCccdNumber(existingApp.taxOrCccdNumber || existingApp.cccdNumber);
+      if (existingApp.cccdIssueDate) setCccdIssueDate(existingApp.cccdIssueDate);
+      if (existingApp.cccdIssuePlace) setCccdIssuePlace(existingApp.cccdIssuePlace);
+      if (existingApp.userPhone) setPhone(existingApp.userPhone);
+      if (existingApp.permanentAddress) setPermanentAddress(existingApp.permanentAddress);
+      if (existingApp.userEmail) setEmail(existingApp.userEmail);
+      if (existingApp.cccdFrontUrl || existingApp.cccdImageUrl)
+        setCccdFront(existingApp.cccdFrontUrl || existingApp.cccdImageUrl || null);
+      if (existingApp.cccdBackUrl) setCccdBack(existingApp.cccdBackUrl || null);
+      if (existingApp.portraitWithCccdUrl) setPortraitWithCccd(existingApp.portraitWithCccdUrl || null);
+      if (existingApp.businessDocUrl) setBusinessDoc(existingApp.businessDocUrl || null);
+      if (existingApp.bankName) setBankName(existingApp.bankName);
+      if (existingApp.bankAccountNumber) setBankAccountNumber(existingApp.bankAccountNumber);
+      if (existingApp.bankAccountName) setBankAccountName(existingApp.bankAccountName);
+      if (existingApp.buildingName) setBuildingName(existingApp.buildingName);
+      if (existingApp.address) setAddress(existingApp.address);
+      if (existingApp.district) setDistrict(existingApp.district);
+      if (existingApp.totalRooms) setTotalRooms(existingApp.totalRooms);
+      if (existingApp.legalDocsNote) setLegalDocsNote(existingApp.legalDocsNote);
+    } else if (currentUser) {
       if (currentUser.name && !fullName) setFullName(currentUser.name);
       if (currentUser.email && !email) setEmail(currentUser.email);
       if (currentUser.phone && !phone) setPhone(currentUser.phone);
     }
-  }, [currentUser]);
+  }, [existingApp, currentUser]);
 
   // Handle countdown for OTP
   useEffect(() => {
@@ -368,7 +395,27 @@ export const OwnerUpgradePage: React.FC = () => {
         </div>
       </div>
 
-      {currentUser.ownerApplicationStatus === 'rejected' && (
+      {(currentUser.ownerApplicationStatus === 'needs_info' || existingApp?.status === 'needs_info') && (
+        <div className="p-5 bg-amber-50/90 rounded-3xl border-2 border-amber-300 text-xs text-amber-950 space-y-2.5 shadow-md animate-fadeIn">
+          <div className="font-black flex items-center gap-2 text-sm text-amber-900">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <span>Ban Quản Trị Yêu Cầu Bổ Sung Thông Tin Hồ Sơ</span>
+          </div>
+          <div className="p-3.5 bg-white rounded-2xl border border-amber-200 font-medium text-gray-800 space-y-1">
+            <span className="text-[11px] font-bold text-amber-900 block uppercase">Nội dung yêu cầu từ Admin:</span>
+            <p className="text-xs text-amber-950 leading-relaxed">
+              {currentUser.ownerApplicationReason ||
+                existingApp?.rejectionReason ||
+                'Vui lòng kiểm tra lại thông tin và giấy tờ đính kèm để hoàn tất xét duyệt.'}
+            </p>
+          </div>
+          <p className="text-[11px] text-amber-800 font-medium pl-1">
+            👉 Vui lòng điều chỉnh lại các thông tin còn thiếu bên dưới, sau đó nhấn <strong>"Cập Nhật &amp; Gửi Lại Hồ Sơ"</strong> để Ban Quản Trị thẩm định lại.
+          </p>
+        </div>
+      )}
+
+      {currentUser.ownerApplicationStatus === 'rejected' && !existingApp && (
         <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-xs text-rose-800 space-y-1">
           <div className="font-bold flex items-center gap-1.5 text-rose-900">
             <XCircle className="w-4 h-4 text-rose-600" />
@@ -993,7 +1040,11 @@ export const OwnerUpgradePage: React.FC = () => {
               <span>Đang gửi hồ sơ thẩm định...</span>
             ) : (
               <>
-                <span>Gửi Yêu Cầu Trở Thành Chủ Trọ (Xét duyệt 24h)</span>
+                <span>
+                  {currentUser.ownerApplicationStatus === 'needs_info' || existingApp?.status === 'needs_info'
+                    ? 'Cập Nhật & Gửi Lại Hồ Sơ Chủ Trọ'
+                    : 'Gửi Yêu Cầu Trở Thành Chủ Trọ (Xét duyệt 24h)'}
+                </span>
                 <ArrowRight className="w-5 h-5" />
               </>
             )}

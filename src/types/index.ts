@@ -32,7 +32,7 @@ export interface User {
   adminRole?: AdminRole;
   onboardingCompleted?: boolean;
   ownerOnboardingCompleted?: boolean;
-  ownerApplicationStatus?: "none" | "pending" | "approved" | "rejected";
+  ownerApplicationStatus?: "none" | "pending" | "approved" | "rejected" | "needs_info";
   ownerApplicationDate?: string;
   ownerApplicationReason?: string;
   ownerApplicationRejectionReason?: string;
@@ -73,7 +73,7 @@ export interface OwnerApplication {
   district: string;
   totalRooms: number;
   legalDocsNote?: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "needs_info";
   rejectionReason?: string;
   createdAt: string;
   reviewedAt?: string;
@@ -280,6 +280,8 @@ export interface NotificationItem {
     | "moderation"
     | "upgrade"
     | "action_required"
+    | "needs_info"
+    | "supplement_required"
     | "owner_approved"
     | "owner_rejected"
     | "room_approved"
@@ -290,6 +292,7 @@ export interface NotificationItem {
   ctaUrl?: string;
   ctaLabel?: string;
   actionLink?: string;
+  actionType?: string;
   priority?: "normal" | "urgent";
   createdAt: string;
 }

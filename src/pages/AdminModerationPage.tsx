@@ -14,6 +14,7 @@ import {
   hideRoom as hideRoomApi,
   approveOwnerApplication as approveOwnerAppApi,
   rejectOwnerApplication as rejectOwnerAppApi,
+  requestOwnerApplicationInfo as requestOwnerAppInfoApi,
   resolveReport as resolveReportApi,
   getAllMarketplaceItemsAdmin,
   approveMarketplaceItem as approveMarketplaceItemApi,
@@ -219,8 +220,32 @@ export const AdminModerationPage: React.FC = () => {
       onConfirm: async (reason: string) => {
         try {
           await rejectOwnerAppApi(app.id, app.user_id, reason, currentUser);
+          useAppStore.getState().rejectOwnerApplication(app.id, reason);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast('Đã từ chối đơn đăng ký!', 'Đã gửi thông báo từ chối tới chủ trọ.', 'info');
+          fetchData();
+        } catch (err: any) {
+          showToast('Lỗi thao tác', `Lỗi: ${err?.message}`, 'error');
+        }
+      },
+    });
+  };
+
+  const handleOpenRequestInfoOwnerModal = (app: any) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'owner',
+      variant: 'warning',
+      title: 'Yêu cầu bổ sung thông tin Chủ trọ',
+      description: 'Hồ sơ sẽ được chuyển sang trạng thái "Cần bổ sung". Người dùng sẽ nhận được thông báo kèm nút "Cập nhật ngay" để hoàn thiện hồ sơ.',
+      confirmText: 'Gửi yêu cầu bổ sung',
+      entityName: app.building_name,
+      onConfirm: async (reason: string) => {
+        try {
+          await requestOwnerAppInfoApi(app.id, app.user_id, reason, currentUser);
+          useAppStore.getState().requestInfoOwnerApplication(app.id, reason);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          showToast('Đã gửi yêu cầu bổ sung!', 'Đã gửi thông báo yêu cầu cập nhật hồ sơ tới người dùng.', 'info');
           fetchData();
         } catch (err: any) {
           showToast('Lỗi thao tác', `Lỗi: ${err?.message}`, 'error');
@@ -848,6 +873,15 @@ export const AdminModerationPage: React.FC = () => {
                           >
                             <Check className="w-3.5 h-3.5 mr-1" />
                             Cấp quyền Chủ trọ
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs py-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+                            onClick={() => handleOpenRequestInfoOwnerModal(app)}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                            Yêu cầu bổ sung
                           </Button>
                           <Button
                             variant="destructive"

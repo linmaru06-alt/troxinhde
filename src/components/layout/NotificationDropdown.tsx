@@ -13,6 +13,9 @@ import {
   Sparkles,
   ChevronRight,
   Clock,
+  Building2,
+  AlertTriangle,
+  HelpCircle,
 } from 'lucide-react';
 
 interface NotificationDropdownProps {
@@ -24,12 +27,25 @@ interface NotificationDropdownProps {
 const getNotificationIcon = (type: NotificationItem['type']) => {
   switch (type) {
     case 'approval':
+    case 'owner_approved':
+    case 'room_approved':
+    case 'marketplace_approved':
       return (
         <div className="w-9 h-9 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
           <CheckCircle2 className="w-5 h-5" />
         </div>
       );
+    case 'needs_info':
+    case 'supplement_required':
+    case 'action_required':
+      return (
+        <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+          <AlertTriangle className="w-5 h-5" />
+        </div>
+      );
     case 'rejected':
+    case 'owner_rejected':
+    case 'marketplace_rejected':
       return (
         <div className="w-9 h-9 rounded-full bg-rose-100 text-rose-700 flex items-center justify-center shrink-0">
           <XCircle className="w-5 h-5" />
@@ -42,6 +58,7 @@ const getNotificationIcon = (type: NotificationItem['type']) => {
         </div>
       );
     case 'message':
+    case 'chat_message':
       return (
         <div className="w-9 h-9 rounded-full bg-sky-100 text-sky-600 flex items-center justify-center shrink-0">
           <MessageSquare className="w-5 h-5" />
@@ -49,7 +66,7 @@ const getNotificationIcon = (type: NotificationItem['type']) => {
       );
     default:
       return (
-        <div className="w-9 h-9 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+        <div className="w-9 h-9 rounded-full bg-emerald-100 text-[#006d37] flex items-center justify-center shrink-0">
           <Sparkles className="w-5 h-5" />
         </div>
       );
@@ -215,6 +232,60 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
                         {item.body}
                       </p>
                     )}
+
+                    {/* NÚT HÀNH ĐỘNG ĐẶC BIỆT: DUYỆT CHỦ TRỌ / CẦN BỔ SUNG */}
+                    {(item.type === 'owner_approved' ||
+                      item.actionType === 'switch_to_owner' ||
+                      (item.actionLink === '/chu-tro' && item.title.toLowerCase().includes('chủ trọ'))) && (
+                      <div className="mt-2">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markNotificationRead(item.id);
+                            onClose();
+                            navigate('/chu-tro');
+                          }}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+                        >
+                          <Building2 className="w-3.5 h-3.5" />
+                          <span>Chuyển sang giao diện Chủ trọ</span>
+                        </button>
+                      </div>
+                    )}
+
+                    {(item.type === 'needs_info' ||
+                      item.type === 'supplement_required' ||
+                      item.actionType === 'update_owner_application' ||
+                      item.title.toLowerCase().includes('cần bổ sung thông tin')) && (
+                      <div className="mt-2 flex items-center gap-2 flex-wrap">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markNotificationRead(item.id);
+                            onClose();
+                            navigate(item.actionLink || '/dang-ky-chu-tro');
+                          }}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+                        >
+                          <span>Cập nhật ngay</span>
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markNotificationRead(item.id);
+                          }}
+                          className="text-[11px] text-gray-400 hover:text-gray-600 font-semibold px-2 py-1 transition cursor-pointer hover:underline"
+                        >
+                          Để sau
+                        </button>
+                      </div>
+                    )}
+
                     <div className="flex items-center gap-1.5 text-[10px] text-gray-400 mt-1">
                       <Clock className="w-3 h-3" />
                       <span>{formatTimeAgo(item.createdAt)}</span>

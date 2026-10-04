@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useRealtimeNotifications } from '../hooks/useRealtimeNotifications';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
@@ -15,6 +15,8 @@ import {
   Calendar,
   CheckCheck,
   RefreshCw,
+  Building2,
+  ChevronRight,
 } from 'lucide-react';
 
 export const NotificationsPage: React.FC = () => {
@@ -22,6 +24,7 @@ export const NotificationsPage: React.FC = () => {
   const { notifications, markAsRead, markAllAsRead, refetchNotifications } = useRealtimeNotifications();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const location = useLocation();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'all' | 'unread' | 'system'>('all');
 
   const isOwner = currentUser?.role === 'owner' || location.pathname.startsWith('/chu-tro');
@@ -29,20 +32,29 @@ export const NotificationsPage: React.FC = () => {
 
   const filteredNotifs = notifications.filter((n) => {
     if (activeTab === 'unread') return !n.read;
-    if (activeTab === 'system') return n.type === 'system' || n.type === 'approval';
+    if (activeTab === 'system') return n.type === 'system' || n.type === 'approval' || n.type === 'owner_approved';
     return true;
   });
 
   const getNotifIcon = (type: string) => {
     switch (type) {
       case 'approval':
+      case 'owner_approved':
+      case 'room_approved':
+      case 'marketplace_approved':
         return <CheckCircle2 className="w-5 h-5 text-emerald-600" />;
+      case 'needs_info':
+      case 'supplement_required':
+      case 'action_required':
+        return <AlertTriangle className="w-5 h-5 text-amber-600" />;
       case 'message':
       case 'chat_message':
         return <MessageSquare className="w-5 h-5 text-blue-600" />;
       case 'booking':
         return <Calendar className="w-5 h-5 text-amber-600" />;
       case 'rejected':
+      case 'owner_rejected':
+      case 'marketplace_rejected':
         return <XCircle className="w-5 h-5 text-rose-600" />;
       default:
         return <Bell className="w-5 h-5 text-[#006d37]" />;
@@ -152,14 +164,70 @@ export const NotificationsPage: React.FC = () => {
                 </div>
                 <p className="text-xs text-gray-600 leading-relaxed">{item.body}</p>
 
-                {(item.actionLink || item.ctaUrl) && (
-                  <Link
-                    to={item.actionLink || item.ctaUrl || '#'}
-                    className="inline-block text-xs font-bold text-[#006d37] hover:underline pt-1"
-                  >
-                    {item.ctaLabel || 'Xem chi tiết →'}
-                  </Link>
+                {/* Hành động duyệt chủ trọ */}
+                {(item.type === 'owner_approved' ||
+                  item.actionType === 'switch_to_owner' ||
+                  (item.actionLink === '/chu-tro' && item.title.toLowerCase().includes('chủ trọ'))) && (
+                  <div className="pt-2">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(item.id);
+                        navigate('/chu-tro');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <Building2 className="w-3.5 h-3.5" />
+                      <span>Chuyển sang giao diện Chủ trọ</span>
+                    </button>
+                  </div>
                 )}
+
+                {/* Hành động yêu cầu bổ sung */}
+                {(item.type === 'needs_info' ||
+                  item.type === 'supplement_required' ||
+                  item.actionType === 'update_owner_application' ||
+                  item.title.toLowerCase().includes('cần bổ sung thông tin')) && (
+                  <div className="pt-2 flex items-center gap-2 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(item.id);
+                        navigate(item.actionLink || '/dang-ky-chu-tro');
+                      }}
+                      className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-bold transition shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <span>Cập nhật ngay</span>
+                      <ChevronRight className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        markAsRead(item.id);
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-600 font-semibold px-2 py-1.5 transition cursor-pointer hover:underline"
+                    >
+                      Để sau
+                    </button>
+                  </div>
+                )}
+
+                {(item.actionLink || item.ctaUrl) &&
+                  !item.actionType &&
+                  item.type !== 'owner_approved' &&
+                  item.type !== 'needs_info' &&
+                  !item.title.toLowerCase().includes('cần bổ sung') &&
+                  !item.title.toLowerCase().includes('chủ trọ') && (
+                    <Link
+                      to={item.actionLink || item.ctaUrl || '#'}
+                      className="inline-block text-xs font-bold text-[#006d37] hover:underline pt-1"
+                    >
+                      {item.ctaLabel || 'Xem chi tiết →'}
+                    </Link>
+                  )}
               </div>
 
               {!item.read && <div className="w-2.5 h-2.5 rounded-full bg-[#006d37] shrink-0 mt-1.5" />}

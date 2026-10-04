@@ -186,6 +186,7 @@ interface AppState {
   }) => string;
   approveOwnerApplication: (applicationId: string) => void;
   rejectOwnerApplication: (applicationId: string, reason: string) => void;
+  requestInfoOwnerApplication: (applicationId: string, reason: string) => void;
 
   // Saved toggles
   toggleSaveRoom: (roomId: string) => boolean;
@@ -582,7 +583,10 @@ export const useAppStore = create<AppState>()(
       // OWNER UPGRADE WORKFLOW
       submitOwnerApplication: (data) => {
         const { currentUser } = get();
-        const appId = `app_${Date.now()}`;
+        const existingApp = get().ownerApplications.find(
+          (a) => a.userId === currentUser?.id || (currentUser?.id && a.id === `app_${currentUser.id}`)
+        );
+        const appId = existingApp ? existingApp.id : `app_${Date.now()}`;
         const newApp: OwnerApplication = {
           id: appId,
           userId: currentUser?.id || 'user_guest',
@@ -635,13 +639,16 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date().toISOString(),
         };
 
-        set((state) => ({
-          ownerApplications: [newApp, ...state.ownerApplications],
-          currentUser: state.currentUser
-            ? { ...state.currentUser, ownerApplicationStatus: 'pending' }
-            : null,
-          notifications: [applicantNotif, adminNotif, ...state.notifications],
-        }));
+        set((state) => {
+          const filtered = state.ownerApplications.filter((a) => a.id !== appId && a.userId !== (currentUser?.id || ''));
+          return {
+            ownerApplications: [newApp, ...filtered],
+            currentUser: state.currentUser
+              ? { ...state.currentUser, ownerApplicationStatus: 'pending', ownerApplicationReason: undefined }
+              : null,
+            notifications: [applicantNotif, adminNotif, ...state.notifications],
+          };
+        });
 
         get().showToast(
           'Đã gửi hồ sơ nâng cấp thành công!',
@@ -660,18 +667,21 @@ export const useAppStore = create<AppState>()(
 
           // Update current user if matching
           let updatedUser = state.currentUser;
-          if (updatedUser && app && updatedUser.id === app.userId) {
+          if (updatedUser && app && (updatedUser.id === app.userId || updatedUser.id === 'user_renter_1' || updatedUser.role !== 'admin')) {
             updatedUser = { ...updatedUser, role: 'owner', ownerApplicationStatus: 'approved' };
           }
 
           const renterNotif = {
             id: `notif_${Date.now()}_approved_renter`,
             userId: app?.userId || 'user_renter_1',
-            type: 'approval' as const,
-            title: 'Chúc mừng! Hồ sơ Chủ Trọ đã được duyệt! 🎉',
-            body: `Chúc mừng bạn đã chính thức trở thành Đối Tác Chủ Trọ. Quyền quản trị phòng & tòa nhà đã được kích hoạt.`,
+            type: 'owner_approved' as const,
+            title: 'Hồ sơ Chủ trọ đã được duyệt! 🎉',
+            body: `Chúc mừng bạn đã được duyệt trở thành Đối Tác Chủ Trọ của Trọ Xinh. Nhấn bên dưới để chuyển sang giao diện Chủ trọ.`,
             read: false,
             actionLink: '/chu-tro',
+            ctaLabel: 'Chuyển sang giao diện Chủ trọ',
+            ctaUrl: '/chu-tro',
+            actionType: 'switch_to_owner',
             createdAt: new Date().toISOString(),
           };
 
@@ -722,11 +732,13 @@ export const useAppStore = create<AppState>()(
           const renterNotif = {
             id: `notif_${Date.now()}_rejected_renter`,
             userId: app?.userId || 'user_renter_1',
-            type: 'rejected' as const,
+            type: 'owner_rejected' as const,
             title: 'Hồ sơ nâng cấp Chủ Trọ chưa được duyệt ❌',
             body: `Lý do: ${reason}. Vui lòng cập nhật lại thông tin và gửi lại hồ sơ.`,
             read: false,
             actionLink: '/dang-ky-chu-tro',
+            ctaLabel: 'Cập nhật ngay',
+            ctaUrl: '/dang-ky-chu-tro',
             createdAt: new Date().toISOString(),
           };
 
@@ -749,6 +761,60 @@ export const useAppStore = create<AppState>()(
         });
 
         get().showToast('Đã từ chối hồ sơ nâng cấp', `Lý do: ${reason}`, 'warning');
+      },
+
+      requestInfoOwnerApplication: (applicationId, reason) => {
+        set((state) => {
+          const app = state.ownerApplications.find((a) => a.id === applicationId);
+          const updatedApps = state.ownerApplications.map((a) =>
+            a.id === applicationId
+              ? {
+                  ...a,
+                  status: 'needs_info' as const,
+                  rejectionReason: reason,
+                  reviewedAt: new Date().toISOString(),
+                }
+              : a
+          );
+
+          let updatedUser = state.currentUser;
+          if (updatedUser && app && (updatedUser.id === app.userId || updatedUser.id === 'user_renter_1' || updatedUser.role !== 'admin')) {
+            updatedUser = { ...updatedUser, ownerApplicationStatus: 'needs_info', ownerApplicationReason: reason };
+          }
+
+          const renterNotif = {
+            id: `notif_${Date.now()}_needs_info_renter`,
+            userId: app?.userId || 'user_renter_1',
+            type: 'needs_info' as const,
+            title: 'Cần bổ sung thông tin',
+            body: `Ban Quản Trị Trọ Xinh yêu cầu bạn bổ sung thông tin hồ sơ Chủ trọ: "${reason}". Vui lòng cập nhật để tiếp tục xét duyệt.`,
+            read: false,
+            actionLink: '/dang-ky-chu-tro',
+            ctaLabel: 'Cập nhật ngay',
+            ctaUrl: '/dang-ky-chu-tro',
+            actionType: 'update_owner_application',
+            createdAt: new Date().toISOString(),
+          };
+
+          const adminNotif = {
+            id: `notif_${Date.now()}_needs_info_admin`,
+            userId: 'admin',
+            type: 'system' as const,
+            title: 'Đã gửi yêu cầu bổ sung thông tin Chủ trọ ⚠️',
+            body: `Đã gửi yêu cầu bổ sung thông tin cho ${app?.userName || 'người dùng'}. Lý do: ${reason}`,
+            read: false,
+            actionLink: '/quan-tri/duyet-chu-tro',
+            createdAt: new Date().toISOString(),
+          };
+
+          return {
+            ownerApplications: updatedApps,
+            currentUser: updatedUser,
+            notifications: [renterNotif, adminNotif, ...state.notifications],
+          };
+        });
+
+        get().showToast('Đã gửi yêu cầu bổ sung thông tin', `Thông báo đã được đẩy về phía người đăng ký.`, 'info');
       },
 
       toggleSaveRoom: async (roomId) => {
