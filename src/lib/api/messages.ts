@@ -952,21 +952,51 @@ export async function sendMessage(
       !isSameUserId(receiverId, cleanSenderId) &&
       isSupabaseConfigured
     ) {
+      const ctaUrl = `/tin-nhan/${conversationId}`;
+      const shortBody =
+        cleanContent.length > 80
+          ? cleanContent.slice(0, 80) + "..."
+          : cleanContent;
+      const notifTitle = `Tin nhắn từ ${senderName || "Người dùng"} 💬`;
+
+      // Kiểm tra xem đã có thông báo chưa đọc của hội thoại này chưa
       supabase
         .from("notifications")
-        .insert({
-          user_id: receiverId,
-          title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
-          body:
-            cleanContent.length > 80
-              ? cleanContent.slice(0, 80) + "..."
-              : cleanContent,
-          type: "chat_message",
-          cta_url: `/tin-nhan/${conversationId}`,
-          cta_label: "Trả lời ngay",
-          is_read: false,
-        })
-        .then();
+        .select("id")
+        .eq("user_id", receiverId)
+        .eq("cta_url", ctaUrl)
+        .eq("is_read", false)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data: existingNotif }) => {
+          if (existingNotif?.id) {
+            // Cập nhật thông báo hiện tại (nội dung mới nhất) thay vì tạo mới tràn màn hình
+            supabase
+              .from("notifications")
+              .update({
+                title: notifTitle,
+                body: shortBody,
+                created_at: new Date().toISOString(),
+              })
+              .eq("id", existingNotif.id)
+              .then();
+          } else {
+            // Chỉ tạo 1 thông báo duy nhất
+            supabase
+              .from("notifications")
+              .insert({
+                user_id: receiverId,
+                title: notifTitle,
+                body: shortBody,
+                type: "chat_message",
+                cta_url: ctaUrl,
+                cta_label: "Trả lời ngay",
+                is_read: false,
+              })
+              .then();
+          }
+        });
     }
   } catch (notifErr) {
     console.warn("[MessagesAPI] Lỗi gửi thông báo tin nhắn:", notifErr);

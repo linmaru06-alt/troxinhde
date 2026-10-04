@@ -133,3 +133,31 @@ export function formatChatDateDivider(dateString?: string | number | Date | null
 export function formatConversationTime(dateString?: string | number | Date | null): string {
   return formatMessageDateTime(dateString);
 }
+
+/**
+ * Gom và khử trùng lặp các thông báo tin nhắn chat:
+ * Chỉ giữ lại 1 thông báo duy nhất mới nhất cho mỗi người gửi / cuộc trò chuyện,
+ * tránh làm trôi các thông báo quan trọng khác (phê duyệt, lịch hẹn, hệ thống...).
+ */
+export function deduplicateChatNotifications<T extends { type?: string; title?: string; ctaUrl?: string; actionLink?: string; id?: string }>(
+  notifs: T[]
+): T[] {
+  const seenChatConversations = new Set<string>();
+  const result: T[] = [];
+
+  for (const notif of notifs) {
+    const isChat = notif.type === 'chat_message' || notif.type === 'message';
+    if (isChat) {
+      const chatKey = notif.ctaUrl || notif.actionLink || notif.title || notif.id || 'chat';
+      if (seenChatConversations.has(chatKey)) {
+        continue;
+      }
+      seenChatConversations.add(chatKey);
+      result.push(notif);
+    } else {
+      result.push(notif);
+    }
+  }
+
+  return result;
+}

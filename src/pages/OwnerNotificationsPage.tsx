@@ -22,6 +22,7 @@ import {
   Clock,
   ArrowRight,
 } from 'lucide-react';
+import { deduplicateChatNotifications } from '../utils/formatters';
 
 export const OwnerNotificationsPage: React.FC = () => {
   const { notifications, markAsRead, markAllAsRead, refetchNotifications } = useRealtimeNotifications();
@@ -31,11 +32,12 @@ export const OwnerNotificationsPage: React.FC = () => {
   const [selectedNotif, setSelectedNotif] = useState<NotificationItem | null>(null);
   const navigate = useNavigate();
 
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
-  const readCount = useMemo(() => notifications.filter((n) => n.read).length, [notifications]);
+  const cleanNotifications = useMemo(() => deduplicateChatNotifications(notifications), [notifications]);
+  const unreadCount = useMemo(() => cleanNotifications.filter((n) => !n.read).length, [cleanNotifications]);
+  const readCount = useMemo(() => cleanNotifications.filter((n) => n.read).length, [cleanNotifications]);
 
   const filteredNotifs = useMemo(() => {
-    return notifications.filter((n) => {
+    return cleanNotifications.filter((n) => {
       // Tab filter
       if (activeTab === 'unread' && n.read) return false;
       if (activeTab === 'read' && !n.read) return false;

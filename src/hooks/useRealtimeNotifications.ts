@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { NotificationItem } from '../types';
 import { resolveUserIdToUuid, isSameUserId } from '../lib/api/messages';
+import { deduplicateChatNotifications } from '../utils/formatters';
 
 /**
  * Âm thanh chuông báo tin nhắn/thông báo tinh tế qua Web Audio API (Zero dependencies, 0kb bundle)
@@ -49,9 +50,13 @@ export function useRealtimeNotifications() {
     showToast,
   } = useAppStore();
 
-  const unreadCount = useMemo(() => {
-    return (storeNotifications || []).filter((n) => !n.read).length;
+  const cleanStoreNotifications = useMemo(() => {
+    return deduplicateChatNotifications(storeNotifications || []);
   }, [storeNotifications]);
+
+  const unreadCount = useMemo(() => {
+    return cleanStoreNotifications.filter((n) => !n.read).length;
+  }, [cleanStoreNotifications]);
 
   const fetchInitialNotifications = useCallback(async () => {
     if (!currentUser?.id || !isSupabaseConfigured) return;
@@ -234,14 +239,25 @@ export function useRealtimeNotifications() {
         createdAt: new Date().toISOString(),
       };
 
-      // Đưa thông báo vào Store để cập nhật badge số tin nhắn trên Navbar
+      // Đưa thông báo vào Store (cập nhật thông báo cũ của cuộc trò chuyện nếu chưa đọc)
       useAppStore.setState((state) => {
-        const exists = (state.notifications || []).some(
-          (n) => n.id === notifItem.id || (n.ctaUrl === notifItem.ctaUrl && n.body === notifItem.body && !n.read)
+        const prev = state.notifications || [];
+        const existingIdx = prev.findIndex(
+          (n) => (n.type === 'chat_message' || n.type === 'message') && n.ctaUrl === notifItem.ctaUrl && !n.read
         );
-        if (exists) return state;
+        if (existingIdx >= 0) {
+          const updated = [...prev];
+          updated[existingIdx] = {
+            ...updated[existingIdx],
+            title: notifItem.title,
+            body: notifItem.body,
+            createdAt: notifItem.createdAt,
+            read: isViewingChat,
+          };
+          return { notifications: updated };
+        }
         return {
-          notifications: [notifItem, ...(state.notifications || [])],
+          notifications: [notifItem, ...prev.filter((n) => n.id !== notifItem.id)],
         };
       });
 

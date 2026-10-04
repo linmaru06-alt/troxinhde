@@ -18,6 +18,8 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
+import { deduplicateChatNotifications } from '../../utils/formatters';
+
 interface NotificationDropdownProps {
   isOpen: boolean;
   onClose: () => void;
@@ -101,8 +103,9 @@ export const NotificationDropdown: React.FC<NotificationDropdownProps> = ({
 
   const [activeTab, setActiveTab] = useState<'all' | 'unread'>('all');
 
-  // Filter notifications according to current user role and active tab
-  const userNotifs = notifications.filter((n) => {
+  // Khử trùng lặp thông báo tin nhắn và lọc theo quyền
+  const deduplicatedNotifs = deduplicateChatNotifications(notifications);
+  const userNotifs = deduplicatedNotifs.filter((n) => {
     if (currentUser?.role === 'admin') {
       return n.userId === 'user_admin_1' || n.userId === 'admin' || !n.userId || n.userId === currentUser?.id;
     }

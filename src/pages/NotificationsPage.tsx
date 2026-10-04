@@ -23,6 +23,7 @@ import {
   X,
   ArrowRight,
 } from 'lucide-react';
+import { deduplicateChatNotifications } from '../utils/formatters';
 
 export const NotificationsPage: React.FC = () => {
   const { currentUser } = useAppStore();
@@ -37,11 +38,12 @@ export const NotificationsPage: React.FC = () => {
   const isOwner = currentUser?.role === 'owner' || location.pathname.startsWith('/chu-tro');
   const isAdmin = !isOwner && (currentUser?.role === 'admin' || location.pathname.startsWith('/admin'));
 
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.read).length, [notifications]);
-  const readCount = useMemo(() => notifications.filter((n) => n.read).length, [notifications]);
+  const cleanNotifications = useMemo(() => deduplicateChatNotifications(notifications), [notifications]);
+  const unreadCount = useMemo(() => cleanNotifications.filter((n) => !n.read).length, [cleanNotifications]);
+  const readCount = useMemo(() => cleanNotifications.filter((n) => n.read).length, [cleanNotifications]);
 
   const filteredNotifs = useMemo(() => {
-    return notifications.filter((n) => {
+    return cleanNotifications.filter((n) => {
       if (activeTab === 'unread' && n.read) return false;
       if (activeTab === 'read' && !n.read) return false;
       if (activeTab === 'system') {
