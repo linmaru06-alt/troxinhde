@@ -516,12 +516,12 @@ export const OwnerDashboardPage: React.FC = () => {
                             {isPending ? (
                               <>
                                 <Clock className="w-3.5 h-3.5 text-gray-400" />
-                                <span>🔒 Đang chờ Admin duyệt — Chưa thể đổi trạng thái</span>
+                                <span>Đang chờ Admin duyệt — Chưa thể đổi trạng thái</span>
                               </>
                             ) : (
                               <>
                                 <AlertTriangle className="w-3.5 h-3.5 text-gray-400" />
-                                <span>🔒 Cần bổ sung thông tin để mở khóa hoạt động</span>
+                                <span>Cần bổ sung thông tin để mở khóa hoạt động</span>
                               </>
                             )}
                           </div>
