@@ -44,7 +44,7 @@ function mapVietnameseStatusToDb(status: string): string {
 /**
  * DEEP MODULE: Lấy danh sách yêu cầu xem phòng dành cho Chủ trọ từ Supabase Cloud
  */
-export async function getOwnerViewingRequests(ownerId?: string | null): Promise<ViewingRequestItem[]> {
+export async function getOwnerViewingRequests(ownerId?: string | null, roomIds?: string[]): Promise<ViewingRequestItem[]> {
   if (!isSupabaseConfigured || !ownerId) {
     return [];
   }
@@ -52,7 +52,7 @@ export async function getOwnerViewingRequests(ownerId?: string | null): Promise<
   const cleanOwnerId = await resolveUserIdToUuid(ownerId);
 
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('viewing_requests')
       .select(`
         id,
@@ -84,9 +84,16 @@ export async function getOwnerViewingRequests(ownerId?: string | null): Promise<
           phone,
           avatar_url
         )
-      `)
-      .or(`owner_id.eq.${cleanOwnerId},owner_id.eq.${ownerId}`)
-      .order('created_at', { ascending: false });
+      `);
+
+    if (roomIds && roomIds.length > 0) {
+      const roomFilter = `room_id.in.(${roomIds.join(',')})`;
+      query = query.or(`owner_id.eq.${cleanOwnerId},owner_id.eq.${ownerId},${roomFilter}`);
+    } else {
+      query = query.or(`owner_id.eq.${cleanOwnerId},owner_id.eq.${ownerId}`);
+    }
+
+    const { data, error } = await query.order('created_at', { ascending: false });
 
     if (error) {
       console.error('[BookingsAPI] Lỗi lấy danh sách lịch hẹn chủ trọ:', error);
@@ -106,7 +113,7 @@ export async function getOwnerViewingRequests(ownerId?: string | null): Promise<
         renterName: row.renter_name || renterProfile.full_name || 'Khách thuê',
         renterPhone: row.renter_phone || row.contact_phone || renterProfile.phone || '',
         renterAvatar: renterProfile.avatar_url || '/images/user-avatar.jpg',
-        ownerId: row.owner_id,
+        ownerId: row.owner_id || room.owner_id || ownerId,
         date: row.requested_date || '',
         timeSlot: row.requested_time || row.time_slot || '',
         status: mapDbStatusToVietnamese(row.status),
