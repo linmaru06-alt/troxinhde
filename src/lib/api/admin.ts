@@ -933,9 +933,6 @@ export async function requestOwnerApplicationInfo(
   return true;
 }
 
-  return true;
-}
-
 /**
  * Lấy danh sách báo cáo vi phạm (Reports)
  */
