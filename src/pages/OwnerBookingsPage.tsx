@@ -560,9 +560,7 @@ export const OwnerBookingsPage: React.FC = () => {
               <p className="text-xs text-gray-500 font-medium">Đang tải dữ liệu Google Calendar từ Cloud Realtime...</p>
             </div>
           ) : viewMode === 'month' ? (
-            /* ============================================================ */
-            /* 1. GOOGLE CALENDAR MONTH GRID VIEW                            */
-            /* ============================================================ */
+            /* 1. GOOGLE CALENDAR MONTH GRID VIEW */
             <div className="border border-gray-200 rounded-3xl overflow-hidden shadow-2xs bg-white">
               {/* Day names header */}
               <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50/80 text-center text-xs font-bold text-gray-600">
@@ -574,7 +572,7 @@ export const OwnerBookingsPage: React.FC = () => {
               </div>
 
               {/* Days grid */}
-              <div className="grid grid-cols-7 divide-x divide-y divide-gray-200">
+              <div className="grid grid-cols-7 divide-x divide-gray-200">
                 {monthGridDays.map((dayItem, idx) => {
                   const dayBookings = bookingsByDate[dayItem.dateString] || [];
                   const isWeekend = dayItem.date.getDay() === 0;
@@ -651,9 +649,7 @@ export const OwnerBookingsPage: React.FC = () => {
               </div>
             </div>
           ) : viewMode === 'week' ? (
-            /* ============================================================ */
-            /* 2. GOOGLE CALENDAR WEEK GRID VIEW                             */
-            /* ============================================================ */
+            /* 2. GOOGLE CALENDAR WEEK GRID VIEW */
             <div className="border border-gray-200 rounded-3xl overflow-hidden shadow-2xs bg-white overflow-x-auto">
               <div className="min-w-[700px]">
                 {/* Day Header */}
@@ -713,9 +709,7 @@ export const OwnerBookingsPage: React.FC = () => {
               </div>
             </div>
           ) : (
-            /* ============================================================ */
-            /* 3. AGENDA / LIST VIEW                                        */
-            /* ============================================================ */
+            /* 3. AGENDA / LIST VIEW */
             <div className="space-y-3">
               {filteredBookings.length === 0 ? (
                 <EmptyState
@@ -804,9 +798,7 @@ export const OwnerBookingsPage: React.FC = () => {
           )}
         </div>
 
-        {/* ============================================================ */}
-        /* GOOGLE CALENDAR EVENT DETAIL MODAL                           */
-        /* ============================================================ */}
+        {/* GOOGLE CALENDAR EVENT DETAIL MODAL */}
         {selectedBooking && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fadeIn">
             <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-100 space-y-5 animate-scaleUp">
