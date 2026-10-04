@@ -209,6 +209,7 @@ interface AppState {
 
   // Room & Building management
   addBuilding: (building: Omit<Building, 'id'>) => string;
+  updateBuilding: (buildingId: string, updates: Partial<Building>) => void;
   removeBuilding: (id: string) => void;
   addRoom: (room: Omit<Room, 'id' | 'views' | 'savedCount' | 'createdAt'>) => string;
   removeRoom: (id: string) => void;
@@ -696,9 +697,55 @@ export const useAppStore = create<AppState>()(
             createdAt: new Date().toISOString(),
           };
 
+          let updatedBuildings = state.buildings;
+          if (app && app.buildingName) {
+            const hasBuilding = state.buildings.some(
+              (b) => b.ownerId === app.userId || b.name.toLowerCase() === app.buildingName.toLowerCase()
+            );
+            if (!hasBuilding) {
+              const newBuilding: Building = {
+                id: `bld_${app.userId || Date.now()}`,
+                ownerId: app.userId || 'user_owner_1',
+                ownerName: app.fullName || app.userName || 'Chủ Trọ',
+                ownerPhone: app.userPhone || '0987654321',
+                ownerAvatar: '/images/user-avatar.jpg',
+                name: app.buildingName,
+                address: app.address || 'Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng',
+                district: app.district || 'Quận Cầu Giấy',
+                city: 'Hà Nội',
+                totalRooms: app.totalRooms || 12,
+                availableRooms: app.totalRooms || 12,
+                amenities: [
+                  'Wifi tốc độ cao',
+                  'Bảo vệ 24/7',
+                  'Khóa vân tay',
+                  'Thang máy',
+                  'Nhà để xe rộng',
+                  'Camera an ninh',
+                ],
+                images: [
+                  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&auto=format&fit=crop&q=80',
+                  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
+                ],
+                verifiedBadge: true,
+                rating: 5.0,
+                reviewCount: 0,
+                description:
+                  app.legalDocsNote || 'Tòa nhà quản lý chính chủ trên Trọ Xinh.',
+                geo: { lat: 21.0333, lng: 105.7937 },
+                nearbyUniversities: [
+                  { name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 },
+                  { name: 'ĐH Sư Phạm Hà Nội', distanceKm: 0.6 },
+                ],
+              };
+              updatedBuildings = [newBuilding, ...state.buildings];
+            }
+          }
+
           return {
             ownerApplications: updatedApps,
             currentUser: updatedUser,
+            buildings: updatedBuildings,
             notifications: [renterNotif, adminNotif, ...state.notifications],
           };
         });
@@ -1029,6 +1076,14 @@ export const useAppStore = create<AppState>()(
         set((state) => ({ buildings: [newBuilding, ...state.buildings], localCreatedBuildings: [newBuilding, ...state.localCreatedBuildings] }));
         get().showToast('Tạo hồ sơ tòa nhà thành công!', 'Hồ sơ đã được gửi để kiểm duyệt', 'success');
         return newId;
+      },
+
+      updateBuilding: (buildingId, updates) => {
+        set((state) => ({
+          buildings: state.buildings.map((b) => (b.id === buildingId ? { ...b, ...updates } : b)),
+          localCreatedBuildings: state.localCreatedBuildings.map((b) => (b.id === buildingId ? { ...b, ...updates } : b)),
+        }));
+        get().showToast('Cập nhật hồ sơ tòa nhà thành công!', 'Thông tin tòa nhà đã được lưu lại', 'success');
       },
 
       removeBuilding: (id) => {

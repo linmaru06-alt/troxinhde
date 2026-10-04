@@ -53,11 +53,24 @@ export const OwnerRoomDetailPage: React.FC = () => {
         {/* Status Banner */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <img src={room.images?.[0] || '/images/hero-banner.webp'} alt="" className="w-16 h-16 rounded-2xl object-cover shrink-0" />
+            <img
+              src={room.images?.[0] || '/images/hero-banner.webp'}
+              alt=""
+              className="w-16 h-16 rounded-2xl object-cover shrink-0"
+            />
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-xl font-bold text-gray-900">{room.roomNumber} - {room.title}</h1>
-                <Badge variant={room.status === 'Còn trống' ? 'available' : room.status === 'Chờ duyệt' ? 'pending' : 'rented'} size="sm">
+                <Badge
+                  variant={
+                    room.status === 'Còn trống'
+                      ? 'available'
+                      : room.status === 'Chờ duyệt'
+                      ? 'pending'
+                      : 'rented'
+                  }
+                  size="sm"
+                >
                   {room.status}
                 </Badge>
               </div>
@@ -65,17 +78,24 @@ export const OwnerRoomDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Quick status dropdown */}
+          {/* Quick status dropdown or Pending indicator */}
           <div className="flex items-center gap-2 w-full sm:w-auto justify-between">
-            <select
-              value={room.status}
-              onChange={(e) => updateRoomStatus(room.id, e.target.value as any)}
-              className="bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-xs font-bold text-gray-800"
-            >
-              <option value="Còn trống">Trạng thái: Còn trống</option>
-              <option value="Đã cho thuê">Trạng thái: Đã cho thuê</option>
-              <option value="Chờ duyệt">Trạng thái: Chờ duyệt</option>
-            </select>
+            {room.status === 'Chờ duyệt' ? (
+              <span className="px-3.5 py-2 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-black flex items-center gap-1.5 shadow-2xs">
+                <Clock className="w-4 h-4 text-amber-600" />
+                <span>Trạng thái: Chờ duyệt</span>
+              </span>
+            ) : (
+              <select
+                value={room.status}
+                onChange={(e) => updateRoomStatus(room.id, e.target.value as any)}
+                className="bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#00a854]"
+              >
+                <option value="Còn trống">Trạng thái: Còn trống</option>
+                <option value="Đã cho thuê">Trạng thái: Đã cho thuê</option>
+                <option value="Chờ duyệt">Trạng thái: Chờ duyệt</option>
+              </select>
+            )}
 
             <Link to={`/chu-tro/phong/chinh-sua/${room.id}`}>
               <Button variant="primary" size="sm" leftIcon={<Edit className="w-3.5 h-3.5" />}>
@@ -90,6 +110,19 @@ export const OwnerRoomDetailPage: React.FC = () => {
             </Link>
           </div>
         </div>
+
+        {/* Pending Notice Banner when room is in 'Chờ duyệt' */}
+        {room.status === 'Chờ duyệt' && (
+          <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-3 shadow-2xs">
+            <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <h4 className="font-bold text-amber-950 text-sm">Tin Đăng Đang Chờ Ban Quản Trị Phê Duyệt ⏳</h4>
+              <p className="text-amber-800 leading-relaxed">
+                Tin đăng phòng trọ của bạn đã được tiếp nhận và đang trong hàng đợi kiểm duyệt thông tin & giấy tờ PCCC (trong vòng 2-4 giờ). Sau khi được Admin duyệt, tin sẽ tự động hiển thị công khai trên Trọ Xinh và tính vào tổng số phòng.
+              </p>
+            </div>
+          </div>
+        )}
 
         {/* Performance metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">

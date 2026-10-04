@@ -359,6 +359,19 @@ export const RoomDetailPage: React.FC = () => {
         <span className="text-gray-900 font-bold truncate">{room.title}</span>
       </div>
 
+      {/* Pending Notice Banner */}
+      {room.status === 'Chờ duyệt' && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-center gap-3 text-xs text-amber-900 shadow-2xs">
+          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="font-bold text-amber-950 text-sm">Tin Đăng Đang Chờ Ban Quản Trị Phê Duyệt ⏳</p>
+            <p className="text-amber-800">
+              Phòng trọ này đang trong quá trình xét duyệt nội dung và hồ sơ PCCC. Khách thuê chưa thể đặt lịch xem cho đến khi tin được duyệt chính thức.
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Main Grid: Gallery & Details (Left) + Sticky Booking Card (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
         {/* LEFT COLUMN: 2 Cols */}

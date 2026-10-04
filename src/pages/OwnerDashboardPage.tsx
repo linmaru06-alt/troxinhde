@@ -111,11 +111,20 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id);
+  const myRooms = rooms.filter(
+    (r) =>
+      r.ownerId === currentUser?.id ||
+      (currentUser?.id === 'user_owner_1' && r.ownerId === 'user_owner_1') ||
+      (currentUser?.firebaseUid && r.ownerId === currentUser.firebaseUid)
+  );
   const currentPlan =
     SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
 
-  const totalRooms = myRooms.length;
+  // Tổng số phòng của tất cả các tòa nhà đã được admin duyệt
+  const approvedRooms = myRooms.filter(
+    (r) => (r.status === 'Còn trống' || r.status === 'Đã cho thuê') && r.status !== 'Chờ duyệt' && r.status !== 'Bị từ chối'
+  );
+  const totalApprovedRooms = approvedRooms.length;
   const availableRooms = myRooms.filter((r) => r.status === 'Còn trống').length;
   const rentedRooms = myRooms.filter((r) => r.status === 'Đã cho thuê').length;
   const pendingRooms = myRooms.filter((r) => r.status === 'Chờ duyệt').length;
@@ -142,7 +151,7 @@ export const OwnerDashboardPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm sm:text-base">{currentPlan.name}</span>
                 <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
-                  {totalRooms}/{currentPlan.roomLimit === 999 ? '∞' : currentPlan.roomLimit} phòng
+                  {totalApprovedRooms}/{currentPlan.roomLimit === 999 ? '∞' : currentPlan.roomLimit} phòng
                 </span>
               </div>
               <p className="text-xs text-emerald-100/90 mt-0.5">
@@ -197,8 +206,8 @@ export const OwnerDashboardPage: React.FC = () => {
               <span>Tổng số phòng</span>
               <Building2 className="w-4 h-4 text-gray-400" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-gray-950">{totalRooms}</div>
-            <p className="text-[11px] text-emerald-600 font-bold">↑ Quản lý tòa nhà & phòng</p>
+            <div className="text-2xl sm:text-3xl font-black text-gray-950">{totalApprovedRooms}</div>
+            <p className="text-[11px] text-emerald-600 font-bold">↑ Đã được duyệt công khai</p>
           </Link>
 
           <div className="bg-white p-5 rounded-3xl border border-emerald-200 shadow-xs space-y-2 bg-emerald-50/40">
