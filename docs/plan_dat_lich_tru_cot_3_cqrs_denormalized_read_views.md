@@ -192,7 +192,7 @@ SELECT
   vr.room_id,
   COALESCE(r.title, r.name, 'Phòng trọ') AS room_title,
   COALESCE(r.price, 0) AS room_price,
-  COALESCE(r.address, '') AS room_address,
+  COALESCE(b.address, '') AS room_address,
   vr.renter_id,
   COALESCE(vr.renter_name, p.full_name, 'Khách thuê') AS renter_name,
   COALESCE(vr.contact_phone, vr.renter_phone, p.phone, '') AS renter_phone,
@@ -220,6 +220,7 @@ SELECT
   (vr.requested_date >= CURRENT_DATE AND vr.status IN ('pending', 'confirmed')) AS is_upcoming
 FROM public.viewing_requests vr
 LEFT JOIN public.rooms r ON vr.room_id = r.id
+LEFT JOIN public.buildings b ON r.building_id = b.id
 LEFT JOIN public.profiles p ON vr.renter_id = p.id;
 
 -- 3. Stored Procedure nguyên tử tổng hợp số liệu Dashboard (get_owner_booking_metrics)
