@@ -32,6 +32,8 @@ import {
   Send,
   Sparkles,
 } from 'lucide-react';
+import { useThrottleAction } from '../lib/utils/throttle';
+import { BookingCardSkeleton } from '../components/ui/BookingCardSkeleton';
 
 const WEEK_DAYS = ['Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'Chủ nhật'];
 const TIME_HOURS = [
@@ -231,14 +233,18 @@ export const OwnerBookingsPage: React.FC = () => {
     setCurrentDate(new Date());
   };
 
-  // Update Status Handler
-  const handleUpdateStatus = async (
-    id: string,
-    newStatus: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy' | 'Đã hoàn thành',
-    note?: string
-  ) => {
-    const res = await updateViewingRequestStatus(id, newStatus, note);
-    if (res.success) {
+  // Update Status Handler with Zero-Latency Optimistic UI & Safe Rollback (Trụ cột 1)
+  const { execute: handleUpdateStatus, isThrottled: isUpdatingStatus } = useThrottleAction(
+    async (
+      id: string,
+      newStatus: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy' | 'Đã hoàn thành',
+      note?: string
+    ) => {
+      // 1. Snapshot previous state for safe rollback
+      const previousBookings = [...bookings];
+      const previousSelected = selectedBooking ? { ...selectedBooking } : null;
+
+      // 2. Zero-latency optimistic UI update (0ms response)
       setBookings((prev) =>
         prev.map((b) => (b.id === id ? { ...b, status: newStatus, ownerResponseNote: note || b.ownerResponseNote } : b))
       );
@@ -247,15 +253,24 @@ export const OwnerBookingsPage: React.FC = () => {
       }
       setIsRescheduling(false);
       setRescheduleInput('');
-      showToast(
-        newStatus === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
-        `Khách thuê sẽ nhận được thông báo thời gian thực về lịch hẹn.`,
-        newStatus === 'Đã xác nhận' ? 'success' : 'info'
-      );
-    } else {
-      showToast('Không thể cập nhật lịch hẹn', res.error || 'Vui lòng thử lại', 'error');
-    }
-  };
+
+      // 3. Background Network Sync
+      const res = await updateViewingRequestStatus(id, newStatus, note);
+      if (res.success) {
+        showToast(
+          newStatus === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
+          `Khách thuê sẽ nhận được thông báo thời gian thực về lịch hẹn.`,
+          newStatus === 'Đã xác nhận' ? 'success' : 'info'
+        );
+      } else {
+        // 4. Safe Rollback if mutation fails
+        setBookings(previousBookings);
+        if (previousSelected) setSelectedBooking(previousSelected);
+        showToast('Không thể cập nhật lịch hẹn', res.error || 'Đã tự động hoàn tác trạng thái ban đầu do lỗi mạng.', 'error');
+      }
+    },
+    1200
+  );
 
   // Calendar Math for Month View
   const year = currentDate.getFullYear();
@@ -553,11 +568,14 @@ export const OwnerBookingsPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Main Calendar Views */}
+          {/* Main Calendar Views (Trụ cột 1: Zero-CLS Skeleton Shimmer) */}
           {isLoading ? (
-            <div className="py-20 flex flex-col items-center justify-center space-y-3">
-              <Loader2 className="w-8 h-8 text-[#00a854] animate-spin" />
-              <p className="text-xs text-gray-500 font-medium">Đang tải dữ liệu lịch hẹn từ Cloud Realtime...</p>
+            <div className="space-y-4 py-2">
+              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-700 bg-emerald-50 px-4 py-2.5 rounded-xl border border-emerald-100 animate-pulse">
+                <Sparkles className="w-4 h-4 text-[#00a854]" />
+                <span>Đang đồng bộ dữ liệu Cloud Realtime và tối ưu hiển thị...</span>
+              </div>
+              <BookingCardSkeleton count={4} />
             </div>
           ) : viewMode === 'month' ? (
             /* 1. GOOGLE CALENDAR MONTH GRID VIEW */

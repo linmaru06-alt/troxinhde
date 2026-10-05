@@ -19,6 +19,8 @@ import {
   MapPin,
   Loader2,
 } from 'lucide-react';
+import { useThrottleAction } from '../lib/utils/throttle';
+import { BookingCardSkeleton } from '../components/ui/BookingCardSkeleton';
 
 export const BookingPage: React.FC = () => {
   const { roomId } = useParams<{ roomId?: string }>();
@@ -197,10 +199,7 @@ export const BookingPage: React.FC = () => {
         </div>
 
         {isFetchingBookings ? (
-          <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-gray-200">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#006d37]" />
-            <p className="text-xs text-gray-500">Đang tải danh sách lịch hẹn từ hệ thống...</p>
-          </div>
+          <BookingCardSkeleton count={3} />
         ) : cloudBookings.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 p-8 space-y-4 shadow-xs">
             <div className="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
@@ -345,7 +344,7 @@ export const BookingPage: React.FC = () => {
     { label: '19:00 - 20:00', period: 'Tối' },
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useThrottleAction(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!room) return;
 
@@ -360,18 +359,42 @@ export const BookingPage: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    // 1. Optimistic UI: Phản hồi 0ms tức thì cho người dùng
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimisticBooking = {
+      id: tempId,
+      room_id: room.id,
+      renter_id: currentUser.id,
+      owner_id: room.ownerId,
+      requested_date: date,
+      requested_time: selectedSlot,
+      contact_phone: phone.trim(),
+      message: note.trim() || null,
+      status: 'pending',
+      isOptimistic: true,
+      created_at: new Date().toISOString(),
+      rooms: {
+        id: room.id,
+        name: room.title || room.name,
+        price: room.price,
+        owner_name: room.ownerName,
+        owner_phone: room.ownerPhone,
+      },
+    };
 
+    setIsSuccess(true);
+    showToast('Đã gửi yêu cầu đặt lịch!', 'Chủ trọ sẽ nhận được thông báo ngay lập tức.', 'success');
+
+    // 2. Chạy ngầm dưới nền với cơ chế Safe Rollback
     try {
-      // 1. Lưu chính xác vào Supabase viewing_requests
       const viewingPayload = {
-        room_id: room.id,
-        renter_id: currentUser.id,
-        owner_id: room.ownerId,
-        requested_date: date,
-        requested_time: selectedSlot,
-        contact_phone: phone.trim(),
-        message: note.trim() || null,
+        room_id: optimisticBooking.room_id,
+        renter_id: optimisticBooking.renter_id,
+        owner_id: optimisticBooking.owner_id,
+        requested_date: optimisticBooking.requested_date,
+        requested_time: optimisticBooking.requested_time,
+        contact_phone: optimisticBooking.contact_phone,
+        message: optimisticBooking.message,
         status: 'pending',
       };
 
@@ -385,34 +408,30 @@ export const BookingPage: React.FC = () => {
         throw insertErr;
       }
 
-      // 2. Gửi notification thật cho Chủ trọ vào bảng notifications
-      try {
-        await supabase.from('notifications').insert({
+      // 3. Gửi notification ngầm cho Chủ trọ
+      supabase
+        .from('notifications')
+        .insert({
           user_id: room.ownerId,
           type: 'booking_request',
           title: `Lịch hẹn xem phòng mới: ${room.title} 📅`,
           body: `Khách thuê ${name.trim()} (${phone.trim()}) đã đặt lịch xem phòng vào ngày ${date}, khung giờ ${selectedSlot}.`,
-          cta_url: '/chu-tro/tong-quan',
+          cta_url: '/chu-tro/lich-hen',
           cta_label: 'Xem lịch hẹn',
           is_read: false,
-        });
-      } catch (notifErr) {
-        console.warn('[Booking] Lỗi tạo thông báo cho chủ trọ:', notifErr);
-      }
-
-      setIsSuccess(true);
-      showToast('Đã gửi yêu cầu đặt lịch!', 'Chủ trọ sẽ nhận được thông báo và liên hệ lại.', 'success');
+        })
+        .then();
     } catch (err: any) {
-      console.error('[Booking] Lỗi đặt lịch hẹn trên Supabase:', err);
+      console.error('[Booking] Safe Rollback kích hoạt do lỗi DB:', err);
+      // Safe Rollback khôi phục trạng thái
+      setIsSuccess(false);
       showToast(
-        'Không thể đặt lịch hẹn',
-        err?.message || 'Có lỗi xảy ra khi lưu lịch hẹn vào cơ sở dữ liệu. Vui lòng thử lại.',
+        'Không thể đồng bộ lịch hẹn',
+        err?.message || 'Đã có sự cố kết nối mạng. Vui lòng kiểm tra và thử lại.',
         'error'
       );
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, 2000);
 
   if (!room) {
     return <div className="p-8 text-center">Không tìm thấy phòng</div>;
@@ -538,10 +557,10 @@ export const BookingPage: React.FC = () => {
                         key={slot.label}
                         type="button"
                         onClick={() => setSelectedSlot(fullLabel)}
-                        className={`p-2.5 text-xs rounded-2xl border font-bold transition text-left flex flex-col justify-between ${
+                        className={`p-2.5 text-xs rounded-2xl border font-bold transition-all duration-150 ease-out will-change-transform active:scale-95 text-left flex flex-col justify-between cursor-pointer ${
                           isSelected
-                            ? 'bg-emerald-50 border-[#00a854] text-[#00a854] ring-2 ring-[#00a854]/30 shadow-xs'
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300'
+                            ? 'bg-emerald-50 border-[#00a854] text-[#00a854] ring-2 ring-[#00a854]/30 shadow-xs scale-[1.02]'
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:shadow-2xs'
                         }`}
                       >
                         <span>{slot.label}</span>
