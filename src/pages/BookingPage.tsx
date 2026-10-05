@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useThrottleAction } from '../lib/utils/throttle';
 import { BookingCardSkeleton } from '../components/ui/BookingCardSkeleton';
+import { getOccupiedSlots, bookViewingSlotAtomic } from '../lib/api/bookings';
 
 export const BookingPage: React.FC = () => {
   const { roomId } = useParams<{ roomId?: string }>();
@@ -38,6 +39,10 @@ export const BookingPage: React.FC = () => {
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Trụ cột 2: Realtime Slot Concurrency & Anti-Collision state
+  const [occupiedSlots, setOccupiedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
 
   // Danh sách lịch hẹn nạp từ Supabase thật
   const [cloudBookings, setCloudBookings] = useState<any[]>([]);
@@ -94,6 +99,45 @@ export const BookingPage: React.FC = () => {
       isMounted = false;
     };
   }, [roomId, currentUser?.id]);
+
+  // TRỤ CỘT 2: Lắng nghe danh sách khung giờ đã bận & đồng bộ Realtime < 50ms
+  useEffect(() => {
+    if (!room?.id || !date) return;
+    let isMounted = true;
+    setIsLoadingSlots(true);
+
+    // 1. Nạp ban đầu danh sách slot bận
+    getOccupiedSlots(room.id, date).then((slots) => {
+      if (isMounted) {
+        setOccupiedSlots(slots);
+        setIsLoadingSlots(false);
+      }
+    });
+
+    // 2. Kênh Realtime nghe thay đổi lịch của phòng này theo ngày
+    const channel = supabase
+      .channel(`room-slots-${room.id}-${date}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'viewing_requests',
+          filter: `room_id=eq.${room.id}`,
+        },
+        () => {
+          getOccupiedSlots(room.id, date).then((slots) => {
+            if (isMounted) setOccupiedSlots(slots);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      isMounted = false;
+    };
+  }, [room?.id, date]);
 
   // Xử lý hủy lịch hẹn thật trên Supabase
   const handleCancelBooking = async (bookingId: string) => {
@@ -383,32 +427,41 @@ export const BookingPage: React.FC = () => {
     };
 
     setIsSuccess(true);
-    showToast('Đã gửi yêu cầu đặt lịch!', 'Chủ trọ sẽ nhận được thông báo ngay lập tức.', 'success');
-
-    // 2. Chạy ngầm dưới nền với cơ chế Safe Rollback
+    // 2. Chạy ngầm dưới nền với Atomic Concurrency Engine (Trụ Cột 2)
     try {
-      const viewingPayload = {
-        room_id: optimisticBooking.room_id,
-        renter_id: optimisticBooking.renter_id,
-        owner_id: optimisticBooking.owner_id,
-        requested_date: optimisticBooking.requested_date,
-        requested_time: optimisticBooking.requested_time,
-        contact_phone: optimisticBooking.contact_phone,
-        message: optimisticBooking.message,
-        status: 'pending',
-      };
+      const res = await bookViewingSlotAtomic({
+        roomId: room.id,
+        renterId: currentUser.id,
+        ownerId: room.ownerId,
+        requestedDate: date,
+        requestedTime: selectedSlot,
+        contactPhone: phone.trim(),
+        message: note.trim() || undefined,
+      });
 
-      const { data: createdReq, error: insertErr } = await supabase
-        .from('viewing_requests')
-        .insert(viewingPayload)
-        .select()
-        .single();
+      if (!res.success) {
+        // Safe Rollback khôi phục trạng thái form
+        setIsSuccess(false);
 
-      if (insertErr) {
-        throw insertErr;
+        if (res.errorCode === 'SLOT_ALREADY_BOOKED') {
+          // Vô hiệu hóa ngay slot này trên UI
+          setOccupiedSlots((prev) => [...prev, selectedSlot]);
+          showToast(
+            'Khung giờ này vừa có người đặt!',
+            'Một khách thuê khác vừa nhanh tay chọn khung giờ này. Vui lòng chọn khung giờ khác nhé!',
+            'warning'
+          );
+        } else {
+          showToast(
+            'Không thể gửi yêu cầu đặt lịch',
+            res.error || 'Đã có sự cố kết nối mạng. Vui lòng thử lại.',
+            'error'
+          );
+        }
+        return;
       }
 
-      // 3. Gửi notification ngầm cho Chủ trọ
+      // 3. Gửi notification ngầm cho Chủ trọ khi đặt lịch thành công
       supabase
         .from('notifications')
         .insert({
@@ -422,8 +475,7 @@ export const BookingPage: React.FC = () => {
         })
         .then();
     } catch (err: any) {
-      console.error('[Booking] Safe Rollback kích hoạt do lỗi DB:', err);
-      // Safe Rollback khôi phục trạng thái
+      console.error('[Booking] Safe Rollback kích hoạt do lỗi hệ thống:', err);
       setIsSuccess(false);
       showToast(
         'Không thể đồng bộ lịch hẹn',
@@ -543,28 +595,49 @@ export const BookingPage: React.FC = () => {
                 />
               </div>
 
-              {/* 2. Time slot grid */}
+              {/* 2. Time slot grid (Trụ Cột 2: Anti-Collision Concurrency) */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#00a854]" /> 2. Chọn khung giờ rảnh:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#00a854]" /> 2. Chọn khung giờ rảnh:
+                  </label>
+                  {isLoadingSlots && (
+                    <span className="text-[10px] text-gray-400 font-medium animate-pulse">
+                      Đang kiểm tra lịch trống...
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {timeSlots.map((slot) => {
                     const fullLabel = `${slot.label} (${slot.period})`;
+                    const isOccupied = occupiedSlots.some(
+                      (s) => s.includes(slot.label) || (slot.label && s.startsWith(slot.label))
+                    );
                     const isSelected = selectedSlot === fullLabel;
+
                     return (
                       <button
                         key={slot.label}
                         type="button"
-                        onClick={() => setSelectedSlot(fullLabel)}
-                        className={`p-2.5 text-xs rounded-2xl border font-bold transition-all duration-150 ease-out will-change-transform active:scale-95 text-left flex flex-col justify-between cursor-pointer ${
-                          isSelected
-                            ? 'bg-emerald-50 border-[#00a854] text-[#00a854] ring-2 ring-[#00a854]/30 shadow-xs scale-[1.02]'
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:shadow-2xs'
+                        disabled={isOccupied}
+                        onClick={() => !isOccupied && setSelectedSlot(fullLabel)}
+                        className={`p-2.5 text-xs rounded-2xl border font-bold transition-all duration-150 ease-out will-change-transform text-left flex flex-col justify-between ${
+                          isOccupied
+                            ? 'bg-gray-100/80 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                            : isSelected
+                            ? 'bg-emerald-50 border-[#00a854] text-[#00a854] ring-2 ring-[#00a854]/30 shadow-xs scale-[1.02] cursor-pointer'
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:shadow-2xs active:scale-95 cursor-pointer'
                         }`}
                       >
-                        <span>{slot.label}</span>
-                        <span className="text-[10px] opacity-70 font-semibold">{slot.period}</span>
+                        <div className="flex items-center justify-between w-full">
+                          <span className={isOccupied ? 'line-through text-gray-400' : ''}>{slot.label}</span>
+                          {isOccupied && (
+                            <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100">
+                              Đã kín
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] opacity-70 font-semibold mt-0.5">{slot.period}</span>
                       </button>
                     );
                   })}

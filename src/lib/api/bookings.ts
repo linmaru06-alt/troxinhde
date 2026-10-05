@@ -194,3 +194,129 @@ export async function updateViewingRequestStatus(
     return { success: false, error: err?.message || 'Có lỗi xảy ra khi cập nhật lịch hẹn' };
   }
 }
+
+/**
+ * DEEP MODULE TRỤ CỘT 2: Lấy danh sách các khung giờ đã có người đặt trong một ngày cụ thể của phòng trọ
+ */
+export async function getOccupiedSlots(roomId: string, date: string): Promise<string[]> {
+  if (!isSupabaseConfigured || !roomId || !date) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('viewing_requests')
+      .select('requested_time, time_slot')
+      .eq('room_id', roomId)
+      .eq('requested_date', date)
+      .in('status', ['pending', 'confirmed']);
+
+    if (error) {
+      console.warn('[BookingsAPI] Lỗi lấy occupied slots:', error);
+      return [];
+    }
+
+    const occupied = new Set<string>();
+    (data || []).forEach((row) => {
+      if (row.requested_time) occupied.add(row.requested_time);
+      if (row.time_slot) occupied.add(row.time_slot);
+    });
+
+    return Array.from(occupied);
+  } catch (err) {
+    console.warn('[BookingsAPI] Exception khi lấy occupied slots:', err);
+    return [];
+  }
+}
+
+/**
+ * DEEP MODULE TRỤ CỘT 2: Đặt lịch xem phòng nguyên tử chống trùng lịch (Anti-Collision Slot Booking)
+ */
+export async function bookViewingSlotAtomic(params: {
+  roomId: string;
+  renterId: string;
+  ownerId: string;
+  requestedDate: string;
+  requestedTime: string;
+  contactPhone: string;
+  message?: string;
+}): Promise<{ success: boolean; bookingId?: string; errorCode?: string; error?: string }> {
+  if (!isSupabaseConfigured) {
+    return { success: false, error: 'Chưa cấu hình Supabase Cloud' };
+  }
+
+  try {
+    const cleanRenterId = await resolveUserIdToUuid(params.renterId);
+    const cleanOwnerId = await resolveUserIdToUuid(params.ownerId);
+
+    // 1. Gọi RPC nguyên tử trên PostgreSQL nếu có
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('book_viewing_slot_atomic', {
+      p_room_id: params.roomId,
+      p_renter_id: cleanRenterId,
+      p_owner_id: cleanOwnerId,
+      p_requested_date: params.requestedDate,
+      p_requested_time: params.requestedTime,
+      p_contact_phone: params.contactPhone,
+      p_message: params.message || null,
+    });
+
+    if (!rpcErr && rpcData) {
+      if (rpcData.success) {
+        return { success: true, bookingId: rpcData.booking_id };
+      } else {
+        return {
+          success: false,
+          errorCode: rpcData.error_code,
+          error: rpcData.message || 'Khung giờ này vừa có người đặt trước!',
+        };
+      }
+    }
+
+    // 2. Fallback nếu RPC chưa chạy trong DB: dùng INSERT trực tiếp với kiểm tra va chạm
+    const { count: conflictCount } = await supabase
+      .from('viewing_requests')
+      .select('id', { count: 'exact', head: true })
+      .eq('room_id', params.roomId)
+      .eq('requested_date', params.requestedDate)
+      .eq('requested_time', params.requestedTime)
+      .in('status', ['pending', 'confirmed']);
+
+    if (conflictCount && conflictCount > 0) {
+      return {
+        success: false,
+        errorCode: 'SLOT_ALREADY_BOOKED',
+        error: 'Khung giờ này vừa có người đặt trước. Vui lòng chọn khung giờ khác!',
+      };
+    }
+
+    const { data: inserted, error: insertErr } = await supabase
+      .from('viewing_requests')
+      .insert({
+        room_id: params.roomId,
+        renter_id: cleanRenterId,
+        owner_id: cleanOwnerId,
+        requested_date: params.requestedDate,
+        requested_time: params.requestedTime,
+        contact_phone: params.contactPhone,
+        message: params.message || null,
+        status: 'pending',
+      })
+      .select('id')
+      .single();
+
+    if (insertErr) {
+      if (insertErr.code === '23505' || insertErr.message?.includes('duplicate key') || insertErr.message?.includes('idx_unique_active_viewing_slot')) {
+        return {
+          success: false,
+          errorCode: 'SLOT_ALREADY_BOOKED',
+          error: 'Khung giờ này vừa có người đặt trước. Vui lòng chọn khung giờ khác!',
+        };
+      }
+      return { success: false, error: insertErr.message };
+    }
+
+    return { success: true, bookingId: inserted?.id };
+  } catch (err: any) {
+    console.error('[BookingsAPI] Exception trong bookViewingSlotAtomic:', err);
+    return { success: false, error: err?.message || 'Có lỗi xảy ra khi đặt lịch' };
+  }
+}
+
