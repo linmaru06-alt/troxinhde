@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { useThrottleAction } from '../lib/utils/throttle';
 import { BookingCardSkeleton } from '../components/ui/BookingCardSkeleton';
-import { getOccupiedSlots, bookViewingSlotAtomic } from '../lib/api/bookings';
+import { getOccupiedSlots, bookViewingSlotAtomic, transitionBookingStatus } from '../lib/api/bookings';
 
 export const BookingPage: React.FC = () => {
   const { roomId } = useParams<{ roomId?: string }>();
@@ -139,15 +139,19 @@ export const BookingPage: React.FC = () => {
     };
   }, [room?.id, date]);
 
-  // Xử lý hủy lịch hẹn thật trên Supabase
+  // TRỤ CỘT 4: Xử lý hủy lịch hẹn bằng Máy Trạng Thái FSM & Audit Log
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const { error } = await supabase
-        .from('viewing_requests')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId);
+      const res = await transitionBookingStatus({
+        bookingId,
+        nextStatus: 'cancelled_by_renter',
+        actorId: currentUser?.id,
+        actorRole: 'renter',
+        actorName: currentUser?.name || 'Khách thuê',
+        note: 'Khách thuê chủ động hủy lịch hẹn',
+      });
 
-      if (error) throw error;
+      if (!res.success) throw new Error(res.error);
 
       setCloudBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
@@ -160,23 +164,20 @@ export const BookingPage: React.FC = () => {
 
   const handleRespondToReschedule = async (bookingId: string, accept: boolean, proposedTime?: string) => {
     try {
-      const updates: any = accept 
-        ? { status: 'confirmed' }
-        : { status: 'cancelled' };
-      
-      if (accept && proposedTime) {
-        updates.time_slot = proposedTime;
-      }
-        
-      const { error } = await supabase
-        .from('viewing_requests')
-        .update(updates)
-        .eq('id', bookingId);
+      const nextStatus = accept ? 'confirmed' : 'cancelled_by_renter';
+      const res = await transitionBookingStatus({
+        bookingId,
+        nextStatus,
+        actorId: currentUser?.id,
+        actorRole: 'renter',
+        actorName: currentUser?.name || 'Khách thuê',
+        note: accept ? `Khách đồng ý giờ mới: ${proposedTime || ''}` : 'Khách từ chối giờ đề xuất mới',
+      });
 
-      if (error) throw error;
+      if (!res.success) throw new Error(res.error);
 
       setCloudBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, ...updates } : b))
+        prev.map((b) => (b.id === bookingId ? { ...b, status: accept ? 'confirmed' : 'cancelled' } : b))
       );
       showToast(
         accept ? 'Đã chấp nhận giờ hẹn mới' : 'Đã từ chối đổi giờ',

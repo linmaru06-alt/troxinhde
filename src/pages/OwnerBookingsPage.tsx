@@ -8,7 +8,11 @@ import {
   ViewingRequestItem,
   getOwnerBookingMetrics,
   OwnerBookingMetrics,
+  transitionBookingStatus,
+  getBookingAuditLogs,
+  BookingAuditEvent,
 } from '../lib/api/bookings';
+import { BookingTimeline } from '../components/booking/BookingTimeline';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
@@ -61,6 +65,21 @@ export const OwnerBookingsPage: React.FC = () => {
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'list'>('month');
   const [currentDate, setCurrentDate] = useState<Date>(new Date());
   const [selectedBooking, setSelectedBooking] = useState<ViewingRequestItem | null>(null);
+  const [auditLogs, setAuditLogs] = useState<BookingAuditEvent[]>([]);
+  const [isLoadingAudit, setIsLoadingAudit] = useState<boolean>(false);
+
+  // TRỤ CỘT 4: Nạp Audit Trail khi mở chi tiết lịch hẹn
+  useEffect(() => {
+    if (!selectedBooking?.id) {
+      setAuditLogs([]);
+      return;
+    }
+    setIsLoadingAudit(true);
+    getBookingAuditLogs(selectedBooking.id).then((logs) => {
+      setAuditLogs(logs);
+      setIsLoadingAudit(false);
+    });
+  }, [selectedBooking?.id]);
 
   // Reschedule state
   const [isRescheduling, setIsRescheduling] = useState<boolean>(false);
@@ -266,14 +285,24 @@ export const OwnerBookingsPage: React.FC = () => {
       setIsRescheduling(false);
       setRescheduleInput('');
 
-      // 3. Background Network Sync
-      const res = await updateViewingRequestStatus(id, newStatus, note);
+      // 3. Background Network Sync qua Máy Trạng Thái FSM & Outbox Trigger (Trụ Cột 4)
+      const res = await transitionBookingStatus({
+        bookingId: id,
+        nextStatus: newStatus,
+        actorId: currentUser?.id,
+        actorRole: 'owner',
+        actorName: currentUser?.name || 'Chủ trọ',
+        note: note || undefined,
+      });
+
       if (res.success) {
         showToast(
           newStatus === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
           `Khách thuê sẽ nhận được thông báo thời gian thực về lịch hẹn.`,
           newStatus === 'Đã xác nhận' ? 'success' : 'info'
         );
+        // Tự động làm mới Audit Trail
+        getBookingAuditLogs(id).then(setAuditLogs);
       } else {
         // 4. Safe Rollback if mutation fails
         setBookings(previousBookings);
@@ -965,6 +994,21 @@ export const OwnerBookingsPage: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Dòng thời gian lịch sử trạng thái FSM (Trụ Cột 4) */}
+                <div className="pt-3 border-t border-gray-100 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                      <Clock className="w-3 h-3 text-[#00a854]" /> Lịch Sử Tiến Trình Hẹn (FSM Audit)
+                    </span>
+                    {isLoadingAudit && (
+                      <span className="text-[10px] text-gray-400 font-medium animate-pulse">
+                        Đang đồng bộ...
+                      </span>
+                    )}
+                  </div>
+                  <BookingTimeline events={auditLogs} />
+                </div>
               </div>
 
               {/* Action Buttons */}

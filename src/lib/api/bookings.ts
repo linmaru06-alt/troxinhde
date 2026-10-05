@@ -479,4 +479,121 @@ export async function getOwnerBookingsFlat(
   }
 }
 
+/**
+ * TRỤ CỘT 4: Kiểu dữ liệu sự kiện dòng thời gian (Audit Trail Event)
+ */
+export interface BookingAuditEvent {
+  id: string;
+  bookingId?: string;
+  fromStatus: string;
+  toStatus: string;
+  actorId?: string;
+  actorRole: 'renter' | 'owner' | 'system' | 'admin' | string;
+  actorName: string;
+  note?: string;
+  createdAt: string;
+}
+
+/**
+ * TRỤ CỘT 4: Chuyển đổi trạng thái lịch hẹn qua Máy Trạng Thái FSM & Ghi nhật ký sự kiện
+ */
+export async function transitionBookingStatus(params: {
+  bookingId: string;
+  nextStatus: string;
+  actorId?: string;
+  actorRole?: 'renter' | 'owner' | 'admin' | 'system';
+  actorName?: string;
+  note?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  if (!isSupabaseConfigured || !params.bookingId) {
+    return { success: false, error: 'Chưa cấu hình Supabase hoặc thiếu bookingId' };
+  }
+
+  const cleanNextStatus = mapVietnameseStatusToDb(params.nextStatus);
+
+  try {
+    let cleanActorId = null;
+    if (params.actorId) {
+      try {
+        cleanActorId = await resolveUserIdToUuid(params.actorId);
+      } catch {
+        cleanActorId = null;
+      }
+    }
+
+    // 1. Thử gọi RPC nguyên tử transition_booking_status
+    const { data: rpcData, error: rpcErr } = await supabase.rpc('transition_booking_status', {
+      p_booking_id: params.bookingId,
+      p_next_status: cleanNextStatus,
+      p_actor_id: cleanActorId,
+      p_actor_role: params.actorRole || 'owner',
+      p_actor_name: params.actorName || null,
+      p_note: params.note || null,
+    });
+
+    if (!rpcErr && rpcData) {
+      if (rpcData.success) {
+        return { success: true };
+      } else {
+        return { success: false, error: rpcData.message || 'Lỗi chuyển trạng thái FSM' };
+      }
+    }
+
+    // 2. Fallback nếu RPC chưa khởi tạo trên Supabase DB: Cập nhật trực tiếp
+    const { error: updateErr } = await supabase
+      .from('viewing_requests')
+      .update({
+        status: cleanNextStatus,
+        owner_response_note: params.note ? params.note.trim() : null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', params.bookingId);
+
+    if (updateErr) {
+      return { success: false, error: updateErr.message };
+    }
+
+    return { success: true };
+  } catch (err: any) {
+    console.error('[BookingsAPI] Exception trong transitionBookingStatus:', err);
+    return { success: false, error: err?.message || 'Có lỗi xảy ra khi chuyển trạng thái' };
+  }
+}
+
+/**
+ * TRỤ CỘT 4: Lấy danh sách nhật ký kiểm toán (Audit Trail) của một lịch hẹn xem phòng
+ */
+export async function getBookingAuditLogs(bookingId: string): Promise<BookingAuditEvent[]> {
+  if (!isSupabaseConfigured || !bookingId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('booking_audit_logs')
+      .select('*')
+      .eq('booking_id', bookingId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.warn('[BookingsAPI] Lỗi lấy audit logs (có thể bảng chưa được tạo):', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      bookingId: row.booking_id,
+      fromStatus: row.from_status || '',
+      toStatus: row.to_status,
+      actorId: row.actor_id,
+      actorRole: row.actor_role,
+      actorName: row.actor_name || (row.actor_role === 'owner' ? 'Chủ trọ' : 'Khách thuê'),
+      note: row.note,
+      createdAt: row.created_at,
+    }));
+  } catch (err) {
+    console.warn('[BookingsAPI] Exception trong getBookingAuditLogs:', err);
+    return [];
+  }
+}
+
+
 
