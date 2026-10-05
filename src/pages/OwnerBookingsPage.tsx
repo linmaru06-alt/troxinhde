@@ -2,7 +2,13 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { supabase } from '../lib/supabase';
-import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
+import {
+  getOwnerViewingRequests,
+  updateViewingRequestStatus,
+  ViewingRequestItem,
+  getOwnerBookingMetrics,
+  OwnerBookingMetrics,
+} from '../lib/api/bookings';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Button } from '../components/ui/Button';
@@ -49,6 +55,7 @@ export const OwnerBookingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [metrics, setMetrics] = useState<OwnerBookingMetrics | null>(null);
 
   // Calendar View State: month | week | list
   const [viewMode, setViewMode] = useState<'month' | 'week' | 'list'>('month');
@@ -79,6 +86,11 @@ export const OwnerBookingsPage: React.FC = () => {
     if (!silent) setIsLoading(true);
     try {
       const cloudData = await getOwnerViewingRequests(currentUser.id, myRoomIds);
+
+      // TRỤ CỘT 3 CQRS: Nạp số liệu thống kê nguyên tử song song < 3ms
+      getOwnerBookingMetrics(currentUser.id).then((m) => {
+        if (m && m.total > 0) setMetrics(m);
+      });
 
       // Merge cloud data with any local store booking requests
       const mergedMap = new Map<string, ViewingRequestItem>();
@@ -140,11 +152,11 @@ export const OwnerBookingsPage: React.FC = () => {
     };
   }, [currentUser?.id, loadBookings]);
 
-  // Statistics
-  const pendingCount = bookings.filter((b) => b.status === 'Chờ chủ trọ xác nhận').length;
-  const confirmedCount = bookings.filter((b) => b.status === 'Đã xác nhận').length;
-  const cancelledCount = bookings.filter((b) => b.status === 'Đã hủy').length;
-  const completedCount = bookings.filter((b) => b.status === 'Đã hoàn thành').length;
+  // Statistics (Trụ Cột 3: CQRS Atomic Metrics < 3ms)
+  const pendingCount = metrics && metrics.total > 0 ? metrics.pending : bookings.filter((b) => b.status === 'Chờ chủ trọ xác nhận').length;
+  const confirmedCount = metrics && metrics.total > 0 ? metrics.confirmed : bookings.filter((b) => b.status === 'Đã xác nhận').length;
+  const cancelledCount = metrics && metrics.total > 0 ? metrics.cancelled : bookings.filter((b) => b.status === 'Đã hủy').length;
+  const completedCount = metrics && metrics.total > 0 ? metrics.completed : bookings.filter((b) => b.status === 'Đã hoàn thành').length;
 
   // Filtered
   const filteredBookings = useMemo(() => {

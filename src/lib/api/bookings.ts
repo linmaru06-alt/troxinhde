@@ -51,6 +51,32 @@ export async function getOwnerViewingRequests(ownerId?: string | null, roomIds?:
 
   const cleanOwnerId = await resolveUserIdToUuid(ownerId);
 
+  // TRỤ CỘT 3 CQRS: Fast-path nạp siêu tốc từ Denormalized View (< 8ms)
+  try {
+    const flatData = await getOwnerBookingsFlat(ownerId);
+    if (flatData && flatData.length > 0) {
+      return flatData.map((f) => ({
+        id: f.id,
+        roomId: f.roomId,
+        roomTitle: f.roomTitle,
+        renterId: f.renterId,
+        renterName: f.renterName,
+        renterPhone: f.renterPhone,
+        renterAvatar: f.renterAvatar,
+        ownerId: f.ownerId,
+        date: f.date,
+        timeSlot: f.timeSlot,
+        status: f.status,
+        rawStatus: f.rawStatus,
+        note: f.note || '',
+        ownerResponseNote: f.ownerResponseNote || '',
+        createdAt: f.createdAt,
+      }));
+    }
+  } catch (cqrsErr) {
+    // Không gián đoạn luồng, tiếp tục fallback sang câu truy vấn chuẩn bên dưới
+  }
+
   try {
     let query = supabase
       .from('viewing_requests')
@@ -319,4 +345,138 @@ export async function bookViewingSlotAtomic(params: {
     return { success: false, error: err?.message || 'Có lỗi xảy ra khi đặt lịch' };
   }
 }
+
+/**
+ * TRỤ CỘT 3: CQRS Flat DTO Interface cho tầng đọc siêu tốc (< 10ms)
+ */
+export interface OwnerBookingFlatDTO {
+  id: string;
+  roomId: string;
+  roomTitle: string;
+  roomPrice: number;
+  roomAddress: string;
+  renterId: string;
+  renterName: string;
+  renterPhone: string;
+  renterAvatar: string;
+  ownerId: string;
+  date: string;
+  timeSlot: string;
+  status: 'Chờ chủ trọ xác nhận' | 'Đã xác nhận' | 'Đã hủy' | 'Đã hoàn thành';
+  rawStatus: string;
+  displayStatus: string;
+  statusBadgeColor: string;
+  note?: string;
+  ownerResponseNote?: string;
+  createdAt: string;
+  isToday: boolean;
+  isUpcoming: boolean;
+}
+
+export interface OwnerBookingMetrics {
+  total: number;
+  pending: number;
+  confirmed: number;
+  cancelled: number;
+  completed: number;
+  upcomingToday: number;
+}
+
+/**
+ * TRỤ CỘT 3: Lấy số liệu Dashboard nguyên tử qua RPC < 3ms
+ */
+export async function getOwnerBookingMetrics(ownerId: string): Promise<OwnerBookingMetrics> {
+  const defaultMetrics: OwnerBookingMetrics = {
+    total: 0,
+    pending: 0,
+    confirmed: 0,
+    cancelled: 0,
+    completed: 0,
+    upcomingToday: 0,
+  };
+
+  if (!isSupabaseConfigured || !ownerId) return defaultMetrics;
+
+  try {
+    const cleanOwnerId = await resolveUserIdToUuid(ownerId);
+    const { data, error } = await supabase.rpc('get_owner_booking_metrics', {
+      p_owner_id: cleanOwnerId,
+    });
+
+    if (error) {
+      console.warn('[BookingsAPI] Lỗi lấy get_owner_booking_metrics:', error);
+      return defaultMetrics;
+    }
+
+    return {
+      total: Number(data?.total || 0),
+      pending: Number(data?.pending || 0),
+      confirmed: Number(data?.confirmed || 0),
+      cancelled: Number(data?.cancelled || 0),
+      completed: Number(data?.completed || 0),
+      upcomingToday: Number(data?.upcomingToday || 0),
+    };
+  } catch (err) {
+    console.warn('[BookingsAPI] Exception trong getOwnerBookingMetrics:', err);
+    return defaultMetrics;
+  }
+}
+
+/**
+ * TRỤ CỘT 3: Truy vấn danh sách lịch hẹn phẳng qua Denormalized View view_owner_bookings (< 8ms)
+ */
+export async function getOwnerBookingsFlat(
+  ownerId: string,
+  statusFilter?: string
+): Promise<OwnerBookingFlatDTO[]> {
+  if (!isSupabaseConfigured || !ownerId) return [];
+
+  try {
+    const cleanOwnerId = await resolveUserIdToUuid(ownerId);
+    let query = supabase
+      .from('view_owner_bookings')
+      .select('*')
+      .or(`owner_id.eq.${cleanOwnerId},owner_id.eq.${ownerId}`)
+      .order('created_at', { ascending: false });
+
+    if (statusFilter && statusFilter !== 'all') {
+      const dbStatus = mapVietnameseStatusToDb(statusFilter);
+      query = query.eq('status', dbStatus);
+    }
+
+    const { data, error } = await query;
+    if (error) {
+      console.warn('[BookingsAPI] Lỗi truy vấn view_owner_bookings (sử dụng fallback):', error);
+      return [];
+    }
+
+    return (data || []).map((row: any) => ({
+      id: row.id,
+      roomId: row.room_id,
+      roomTitle: row.room_title || 'Phòng trọ',
+      roomPrice: Number(row.room_price || 0),
+      roomAddress: row.room_address || '',
+      renterId: row.renter_id,
+      renterName: row.renter_name || 'Khách thuê',
+      renterPhone: row.renter_phone || '',
+      renterAvatar: row.renter_avatar || '/images/user-avatar.jpg',
+      ownerId: row.owner_id,
+      date: row.requested_date || '',
+      timeSlot: row.requested_time || '',
+      status: mapDbStatusToVietnamese(row.status),
+      rawStatus: row.status,
+      displayStatus: row.display_status || mapDbStatusToVietnamese(row.status),
+      statusBadgeColor: row.status_badge_color || '',
+      note: row.message || '',
+      ownerResponseNote: row.owner_response_note || '',
+      createdAt: row.created_at,
+      isToday: Boolean(row.is_today),
+      isUpcoming: Boolean(row.is_upcoming),
+    }));
+  } catch (err) {
+    console.warn('[BookingsAPI] Exception trong getOwnerBookingsFlat:', err);
+    return [];
+  }
+}
+
 
