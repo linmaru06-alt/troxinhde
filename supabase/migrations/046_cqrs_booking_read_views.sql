@@ -15,7 +15,7 @@ SELECT
   vr.room_id,
   COALESCE(r.title, r.name, 'Phòng trọ') AS room_title,
   COALESCE(r.price, 0) AS room_price,
-  COALESCE(r.address, '') AS room_address,
+  COALESCE(b.address, '') AS room_address,
   vr.renter_id,
   COALESCE(vr.renter_name, p.full_name, 'Khách thuê') AS renter_name,
   COALESCE(vr.contact_phone, vr.renter_phone, p.phone, '') AS renter_phone,
@@ -26,13 +26,13 @@ SELECT
   vr.status,
   CASE 
     WHEN vr.status IN ('confirmed', 'approved') THEN 'Đã xác nhận'
-    WHEN vr.status IN ('cancelled', 'rejected') THEN 'Đã hủy'
+    WHEN vr.status IN ('cancelled', 'rejected', 'cancelled_by_renter', 'cancelled_by_owner') THEN 'Đã hủy'
     WHEN vr.status = 'completed' THEN 'Đã hoàn thành'
     ELSE 'Chờ chủ trọ xác nhận'
   END AS display_status,
   CASE 
     WHEN vr.status IN ('confirmed', 'approved') THEN 'bg-emerald-100 text-emerald-800 border-emerald-200'
-    WHEN vr.status IN ('cancelled', 'rejected') THEN 'bg-rose-100 text-rose-800 border-rose-200'
+    WHEN vr.status IN ('cancelled', 'rejected', 'cancelled_by_renter', 'cancelled_by_owner') THEN 'bg-rose-100 text-rose-800 border-rose-200'
     WHEN vr.status = 'completed' THEN 'bg-purple-100 text-purple-800 border-purple-200'
     ELSE 'bg-amber-100 text-amber-800 border-amber-200'
   END AS status_badge_color,
@@ -43,6 +43,7 @@ SELECT
   (vr.requested_date >= CURRENT_DATE AND vr.status IN ('pending', 'confirmed')) AS is_upcoming
 FROM public.viewing_requests vr
 LEFT JOIN public.rooms r ON vr.room_id = r.id
+LEFT JOIN public.buildings b ON r.building_id = b.id
 LEFT JOIN public.profiles p ON vr.renter_id = p.id;
 
 -- Phân quyền đọc cho authenticated & anon
