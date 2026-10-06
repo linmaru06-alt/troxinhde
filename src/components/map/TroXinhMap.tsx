@@ -25,17 +25,17 @@ L.Icon.Default.mergeOptions({
 
 // Coordinates for top universities in Hanoi
 export const HANOI_UNIVERSITIES = [
-  { name: 'ĐH Quốc Gia Hà Nội', coords: [21.0380, 105.7829] as [number, number] },
-  { name: 'ĐH Bách Khoa HN', coords: [21.0070, 105.8430] as [number, number] },
-  { name: 'ĐH Kinh Tế Quốc Dân', coords: [20.9955, 105.8590] as [number, number] },
-  { name: 'ĐH Xây Dựng', coords: [21.0155, 105.8432] as [number, number] },
-  { name: 'ĐH Sư Phạm HN', coords: [21.0455, 105.8390] as [number, number] },
-  { name: 'ĐH Y Hà Nội', coords: [21.0241, 105.8412] as [number, number] },
-  { name: 'ĐH Ngoại Thương', coords: [21.0378, 105.7839] as [number, number] },
-  { name: 'ĐH Luật HN', coords: [21.0359, 105.8105] as [number, number] },
-  { name: 'Học Viện Ngân Hàng', coords: [20.9815, 105.7975] as [number, number] },
-  { name: 'ĐH FPT Hà Nội', coords: [21.0122, 105.5257] as [number, number] },
-  { name: 'ĐH Công Nghiệp HN', coords: [21.0537, 105.7351] as [number, number] },
+  { name: 'ĐH Quốc Gia Hà Nội', coords: [21.0375, 105.7816] as [number, number] },
+  { name: 'ĐH Bách Khoa HN', coords: [21.0054, 105.8427] as [number, number] },
+  { name: 'ĐH Kinh Tế Quốc Dân', coords: [20.9995, 105.8432] as [number, number] },
+  { name: 'ĐH Xây Dựng', coords: [21.0036, 105.8426] as [number, number] },
+  { name: 'ĐH Sư Phạm HN', coords: [21.0375, 105.7831] as [number, number] },
+  { name: 'ĐH Y Hà Nội', coords: [21.0030, 105.8302] as [number, number] },
+  { name: 'ĐH Ngoại Thương', coords: [21.0227, 105.8037] as [number, number] },
+  { name: 'ĐH Luật HN', coords: [21.0227, 105.8115] as [number, number] },
+  { name: 'Học Viện Ngân Hàng', coords: [21.0076, 105.8286] as [number, number] },
+  { name: 'ĐH FPT Hà Nội', coords: [21.0131, 105.5273] as [number, number] },
+  { name: 'ĐH Công Nghiệp HN', coords: [21.0538, 105.7351] as [number, number] },
   { name: 'ĐH Thương Mại', coords: [21.0366, 105.7747] as [number, number] },
   { name: 'ĐH Giao Thông VT', coords: [21.0287, 105.8037] as [number, number] },
   { name: 'ĐH Thủy Lợi', coords: [21.0074, 105.8247] as [number, number] },
@@ -47,8 +47,8 @@ export const HANOI_UNIVERSITIES = [
   { name: 'ĐH Kiến Trúc HN', coords: [20.9831, 105.7891] as [number, number] },
   { name: 'ĐH Hà Nội', coords: [20.9904, 105.7958] as [number, number] },
   { name: 'HV An Ninh ND', coords: [20.9839, 105.7925] as [number, number] },
-  { name: 'ĐH KHTN (ĐHQGHN)', coords: [21.0024, 105.8066] as [number, number] },
-  { name: 'ĐH KHXH&NV (ĐHQGHN)', coords: [21.0029, 105.8058] as [number, number] },
+  { name: 'ĐH KHTN (ĐHQGHN)', coords: [20.9959, 105.8080] as [number, number] },
+  { name: 'ĐH KHXH&NV (ĐHQGHN)', coords: [20.9961, 105.8058] as [number, number] },
   { name: 'HV Ngoại Giao', coords: [21.0215, 105.8085] as [number, number] },
   { name: 'ĐH Ngoại Ngữ (ĐHQGHN)', coords: [21.0375, 105.7815] as [number, number] },
   { name: 'ĐH Công Đoàn', coords: [21.0118, 105.8268] as [number, number] },
@@ -61,7 +61,14 @@ export const HANOI_UNIVERSITIES = [
   { name: 'ĐH Sân Khấu ĐA', coords: [21.0374, 105.7725] as [number, number] },
   { name: 'ĐH Mỹ Thuật CN', coords: [21.0232, 105.8267] as [number, number] },
   { name: 'HV Quản Lý GD', coords: [20.9859, 105.8443] as [number, number] },
-  { name: 'HV Y Dược Cổ Truyền', coords: [20.9789, 105.7909] as [number, number] }
+  { name: 'HV Y Dược Cổ Truyền', coords: [20.9789, 105.7909] as [number, number] },
+  { name: 'HV Kỹ thuật Quân sự', coords: [21.0471, 105.7928] as [number, number] },
+  { name: 'ĐH Phenikaa', coords: [20.9616, 105.7482] as [number, number] },
+  { name: 'ĐH Kinh tế kỹ thuật CN', coords: [20.9984, 105.8647] as [number, number] },
+  { name: 'HV Phụ nữ Việt Nam', coords: [21.0203, 105.8099] as [number, number] },
+  { name: 'ĐH Văn hóa HN', coords: [21.0267, 105.8251] as [number, number] },
+  { name: 'ĐH KD & Công nghệ HN', coords: [20.9959, 105.8756] as [number, number] },
+  { name: 'ĐH Y tế Công cộng', coords: [21.0776, 105.7770] as [number, number] }
 ];
 
 // Coordinates for Metro & Bus stations in Hanoi
