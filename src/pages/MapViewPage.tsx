@@ -84,6 +84,13 @@ export const MapViewPage: React.FC = () => {
     setKeyword(uni.name); // Tự động điền từ khóa để lọc các phòng gần trường này
   };
 
+  const handleMapClick = () => {
+    if (activeUniversity) {
+      setActiveUniversity(null);
+      setKeyword('');
+    }
+  };
+
   // Filtered rooms on map
   const filteredRooms = useMemo(() => {
     return (activeRooms || []).filter((r: any) => {
@@ -400,6 +407,7 @@ export const MapViewPage: React.FC = () => {
             showUniversities={showUniversities}
             showMetroBus={showMetroBus}
             onSelectUniversity={handleSelectUniversity}
+            onMapClick={handleMapClick}
             selectedDistrict={selectedDistrict}
           />
 

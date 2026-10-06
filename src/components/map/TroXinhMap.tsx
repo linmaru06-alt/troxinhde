@@ -173,6 +173,16 @@ const MapRecenter: React.FC<{ center: [number, number]; zoom?: number }> = ({ ce
   return null;
 };
 
+// Component to handle map clicks
+const MapClickHandler: React.FC<{ onMapClick?: () => void }> = ({ onMapClick }) => {
+  useMapEvents({
+    click() {
+      if (onMapClick) onMapClick();
+    },
+  });
+  return null;
+};
+
 // 1. MAIN MAP COMPONENT (/ban-do)
 export interface TroXinhMapProps {
   rooms: Room[];
@@ -185,6 +195,7 @@ export interface TroXinhMapProps {
   userLocation?: [number, number] | null;
   universityRadiusCenter?: [number, number] | null;
   onSelectUniversity?: (uni: { name: string; coords: [number, number] }) => void;
+  onMapClick?: () => void;
   selectedDistrict?: string | null;
 }
 
@@ -214,6 +225,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   userLocation = null,
   universityRadiusCenter = null,
   onSelectUniversity,
+  onMapClick,
   selectedDistrict = null,
 }) => {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
@@ -282,6 +294,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
           url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
 
+        <MapClickHandler onMapClick={onMapClick} />
         <MapRecenter center={mapCenter} zoom={zoom} />
 
         {/* User GPS Location Marker */}
