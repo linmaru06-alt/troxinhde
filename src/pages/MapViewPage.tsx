@@ -54,7 +54,6 @@ export const MapViewPage: React.FC = () => {
   const [isLocating, setIsLocating] = useState<boolean>(false);
   const [showUniversities, setShowUniversities] = useState<boolean>(false);
   const [showRooms, setShowRooms] = useState<boolean>(true);
-  const [showMetroBus, setShowMetroBus] = useState<boolean>(false);
   const [isLayerPanelOpen, setIsLayerPanelOpen] = useState<boolean>(true);
   const [activeUniversity, setActiveUniversity] = useState<{ name: string; coords: [number, number] } | null>(null);
   const [selectedDistrict, setSelectedDistrict] = useState<string | null>(null);
@@ -405,7 +404,6 @@ export const MapViewPage: React.FC = () => {
             universityRadiusCenter={activeUniversity ? activeUniversity.coords : null}
             zoom={userLocation ? 14 : activeUniversity ? 14 : 13}
             showUniversities={showUniversities}
-            showMetroBus={showMetroBus}
             onSelectUniversity={handleSelectUniversity}
             onMapClick={handleMapClick}
             selectedDistrict={selectedDistrict}
@@ -450,21 +448,6 @@ export const MapViewPage: React.FC = () => {
                     checked={showRooms}
                     onChange={(e) => setShowRooms(e.target.checked)}
                     className="w-3.5 h-3.5 rounded text-[#00a854] focus:ring-[#00a854] border-gray-300"
-                  />
-                </label>
-
-                <label className="flex items-center justify-between px-2.5 py-2 hover:bg-gray-50 rounded-xl cursor-pointer transition">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-6 h-6 rounded-full bg-orange-100 flex items-center justify-center">
-                      <span className="text-[10px]">🚊</span>
-                    </div>
-                    <span className="text-[11px] font-medium text-gray-700">Ga Metro & Bus</span>
-                  </div>
-                  <input
-                    type="checkbox"
-                    checked={showMetroBus}
-                    onChange={(e) => setShowMetroBus(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded text-orange-500 focus:ring-orange-500 border-gray-300"
                   />
                 </label>
               </div>

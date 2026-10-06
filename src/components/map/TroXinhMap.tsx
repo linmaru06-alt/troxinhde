@@ -191,7 +191,6 @@ export interface TroXinhMapProps {
   center?: [number, number];
   zoom?: number;
   showUniversities?: boolean;
-  showMetroBus?: boolean;
   userLocation?: [number, number] | null;
   universityRadiusCenter?: [number, number] | null;
   onSelectUniversity?: (uni: { name: string; coords: [number, number] }) => void;
@@ -221,7 +220,6 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   center = [21.0333, 105.7937], // Default Hanoi Cầu Giấy center
   zoom = 13,
   showUniversities = true,
-  showMetroBus = false,
   userLocation = null,
   universityRadiusCenter = null,
   onSelectUniversity,
@@ -360,22 +358,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
             />
           ))}
 
-        {/* Metro & Bus Stations */}
-        {showMetroBus &&
-          HANOI_METRO_BUS_STATIONS.map((station, i) => (
-            <Marker
-              key={`station_${i}`}
-              position={station.coords}
-              icon={createMetroBusIcon(station.type)}
-            >
-              <Popup>
-                <div className="text-xs font-bold text-gray-900 p-1 flex items-center gap-1.5">
-                  <span>{station.type === 'metro' ? '🚇' : '🚌'}</span>
-                  <span>{station.name}</span>
-                </div>
-              </Popup>
-            </Marker>
-          ))}
+
 
         {/* District Boundary Highlight */}
         {selectedDistrictGeoJson && (
