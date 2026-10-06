@@ -186,7 +186,7 @@ export const MapViewPage: React.FC = () => {
               </Link>
               <div>
                 <h2 className="text-sm font-black text-gray-950 leading-tight flex items-center gap-1.5">
-                  <span>Bản Đồ Nhà Trọ Đã Xác Minh</span>
+                  <span className="uppercase tracking-wide">BẢN ĐỒ NHÀ TRỌ ĐÃ XÁC MINH</span>
                   <span className="bg-emerald-100 text-[#006d37] text-[10px] font-bold px-2 py-0.5 rounded-full">
                     {filteredRooms.length} phòng
                   </span>
@@ -241,8 +241,8 @@ export const MapViewPage: React.FC = () => {
             onClick={() => setSelectedDistrict(null)}
             className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
               selectedDistrict === null 
-                ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
-                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                ? 'bg-emerald-50 text-[#006d37] border-[#00a854]/50 shadow-sm' 
+                : 'bg-white text-gray-700 border-[#00a854]/20 hover:bg-emerald-50/60 hover:border-[#00a854]/40'
             }`}
           >
             Tất cả
@@ -253,8 +253,8 @@ export const MapViewPage: React.FC = () => {
               onClick={() => setSelectedDistrict(district)}
               className={`whitespace-nowrap px-4 py-1.5 text-[13px] font-bold rounded-full transition-all border ${
                 selectedDistrict === district 
-                  ? 'bg-blue-50 text-blue-700 border-blue-200 shadow-sm' 
-                  : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50 hover:border-gray-300'
+                  ? 'bg-emerald-50 text-[#006d37] border-[#00a854]/50 shadow-sm' 
+                  : 'bg-white text-gray-700 border-[#00a854]/20 hover:bg-emerald-50/60 hover:border-[#00a854]/40'
               }`}
             >
               {district}
