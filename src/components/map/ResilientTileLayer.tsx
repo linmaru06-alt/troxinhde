@@ -20,14 +20,6 @@ export const TILE_PROVIDERS: TileProvider[] = [
     maxZoom: 19,
   },
   {
-    id: 'cartodb_voyager',
-    name: 'CartoDB Voyager (Tone sáng hiện đại, tối ưu cho Bất động sản)',
-    url: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
-    attribution: '&copy; <a href="https://carto.com/" target="_blank" rel="noopener">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>',
-    subdomains: ['a', 'b', 'c', 'd'],
-    maxZoom: 19,
-  },
-  {
     id: 'esri_world',
     name: 'Esri World Street Map (Độ ổn định CDN doanh nghiệp)',
     url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',

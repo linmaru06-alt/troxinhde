@@ -1,37 +1,13 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { CONDITION_LABELS, MarketplaceConditionCode } from '../../lib/marketplaceFilter';
 import { useAppStore } from '../../store/useAppStore';
-import { findOrCreateConversation, isSameUserId } from '../../lib/api/messages';
-import { AVAILABILITY_LABELS, getItemAvailability } from '../../lib/marketplaceStatus';
-import { MARKETPLACE_STATUS_TOASTS, useMarketplaceItemMutations } from '../../hooks/queries/useMarketplace';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
 import { Card } from './Card';
-import {
-  buildRoomUrl,
-  buildRoommateUrl,
-  buildMarketplaceUrl,
-  buildBuildingUrl,
-} from '../../utils/slugify';
-import { usePrefetch } from '../../hooks/usePrefetch';
-import {
-  Heart,
-  MapPin,
-  Sparkles,
-  Navigation,
-  CheckCircle,
-  Camera,
-  Tag,
-  Trash2,
-  MessageSquare,
-  Edit,
-  Check,
-  AlertCircle,
-  RefreshCw,
-} from 'lucide-react';
+import { Heart, MapPin, Sparkles, Navigation, CheckCircle, Camera, Tag, Trash2 } from 'lucide-react';
 
 export { Card };
 
@@ -54,19 +30,11 @@ export const formatCurrency = (amount?: number | null): string => {
 };
 
 // 1. RoomCard
-export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
-  const isSaved = useAppStore((state) => state.savedRoomIds.includes(room.id));
-  const toggleSaveRoom = useAppStore((state) => state.toggleSaveRoom);
-  const currentUserId = useAppStore((state) => state.currentUser?.id);
-  const removeRoom = useAppStore((state) => state.removeRoom);
+export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
+  const { savedRoomIds, toggleSaveRoom, currentUser, removeRoom } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, room.ownerId));
-
-  const { prefetchProps } = usePrefetch({
-    type: 'room',
-    id: room.id,
-    imageUrl: room.images?.[0],
-  });
+  const isSaved = savedRoomIds.includes(room.id);
+  const isOwner = currentUser?.id === room.ownerId;
 
   const handleConfirmDelete = () => {
     removeRoom(room.id);
@@ -86,20 +54,17 @@ export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
   const totalEstimatedMonthly = room.price + estimatedServices;
 
   return (
-    <div
-      {...prefetchProps}
-      className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain"
-    >
+    <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
-      <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100 rounded-t-2xl">
-        <Link to={buildRoomUrl(room)} className="block w-full h-full rounded-t-2xl overflow-hidden">
+      <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
+        <Link to={`/phong/${room.id}`} className="block w-full h-full">
           <ImageWithFallback
             src={room.images?.[0] || '/images/hero-banner.webp'}
             alt={room.title}
             preset="thumbnail"
             loading="lazy"
             fallback="room"
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 rounded-t-2xl"
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
         </Link>
 
@@ -173,7 +138,7 @@ export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
             )}
           </div>
 
-          <Link to={buildRoomUrl(room)}>
+          <Link to={`/phong/${room.id}`}>
             <h3 className="text-sm sm:text-base font-bold text-gray-950 line-clamp-2 group-hover:text-[#00a854] transition-colors leading-snug">
               {room.title}
             </h3>
@@ -202,22 +167,12 @@ export const RoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
       />
     </div>
   );
-});
-RoomCard.displayName = 'RoomCard';
+};
 
 // 1.5 HorizontalRoomCard
-export const HorizontalRoomCard: React.FC<{ room: Room }> = React.memo(({ room }) => {
-  const { prefetchProps } = usePrefetch({
-    type: 'room',
-    id: room.id,
-    imageUrl: room.images?.[0],
-  });
-
+export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
   return (
-    <div
-      {...prefetchProps}
-      className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full gpu-layer feed-item-contain"
-    >
+    <div className="group relative bg-white rounded-[20px] overflow-hidden border border-gray-200/80 hover:border-[#00a854]/40 shadow-xs hover:shadow-md transition-all duration-300 p-2.5 flex gap-3 h-[140px] w-full">
       {/* Left side: Image */}
       <div className="relative w-[110px] sm:w-[130px] shrink-0 rounded-2xl overflow-hidden bg-gray-100">
         <ImageWithFallback
@@ -260,7 +215,7 @@ export const HorizontalRoomCard: React.FC<{ room: Room }> = React.memo(({ room }
           <p className="text-[11px] text-gray-500 line-clamp-1 flex items-center gap-1 mt-1 font-medium">
             <MapPin className="w-3 h-3 text-rose-500 shrink-0" />
             <span className="truncate">
-              {[room.address, room.district].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}
+              {[room.address || (room as any).buildings?.address, room.district || (room as any).buildings?.district].filter(Boolean).join(', ') || 'Chưa cập nhật địa chỉ'}
             </span>
           </p>
         </div>
@@ -277,21 +232,19 @@ export const HorizontalRoomCard: React.FC<{ room: Room }> = React.memo(({ room }
           ) : (
             <div></div>
           )}
-          <Link to={buildRoomUrl(room)} onClick={(e) => e.stopPropagation()} className="text-[11px] font-bold text-[#00a854] flex items-center shrink-0 ml-2 hover:underline">
+          <Link to={`/phong/${room.id}`} onClick={(e) => e.stopPropagation()} className="text-[11px] font-bold text-[#00a854] flex items-center shrink-0 ml-2 hover:underline">
             Chi tiết &gt;
           </Link>
         </div>
       </div>
     </div>
   );
-});
-HorizontalRoomCard.displayName = 'HorizontalRoomCard';
+};
 
-export const BuildingCard: React.FC<{ building: Building }> = React.memo(({ building }) => {
-  const currentUserId = useAppStore((state) => state.currentUser?.id);
-  const removeBuilding = useAppStore((state) => state.removeBuilding);
+export const BuildingCard: React.FC<{ building: Building }> = ({ building }) => {
+  const { currentUser, removeBuilding } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, building.ownerId));
+  const isOwner = currentUser?.id === building.ownerId;
 
   const handleConfirmDelete = () => {
     removeBuilding(building.id);
@@ -307,7 +260,7 @@ export const BuildingCard: React.FC<{ building: Building }> = React.memo(({ buil
   return (
     <Link
       to={`/toa-nha/${building.id}`}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer"
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
     >
       <div className="relative aspect-16/10 w-full overflow-hidden bg-gray-100">
         <ImageWithFallback
@@ -372,24 +325,15 @@ export const BuildingCard: React.FC<{ building: Building }> = React.memo(({ buil
       />
     </Link>
   );
-});
-BuildingCard.displayName = 'BuildingCard';
+};
 
 // 3. RoommateCard
-export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post }) => {
-  const isSaved = useAppStore((state) => state.savedRoommateIds.includes(post.id));
-  const toggleSaveRoommate = useAppStore((state) => state.toggleSaveRoommate);
-  const currentUserId = useAppStore((state) => state.currentUser?.id);
-  const removeRoommatePost = useAppStore((state) => state.removeRoommatePost);
+export const RoommateCard: React.FC<{ post: RoommatePost }> = ({ post }) => {
+  const { savedRoommateIds, toggleSaveRoommate, currentUser, removeRoommatePost } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   
-  const isOwner = Boolean(currentUserId && isSameUserId(currentUserId, post.userId));
-
-  const { prefetchProps } = usePrefetch({
-    type: 'roommate',
-    id: post.id,
-    imageUrl: post.userAvatar,
-  });
+  const isSaved = savedRoommateIds.includes(post.id);
+  const isOwner = currentUser?.id === post.userId;
 
   const handleConfirmDelete = () => {
     removeRoommatePost(post.id);
@@ -403,10 +347,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post
   };
 
   return (
-    <div
-      {...prefetchProps}
-      className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1 gpu-layer feed-item-contain"
-    >
+    <div className="group relative bg-white rounded-2xl overflow-hidden border border-gray-200/80 hover:border-[#006d37]/30 shadow-xs hover:shadow-card-hover transition-all duration-300 p-5 flex flex-col justify-between h-full hover:-translate-y-1">
       <div>
         <div className="flex items-start justify-between gap-3 mb-4">
           <div className="flex items-center gap-3">
@@ -479,7 +420,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post
       <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
         <span className="text-xs text-gray-400">{post.district || 'Hà Nội'}</span>
         <Link
-          to={buildRoommateUrl(post)}
+          to={`/roommate/${post.id}`}
           className="text-xs font-bold text-[#006d37] hover:underline"
         >
           Xem chi tiết →
@@ -498,8 +439,7 @@ export const RoommateCard: React.FC<{ post: RoommatePost }> = React.memo(({ post
       />
     </div>
   );
-});
-RoommateCard.displayName = 'RoommateCard';
+};
 
 // 4. MarketplaceCard
 const CATEGORY_ICONS: Record<string, string> = {
@@ -509,32 +449,14 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Đồ gia dụng': '🍳',
 };
 
-export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo(({ item }) => {
-  const currentUser = useAppStore((state) => state.currentUser);
-  const showToast = useAppStore((state) => state.showToast);
-  const navigate = useNavigate();
+export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
+  const { currentUser, removeMarketplaceItem } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const [isChatLoading, setIsChatLoading] = React.useState(false);
-  const { setStatus, deleteItem } = useMarketplaceItemMutations();
+  const isOwner = currentUser?.id === item.userId;
 
-  const sellerUserId = item.userId ?? item.seller_id ?? item.sellerId ?? '';
-  const isOwner = Boolean(currentUser && isSameUserId(currentUser.id, sellerUserId));
-  const availability = getItemAvailability(item);
-  const isSold = availability === 'sold';
-  const isClosed = availability === 'closed';
-  const isAvailable = availability === 'available';
-  const isUnavailable = !isAvailable;
-  const unavailableReason = isUnavailable ? AVAILABILITY_LABELS[availability] : '';
-  const isStatusSaving = setStatus.isPending;
-
-  const handleConfirmDelete = async () => {
-    try {
-      await deleteItem.mutateAsync(item.id);
-      setShowDeleteConfirm(false);
-      showToast('Đã xóa tin đăng', 'Tin đã được gỡ khỏi chợ. Lịch sử trò chuyện và báo cáo liên quan vẫn được giữ lại.', 'success');
-    } catch (err: any) {
-      showToast('Không thể xóa tin', err?.message || 'Vui lòng thử lại sau', 'error');
-    }
+  const handleConfirmDelete = () => {
+    removeMarketplaceItem(item.id);
+    setShowDeleteConfirm(false);
   };
 
   const handleDeleteClick = (e: React.MouseEvent) => {
@@ -543,74 +465,13 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo((
     setShowDeleteConfirm(true);
   };
 
-  const handleChangeStatus = async (e: React.MouseEvent, nextStatus: 'sold' | 'available') => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!isOwner || isStatusSaving) return;
-
-    try {
-      await setStatus.mutateAsync({ id: item.id, status: nextStatus });
-      const toast = MARKETPLACE_STATUS_TOASTS[nextStatus];
-      showToast(toast.title, toast.description, 'success');
-    } catch (err: any) {
-      showToast('Không thể cập nhật trạng thái', err?.message || 'Vui lòng thử lại sau', 'error');
-    }
-  };
-
-  const handleContactSeller = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    if (!currentUser) {
-      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
-      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(buildMarketplaceUrl(item))}`);
-      return;
-    }
-    if (isSameUserId(currentUser.id, sellerUserId)) {
-      showToast('Đây là món đồ của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
-      return;
-    }
-
-    setIsChatLoading(true);
-    try {
-      const result = await findOrCreateConversation(
-        currentUser.id,
-        sellerUserId,
-        item.id,
-        {
-          mockItem: {
-            id: item.id,
-            title: item.name,
-            price: item.price,
-            user_id: sellerUserId,
-            images: item.images,
-          },
-          currentUserId: currentUser.id,
-        }
-      );
-      navigate(`/tin-nhan/${result.conversationId}`);
-    } catch (err: any) {
-      console.error('[MarketplaceCard] Lỗi mở chat:', err);
-      showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
-    } finally {
-      setIsChatLoading(false);
-    }
-  };
-
   const categoryIcon = CATEGORY_ICONS[item.category] || '📦';
   const hasMultipleImages = Array.isArray(item.images) && item.images.length > 1;
 
-  const { prefetchProps } = usePrefetch({
-    type: 'market',
-    id: item.id,
-    imageUrl: item.images?.[0],
-  });
-
   return (
     <Link
-      to={buildMarketplaceUrl(item)}
-      {...prefetchProps}
-      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1 gpu-layer feed-item-contain"
+      to={`/cho-do-cu/${item.id}`}
+      className="group bg-white rounded-2xl overflow-hidden border border-gray-200/90 hover:border-[#006d37]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1"
     >
       {/* 1. Hình ảnh sản phẩm + Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
@@ -657,11 +518,11 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo((
           {CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}
         </div>
 
-        {/* 3b. Trạng thái Đã bán / Đã đóng / Chờ duyệt / Bị từ chối */}
-        {(isSold || isClosed) && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20 pointer-events-none">
-            <span className={`${isSold ? 'bg-rose-600' : 'bg-slate-700'} text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider border-2 border-white/30`}>
-              {isSold ? 'Đã bán' : 'Đã đóng'}
+        {/* 3b. Trạng thái Đã bán / Chờ duyệt / Bị từ chối */}
+        {item.status === 'Đã bán' && (
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+            <span className="bg-rose-600 text-white text-xs font-black px-4 py-1.5 rounded-full shadow-lg uppercase tracking-wider border-2 border-white/30">
+              Đã bán
             </span>
           </div>
         )}
@@ -701,20 +562,10 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo((
 
         {/* 5b. Trạng thái còn hàng / đã bán / chờ duyệt / bị từ chối */}
         <div className="flex items-center gap-1.5 mt-1">
-          {isSold ? (
+          {item.status === 'Đã bán' ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-rose-600 bg-rose-50 border border-rose-200 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full" />
-              Đã bán
-            </span>
-          ) : isClosed ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-slate-700 bg-slate-100 border border-slate-300 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 bg-slate-500 rounded-full" />
+              <span className="w-1.5 h-1.5 bg-rose-500 rounded-full animate-pulse" />
               Đã đóng
-            </span>
-          ) : availability === 'hidden' ? (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold text-gray-600 bg-gray-100 border border-gray-300 px-2 py-0.5 rounded-full">
-              <span className="w-1.5 h-1.5 bg-gray-500 rounded-full" />
-              Đang ẩn
             </span>
           ) : item.status === 'Chờ duyệt' || item.moderationStatus === 'pending' ? (
             <span className="inline-flex items-center gap-1 text-[10px] font-bold text-amber-800 bg-amber-50 border border-amber-300 px-2 py-0.5 rounded-full">
@@ -744,75 +595,6 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo((
             Xem ngay →
           </span>
         </div>
-
-        {/* 7. Action Bar: Nhắn người bán / Sửa tin & Đánh dấu đã bán */}
-        <div className="pt-2.5 mt-0.5 border-t border-gray-100 flex flex-col gap-1">
-          {isOwner ? (
-            <div className={`grid ${isAvailable ? 'grid-cols-2' : 'grid-cols-1'} gap-1.5 w-full`}>
-              {isSold || isClosed ? (
-                <button
-                  type="button"
-                  onClick={(e) => handleChangeStatus(e, 'available')}
-                  disabled={isStatusSaving}
-                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-wait"
-                >
-                  <RefreshCw className={`w-3 h-3 ${isStatusSaving ? 'animate-spin' : ''}`} />
-                  {isStatusSaving ? 'Đang mở lại...' : 'Mở lại tin'}
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    navigate(`${buildMarketplaceUrl(item)}?edit=true`);
-                  }}
-                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-[#006d37] bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
-                >
-                  <Edit className="w-3 h-3" />
-                  Sửa tin
-                </button>
-              )}
-              {isAvailable && (
-                <button
-                  type="button"
-                  onClick={(e) => handleChangeStatus(e, 'sold')}
-                  disabled={isStatusSaving}
-                  className="inline-flex items-center justify-center gap-1 py-1.5 px-2 rounded-xl text-[11px] font-bold text-white bg-emerald-700 hover:bg-emerald-800 transition-colors shadow-xs cursor-pointer disabled:opacity-60 disabled:cursor-wait"
-                >
-                  {isStatusSaving ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                  {isStatusSaving ? 'Đang lưu...' : 'Đã bán'}
-                </button>
-              )}
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1 w-full">
-              <button
-                type="button"
-                disabled={isUnavailable || isChatLoading}
-                onClick={handleContactSeller}
-                className={`w-full inline-flex items-center justify-center gap-1.5 py-1.5 px-2.5 rounded-xl text-xs font-bold transition-all shadow-xs ${
-                  isUnavailable
-                    ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'
-                    : 'bg-[#006d37] hover:bg-emerald-800 text-white cursor-pointer active:scale-98'
-                }`}
-              >
-                {isChatLoading ? (
-                  <RefreshCw className="w-3 h-3 animate-spin" />
-                ) : (
-                  <MessageSquare className="w-3.5 h-3.5" />
-                )}
-                <span>{isChatLoading ? 'Đang mở...' : 'Nhắn người bán'}</span>
-              </button>
-              {isUnavailable && unavailableReason && (
-                <span className="text-[10px] text-rose-600 font-semibold text-center flex items-center justify-center gap-1">
-                  <AlertCircle className="w-2.5 h-2.5 shrink-0" />
-                  Món đồ {unavailableReason.toLowerCase()}
-                </span>
-              )}
-            </div>
-          )}
-        </div>
       </div>
       
       <ConfirmDialog
@@ -820,13 +602,11 @@ export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = React.memo((
         onClose={() => setShowDeleteConfirm(false)}
         onConfirm={handleConfirmDelete}
         title="Xóa bài đăng đồ cũ"
-        description="Tin sẽ bị gỡ khỏi chợ và không thể khôi phục. Lịch sử trò chuyện và báo cáo liên quan vẫn được giữ lại. Nếu chỉ không muốn bán nữa, hãy dùng Đóng tin."
+        description="Bạn có chắc chắn muốn xóa món đồ này không? Hành động này không thể hoàn tác."
         confirmText="Xóa bài đăng"
         cancelText="Hủy"
         variant="destructive"
-        isLoading={deleteItem.isPending}
       />
     </Link>
   );
-});
-MarketplaceCard.displayName = 'MarketplaceCard';
+};

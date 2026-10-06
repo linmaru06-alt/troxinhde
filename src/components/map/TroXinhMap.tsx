@@ -14,7 +14,6 @@ import { Link } from 'react-router-dom';
 import { Room, Building } from '../../types';
 import { formatPrice } from '../ui/Cards';
 import { MapPin, Navigation, School, ExternalLink, Compass } from 'lucide-react';
-import { ResilientTileLayer, MapAutoResize } from './ResilientTileLayer';
 
 // Fix Leaflet default icon paths in bundler
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -40,9 +39,9 @@ export const HANOI_UNIVERSITIES = [
   { name: 'ĐH Thương Mại', coords: [21.0366, 105.7747] as [number, number] },
   { name: 'ĐH Giao Thông VT', coords: [21.0287, 105.8037] as [number, number] },
   { name: 'ĐH Thủy Lợi', coords: [21.0074, 105.8247] as [number, number] },
-  { name: 'HV Tài Chính', coords: [21.0772, 105.7766] as [number, number] },
+  { name: 'HV Tài Chính', coords: [21.0754, 105.7745] as [number, number] },
   { name: 'HV Báo Chí & TT', coords: [21.0382, 105.7869] as [number, number] },
-  { name: 'ĐH Mỏ - Địa Chất', coords: [21.0725, 105.7739] as [number, number] },
+  { name: 'ĐH Mỏ - Địa Chất', coords: [21.0721, 105.7749] as [number, number] },
   { name: 'ĐH Dược HN', coords: [21.0253, 105.8554] as [number, number] },
   { name: 'HV Bưu Chính VT', coords: [20.9806, 105.7877] as [number, number] },
   { name: 'ĐH Kiến Trúc HN', coords: [20.9831, 105.7891] as [number, number] },
@@ -58,7 +57,7 @@ export const HANOI_UNIVERSITIES = [
   { name: 'ĐH Mở Hà Nội', coords: [21.0025, 105.8459] as [number, number] },
   { name: 'ĐH Tài Nguyên MT', coords: [21.0427, 105.7601] as [number, number] },
   { name: 'HV Nông Nghiệp VN', coords: [21.0041, 105.9348] as [number, number] },
-  { name: 'HV Cảnh Sát ND', coords: [21.0744, 105.7648] as [number, number] },
+  { name: 'HV Cảnh Sát ND', coords: [21.0664, 105.7629] as [number, number] },
   { name: 'ĐH Sân Khấu ĐA', coords: [21.0374, 105.7725] as [number, number] },
   { name: 'ĐH Mỹ Thuật CN', coords: [21.0232, 105.8267] as [number, number] },
   { name: 'HV Quản Lý GD', coords: [20.9859, 105.8443] as [number, number] },
@@ -67,7 +66,7 @@ export const HANOI_UNIVERSITIES = [
 
 // Coordinates for Metro & Bus stations in Hanoi
 export const HANOI_METRO_BUS_STATIONS = [
-  // Metro Line 2A (Cát Linh - Hà Đông)
+  // Metro Line 2A (Cát Linh - Hà Đông) - Full 12 stations
   { name: 'Ga Cát Linh', coords: [21.0278, 105.8322] as [number, number], type: 'metro' },
   { name: 'Ga La Thành', coords: [21.0238, 105.8258] as [number, number], type: 'metro' },
   { name: 'Ga Thái Hà', coords: [21.0188, 105.8202] as [number, number], type: 'metro' },
@@ -77,8 +76,10 @@ export const HANOI_METRO_BUS_STATIONS = [
   { name: 'Ga Phùng Khoang', coords: [20.9855, 105.7925] as [number, number], type: 'metro' },
   { name: 'Ga Văn Quán', coords: [20.9789, 105.7865] as [number, number], type: 'metro' },
   { name: 'Ga Hà Đông', coords: [20.9715, 105.7760] as [number, number], type: 'metro' },
+  { name: 'Ga La Khê', coords: [20.9634, 105.7610] as [number, number], type: 'metro' },
+  { name: 'Ga Văn Khê', coords: [20.9575, 105.7535] as [number, number], type: 'metro' },
   { name: 'Ga Yên Nghĩa', coords: [20.9505, 105.7460] as [number, number], type: 'metro' },
-  // Metro Line 3 (Nhổn - Ga Hà Nội)
+  // Metro Line 3 (Nhổn - Ga Hà Nội) - Full 8 elevated stations
   { name: 'Ga Nhổn', coords: [21.0538, 105.7350] as [number, number], type: 'metro' },
   { name: 'Ga Minh Khai', coords: [21.0495, 105.7420] as [number, number], type: 'metro' },
   { name: 'Ga Phú Diễn', coords: [21.0435, 105.7560] as [number, number], type: 'metro' },
@@ -87,17 +88,25 @@ export const HANOI_METRO_BUS_STATIONS = [
   { name: 'Ga ĐHQG Hà Nội', coords: [21.0365, 105.7820] as [number, number], type: 'metro' },
   { name: 'Ga Chùa Hà', coords: [21.0325, 105.7930] as [number, number], type: 'metro' },
   { name: 'Ga Cầu Giấy', coords: [21.0285, 105.8035] as [number, number], type: 'metro' },
-  // City Bus Routes & Stops
-  { name: 'Bus 16, 20A, 26, 32 (ĐHQG)', coords: [21.0372, 105.7818] as [number, number], type: 'bus' },
+  // City Bus Routes & Interchange Stops
+  { name: 'Bus 16, 20A, 26, 32, 34 (ĐHQG)', coords: [21.0372, 105.7818] as [number, number], type: 'bus' },
   { name: 'Bus 13, 26, 32 (ĐH Sư Phạm)', coords: [21.0360, 105.7845] as [number, number], type: 'bus' },
-  { name: 'Bus 16, 26, 32, 49 (HV Báo Chí)', coords: [21.0385, 105.7865] as [number, number], type: 'bus' },
-  { name: 'Bus 09, 26, 28 (Cầu Giấy)', coords: [21.0284, 105.8039] as [number, number], type: 'bus' },
+  { name: 'Bus 16, 26, 32, 49, 51 (Chợ Xanh)', coords: [21.0365, 105.7865] as [number, number], type: 'bus' },
+  { name: 'Bus 09, 26, 28 (Trạm Cầu Giấy)', coords: [21.0284, 105.8039] as [number, number], type: 'bus' },
   { name: 'Bus 12, 21A, 26, 35A (Thái Hà)', coords: [21.0118, 105.8268] as [number, number], type: 'bus' },
   { name: 'Bus 08A, 18, 23, 26 (ĐH Bách Khoa)', coords: [21.0070, 105.8430] as [number, number], type: 'bus' },
-  { name: 'Bus 01, 02, 08, 09 (Long Biên)', coords: [21.0425, 105.8483] as [number, number], type: 'bus' },
-  { name: 'Bus 11, 22A, 32, 34 (Kim Mã)', coords: [21.0311, 105.8234] as [number, number], type: 'bus' },
+  { name: 'Bus 03, 21, 25, 28, 32 (BV Bạch Mai)', coords: [21.0028, 105.8414] as [number, number], type: 'bus' },
+  { name: 'Bus 01, 02, 08, 09 (Trạm Long Biên)', coords: [21.0425, 105.8483] as [number, number], type: 'bus' },
+  { name: 'Bus 11, 22A, 32, 34, 38 (Trạm Kim Mã)', coords: [21.0311, 105.8234] as [number, number], type: 'bus' },
   { name: 'Bus 07, 14, 27, 35A (Hoàng Q. Việt)', coords: [21.0465, 105.7940] as [number, number], type: 'bus' },
-  { name: 'Bus 20A, 29, 32, 57 (Nhổn)', coords: [21.0540, 105.7350] as [number, number], type: 'bus' },
+  { name: 'Bus 20A, 29, 32, 57 (Trạm Nhổn)', coords: [21.0540, 105.7350] as [number, number], type: 'bus' },
+  { name: 'Bus 16, 30, 33, 44 (BX Mỹ Đình)', coords: [21.0288, 105.7783] as [number, number], type: 'bus' },
+  { name: 'Bus 03, 08, 16, 21A (BX Giáp Bát)', coords: [20.9806, 105.8415] as [number, number], type: 'bus' },
+  { name: 'Bus 04, 08B, 16, 60B (BX Nước Ngầm)', coords: [20.9634, 105.8447] as [number, number], type: 'bus' },
+  { name: 'Bus 01, 02, 19, 21, 27 (Ngã Tư Sở)', coords: [21.0039, 105.8183] as [number, number], type: 'bus' },
+  { name: 'Bus 01, 02, 19, 21, 27 (Thanh Xuân)', coords: [20.9935, 105.8052] as [number, number], type: 'bus' },
+  { name: 'Bus 22A, 35A, 50, 60A (BigC Thăng Long)', coords: [21.0068, 105.7937] as [number, number], type: 'bus' },
+  { name: 'Bus 14, 28, 30, 46 (Ngã tư Cổ Nhuế)', coords: [21.0601, 105.7745] as [number, number], type: 'bus' },
 ];
 
 // University icon creator
@@ -115,18 +124,18 @@ const createUniIcon = (name: string) => {
 };
 
 // Metro & Bus icon creator
-const createMetroBusIcon = (name: string, type: string) => {
+const createMetroBusIcon = (type: string) => {
   const iconEmoji = type === 'metro' ? '🚇' : '🚌';
-  const colorClass = type === 'metro' ? 'border-[#f59e0b] color-[#d97706]' : 'border-[#0284c7] color-[#0369a1]';
+  const bgColor = type === 'metro' ? '#f59e0b' : '#0284c7';
   return L.divIcon({
     className: 'custom-metro-pin',
     html: `
-      <div style="background: white; border: 1.5px solid ${type === 'metro' ? '#f59e0b' : '#0284c7'}; color: ${type === 'metro' ? '#d97706' : '#0369a1'}; border-radius: 9999px; padding: 2px 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; items-center; gap: 3px; white-space: nowrap;">
-        <span>${iconEmoji}</span> ${name}
+      <div style="background: ${bgColor}; color: white; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);">
+        ${iconEmoji}
       </div>
     `,
-    iconSize: [120, 24],
-    iconAnchor: [60, 12],
+    iconSize: [28, 28],
+    iconAnchor: [14, 14],
   });
 };
 
@@ -261,8 +270,10 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
         scrollWheelZoom={true}
         className="w-full h-full"
       >
-        <ResilientTileLayer />
-        <MapAutoResize />
+        <TileLayer
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        />
 
         <MapRecenter center={mapCenter} zoom={zoom} />
 
@@ -335,8 +346,15 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
             <Marker
               key={`station_${i}`}
               position={station.coords}
-              icon={createMetroBusIcon(station.name, station.type)}
-            />
+              icon={createMetroBusIcon(station.type)}
+            >
+              <Popup>
+                <div className="text-xs font-bold text-gray-900 p-1 flex items-center gap-1.5">
+                  <span>{station.type === 'metro' ? '🚇' : '🚌'}</span>
+                  <span>{station.name}</span>
+                </div>
+              </Popup>
+            </Marker>
           ))}
 
         {/* District Boundary Highlight */}
@@ -452,8 +470,10 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
         scrollWheelZoom={false}
         className="w-full h-full z-0"
       >
-        <ResilientTileLayer />
-        <MapAutoResize />
+        <TileLayer
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        />
 
         {/* 1.5km Radius circle around room */}
         <Circle
@@ -575,8 +595,10 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
         scrollWheelZoom={true}
         className="w-full h-full z-0"
       >
-        <ResilientTileLayer />
-        <MapAutoResize />
+        <TileLayer
+          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
+          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
+        />
 
         <LocationPickerMarker
           position={position}
