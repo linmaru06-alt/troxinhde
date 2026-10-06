@@ -191,9 +191,6 @@ export const MapViewPage: React.FC = () => {
                     {filteredRooms.length} phòng
                   </span>
                 </h2>
-                <p className="text-[11px] text-gray-500 font-medium hidden sm:block">
-                  Hiển thị mức giá thực tế và vị trí đã kiểm duyệt 100%
-                </p>
               </div>
             </div>
 
@@ -296,8 +293,7 @@ export const MapViewPage: React.FC = () => {
             />
           </div>
 
-          <div className="flex items-center justify-between pb-1">
-            <p className="text-xs text-gray-500 font-medium">Bấm vào phòng để xem vị trí:</p>
+          <div className="flex items-center justify-end pb-1">
             <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-md">
               {filteredRooms.length} kết quả
             </span>
