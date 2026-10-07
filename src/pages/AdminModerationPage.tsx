@@ -383,15 +383,6 @@ export const AdminModerationPage: React.FC = () => {
     return true;
   });
 
-  // Lọc tòa nhà theo tab
-  const filteredBuildings = buildings.filter((b) => {
-    const mod = b.moderation_status || 'approved';
-    if (activeBuildingTab === 'pending') return mod === 'pending';
-    if (activeBuildingTab === 'approved') return mod === 'approved';
-    if (activeBuildingTab === 'rejected') return mod === 'rejected';
-    return true;
-  });
-
   return (
     <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
       <DashboardSidebar role="admin" />
