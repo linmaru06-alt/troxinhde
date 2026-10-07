@@ -522,23 +522,49 @@ export const AdminModerationPage: React.FC = () => {
         {/* SECTION 1: DUYỆT PHÒNG TRỌ KÈM CHECKLIST */}
         {mainSection === 'rooms' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="inline-flex items-center p-1 bg-gray-100/80 rounded-xl overflow-x-auto border border-gray-200 shadow-inner max-w-full">
               {[
-                { id: 'pending', label: 'Chờ duyệt' },
-                { id: 'approved', label: 'Đang công khai' },
-                { id: 'rejected', label: 'Bị từ chối / Hạ tin' },
-                { id: 'all', label: 'Tất cả' },
+                {
+                  id: 'pending',
+                  label: 'Chờ duyệt',
+                  count: rooms.filter((r) => r.moderation_status === 'pending' || r.status === 'Chờ duyệt').length,
+                },
+                {
+                  id: 'approved',
+                  label: 'Đang công khai',
+                  count: rooms.filter(
+                    (r) =>
+                      (r.moderation_status === 'approved' || r.status === 'Còn trống' || r.status === 'available') &&
+                      r.moderation_status !== 'pending' &&
+                      r.moderation_status !== 'rejected' &&
+                      r.status !== 'Chờ duyệt' &&
+                      r.status !== 'Bị từ chối'
+                  ).length,
+                },
+                {
+                  id: 'rejected',
+                  label: 'Bị từ chối / Hạ tin',
+                  count: rooms.filter((r) => r.moderation_status === 'rejected' || r.status === 'Bị từ chối').length,
+                },
+                { id: 'all', label: 'Tất cả', count: rooms.length },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveRoomTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                     activeRoomTab === tab.id
-                      ? 'bg-[#006d37] text-white shadow-xs'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-white text-[#006d37] shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
                   }`}
                 >
                   {tab.label}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeRoomTab === tab.id ? 'bg-emerald-100 text-[#006d37]' : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -652,23 +678,30 @@ export const AdminModerationPage: React.FC = () => {
         {/* SECTION 1b: DUYỆT TÒA NHÀ */}
         {mainSection === 'buildings' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="inline-flex items-center p-1 bg-gray-100/80 rounded-xl overflow-x-auto border border-gray-200 shadow-inner max-w-full">
               {[
-                { id: 'pending', label: 'Chờ duyệt' },
-                { id: 'approved', label: 'Đã duyệt' },
-                { id: 'rejected', label: 'Bị từ chối' },
-                { id: 'all', label: 'Tất cả' },
+                { id: 'pending', label: 'Chờ duyệt', count: buildings.filter((b) => b.moderation_status === 'pending').length },
+                { id: 'approved', label: 'Đã duyệt', count: buildings.filter((b) => b.moderation_status === 'approved').length },
+                { id: 'rejected', label: 'Bị từ chối', count: buildings.filter((b) => b.moderation_status === 'rejected').length },
+                { id: 'all', label: 'Tất cả', count: buildings.length },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveBuildingTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                     activeBuildingTab === tab.id
-                      ? 'bg-[#006d37] text-white shadow-xs'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-white text-[#006d37] shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
                   }`}
                 >
                   {tab.label}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeBuildingTab === tab.id ? 'bg-emerald-100 text-[#006d37]' : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -770,7 +803,7 @@ export const AdminModerationPage: React.FC = () => {
         {/* SECTION: DUYỆT TIN ĐĂNG CHỢ ĐỒ CŨ SINH VIÊN */}
         {mainSection === 'marketplace' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="inline-flex items-center p-1 bg-gray-100/80 rounded-xl overflow-x-auto border border-gray-200 shadow-inner max-w-full">
               {[
                 {
                   id: 'pending',
@@ -811,18 +844,16 @@ export const AdminModerationPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveMarketplaceTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                     activeMarketplaceTab === tab.id
-                      ? 'bg-[#006d37] text-white shadow-xs'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-white text-[#006d37] shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
                   }`}
                 >
-                  <span>{tab.label}</span>
+                  {tab.label}
                   <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeMarketplaceTab === tab.id
-                        ? 'bg-white/20 text-white'
-                        : 'bg-gray-100 text-gray-600'
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeMarketplaceTab === tab.id ? 'bg-emerald-100 text-[#006d37]' : 'bg-gray-200 text-gray-500'
                     }`}
                   >
                     {tab.count}
