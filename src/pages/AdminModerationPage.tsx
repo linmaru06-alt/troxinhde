@@ -43,6 +43,9 @@ import {
   ShoppingBag,
   Tag,
   ExternalLink,
+  Home,
+  FileCheck,
+  Flag,
 } from 'lucide-react';
 
 const MODERATION_CHECKLIST = [
@@ -409,17 +412,21 @@ export const AdminModerationPage: React.FC = () => {
           </Button>
         </div>
 
-        {/* Chuyển đổi 4 phân hệ: Tin đăng phòng | Chợ đồ cũ | Hồ sơ chủ trọ | Báo cáo */}
-        <div className="flex bg-white p-1.5 rounded-2xl border border-gray-200 shadow-xs max-w-2xl overflow-x-auto">
+        {/* Chuyển đổi 5 phân hệ */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 w-full">
+          {/* Item 1: Tin đăng phòng */}
           <button
             onClick={() => setMainSection('rooms')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'rooms' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'rooms' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <span>Tin Đăng Phòng</span>
+            <Home className={`w-6 h-6 mb-2 ${mainSection === 'rooms' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Tin Đăng Phòng</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'rooms' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-[#006d37]'
               }`}
             >
@@ -427,16 +434,19 @@ export const AdminModerationPage: React.FC = () => {
             </span>
           </button>
 
+          {/* Item 2: Tòa nhà */}
           <button
             onClick={() => setMainSection('buildings')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'buildings' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'buildings' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Tòa Nhà</span>
+            <Building2 className={`w-6 h-6 mb-2 ${mainSection === 'buildings' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Tòa Nhà</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'buildings' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-[#006d37]'
               }`}
             >
@@ -444,40 +454,43 @@ export const AdminModerationPage: React.FC = () => {
             </span>
           </button>
 
+          {/* Item 3: Chợ đồ cũ */}
           <button
             onClick={() => setMainSection('marketplace')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'marketplace'
-                ? 'bg-[#006d37] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'marketplace' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Chợ Đồ Cũ</span>
+            <ShoppingBag className={`w-6 h-6 mb-2 ${mainSection === 'marketplace' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Chợ Đồ Cũ</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                mainSection === 'marketplace'
-                  ? 'bg-white/20 text-white'
-                  : pendingMarketplaceCount > 0
-                  ? 'bg-amber-100 text-amber-900 animate-pulse'
-                  : 'bg-gray-100 text-gray-600'
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                mainSection === 'marketplace' 
+                ? 'bg-white/20 text-white' 
+                : pendingMarketplaceCount > 0
+                ? 'bg-amber-100 text-amber-900 animate-pulse'
+                : 'bg-gray-100 text-gray-600'
               }`}
             >
               {pendingMarketplaceCount}
             </span>
           </button>
 
+          {/* Item 4: Hồ sơ chủ trọ */}
           <button
             onClick={() => setMainSection('owner_upgrades')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'owner_upgrades'
-                ? 'bg-[#006d37] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'owner_upgrades' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <span>Hồ Sơ Chủ Trọ</span>
+            <FileCheck className={`w-6 h-6 mb-2 ${mainSection === 'owner_upgrades' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Hồ Sơ Chủ Trọ</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'owner_upgrades' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
               }`}
             >
@@ -485,15 +498,19 @@ export const AdminModerationPage: React.FC = () => {
             </span>
           </button>
 
+          {/* Item 5: Báo cáo vi phạm */}
           <button
             onClick={() => setMainSection('reports')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'reports' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'reports' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <span>Báo Cáo Vi Phạm</span>
+            <Flag className={`w-6 h-6 mb-2 ${mainSection === 'reports' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Báo Cáo Vi Phạm</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'reports' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-800'
               }`}
             >
