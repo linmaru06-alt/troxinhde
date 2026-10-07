@@ -7,11 +7,14 @@ import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
 import { formatPrice } from '../components/ui/Cards';
 import {
   getAllRoomsAdmin,
+  getAllBuildingsAdmin,
   getPendingOwnerApplications,
   getReportsAdmin,
   approveRoom as approveRoomApi,
   rejectRoom as rejectRoomApi,
   hideRoom as hideRoomApi,
+  approveBuilding as approveBuildingApi,
+  rejectBuilding as rejectBuildingApi,
   approveOwnerApplication as approveOwnerAppApi,
   rejectOwnerApplication as rejectOwnerAppApi,
   requestOwnerApplicationInfo as requestOwnerAppInfoApi,
@@ -59,11 +62,13 @@ export const AdminModerationPage: React.FC = () => {
     rejectMarketplaceItem,
   } = useAppStore();
 
-  const [mainSection, setMainSection] = useState<'rooms' | 'marketplace' | 'owner_upgrades' | 'reports'>('rooms');
+  const [mainSection, setMainSection] = useState<'rooms' | 'buildings' | 'marketplace' | 'owner_upgrades' | 'reports'>('rooms');
   const [activeRoomTab, setActiveRoomTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [activeBuildingTab, setActiveBuildingTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [activeMarketplaceTab, setActiveMarketplaceTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
   const [rooms, setRooms] = useState<any[]>([]);
+  const [buildings, setBuildings] = useState<any[]>([]);
   const [ownerApps, setOwnerApps] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [adminMarketplaceItems, setAdminMarketplaceItems] = useState<any[]>([]);
@@ -93,13 +98,15 @@ export const AdminModerationPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [r, o, rep, m] = await Promise.all([
+      const [r, b, o, rep, m] = await Promise.all([
         getAllRoomsAdmin(),
+        getAllBuildingsAdmin(),
         getPendingOwnerApplications(),
         getReportsAdmin(),
         getAllMarketplaceItemsAdmin(),
       ]);
       setRooms(r);
+      setBuildings(b);
       setOwnerApps(o);
       setReports(rep);
       if (m && m.length > 0) {
@@ -190,6 +197,37 @@ export const AdminModerationPage: React.FC = () => {
           await hideRoomApi(room.id, reason, currentUser);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast('Đã hạ tin phòng thành công!', 'success');
+          fetchData();
+        } catch (err: any) {
+          showToast(`Lỗi: ${err?.message}`, 'error');
+        }
+      },
+    });
+  };
+
+  // 3b. Duyệt Tòa nhà
+  const handleApproveBuilding = async (buildingId: string) => {
+    try {
+      await approveBuildingApi(buildingId, currentUser);
+      showToast('Đã phê duyệt tòa nhà thành công! 🎉', 'success');
+      fetchData();
+    } catch (err: any) {
+      showToast(`Lỗi khi duyệt tòa nhà: ${err?.message || 'Thất bại'}`, 'error');
+    }
+  };
+
+  const handleOpenRejectBuildingModal = (building: any) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'custom',
+      title: 'Từ chối / Yêu cầu bổ sung thông tin tòa nhà',
+      description: 'Tòa nhà sẽ chuyển sang trạng thái "Bị từ chối". Vui lòng ghi rõ lý do để chủ trọ cập nhật.',
+      entityName: building.name,
+      onConfirm: async (reason: string) => {
+        try {
+          await rejectBuildingApi(building.id, reason, currentUser);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          showToast('Đã từ chối và gửi lý do cho chủ trọ!', 'info');
           fetchData();
         } catch (err: any) {
           showToast(`Lỗi: ${err?.message}`, 'error');
@@ -333,6 +371,24 @@ export const AdminModerationPage: React.FC = () => {
     if (activeRoomTab === 'pending') return mod === 'pending' || st === 'Chờ duyệt' || st === 'pending';
     if (activeRoomTab === 'approved') return (mod === 'approved' && st !== 'hidden') || st === 'Còn trống' || st === 'available';
     if (activeRoomTab === 'rejected') return mod === 'rejected' || st === 'Bị từ chối' || st === 'hidden' || st === 'rejected';
+    return true;
+  });
+
+  // Lọc tòa nhà theo tab
+  const filteredBuildings = buildings.filter((b) => {
+    const mod = b.moderation_status || 'approved';
+    if (activeBuildingTab === 'pending') return mod === 'pending';
+    if (activeBuildingTab === 'approved') return mod === 'approved';
+    if (activeBuildingTab === 'rejected') return mod === 'rejected';
+    return true;
+  });
+
+  // Lọc tòa nhà theo tab
+  const filteredBuildings = buildings.filter((b) => {
+    const mod = b.moderation_status || 'approved';
+    if (activeBuildingTab === 'pending') return mod === 'pending';
+    if (activeBuildingTab === 'approved') return mod === 'approved';
+    if (activeBuildingTab === 'rejected') return mod === 'rejected';
     return true;
   });
 
@@ -558,6 +614,124 @@ export const AdminModerationPage: React.FC = () => {
                               Xem lại
                             </Button>
                           </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SECTION 1b: DUYỆT TÒA NHÀ */}
+        {mainSection === 'buildings' && (
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              {[
+                { id: 'pending', label: 'Chờ duyệt' },
+                { id: 'approved', label: 'Đã duyệt' },
+                { id: 'rejected', label: 'Bị từ chối' },
+                { id: 'all', label: 'Tất cả' },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveBuildingTab(tab.id as any)}
+                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
+                    activeBuildingTab === tab.id
+                      ? 'bg-[#006d37] text-white shadow-xs'
+                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+            {filteredBuildings.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-3xl border border-gray-200 text-gray-400 text-xs">
+                Không có tòa nhà nào trong danh mục này.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredBuildings.map((building) => {
+                  const isPending = building.moderation_status === 'pending';
+                  return (
+                    <div
+                      key={building.id}
+                      className="bg-white rounded-3xl border border-gray-200/80 shadow-xs p-5 flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isPending
+                                ? 'bg-amber-100 text-amber-800'
+                                : building.moderation_status === 'rejected'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {isPending
+                              ? 'Chờ duyệt'
+                              : building.moderation_status === 'rejected'
+                              ? 'Bị từ chối'
+                              : 'Đã duyệt'}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(building.created_at).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+
+                        <h3 className="font-extrabold text-sm text-gray-900 line-clamp-1">{building.name}</h3>
+                        <p className="text-xs text-gray-500 line-clamp-2 flex items-start gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                          {building.address}, {building.district}, {building.city || 'Hà Nội'}
+                        </p>
+
+                        <div className="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-xl space-y-1 mt-2">
+                          <div>
+                            Chủ trọ: <strong>{building.profiles?.full_name || 'Đối tác'}</strong>
+                          </div>
+                          <div>SĐT: {building.profiles?.phone || 'Chưa có'}</div>
+                        </div>
+
+                        {building.rejection_reason && (
+                          <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-xl mt-2">
+                            <strong>Lý do từ chối:</strong> {building.rejection_reason}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-100 flex items-center gap-2">
+                        {isPending ? (
+                          <div className="flex gap-2 w-full">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs text-rose-600 border-rose-200"
+                              onClick={() => handleOpenRejectBuildingModal(building)}
+                            >
+                              Từ chối
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => handleApproveBuilding(building.id)}
+                            >
+                              Duyệt
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs"
+                            disabled
+                          >
+                            Đã xử lý
+                          </Button>
                         )}
                       </div>
                     </div>

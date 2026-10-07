@@ -270,6 +270,122 @@ export async function getAllRoomsAdmin() {
 }
 
 /**
+ * Lấy danh sách tòa nhà cho Admin
+ */
+export async function getAllBuildingsAdmin() {
+  if (!isSupabaseConfigured) return [];
+
+  const { data, error } = await supabase
+    .from('buildings')
+    .select(`
+      *,
+      profiles!owner_id(id, full_name, phone, avatar_url)
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) {
+    console.warn('[Admin API] Lỗi getAllBuildingsAdmin:', error);
+    return [];
+  }
+  return data || [];
+}
+
+/**
+ * Phê duyệt tòa nhà
+ */
+export async function approveBuilding(buildingId: string, admin?: User | null) {
+  if (!isSupabaseConfigured) return true;
+
+  const { data: oldBuilding } = await supabase.from('buildings').select('*').eq('id', buildingId).single();
+
+  const { error } = await supabase
+    .from('buildings')
+    .update({
+      moderation_status: 'approved',
+      rejection_reason: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', buildingId);
+
+  if (error) throw error;
+
+  await logAdminAudit({
+    action: 'approve_building',
+    entity_type: 'building' as any,
+    entity_id: buildingId,
+    data_before: oldBuilding ? { moderation_status: oldBuilding.moderation_status } : null,
+    data_after: { moderation_status: 'approved' },
+    admin,
+  });
+
+  if (oldBuilding?.owner_id) {
+    try {
+      await supabase.from('notifications').insert({
+        user_id: oldBuilding.owner_id,
+        type: 'building_approved',
+        title: 'Tòa nhà đã được duyệt! 🏢',
+        body: `Tòa nhà "${oldBuilding.name || 'của bạn'}" đã được duyệt. Bạn có thể bắt đầu đăng phòng thuộc tòa nhà này.`,
+        cta_url: `/chu-tro/toa-nha/${buildingId}`,
+        cta_label: 'Xem tòa nhà',
+        is_read: false,
+      });
+    } catch (notifErr) {
+      console.warn('[Admin] Lỗi gửi thông báo duyệt tòa nhà:', notifErr);
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Từ chối/yêu cầu bổ sung tòa nhà
+ */
+export async function rejectBuilding(buildingId: string, reason: string, admin?: User | null) {
+  if (!isSupabaseConfigured) return true;
+
+  const { data: oldBuilding } = await supabase.from('buildings').select('*').eq('id', buildingId).single();
+
+  const { error } = await supabase
+    .from('buildings')
+    .update({
+      moderation_status: 'rejected',
+      rejection_reason: reason,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', buildingId);
+
+  if (error) throw error;
+
+  await logAdminAudit({
+    action: 'reject_building',
+    entity_type: 'building' as any,
+    entity_id: buildingId,
+    data_before: oldBuilding ? { moderation_status: oldBuilding.moderation_status } : null,
+    data_after: { moderation_status: 'rejected', rejection_reason: reason },
+    reason,
+    admin,
+  });
+
+  if (oldBuilding?.owner_id) {
+    try {
+      await supabase.from('notifications').insert({
+        user_id: oldBuilding.owner_id,
+        type: 'building_rejected',
+        title: 'Tòa nhà cần bổ sung thông tin ✏️',
+        body: `Tòa nhà "${oldBuilding.name || 'của bạn'}" chưa được duyệt. Lý do: ${reason}. Vui lòng cập nhật lại.`,
+        cta_url: `/chu-tro/toa-nha/${buildingId}`,
+        cta_label: 'Cập nhật tòa nhà',
+        is_read: false,
+      });
+    } catch (notifErr) {
+      console.warn('[Admin] Lỗi gửi thông báo từ chối tòa nhà:', notifErr);
+    }
+  }
+
+  return true;
+}
+
+/**
  * Phê duyệt phòng trọ
  */
 export async function approveRoom(roomId: string, admin?: User | null) {
