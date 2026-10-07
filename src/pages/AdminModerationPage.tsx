@@ -428,6 +428,23 @@ export const AdminModerationPage: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setMainSection('buildings')}
+            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
+              mainSection === 'buildings' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            }`}
+          >
+            <Building2 className="w-3.5 h-3.5" />
+            <span>Tòa Nhà</span>
+            <span
+              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                mainSection === 'buildings' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-[#006d37]'
+              }`}
+            >
+              {buildings.filter((b) => b.moderation_status === 'pending').length}
+            </span>
+          </button>
+
+          <button
             onClick={() => setMainSection('marketplace')}
             className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
               mainSection === 'marketplace'
