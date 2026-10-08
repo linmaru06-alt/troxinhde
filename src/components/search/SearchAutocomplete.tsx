@@ -5,67 +5,167 @@ import { useOutsideClick } from '../../hooks/useOutsideClick';
 import { useDebounce } from '../../hooks/useDebounce';
 import { Search, X, Sparkles, MapPin, School, Building, ArrowRight } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
+import {
+  isPublicRoom,
+  removeVietnameseTones,
+  isSchoolMatch,
+  isDistrictMatch,
+  normalizeSchoolName,
+} from '../../lib/roomSearch';
 
-// Mock list of Top Universities in Hanoi
-export const HANOI_UNIVERSITIES_SUGGEST = [
-  { name: 'ĐH Bách Khoa Hà Nội', short: 'Bách Khoa', district: 'Quận Hai Bà Trưng', count: 28 },
-  { name: 'ĐHQG Hà Nội', short: 'ĐHQG', district: 'Quận Cầu Giấy', count: 35 },
-  { name: 'ĐH Kinh Tế Quốc Dân', short: 'NEU', district: 'Quận Hai Bà Trưng', count: 24 },
-  { name: 'ĐH Xây Dựng', short: 'Xây Dựng', district: 'Quận Hai Bà Trưng', count: 19 },
-  { name: 'ĐH Sư Phạm Hà Nội', short: 'Sư Phạm', district: 'Quận Cầu Giấy', count: 22 },
-  { name: 'ĐH Y Hà Nội', short: 'ĐH Y', district: 'Quận Đống Đa', count: 18 },
-  { name: 'ĐH Ngoại Thương', short: 'FTU', district: 'Quận Đống Đa', count: 26 },
-  { name: 'ĐH Luật Hà Nội', short: 'ĐH Luật', district: 'Quận Đống Đa', count: 15 },
-  { name: 'Học Viện Ngân Hàng', short: 'HV Ngân Hàng', district: 'Quận Đống Đa', count: 20 },
-  { name: 'ĐH FPT Hà Nội', short: 'FPT', district: 'Khu CNC Hòa Lạc', count: 16 },
-  { name: 'ĐH Thủy Lợi', short: 'Thủy Lợi', district: 'Quận Đống Đa', count: 17 },
-  { name: 'ĐH Giao Thông Vận Tải', short: 'GTVT', district: 'Quận Đống Đa', count: 21 },
+// Danh sách trường đại học tiêu biểu tại Hà Nội kèm các bí danh / viết tắt thông dụng
+export const HANOI_UNIVERSITIES_DATA = [
+  {
+    name: 'ĐH Bách Khoa Hà Nội',
+    short: 'Bách Khoa',
+    aliases: ['hust', 'bk', 'bkhn', 'bach khoa'],
+    district: 'Quận Hai Bà Trưng',
+  },
+  {
+    name: 'ĐHQG Hà Nội',
+    short: 'ĐHQG',
+    aliases: ['vnu', 'dhqg', 'quoc gia', 'uet', 'hus', 'ussh', 'ulis'],
+    district: 'Quận Cầu Giấy',
+  },
+  {
+    name: 'ĐH Kinh Tế Quốc Dân',
+    short: 'NEU',
+    aliases: ['neu', 'ktqd', 'kinh te'],
+    district: 'Quận Hai Bà Trưng',
+  },
+  {
+    name: 'ĐH Ngoại Thương',
+    short: 'FTU',
+    aliases: ['ftu', 'ngoai thuong'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'ĐH Sư Phạm Hà Nội',
+    short: 'Sư Phạm',
+    aliases: ['hnue', 'dhsp', 'su pham'],
+    district: 'Quận Cầu Giấy',
+  },
+  {
+    name: 'ĐH Xây Dựng',
+    short: 'Xây Dựng',
+    aliases: ['nuce', 'huce', 'dhxd', 'xay dung'],
+    district: 'Quận Hai Bà Trưng',
+  },
+  {
+    name: 'ĐH Thương Mại',
+    short: 'Thương Mại',
+    aliases: ['tmu', 'dhtm', 'thuong mai'],
+    district: 'Quận Cầu Giấy',
+  },
+  {
+    name: 'Học Viện Ngân Hàng',
+    short: 'HV Ngân Hàng',
+    aliases: ['hvnh', 'ba', 'ngan hang'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'Học Viện Báo Chí & Tuyên Truyền',
+    short: 'Báo Chí',
+    aliases: ['ajc', 'hvbc', 'bao chi'],
+    district: 'Quận Cầu Giấy',
+  },
+  {
+    name: 'Học Viện Bưu Chính Viễn Thông',
+    short: 'Bưu Chính',
+    aliases: ['ptit', 'buu chinh'],
+    district: 'Quận Hà Đông',
+  },
+  {
+    name: 'Học Viện Ngoại Giao',
+    short: 'Ngoại Giao',
+    aliases: ['dav', 'hvng', 'ngoai giao'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'ĐH Giao Thông Vận Tải',
+    short: 'GTVT',
+    aliases: ['utc', 'gtvt', 'giao thong'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'ĐH Y Hà Nội',
+    short: 'ĐH Y',
+    aliases: ['hmu', 'dhy', 'y ha noi'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'ĐH Luật Hà Nội',
+    short: 'ĐH Luật',
+    aliases: ['hlu', 'dhluat', 'luat'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'ĐH Kiến Trúc Hà Nội',
+    short: 'Kiến Trúc',
+    aliases: ['hau', 'dhkt', 'kien truc'],
+    district: 'Quận Hà Đông',
+  },
+  {
+    name: 'ĐH Hà Nội',
+    short: 'HANU',
+    aliases: ['hanu', 'dhhn', 'dh ha noi'],
+    district: 'Quận Nam Từ Liêm',
+  },
+  {
+    name: 'ĐH Thủy Lợi',
+    short: 'Thủy Lợi',
+    aliases: ['tlu', 'dhtl', 'thuy loi'],
+    district: 'Quận Đống Đa',
+  },
+  {
+    name: 'ĐH Công Nghiệp Hà Nội',
+    short: 'Công Nghiệp',
+    aliases: ['haui', 'dhcn', 'cong nghiep'],
+    district: 'Quận Bắc Từ Liêm',
+  },
+  {
+    name: 'ĐH FPT Hà Nội',
+    short: 'FPT',
+    aliases: ['fpt'],
+    district: 'Khu CNC Hòa Lạc',
+  },
 ];
 
-// Mock list of Districts in Hanoi
-export const HANOI_DISTRICTS_SUGGEST = [
-  { name: 'Quận Cầu Giấy', short: 'Cầu Giấy', count: 48 },
-  { name: 'Quận Đống Đa', short: 'Đống Đa', count: 42 },
-  { name: 'Quận Hai Bà Trưng', short: 'Hai Bà Trưng', count: 36 },
-  { name: 'Quận Thanh Xuân', short: 'Thanh Xuân', count: 39 },
-  { name: 'Quận Nam Từ Liêm', short: 'Nam Từ Liêm', count: 29 },
-  { name: 'Quận Bắc Từ Liêm', short: 'Bắc Từ Liêm', count: 25 },
-  { name: 'Quận Hà Đông', short: 'Hà Đông', count: 31 },
-  { name: 'Quận Ba Đình', short: 'Ba Đình', count: 23 },
-  { name: 'Quận Hoàng Mai', short: 'Hoàng Mai', count: 18 },
-  { name: 'Quận Hoàn Kiếm', short: 'Hoàn Kiếm', count: 14 },
-  { name: 'Quận Tây Hồ', short: 'Tây Hồ', count: 16 },
-  { name: 'Phường Láng Hạ', short: 'Láng Hạ', count: 12 },
-  { name: 'Phường Dịch Vọng Hậu', short: 'Dịch Vọng Hậu', count: 15 },
+// Danh sách các quận trọng điểm tại Hà Nội
+export const HANOI_DISTRICTS_DATA = [
+  { name: 'Quận Cầu Giấy', short: 'Cầu Giấy' },
+  { name: 'Quận Đống Đa', short: 'Đống Đa' },
+  { name: 'Quận Hai Bà Trưng', short: 'Hai Bà Trưng' },
+  { name: 'Quận Thanh Xuân', short: 'Thanh Xuân' },
+  { name: 'Quận Nam Từ Liêm', short: 'Nam Từ Liêm' },
+  { name: 'Quận Bắc Từ Liêm', short: 'Bắc Từ Liêm' },
+  { name: 'Quận Hà Đông', short: 'Hà Đông' },
+  { name: 'Quận Ba Đình', short: 'Ba Đình' },
+  { name: 'Quận Hoàng Mai', short: 'Hoàng Mai' },
+  { name: 'Quận Hoàn Kiếm', short: 'Hoàn Kiếm' },
+  { name: 'Quận Tây Hồ', short: 'Tây Hồ' },
+  { name: 'Quận Long Biên', short: 'Long Biên' },
 ];
 
-// Mock list of Famous Student Hubs / Landmarks
-export const HANOI_LANDMARKS_SUGGEST = [
-  { name: 'Khu vực Chùa Láng', district: 'Quận Đống Đa', count: 19 },
-  { name: 'Ngã tư Sở', district: 'Quận Đống Đa', count: 27 },
-  { name: 'Khu vực Hồ Triều Khúc', district: 'Quận Thanh Xuân', count: 23 },
-  { name: 'Chợ Nhà Xanh Cầu Giấy', district: 'Quận Cầu Giấy', count: 18 },
-  { name: 'Khu Đô Thị Trung Hòa Nhân Chính', district: 'Quận Cầu Giấy', count: 16 },
-  { name: 'Khu Đô Thị Mễ Trì', district: 'Quận Nam Từ Liêm', count: 14 },
+// Danh sách địa danh, tuyến đường & cụm sinh viên nổi tiếng
+export const HANOI_LANDMARKS_DATA = [
+  { name: 'Khu vực Chùa Láng', keyword: 'chùa láng', district: 'Quận Đống Đa' },
+  { name: 'Ngã tư Sở', keyword: 'ngã tư sở', district: 'Quận Đống Đa' },
+  { name: 'Khu vực Hồ Triều Khúc', keyword: 'triều khúc', district: 'Quận Thanh Xuân' },
+  { name: 'Chợ Nhà Xanh Cầu Giấy', keyword: 'nhà xanh', district: 'Quận Cầu Giấy' },
+  { name: 'Khu Đô Thị Trung Hòa Nhân Chính', keyword: 'trung hòa', district: 'Quận Cầu Giấy' },
+  { name: 'Khu Đô Thị Mễ Trì', keyword: 'mễ trì', district: 'Quận Nam Từ Liêm' },
+  { name: 'Đường Hồ Tùng Mậu', keyword: 'hồ tùng mậu', district: 'Quận Cầu Giấy' },
+  { name: 'Khu Bách Kinh Xây (Tạ Quang Bửu)', keyword: 'tạ quang bửu', district: 'Quận Hai Bà Trưng' },
+  { name: 'Phố Dịch Vọng Hậu', keyword: 'dịch vọng hậu', district: 'Quận Cầu Giấy' },
 ];
-
-// Helper to remove Vietnamese tones for fuzzy searching
-function removeVietnameseTones(str: string | null | undefined): string {
-  if (!str || typeof str !== 'string') return '';
-  return str
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/đ/g, 'd')
-    .replace(/Đ/g, 'D')
-    .toLowerCase();
-}
 
 // Highlight matching text helper
 function HighlightMatch({ text, query }: { text: string; query: string }) {
   if (!query.trim()) return <span>{text}</span>;
 
-  const normalizedText = removeVietnameseTones(text);
-  const normalizedQuery = removeVietnameseTones(query);
+  const normalizedText = removeVietnameseTones(text).toLowerCase();
+  const normalizedQuery = removeVietnameseTones(query).toLowerCase();
   const matchIndex = normalizedText.indexOf(normalizedQuery);
 
   if (matchIndex === -1) return <span>{text}</span>;
@@ -77,7 +177,7 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
   return (
     <span>
       {before}
-      <strong className="text-[#006d37] font-black bg-emerald-100/60 px-0.5 rounded-sm">{matched}</strong>
+      <strong className="text-[#006d37] font-black bg-emerald-100/60 px-0.5 rounded-xs">{matched}</strong>
       {after}
     </span>
   );
@@ -86,17 +186,20 @@ function HighlightMatch({ text, query }: { text: string; query: string }) {
 export interface SearchAutocompleteProps {
   placeholder?: string;
   initialValue?: string;
+  rooms?: any[];
   onSelect?: (value: string, type: 'university' | 'district' | 'landmark') => void;
   className?: string;
 }
 
 export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
-  placeholder = 'Tìm theo trường ĐH, quận, hoặc địa danh (vd: Bách Khoa, Cầu Giấy...)',
+  placeholder = 'Tìm phòng theo trường ĐH, quận hoặc địa danh (vd: Bách Khoa, Cầu Giấy, Chùa Láng...)',
   initialValue = '',
+  rooms: propRooms,
   onSelect,
   className = '',
 }) => {
   const navigate = useNavigate();
+  const { rooms: storeRooms = [] } = useAppStore();
   const [inputValue, setInputValue] = useState<string>(initialValue);
   const debouncedQuery = useDebounce(inputValue.trim(), 250);
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -104,42 +207,131 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   const containerRef = useRef<HTMLDivElement>(null);
   useOutsideClick(containerRef, () => setIsOpen(false), isOpen);
 
-  // Sync internal state when initialValue changes (Back/Forward, reload, chip removals)
+  // Sync internal state when initialValue changes
   useEffect(() => {
     setInputValue(initialValue || '');
   }, [initialValue]);
 
-  // Match items across 3 groups
+  // Lấy danh sách các phòng hợp lệ & công khai đang hoạt động
+  const activeRooms = useMemo(() => {
+    const raw = (propRooms && propRooms.length > 0 ? propRooms : storeRooms) || [];
+    return raw.filter(isPublicRoom);
+  }, [propRooms, storeRooms]);
+
+  // 1. Tính toán số phòng THỰC TẾ cho từng trường ĐH theo thời gian thực
+  const universitiesWithCounts = useMemo(() => {
+    return HANOI_UNIVERSITIES_DATA.map((uni) => {
+      const count = activeRooms.filter((r) => {
+        if (!r.nearestSchool) return false;
+        // Kiểm tra khớp tên chuẩn
+        if (isSchoolMatch(uni.name, r.nearestSchool)) return true;
+        // Kiểm tra khớp tên ngắn
+        if (isSchoolMatch(uni.short, r.nearestSchool)) return true;
+        // Kiểm tra khớp bất kỳ alias nào (hust, neu, ftu...)
+        return uni.aliases.some((alias) => isSchoolMatch(alias, r.nearestSchool));
+      }).length;
+
+      return {
+        ...uni,
+        count,
+      };
+    });
+  }, [activeRooms]);
+
+  // 2. Tính toán số phòng THỰC TẾ cho từng quận theo thời gian thực
+  const districtsWithCounts = useMemo(() => {
+    return HANOI_DISTRICTS_DATA.map((d) => {
+      const count = activeRooms.filter((r) => isDistrictMatch(r.district, d.name)).length;
+      return {
+        ...d,
+        count,
+      };
+    });
+  }, [activeRooms]);
+
+  // 3. Tính toán số phòng THỰC TẾ cho từng địa danh theo thời gian thực
+  const landmarksWithCounts = useMemo(() => {
+    return HANOI_LANDMARKS_DATA.map((l) => {
+      const normKw = removeVietnameseTones(l.keyword).toLowerCase();
+      const count = activeRooms.filter((r) => {
+        const fullSearchable = removeVietnameseTones(
+          `${r.title} ${r.address} ${r.district} ${r.nearestSchool || ''} ${r.description || ''}`
+        ).toLowerCase();
+        return fullSearchable.includes(normKw);
+      }).length;
+
+      return {
+        ...l,
+        count,
+      };
+    });
+  }, [activeRooms]);
+
+  // Lọc và sắp xếp thông minh danh sách gợi ý
   const suggestions = useMemo(() => {
     if (!debouncedQuery) {
+      // Khi chưa gõ gì: ưu tiên hiển thị những nơi ĐANG CÓ PHÒNG THỰC TẾ (> 0) lên trước
+      const sortedUnis = [...universitiesWithCounts]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+
+      const sortedDistricts = [...districtsWithCounts]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 3);
+
+      const sortedLandmarks = [...landmarksWithCounts]
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 2);
+
       return {
-        universities: HANOI_UNIVERSITIES_SUGGEST.slice(0, 3),
-        districts: HANOI_DISTRICTS_SUGGEST.slice(0, 3),
-        landmarks: HANOI_LANDMARKS_SUGGEST.slice(0, 2),
+        universities: sortedUnis,
+        districts: sortedDistricts,
+        landmarks: sortedLandmarks,
       };
     }
 
-    const normQ = removeVietnameseTones(debouncedQuery);
+    const normQ = removeVietnameseTones(debouncedQuery).toLowerCase();
+    const expandedSchoolQ = normalizeSchoolName(debouncedQuery);
 
-    const universities = HANOI_UNIVERSITIES_SUGGEST.filter(
-      (u) => removeVietnameseTones(u.name).includes(normQ) || removeVietnameseTones(u.short).includes(normQ)
-    );
+    // Lọc trường ĐH (khớp tên, viết tắt, alias hoặc quận)
+    const universities = universitiesWithCounts
+      .filter((u) => {
+        const normName = removeVietnameseTones(u.name).toLowerCase();
+        const normShort = removeVietnameseTones(u.short).toLowerCase();
+        const matchAlias = u.aliases.some((a) => a.includes(normQ) || normQ.includes(a));
+        const matchName = normName.includes(normQ) || normQ.includes(normName);
+        const matchShort = normShort.includes(normQ) || normQ.includes(normShort);
+        const matchExpanded = expandedSchoolQ ? isSchoolMatch(debouncedQuery, u.name) : false;
+        return matchName || matchShort || matchAlias || matchExpanded;
+      })
+      .sort((a, b) => b.count - a.count);
 
-    const districts = HANOI_DISTRICTS_SUGGEST.filter(
-      (d) => removeVietnameseTones(d.name).includes(normQ) || removeVietnameseTones(d.short).includes(normQ)
-    );
+    // Lọc quận (khớp tên hoặc tên không tiền tố)
+    const districts = districtsWithCounts
+      .filter((d) => {
+        const normName = removeVietnameseTones(d.name).toLowerCase();
+        const normShort = removeVietnameseTones(d.short).toLowerCase();
+        return normName.includes(normQ) || normShort.includes(normQ) || isDistrictMatch(d.name, debouncedQuery);
+      })
+      .sort((a, b) => b.count - a.count);
 
-    const landmarks = HANOI_LANDMARKS_SUGGEST.filter(
-      (l) => removeVietnameseTones(l.name).includes(normQ) || removeVietnameseTones(l.district).includes(normQ)
-    );
+    // Lọc địa danh (khớp tên, keyword hoặc quận)
+    const landmarks = landmarksWithCounts
+      .filter((l) => {
+        const normName = removeVietnameseTones(l.name).toLowerCase();
+        const normKw = removeVietnameseTones(l.keyword).toLowerCase();
+        const normDist = removeVietnameseTones(l.district).toLowerCase();
+        return normName.includes(normQ) || normKw.includes(normQ) || normDist.includes(normQ);
+      })
+      .sort((a, b) => b.count - a.count);
 
     return { universities, districts, landmarks };
-  }, [debouncedQuery]);
+  }, [debouncedQuery, universitiesWithCounts, districtsWithCounts, landmarksWithCounts]);
 
   const totalResults =
     suggestions.universities.length + suggestions.districts.length + suggestions.landmarks.length;
 
-  const handleSelect = (text: string, type: 'university' | 'district' | 'landmark', districtFilter?: string) => {
+  const handleSelect = (text: string, type: 'university' | 'district' | 'landmark') => {
     const cleanText = text.replace(/^Gần\s+/i, '').trim();
     setInputValue(cleanText);
     setIsOpen(false);
@@ -227,10 +419,10 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
           >
             {totalResults === 0 ? (
               <div className="p-4 text-center space-y-2">
-                <p className="text-xs font-bold text-gray-800">Không tìm thấy khu vực phù hợp</p>
+                <p className="text-xs font-bold text-gray-800">Không tìm thấy địa điểm khớp "{inputValue}"</p>
                 <p className="text-[11px] text-gray-500">
-                  Thử tìm:
-                  {['Cầu Giấy', 'Đống Đa', 'Bách Khoa', 'Chùa Láng'].map((quick) => (
+                  Gợi ý tìm kiếm nhanh:
+                  {['Cầu Giấy', 'Đống Đa', 'Bách Khoa', 'Chùa Láng', 'NEU', 'FTU'].map((quick) => (
                     <button
                       key={quick}
                       type="button"
@@ -263,10 +455,18 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                             <p className="font-semibold text-gray-900 group-hover:text-[#006d37] transition">
                               Gần <HighlightMatch text={uni.name} query={debouncedQuery} />
                             </p>
-                            <p className="text-[10px] text-gray-400">{uni.district}</p>
+                            <p className="text-[10px] text-gray-400">
+                              {uni.district} • {uni.short}
+                            </p>
                           </div>
                         </div>
-                        <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 shrink-0">
+                        <span
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition ${
+                            uni.count > 0
+                              ? 'text-[#006d37] bg-emerald-50 border-emerald-200/60'
+                              : 'text-gray-400 bg-gray-50 border-gray-200/50'
+                          }`}
+                        >
                           {uni.count} phòng
                         </span>
                       </div>
@@ -293,7 +493,13 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                             <HighlightMatch text={d.name} query={debouncedQuery} />
                           </span>
                         </div>
-                        <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 shrink-0">
+                        <span
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition ${
+                            d.count > 0
+                              ? 'text-[#006d37] bg-emerald-50 border-emerald-200/60'
+                              : 'text-gray-400 bg-gray-50 border-gray-200/50'
+                          }`}
+                        >
                           {d.count} phòng
                         </span>
                       </div>
@@ -323,7 +529,13 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                             <p className="text-[10px] text-gray-400">{l.district}</p>
                           </div>
                         </div>
-                        <span className="text-[11px] font-bold text-[#006d37] bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 shrink-0">
+                        <span
+                          className={`text-[11px] font-bold px-2 py-0.5 rounded-full border shrink-0 transition ${
+                            l.count > 0
+                              ? 'text-[#006d37] bg-emerald-50 border-emerald-200/60'
+                              : 'text-gray-400 bg-gray-50 border-gray-200/50'
+                          }`}
+                        >
                           {l.count} phòng
                         </span>
                       </div>
@@ -337,11 +549,15 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
                     type="button"
                     onClick={() => {
                       setIsOpen(false);
-                      navigate(inputValue.trim() ? `/tim-kiem?q=${encodeURIComponent(inputValue.trim())}` : '/tim-kiem');
+                      navigate(
+                        inputValue.trim()
+                          ? `/tim-kiem?q=${encodeURIComponent(inputValue.trim())}`
+                          : '/tim-kiem'
+                      );
                     }}
-                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-[#006d37] hover:bg-emerald-50 rounded-xl transition"
+                    className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-[#006d37] hover:bg-emerald-50 rounded-xl transition cursor-pointer"
                   >
-                    <span>Xem tất cả phòng trọ Hà Nội</span>
+                    <span>Xem tất cả phòng trọ Hà Nội ({activeRooms.length} phòng)</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
