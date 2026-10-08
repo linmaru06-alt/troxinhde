@@ -69,6 +69,7 @@ export const MapViewPage: React.FC = () => {
     selectedPrice,
     selectedType,
     selectedAmenity,
+    selectedAmenities,
     verifiedOnly,
   } = searchParamsObj;
 
@@ -211,7 +212,7 @@ export const MapViewPage: React.FC = () => {
     urlDistrict ||
     selectedPrice ||
     selectedType ||
-    selectedAmenity ||
+    (selectedAmenities && selectedAmenities.length > 0) ||
     verifiedOnly
   );
 
@@ -390,14 +391,21 @@ export const MapViewPage: React.FC = () => {
                 </button>
               </span>
             )}
-            {selectedAmenity && (
-              <span className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
-                ⚡ {selectedAmenity}
-                <button onClick={() => updateParam('tienIch', '')} className="hover:text-rose-600 cursor-pointer">
+            {selectedAmenities.map((amenity) => (
+              <span key={amenity} className="inline-flex items-center gap-1 bg-gray-50 text-gray-800 px-2.5 py-0.5 rounded-full border border-gray-200 shadow-2xs shrink-0">
+                ⚡ {amenity}
+                <button
+                  onClick={() => {
+                    const remaining = selectedAmenities.filter((a) => a !== amenity);
+                    updateParam('tienIch', remaining.join(','));
+                  }}
+                  className="hover:text-rose-600 cursor-pointer"
+                  title={`Bỏ chọn ${amenity}`}
+                >
                   <X className="w-3 h-3" />
                 </button>
               </span>
-            )}
+            ))}
             <button
               onClick={clearAllFilters}
               className="text-rose-600 hover:text-rose-800 underline ml-auto shrink-0 cursor-pointer flex items-center gap-1"

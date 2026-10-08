@@ -84,6 +84,7 @@ export const SearchPage: React.FC = () => {
     selectedPrice,
     selectedType,
     selectedAmenity,
+    selectedAmenities,
     verifiedOnly,
     selectedSort,
   } = searchParamsObj;
@@ -95,7 +96,7 @@ export const SearchPage: React.FC = () => {
     district: selectedDistrict,
     price: selectedPrice,
     type: selectedType,
-    amenity: selectedAmenity,
+    amenities: selectedAmenities,
     sort: selectedSort,
   });
 
@@ -108,11 +109,11 @@ export const SearchPage: React.FC = () => {
         district: selectedDistrict,
         price: selectedPrice,
         type: selectedType,
-        amenity: selectedAmenity,
+        amenities: selectedAmenities,
         sort: selectedSort,
       });
     }
-  }, [isMobileFilterOpen, verifiedOnly, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedAmenity, selectedSort]);
+  }, [isMobileFilterOpen, verifiedOnly, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedAmenities, selectedSort]);
 
   // Close without applying – draft changes are discarded
   const handleMobileClose = () => closeAllSheets();
@@ -124,11 +125,11 @@ export const SearchPage: React.FC = () => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
       mobileDraft.verified ? next.set('xacMinh', 'true') : next.delete('xacMinh');
-      mobileDraft.school   ? next.set('truong',  mobileDraft.school)   : next.delete('truong');
-      mobileDraft.district ? next.set('khuVuc',  mobileDraft.district) : next.delete('khuVuc');
-      mobileDraft.price    ? next.set('gia',     mobileDraft.price)    : next.delete('gia');
-      mobileDraft.type     ? next.set('loai',    mobileDraft.type)     : next.delete('loai');
-      mobileDraft.amenity  ? next.set('tienIch', mobileDraft.amenity)  : next.delete('tienIch');
+      mobileDraft.school ? next.set('truong', mobileDraft.school) : next.delete('truong');
+      mobileDraft.district ? next.set('khuVuc', mobileDraft.district) : next.delete('khuVuc');
+      mobileDraft.price ? next.set('gia', mobileDraft.price) : next.delete('gia');
+      mobileDraft.type ? next.set('loai', mobileDraft.type) : next.delete('loai');
+      mobileDraft.amenities.length > 0 ? next.set('tienIch', mobileDraft.amenities.join(',')) : next.delete('tienIch');
       if (mobileDraft.sort && mobileDraft.sort !== 'verified_first') {
         next.set('sort', mobileDraft.sort);
       } else {
@@ -139,6 +140,34 @@ export const SearchPage: React.FC = () => {
       return next;
     });
     closeAllSheets();
+  };
+
+  const toggleAmenity = (amenity: string) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      let nextList: string[];
+      if (selectedAmenities.includes(amenity)) {
+        nextList = selectedAmenities.filter((a) => a !== amenity);
+      } else {
+        nextList = [...selectedAmenities, amenity];
+      }
+      if (nextList.length > 0) {
+        next.set('tienIch', nextList.join(','));
+      } else {
+        next.delete('tienIch');
+      }
+      next.delete('page');
+      return next;
+    });
+  };
+
+  const clearAmenities = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete('tienIch');
+      next.delete('page');
+      return next;
+    });
   };
 
   const updateParam = (key: string, value: string) => {
@@ -160,6 +189,16 @@ export const SearchPage: React.FC = () => {
 
   const clearAllFilters = () => {
     setSearchParams(new URLSearchParams());
+  };
+
+  const clearAllFiltersAndScrollTop = () => {
+    setSearchParams(new URLSearchParams());
+    const mainList = document.getElementById('danh-sach-phong-top');
+    if (mainList) {
+      mainList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
   };
 
   const handleShare = () => {
@@ -227,11 +266,23 @@ export const SearchPage: React.FC = () => {
     return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
   }, [totalPages, currentPage]);
 
-  const activeFilterCount = [searchQuery, selectedSchool, selectedDistrict, selectedPrice, selectedType, selectedAmenity, verifiedOnly ? 'xacMinh' : ''].filter(Boolean).length;
+  const activeFilterCount = [
+    searchQuery,
+    selectedSchool,
+    selectedDistrict,
+    selectedPrice,
+    selectedType,
+    ...selectedAmenities,
+    verifiedOnly ? 'xacMinh' : '',
+  ].filter(Boolean).length;
 
   const mobileDraftFilterCount = [
-    mobileDraft.school, mobileDraft.district, mobileDraft.price,
-    mobileDraft.type, mobileDraft.amenity, mobileDraft.verified ? 'v' : '',
+    mobileDraft.school,
+    mobileDraft.district,
+    mobileDraft.price,
+    mobileDraft.type,
+    ...(mobileDraft.amenities || []),
+    mobileDraft.verified ? 'v' : '',
     mobileDraft.sort && mobileDraft.sort !== 'verified_first' ? 's' : '',
   ].filter(Boolean).length;
 
@@ -246,7 +297,8 @@ export const SearchPage: React.FC = () => {
       {/* Top Search Autocomplete Bar */}
       <div className="bg-white p-3.5 sm:p-4 rounded-3xl border border-gray-200 shadow-xs">
         <SearchAutocomplete
-          initialValue={searchQuery || selectedSchool}
+          rooms={activeRooms}
+          initialValue={searchQuery || selectedSchool || selectedDistrict}
           placeholder="Tìm phòng theo trường ĐH, quận hoặc địa danh (vd: Bách Khoa, Cầu Giấy, Chùa Láng...)"
           onSelect={(val, type) => {
             setSearchParams((prev) => {
@@ -255,13 +307,19 @@ export const SearchPage: React.FC = () => {
               if (!cleanVal) {
                 next.delete('q');
                 next.delete('truong');
+                next.delete('khuVuc');
               } else if (type === 'district') {
                 next.set('khuVuc', cleanVal);
+                next.delete('q');
+                next.delete('truong');
               } else if (type === 'university') {
                 next.set('truong', cleanVal);
                 next.delete('q');
+                next.delete('khuVuc');
               } else {
                 next.set('q', cleanVal);
+                next.delete('truong');
+                next.delete('khuVuc');
               }
               // Reset to page 1 on search select
               next.delete('page');
@@ -403,12 +461,24 @@ export const SearchPage: React.FC = () => {
               <button onClick={() => updateParam('loai', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
             </span>
           )}
-          {selectedAmenity && (
-            <span className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold">
-              ⚡ {selectedAmenity}
-              <button onClick={() => updateParam('tienIch', '')}><X className="w-3 h-3 hover:text-rose-600" /></button>
+          {selectedAmenities.map((amenity) => (
+            <span
+              key={amenity}
+              className="inline-flex items-center gap-1 bg-emerald-50 text-[#00a854] px-3 py-1 rounded-full border border-emerald-200 font-bold"
+            >
+              ⚡ {amenity}
+              <button
+                onClick={() => {
+                  const remaining = selectedAmenities.filter((a) => a !== amenity);
+                  updateParam('tienIch', remaining.join(','));
+                }}
+                className="cursor-pointer"
+                title={`Bỏ chọn ${amenity}`}
+              >
+                <X className="w-3 h-3 hover:text-rose-600" />
+              </button>
             </span>
-          )}
+          ))}
           <button
             onClick={clearAllFilters}
             className="text-xs text-rose-600 font-black hover:underline flex items-center gap-1 ml-2 tap-bounce cursor-pointer"
@@ -422,71 +492,64 @@ export const SearchPage: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 pt-0.5 -mx-4 px-4 sm:mx-0 sm:px-0">
         <button
           onClick={() => updateParam('xacMinh', verifiedOnly ? '' : 'true')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            verifiedOnly
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${verifiedOnly
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           Đã kiểm duyệt
         </button>
         <button
           onClick={() => updateParam('gia', selectedPrice === '0-2500000' ? '' : '0-2500000')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedPrice === '0-2500000'
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${selectedPrice === '0-2500000'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           Dưới 2.5 triệu
         </button>
         <button
           onClick={() => updateParam('gia', selectedPrice === '2500000-4000000' ? '' : '2500000-4000000')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            selectedPrice === '2500000-4000000'
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${selectedPrice === '2500000-4000000'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           2.5 - 4 triệu
         </button>
         <button
           onClick={() => updateParam('truong', isSchoolMatch('Bách Khoa', selectedSchool) ? '' : 'Đại học Bách Khoa Hà Nội')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            isSchoolMatch('Bách Khoa', selectedSchool)
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${isSchoolMatch('Bách Khoa', selectedSchool)
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           Bách Khoa
         </button>
         <button
           onClick={() => updateParam('khuVuc', matchedDistrict === 'Quận Cầu Giấy' ? '' : 'Quận Cầu Giấy')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            matchedDistrict === 'Quận Cầu Giấy'
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${matchedDistrict === 'Quận Cầu Giấy'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           Cầu Giấy
         </button>
         <button
           onClick={() => updateParam('khuVuc', matchedDistrict === 'Quận Đống Đa' ? '' : 'Quận Đống Đa')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            matchedDistrict === 'Quận Đống Đa'
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${matchedDistrict === 'Quận Đống Đa'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           Đống Đa
         </button>
         <button
           onClick={() => updateParam('loai', matchedType === 'Studio' ? '' : 'Studio')}
-          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${
-            matchedType === 'Studio'
+          className={`shrink-0 px-3.5 py-2 min-h-[38px] rounded-full text-xs font-bold transition tap-bounce flex items-center gap-1.5 ${matchedType === 'Studio'
               ? 'bg-[#00a854] text-white shadow-xs'
               : 'bg-white text-gray-700 border border-gray-200 hover:border-[#00a854]'
-          }`}
+            }`}
         >
           Studio
         </button>
@@ -658,38 +721,55 @@ export const SearchPage: React.FC = () => {
 
           {/* Amenities */}
           <div className="space-y-2 pt-3 border-t border-gray-100">
-            <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-              <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích kèm theo
-            </label>
-            <div className="space-y-1">
-              <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854]">
-                <input
-                  type="radio"
-                  name="amenity"
-                  checked={!selectedAmenity}
-                  onChange={() => updateParam('tienIch', '')}
-                  className="text-[#00a854] focus:ring-[#00a854] accent-[#00a854]"
-                />
-                <span>Tất cả</span>
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích kèm theo
               </label>
-              {amenitiesList.map((a) => (
-                <label key={a} className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854]">
-                  <input
-                    type="radio"
-                    name="amenity"
-                    checked={selectedAmenity === a}
-                    onChange={() => updateParam('tienIch', a)}
-                    className="text-[#00a854] focus:ring-[#00a854] accent-[#00a854]"
-                  />
-                  <span>{a}</span>
-                </label>
-              ))}
+              {selectedAmenities.length > 0 && (
+                <button
+                  type="button"
+                  onClick={clearAmenities}
+                  className="text-[11px] text-[#00a854] hover:underline font-bold cursor-pointer"
+                >
+                  Bỏ chọn ({selectedAmenities.length})
+                </button>
+              )}
+            </div>
+            <div className="space-y-1">
+              <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer hover:text-[#00a854] py-0.5">
+                <input
+                  type="checkbox"
+                  checked={selectedAmenities.length === 0}
+                  onChange={clearAmenities}
+                  className="w-4 h-4 rounded border-gray-300 text-[#00a854] focus:ring-[#00a854] accent-[#00a854] cursor-pointer"
+                />
+                <span className={selectedAmenities.length === 0 ? 'text-[#00a854] font-black' : ''}>Tất cả</span>
+              </label>
+              {amenitiesList.map((a) => {
+                const isChecked = selectedAmenities.includes(a);
+                return (
+                  <label
+                    key={a}
+                    className={`flex items-center gap-2 text-xs font-bold cursor-pointer select-none transition-colors py-0.5 ${
+                      isChecked ? 'text-[#00a854]' : 'text-gray-700 hover:text-[#00a854]'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleAmenity(a)}
+                      className="w-4 h-4 rounded border-gray-300 text-[#00a854] focus:ring-[#00a854] accent-[#00a854] cursor-pointer"
+                    />
+                    <span>{a}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         </aside>
 
         {/* RESULTS LIST & GUEST PROMPT */}
-        <main className="md:col-span-3 space-y-6">
+        <main id="danh-sach-phong-top" className="md:col-span-3 space-y-6">
           <GuestPromptBanner />
 
           {isLoading ? (
@@ -749,11 +829,10 @@ export const SearchPage: React.FC = () => {
                           onClick={() => goToPage(pageNum)}
                           aria-label={`Trang ${pageNum}`}
                           aria-current={isActive ? 'page' : undefined}
-                          className={`w-9 h-9 rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer ${
-                            isActive
+                          className={`w-9 h-9 rounded-xl text-xs font-bold transition flex items-center justify-center cursor-pointer ${isActive
                               ? 'bg-[#00a854] text-white shadow-xs'
                               : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50 hover:border-gray-300'
-                          }`}
+                            }`}
                         >
                           {pageNum}
                         </button>
@@ -776,7 +855,10 @@ export const SearchPage: React.FC = () => {
 
           {/* AI-Powered Recommendations */}
           <div className="pt-8">
-            <AIRecommendationsSection />
+            <AIRecommendationsSection
+              rooms={activeRooms}
+              onViewAllRooms={clearAllFiltersAndScrollTop}
+            />
           </div>
         </main>
       </div>
@@ -931,25 +1013,64 @@ export const SearchPage: React.FC = () => {
 
                 {/* Amenities */}
                 <div className="space-y-2">
-                  <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-black text-gray-900 uppercase flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-[#00a854]" /> Tiện ích
+                    </label>
+                    {(mobileDraft.amenities || []).length > 0 && (
+                      <span className="text-[11px] text-[#00a854] font-bold">
+                        Đã chọn ({(mobileDraft.amenities || []).length})
+                      </span>
+                    )}
+                  </div>
                   <div className="grid grid-cols-2 gap-2">
                     <button
-                      onClick={() => setMobileDraft((d) => ({ ...d, amenity: '' }))}
-                      className={`p-2 rounded-xl text-xs font-bold border ${!mobileDraft.amenity ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
+                      type="button"
+                      onClick={() => setMobileDraft((d) => ({ ...d, amenities: [] }))}
+                      className={`p-2 rounded-xl text-xs font-bold border transition flex items-center justify-center ${
+                        (mobileDraft.amenities || []).length === 0
+                          ? 'bg-[#00a854] text-white border-[#00a854]'
+                          : 'bg-gray-50 border-gray-200 text-gray-800'
+                      }`}
                     >
                       Tất cả
                     </button>
-                    {amenitiesList.map((a) => (
-                      <button
-                        key={a}
-                        onClick={() => setMobileDraft((d) => ({ ...d, amenity: d.amenity === a ? '' : a }))}
-                        className={`p-2 rounded-xl text-xs font-bold border ${mobileDraft.amenity === a ? 'bg-[#00a854] text-white border-[#00a854]' : 'bg-gray-50 border-gray-200 text-gray-800'}`}
-                      >
-                        {a}
-                      </button>
-                    ))}
+                    {amenitiesList.map((a) => {
+                      const isSelected = (mobileDraft.amenities || []).includes(a);
+                      return (
+                        <button
+                          key={a}
+                          type="button"
+                          onClick={() =>
+                            setMobileDraft((d) => {
+                              const curr = d.amenities || [];
+                              return {
+                                ...d,
+                                amenities: isSelected
+                                  ? curr.filter((item) => item !== a)
+                                  : [...curr, a],
+                              };
+                            })
+                          }
+                          className={`p-2 rounded-xl text-xs font-bold border transition flex items-center justify-between px-2.5 ${
+                            isSelected
+                              ? 'bg-emerald-50 text-[#00a854] border-[#00a854] font-black'
+                              : 'bg-gray-50 border-gray-200 text-gray-800'
+                          }`}
+                        >
+                          <span>{a}</span>
+                          <span
+                            className={`w-3.5 h-3.5 rounded flex items-center justify-center border text-[9px] ${
+                              isSelected
+                                ? 'bg-[#00a854] border-[#00a854] text-white'
+                                : 'border-gray-300 bg-white text-transparent'
+                            }`}
+                          >
+                            ✓
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               </div>
@@ -957,7 +1078,17 @@ export const SearchPage: React.FC = () => {
               {/* Fixed bottom action bar */}
               <div className="px-5 py-4 border-t border-gray-100 bg-white flex gap-2 shrink-0">
                 <button
-                  onClick={() => setMobileDraft({ verified: false, school: '', district: '', price: '', type: '', amenity: '', sort: 'verified_first' })}
+                  onClick={() =>
+                    setMobileDraft({
+                      verified: false,
+                      school: '',
+                      district: '',
+                      price: '',
+                      type: '',
+                      amenities: [],
+                      sort: 'verified_first',
+                    })
+                  }
                   className="w-1/2 py-3 bg-gray-100 text-gray-700 font-bold rounded-xl text-xs cursor-pointer"
                 >
                   Xóa lọc

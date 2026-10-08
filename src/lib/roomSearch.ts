@@ -7,6 +7,7 @@ export interface RoomSearchParams {
   selectedPrice: string;
   selectedType: string;
   selectedAmenity: string;
+  selectedAmenities: string[];
   verifiedOnly: boolean;
   selectedSort: 'verified_first' | 'newest' | 'price_asc' | 'price_desc' | 'distance';
 }
@@ -155,15 +156,83 @@ export function removeVietnameseTones(str: string | null | undefined): string {
 }
 
 /**
- * Chuẩn hóa tên trường ĐH (viết tắt / đầy đủ)
+ * Chuẩn hóa tên quận/huyện để so khớp chính xác
+ */
+export function isDistrictMatch(roomDistrict: string | null | undefined, targetDistrict: string | null | undefined): boolean {
+  if (!roomDistrict || !targetDistrict) return false;
+  const cleanDistrict = (d: string) =>
+    removeVietnameseTones(d)
+      .toLowerCase()
+      .replace(/^(quan|huyen|thi\s+xa|tp|thanh\s+pho)\s+/, '')
+      .trim();
+
+  const normRoom = cleanDistrict(roomDistrict);
+  const normTarget = cleanDistrict(targetDistrict);
+  if (!normRoom || !normTarget) return false;
+  return normRoom === normTarget || normRoom.includes(normTarget) || normTarget.includes(normRoom);
+}
+
+/**
+ * Chuẩn hóa tên trường ĐH (hỗ trợ viết tắt quốc tế & thông dụng: HUST, NEU, FTU, VNU, TMU...)
  */
 export function normalizeSchoolName(str: string | null | undefined): string {
   if (!str || typeof str !== 'string') return '';
-  return removeVietnameseTones(str)
-    .replace(/\(.*?\)/g, '')
+  let text = removeVietnameseTones(str)
+    .toLowerCase()
+    .replace(/\(.*?\)/g, ' ')
     .replace(/\bgan\b/gi, ' ')
-    .replace(/\bdhqg\b/g, 'dai hoc quoc gia')
-    .replace(/\bđhqg\b/g, 'dai hoc quoc gia')
+    .replace(/\b(co\s+so|dia\s+diem|khu\s+vuc)\b/gi, ' ');
+
+  // Mapping abbreviations to full standard names without accents
+  const acronymMap: Record<string, string> = {
+    hust: 'dai hoc bach khoa',
+    bkhn: 'dai hoc bach khoa',
+    bk: 'dai hoc bach khoa',
+    neu: 'dai hoc kinh te quoc dan',
+    ktqd: 'dai hoc kinh te quoc dan',
+    ftu: 'dai hoc ngoai thuong',
+    vnu: 'dai hoc quoc gia',
+    dhqg: 'dai hoc quoc gia',
+    tmu: 'dai hoc thuong mai',
+    dhtm: 'dai hoc thuong mai',
+    nuce: 'dai hoc xay dung',
+    huce: 'dai hoc xay dung',
+    dhxd: 'dai hoc xay dung',
+    hnue: 'dai hoc su pham',
+    dhsp: 'dai hoc su pham',
+    hmu: 'dai hoc y',
+    dhy: 'dai hoc y',
+    hlu: 'dai hoc luat',
+    dhluat: 'dai hoc luat',
+    hau: 'dai hoc kien truc',
+    dhkt: 'dai hoc kien truc',
+    hanu: 'dai hoc ha noi',
+    dhhn: 'dai hoc ha noi',
+    utc: 'dai hoc giao thong van tai',
+    gtvt: 'dai hoc giao thong van tai',
+    haui: 'dai hoc cong nghiep',
+    dhcn: 'dai hoc cong nghiep',
+    ptit: 'hoc vien buu chinh vien thong',
+    ajc: 'hoc vien bao chi tuyen truyen',
+    dav: 'hoc vien ngoai giao',
+    hvnh: 'hoc vien ngan hang',
+    ba: 'hoc vien ngan hang',
+    tlu: 'dai hoc thuy loi',
+    dhtl: 'dai hoc thuy loi',
+    epu: 'dai hoc dien luc',
+    fpt: 'dai hoc fpt',
+    uet: 'dai hoc cong nghe',
+    hus: 'dai hoc khoa hoc tu nhien',
+    ussh: 'dai hoc khoa hoc xa hoi va nhan van',
+    ulis: 'dai hoc ngoai ngu',
+  };
+
+  for (const [abbr, expanded] of Object.entries(acronymMap)) {
+    const regex = new RegExp(`\\b${abbr}\\b`, 'g');
+    text = text.replace(regex, expanded);
+  }
+
+  return text
     .replace(/\bđh\b/g, 'dai hoc')
     .replace(/\bdh\b/g, 'dai hoc')
     .replace(/\bhv\b/g, 'hoc vien')
@@ -179,7 +248,7 @@ export function isSchoolMatch(selected: string, roomSchool: string): boolean {
   if (!normRoom || !normSel) return false;
   if (normRoom.includes(normSel) || normSel.includes(normRoom)) return true;
 
-  const stopWords = new Set(['dai', 'hoc', 'vien', 'ha', 'noi', 'truong', 'gan', 'khu', 'vuc']);
+  const stopWords = new Set(['dai', 'hoc', 'vien', 'ha', 'noi', 'truong', 'gan', 'khu', 'vuc', 'co', 'so']);
   const tokens = normSel.split(' ').filter((w) => !stopWords.has(w) && w.length > 1);
   return tokens.length > 0 && tokens.every((t) => normRoom.includes(t));
 }
@@ -241,7 +310,14 @@ export function parseRoomSearchParams(searchParams: URLSearchParams): RoomSearch
   const selectedDistrict = searchParams.get('khuVuc') || searchParams.get('district') || searchParams.get('quan') || '';
   const selectedPrice = searchParams.get('gia') || searchParams.get('price') || '';
   const selectedType = searchParams.get('loai') || searchParams.get('type') || '';
-  const selectedAmenity = searchParams.get('tienIch') || searchParams.get('amenity') || '';
+  const rawAmenity = searchParams.get('tienIch') || searchParams.get('amenity') || '';
+  const selectedAmenities = rawAmenity
+    ? rawAmenity
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
+    : [];
+  const selectedAmenity = rawAmenity;
   const verifiedOnly =
     searchParams.get('xacMinh') === 'true' ||
     searchParams.get('xacMinh') === '1' ||
@@ -258,6 +334,7 @@ export function parseRoomSearchParams(searchParams: URLSearchParams): RoomSearch
     selectedPrice,
     selectedType,
     selectedAmenity,
+    selectedAmenities,
     verifiedOnly,
     selectedSort,
   };
@@ -289,17 +366,45 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
 
       // 4. Lọc từ khóa tìm kiếm (q)
       if (params.searchQuery) {
-        const normQ = removeVietnameseTones(params.searchQuery.trim());
+        const rawQ = params.searchQuery.trim();
+        const normQ = removeVietnameseTones(rawQ).toLowerCase();
         if (normQ) {
-          const matchTitle = removeVietnameseTones(r.title).includes(normQ);
-          const matchAddress = removeVietnameseTones(r.address).includes(normQ);
-          const matchDistrict = removeVietnameseTones(r.district).includes(normQ);
-          const matchDesc = removeVietnameseTones(r.description).includes(normQ);
-          const matchSchool = r.nearestSchool && (
-            removeVietnameseTones(r.nearestSchool).includes(normQ) ||
-            isSchoolMatch(params.searchQuery.trim(), r.nearestSchool)
+          // A. Khớp trường đại học (kể cả viết tắt HUST, NEU, FTU, VNU, TMU...)
+          const matchSchool = Boolean(r.nearestSchool && (
+            removeVietnameseTones(r.nearestSchool).toLowerCase().includes(normQ) ||
+            isSchoolMatch(rawQ, r.nearestSchool)
+          ));
+
+          // B. Khớp quận / khu vực
+          const matchDistrict = Boolean(r.district && isDistrictMatch(r.district, rawQ));
+
+          // C. Khớp tiêu đề, địa chỉ, mô tả, loại phòng
+          const matchTitle = removeVietnameseTones(r.title).toLowerCase().includes(normQ);
+          const matchAddress = removeVietnameseTones(r.address).toLowerCase().includes(normQ);
+          const matchDesc = removeVietnameseTones(r.description || '').toLowerCase().includes(normQ);
+          const matchType = removeVietnameseTones(r.type || '').toLowerCase().includes(normQ);
+
+          // D. Khớp tiện ích
+          const matchAmenity = Array.isArray(r.amenities) && r.amenities.some((a: string) =>
+            removeVietnameseTones(a).toLowerCase().includes(normQ)
           );
-          if (!matchTitle && !matchAddress && !matchDistrict && !matchDesc && !matchSchool) {
+
+          // E. Khớp từ khóa ghép nhiều từ (Multi-token match: vd "phòng cầu giấy", "studio đống đa ban công")
+          const qTokens = normQ.split(/\s+/).filter((w) => w.length > 1);
+          const searchableText = removeVietnameseTones(
+            `${r.title} ${r.address} ${r.district} ${r.nearestSchool || ''} ${r.type || ''} ${(r.amenities || []).join(' ')} ${r.description || ''}`
+          ).toLowerCase();
+
+          const allTokensMatch = qTokens.length > 1 && qTokens.every((token) => {
+            const normToken = normalizeSchoolName(token);
+            if (normToken && normToken !== token) {
+              const subTokens = normToken.split(' ').filter((st) => st.length > 1);
+              if (subTokens.some((st) => searchableText.includes(st))) return true;
+            }
+            return searchableText.includes(token);
+          });
+
+          if (!matchTitle && !matchAddress && !matchDistrict && !matchDesc && !matchSchool && !matchType && !matchAmenity && !allTokensMatch) {
             return false;
           }
         }
@@ -307,15 +412,8 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
 
       // 5. Lọc quận / khu vực
       if (params.selectedDistrict) {
-        const targetDist = removeVietnameseTones(matchedDistrict || params.selectedDistrict)
-          .toLowerCase()
-          .replace(/^quan\s+/, '')
-          .trim();
-        const roomDist = removeVietnameseTones(r.district || '')
-          .toLowerCase()
-          .replace(/^quan\s+/, '')
-          .trim();
-        if (!roomDist.includes(targetDist) && !targetDist.includes(roomDist)) {
+        const target = matchedDistrict || params.selectedDistrict;
+        if (!isDistrictMatch(r.district, target)) {
           return false;
         }
       }
@@ -329,13 +427,21 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
         }
       }
 
-      // 7. Lọc tiện ích
-      if (params.selectedAmenity) {
-        const normAmenity = removeVietnameseTones(params.selectedAmenity).toLowerCase().trim();
-        const hasAmenity = Array.isArray(r.amenities) && r.amenities.some((a: string) =>
-          removeVietnameseTones(a).toLowerCase().includes(normAmenity)
-        );
-        if (!hasAmenity) return false;
+      // 7. Lọc tiện ích (hỗ trợ chọn 1 hoặc nhiều tiện ích cùng lúc dạng hộp kiểm)
+      const amenitiesToMatch =
+        params.selectedAmenities && params.selectedAmenities.length > 0
+          ? params.selectedAmenities
+          : params.selectedAmenity
+          ? params.selectedAmenity.split(',').map((s) => s.trim()).filter(Boolean)
+          : [];
+
+      if (amenitiesToMatch.length > 0) {
+        const roomAmenitiesNorm = (r.amenities || []).map((a: string) => removeVietnameseTones(a).toLowerCase());
+        const hasAllAmenities = amenitiesToMatch.every((req) => {
+          const normReq = removeVietnameseTones(req).toLowerCase().trim();
+          return roomAmenitiesNorm.some((a: string) => a.includes(normReq));
+        });
+        if (!hasAllAmenities) return false;
       }
 
       // 8. Lọc mức giá
