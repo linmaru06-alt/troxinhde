@@ -90,11 +90,8 @@ export async function verifyPaymentFromDatabase(
   if (!isSupabaseConfigured) return { status: 'waiting' };
 
   try {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('status, plan_id, amount, paid_at, activated_at')
-      .eq('order_code', String(orderCode))
-      .maybeSingle();
+    // Tra trạng thái theo mã đơn qua RPC (bảng transactions chỉ cho chủ giao dịch đọc)
+    const { data, error } = await supabase.rpc('get_payment_status', { p_order_code: String(orderCode) });
 
     if (error || !data) return { status: 'waiting' };
 
@@ -115,7 +112,10 @@ export async function verifyPaymentFromDatabase(
 }
 
 /**
- * Ghi nhận giao dịch thanh toán (Chỉ dùng cho môi trường Sandbox Demo hoặc Fallback cục bộ có kiểm soát)
+ * @deprecated KHÔNG DÙNG Ở PRODUCTION.
+ * Quy tắc bảo mật: Client không được tự chuyển status = 'paid'.
+ * Trạng thái thanh toán chỉ được cập nhật qua Webhook / Edge Function có Service Role.
+ * Hàm này chỉ tồn tại như di sản (legacy) phục vụ mock testing cục bộ.
  */
 export async function recordSuccessfulPayment(
   userId: string,

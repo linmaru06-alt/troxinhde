@@ -4,11 +4,9 @@ import { useAppStore } from '../store/useAppStore';
 import { RoommateCard } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
 import { CreateRoommateModal } from '../components/modals/CreateRoommateModal';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
-  Users,
-  PlusCircle,
   Search,
-  Sparkles,
   X,
   SlidersHorizontal,
   RotateCcw,
@@ -182,6 +180,18 @@ export const RoommateListPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title="Tìm Bạn Ở Ghép Hà Nội 2026 - Ghép Phòng Sinh Viên Đã Xác Minh | TroXinh"
+        description="Kết nối tìm bạn ở ghép, tìm người chia sẻ tiền phòng trọ sinh viên tại Hà Nội. Phù hợp theo trường ĐH, lối sống, ngân sách từ 1.5 - 3 triệu/tháng."
+        image="/roommate-banner.webp"
+        url="/roommate"
+        keywords="tìm bạn ở ghép hà nội, ở ghép sinh viên, tìm người ở cùng cầu giấy, đống đa, bách khoa, đhqg"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tìm bạn ở ghép', url: '/roommate' },
+        ]}
+      />
+
       {/* Create Roommate Modal */}
       <CreateRoommateModal isOpen={isCreateOpen} onClose={() => setIsCreateOpen(false)} />
 
@@ -201,11 +211,6 @@ export const RoommateListPage: React.FC = () => {
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3.5 max-w-xl">
-            {/* 1. Bỏ dòng 'Giai Đoạn 3', dùng badge cộng đồng chuẩn */}
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/25 rounded-full text-xs font-bold text-emerald-300 border border-emerald-400/40 backdrop-blur-md shadow-xs transition">
-              <Users className="w-4 h-4 text-emerald-400" />
-              <span>Cộng Đồng Tìm Bạn Ở Ghép Văn Minh Hà Nội</span>
-            </div>
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Tìm Bạn Cùng Phòng <br />
               <span className="text-[#4ade80]">Hợp Gu & San Sẻ Chi Phí</span>
@@ -215,22 +220,16 @@ export const RoommateListPage: React.FC = () => {
             </p>
           </div>
 
-          {/* 3. Phần đăng tin tìm bạn ghép nổi bật hơn vượt trội */}
+          {/* Phần đăng tin tìm bạn ghép */}
           <div className="shrink-0 flex flex-col items-center md:items-end gap-2.5 w-full md:w-auto">
             <div className="p-1 rounded-2xl bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-500 shadow-[0_0_25px_rgba(16,185,129,0.4)] hover:shadow-[0_0_35px_rgba(16,185,129,0.65)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
               <button
                 type="button"
                 onClick={handlePostClick}
-                className="w-full md:w-auto flex items-center justify-center gap-2.5 px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-[#008f47] to-[#00a854] hover:from-[#005a2d] hover:to-[#008f47] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200"
+                className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-[#008f47] to-[#00a854] hover:from-[#005a2d] hover:to-[#008f47] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200"
               >
-                <PlusCircle className="w-5 h-5 text-emerald-200 shrink-0" />
                 <span>Đăng Tin Tìm Bạn Ghép</span>
-                <Sparkles className="w-4 h-4 text-emerald-300 shrink-0" />
               </button>
-            </div>
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-300 font-semibold bg-slate-900/80 backdrop-blur-md px-3 py-1 rounded-full border border-emerald-500/30">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-              <span>Miễn phí 100% • Tiếp cận 10.000+ sinh viên</span>
             </div>
           </div>
         </div>

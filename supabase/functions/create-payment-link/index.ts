@@ -2,6 +2,7 @@
 // PayOS / VietQR Gateway integration for TroXinh.vn
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createHmac } from 'https://deno.land/std@0.177.0/node/crypto.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.39.8';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -46,6 +47,30 @@ serve(async (req) => {
     if (planId === 'basic') description = 'Tro Xinh - Goi Co Ban';
     else if (planId === 'pro') description = 'Tro Xinh - Goi Pro';
     else if (planId.includes('boost')) description = 'Tro Xinh - Day Tin VIP';
+
+    // Lưu bản ghi pending vào Supabase DB để sẵn sàng cho Webhook đối soát
+    const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+    if (supabaseUrl && supabaseServiceKey) {
+      try {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        await supabase.from('transactions').upsert(
+          {
+            user_id: userId && userId.length === 36 ? userId : null,
+            order_code: String(orderCode),
+            plan_id: planId,
+            room_id: roomId || null,
+            amount: Number(amount),
+            status: 'pending',
+            payment_method: 'payos',
+          },
+          { onConflict: 'order_code' }
+        );
+      } catch (dbErr: any) {
+        console.warn('Lưu pending transaction vào Supabase thất bại:', dbErr?.message || dbErr);
+      }
+    }
 
     // If live PayOS keys are configured, call PayOS Merchant API
     if (clientId && apiKey && checksumKey) {

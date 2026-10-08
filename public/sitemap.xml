@@ -2,57 +2,296 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://troxinh.vn/</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/tim-kiem</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>hourly</changefreq>
     <priority>0.95</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/ban-do</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>hourly</changefreq>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/o-ghep</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/roommate</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/cho-do-cu</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>daily</changefreq>
-    <priority>0.8</priority>
+    <priority>0.85</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/ve-chung-toi/kiem-duyet</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <priority>0.75</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/hop-dong-mau</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
-  </url>
-  <url>
-    <loc>https://troxinh.vn/bien-ban-dat-coc</loc>
-    <changefreq>weekly</changefreq>
-    <priority>0.7</priority>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.70</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/bang-gia</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
+    <priority>0.70</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/dieu-khoan</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.50</priority>
   </url>
   <url>
     <loc>https://troxinh.vn/chinh-sach-bao-mat</loc>
+    <lastmod>2026-10-01</lastmod>
     <changefreq>monthly</changefreq>
-    <priority>0.5</priority>
+    <priority>0.50</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=C%E1%BA%A7u%20Gi%E1%BA%A5y</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=%C4%90%E1%BB%91ng%20%C4%90a</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Thanh%20Xu%C3%A2n</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Nam%20T%E1%BB%AB%20Li%C3%AAm</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=B%E1%BA%AFc%20T%E1%BB%AB%20Li%C3%AAm</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Hai%20B%C3%A0%20Tr%C6%B0ng</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Ba%20%C4%90%C3%ACnh</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=H%C3%A0%20%C4%90%C3%B4ng</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Ho%C3%A0ng%20Mai</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=T%C3%A2y%20H%E1%BB%93</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Long%20Bi%C3%AAn</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?khuVuc=Ho%C3%A0n%20Ki%E1%BA%BFm</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20Qu%E1%BB%91c%20Gia%20H%C3%A0%20N%E1%BB%99i</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20B%C3%A1ch%20Khoa%20H%C3%A0%20N%E1%BB%99i</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20Kinh%20T%E1%BA%BF%20Qu%E1%BB%91c%20D%C3%A2n</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20Ngo%E1%BA%A1i%20Th%C6%B0%C6%A1ng</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20S%C6%B0%20Ph%E1%BA%A1m%20H%C3%A0%20N%E1%BB%99i</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=H%E1%BB%8Dc%20vi%E1%BB%87n%20Ng%C3%A2n%20H%C3%A0ng</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=H%E1%BB%8Dc%20vi%E1%BB%87n%20B%C6%B0u%20Ch%C3%ADnh%20Vi%E1%BB%85n%20Th%C3%B4ng</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/tim-kiem?truong=%C4%90%E1%BA%A1i%20h%E1%BB%8Dc%20H%C3%A0%20N%E1%BB%99i</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>daily</changefreq>
+    <priority>0.80</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/phong/phong-studio-full-do-ban-cong-thoang-mat-cau-giay-quan-cau-giay--c0000000-0000-0000-0000-000000000001</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/phong/can-ho-mini-khep-kin-gan-dh-ngoai-thuong-quan-dong-da--c0000000-0000-0000-0000-000000000002</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/phong/phong-tro-gia-re-sinh-vien-bach-kinh-xay-quan-hai-ba-trung--c0000000-0000-0000-0000-000000000003</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/phong/phong-studio-ban-cong-day-du-tien-nghi-quan-cau-giay--dbf678f1-08f1-4c62-9970-fd18fe673dc1</loc>
+    <lastmod>2026-09-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/phong/phong-studio-ban-cong-day-du-tien-nghi-quan-cau-giay--67444ef0-6d30-40e6-a3ca-1f0f1fc7f145</loc>
+    <lastmod>2026-10-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/o-ghep/tim-ban-o-ghep-tran-minh-duc--6d19bd90-a111-411c-9311-cb2a37bde4fc</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/o-ghep/tim-ban-o-ghep-nguyen-thuy-linh--b1921eae-45e5-4d6c-8e7f-9986c38a5f77</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/o-ghep/tim-ban-o-ghep-kim-em-quan-ha-dong--0c6e53fe-bfb9-44b0-9f7e-67b86c2163e5</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/o-ghep/tim-ban-o-ghep-truong-kon-quan-ha-dong--d0f58e4b-a8f2-42e8-8ac7-84f8691f3b28</loc>
+    <lastmod>2026-09-28</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/o-ghep/tim-ban-o-ghep-su-a-vo-quan-nam-tu-liem--117c10ec-bddc-4d07-8355-7bdf72dae0ed</loc>
+    <lastmod>2026-09-30</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.75</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/cho-do-cu/thanh-ly-tu-lanh-mini-electrolux-92-lit-con-moi-95-quan-cau-giay--69774e74-144d-4eb5-9a53-276397925172</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/cho-do-cu/thanh-ly-tang-mien-phi-ban-hoc-gap-gon-dem-don-sinh-vien-0d-quan--f55a6f07-3e98-4f54-8df8-12d9ae317f2a</loc>
+    <lastmod>2026-09-27</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/toa-nha/chung-cu-mini-dong-da-chua-lang-quan-dong-da--58471cc2-15ab-44bc-b3e5-7538e24a5209</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/toa-nha/toa-nha-troxinh-cau-giay-complex-quan-cau-giay--ea39aefa-3d88-4265-b828-1e2d10b27ce9</loc>
+    <lastmod>2026-08-25</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/toa-nha/chung-cu-mini-dong-da-chua-lang-quan-dong-da--ea39aefa-3d88-4265-b828-1e2d10b27ce0</loc>
+    <lastmod>2026-08-26</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/toa-nha/toa-nha-troxinh-cau-giay-complex-quan-cau-giay--b0000000-0000-0000-0000-000000000001</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/toa-nha/chung-cu-mini-dong-da-chua-lang-quan-dong-da--b0000000-0000-0000-0000-000000000002</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
+  </url>
+  <url>
+    <loc>https://troxinh.vn/toa-nha/khu-tro-sinh-vien-bach-khoa-kinh-te-quan-hai-ba-trung--b0000000-0000-0000-0000-000000000003</loc>
+    <lastmod>2026-09-22</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.70</priority>
   </url>
 </urlset>

@@ -7,19 +7,24 @@ import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
 import { formatPrice } from '../components/ui/Cards';
 import {
   getAllRoomsAdmin,
+  getAllBuildingsAdmin,
   getPendingOwnerApplications,
   getReportsAdmin,
   approveRoom as approveRoomApi,
   rejectRoom as rejectRoomApi,
   hideRoom as hideRoomApi,
+  approveBuilding as approveBuildingApi,
+  rejectBuilding as rejectBuildingApi,
   approveOwnerApplication as approveOwnerAppApi,
   rejectOwnerApplication as rejectOwnerAppApi,
+  requestOwnerApplicationInfo as requestOwnerAppInfoApi,
   resolveReport as resolveReportApi,
   getAllMarketplaceItemsAdmin,
   approveMarketplaceItem as approveMarketplaceItemApi,
   rejectMarketplaceItem as rejectMarketplaceItemApi,
 } from '../lib/api/admin';
 import { CONDITION_LABELS, MarketplaceConditionCode } from '../lib/marketplaceFilter';
+import { supabase } from '../lib/supabase';
 import {
   ShieldCheck,
   Check,
@@ -38,6 +43,9 @@ import {
   ShoppingBag,
   Tag,
   ExternalLink,
+  Home,
+  FileCheck,
+  Flag,
 } from 'lucide-react';
 
 const MODERATION_CHECKLIST = [
@@ -57,11 +65,13 @@ export const AdminModerationPage: React.FC = () => {
     rejectMarketplaceItem,
   } = useAppStore();
 
-  const [mainSection, setMainSection] = useState<'rooms' | 'marketplace' | 'owner_upgrades' | 'reports'>('rooms');
+  const [mainSection, setMainSection] = useState<'rooms' | 'buildings' | 'marketplace' | 'owner_upgrades' | 'reports'>('rooms');
   const [activeRoomTab, setActiveRoomTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [activeBuildingTab, setActiveBuildingTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [activeMarketplaceTab, setActiveMarketplaceTab] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
 
   const [rooms, setRooms] = useState<any[]>([]);
+  const [buildings, setBuildings] = useState<any[]>([]);
   const [ownerApps, setOwnerApps] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [adminMarketplaceItems, setAdminMarketplaceItems] = useState<any[]>([]);
@@ -91,13 +101,15 @@ export const AdminModerationPage: React.FC = () => {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [r, o, rep, m] = await Promise.all([
+      const [r, b, o, rep, m] = await Promise.all([
         getAllRoomsAdmin(),
+        getAllBuildingsAdmin(),
         getPendingOwnerApplications(),
         getReportsAdmin(),
         getAllMarketplaceItemsAdmin(),
       ]);
       setRooms(r);
+      setBuildings(b);
       setOwnerApps(o);
       setReports(rep);
       if (m && m.length > 0) {
@@ -112,6 +124,22 @@ export const AdminModerationPage: React.FC = () => {
 
   useEffect(() => {
     fetchData();
+
+    // Lắng nghe Realtime bảng owner_applications: Tự động cập nhật khi có đơn nộp mới hoặc trạng thái thay đổi
+    const channel = supabase
+      .channel('admin-owner-apps-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'owner_applications' },
+        () => {
+          getPendingOwnerApplications().then(setOwnerApps);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleToggleCheck = (id: string) => {
@@ -180,6 +208,37 @@ export const AdminModerationPage: React.FC = () => {
     });
   };
 
+  // 3b. Duyệt Tòa nhà
+  const handleApproveBuilding = async (buildingId: string) => {
+    try {
+      await approveBuildingApi(buildingId, currentUser);
+      showToast('Đã phê duyệt tòa nhà thành công! 🎉', 'success');
+      fetchData();
+    } catch (err: any) {
+      showToast(`Lỗi khi duyệt tòa nhà: ${err?.message || 'Thất bại'}`, 'error');
+    }
+  };
+
+  const handleOpenRejectBuildingModal = (building: any) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'custom',
+      title: 'Từ chối / Yêu cầu bổ sung thông tin tòa nhà',
+      description: 'Tòa nhà sẽ chuyển sang trạng thái "Bị từ chối". Vui lòng ghi rõ lý do để chủ trọ cập nhật.',
+      entityName: building.name,
+      onConfirm: async (reason: string) => {
+        try {
+          await rejectBuildingApi(building.id, reason, currentUser);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          showToast('Đã từ chối và gửi lý do cho chủ trọ!', 'info');
+          fetchData();
+        } catch (err: any) {
+          showToast(`Lỗi: ${err?.message}`, 'error');
+        }
+      },
+    });
+  };
+
   // 4. Duyệt chủ trọ
   const handleApproveOwner = async (appId: string, userId: string) => {
     try {
@@ -202,8 +261,32 @@ export const AdminModerationPage: React.FC = () => {
       onConfirm: async (reason: string) => {
         try {
           await rejectOwnerAppApi(app.id, app.user_id, reason, currentUser);
+          useAppStore.getState().rejectOwnerApplication(app.id, reason);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast('Đã từ chối đơn đăng ký!', 'Đã gửi thông báo từ chối tới chủ trọ.', 'info');
+          fetchData();
+        } catch (err: any) {
+          showToast('Lỗi thao tác', `Lỗi: ${err?.message}`, 'error');
+        }
+      },
+    });
+  };
+
+  const handleOpenRequestInfoOwnerModal = (app: any) => {
+    setConfirmModal({
+      isOpen: true,
+      type: 'owner',
+      variant: 'warning',
+      title: 'Yêu cầu bổ sung thông tin Chủ trọ',
+      description: 'Hồ sơ sẽ được chuyển sang trạng thái "Cần bổ sung". Người dùng sẽ nhận được thông báo kèm nút "Cập nhật ngay" để hoàn thiện hồ sơ.',
+      confirmText: 'Gửi yêu cầu bổ sung',
+      entityName: app.building_name,
+      onConfirm: async (reason: string) => {
+        try {
+          await requestOwnerAppInfoApi(app.id, app.user_id, reason, currentUser);
+          useAppStore.getState().requestInfoOwnerApplication(app.id, reason);
+          setConfirmModal((prev) => ({ ...prev, isOpen: false }));
+          showToast('Đã gửi yêu cầu bổ sung!', 'Đã gửi thông báo yêu cầu cập nhật hồ sơ tới người dùng.', 'info');
           fetchData();
         } catch (err: any) {
           showToast('Lỗi thao tác', `Lỗi: ${err?.message}`, 'error');
@@ -215,8 +298,8 @@ export const AdminModerationPage: React.FC = () => {
   // Xử lý kiểm duyệt Chợ Đồ Cũ
   const handleApproveMarketplace = async (item: any) => {
     try {
-      approveMarketplaceItem(item.id);
       await approveMarketplaceItemApi(item.id, currentUser);
+      approveMarketplaceItem(item.id);
       showToast('Đã phê duyệt tin đăng thanh lý! 🎉', 'Tin đăng đã được công khai trên chợ.', 'success');
       fetchData();
     } catch (err: any) {
@@ -233,8 +316,8 @@ export const AdminModerationPage: React.FC = () => {
       entityName: item.name || item.title,
       onConfirm: async (reason: string) => {
         try {
-          rejectMarketplaceItem(item.id, reason);
           await rejectMarketplaceItemApi(item.id, reason, currentUser);
+          rejectMarketplaceItem(item.id, reason);
           setConfirmModal((prev) => ({ ...prev, isOpen: false }));
           showToast('Đã từ chối tin đăng!', 'Lý do từ chối đã được gửi cho người đăng.', 'info');
           fetchData();
@@ -294,6 +377,15 @@ export const AdminModerationPage: React.FC = () => {
     return true;
   });
 
+  // Lọc tòa nhà theo tab
+  const filteredBuildings = buildings.filter((b) => {
+    const mod = b.moderation_status || 'approved';
+    if (activeBuildingTab === 'pending') return mod === 'pending';
+    if (activeBuildingTab === 'approved') return mod === 'approved';
+    if (activeBuildingTab === 'rejected') return mod === 'rejected';
+    return true;
+  });
+
   return (
     <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
       <DashboardSidebar role="admin" />
@@ -320,17 +412,21 @@ export const AdminModerationPage: React.FC = () => {
           </Button>
         </div>
 
-        {/* Chuyển đổi 4 phân hệ: Tin đăng phòng | Chợ đồ cũ | Hồ sơ chủ trọ | Báo cáo */}
-        <div className="flex bg-white p-1.5 rounded-2xl border border-gray-200 shadow-xs max-w-2xl overflow-x-auto">
+        {/* Chuyển đổi 5 phân hệ */}
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 w-full">
+          {/* Item 1: Tin đăng phòng */}
           <button
             onClick={() => setMainSection('rooms')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'rooms' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'rooms' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <span>Tin Đăng Phòng</span>
+            <Home className={`w-6 h-6 mb-2 ${mainSection === 'rooms' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Tin Đăng Phòng</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'rooms' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-[#006d37]'
               }`}
             >
@@ -338,40 +434,63 @@ export const AdminModerationPage: React.FC = () => {
             </span>
           </button>
 
+          {/* Item 2: Tòa nhà */}
           <button
-            onClick={() => setMainSection('marketplace')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'marketplace'
-                ? 'bg-[#006d37] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+            onClick={() => setMainSection('buildings')}
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'buildings' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Chợ Đồ Cũ</span>
+            <Building2 className={`w-6 h-6 mb-2 ${mainSection === 'buildings' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Tòa Nhà</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] font-extrabold ${
-                mainSection === 'marketplace'
-                  ? 'bg-white/20 text-white'
-                  : pendingMarketplaceCount > 0
-                  ? 'bg-amber-100 text-amber-900 animate-pulse'
-                  : 'bg-gray-100 text-gray-600'
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                mainSection === 'buildings' ? 'bg-white/20 text-white' : 'bg-emerald-100 text-[#006d37]'
+              }`}
+            >
+              {buildings.filter((b) => b.moderation_status === 'pending').length}
+            </span>
+          </button>
+
+          {/* Item 3: Chợ đồ cũ */}
+          <button
+            onClick={() => setMainSection('marketplace')}
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'marketplace' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
+            }`}
+          >
+            <ShoppingBag className={`w-6 h-6 mb-2 ${mainSection === 'marketplace' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Chợ Đồ Cũ</span>
+            <span
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                mainSection === 'marketplace' 
+                ? 'bg-white/20 text-white' 
+                : pendingMarketplaceCount > 0
+                ? 'bg-amber-100 text-amber-900 animate-pulse'
+                : 'bg-gray-100 text-gray-600'
               }`}
             >
               {pendingMarketplaceCount}
             </span>
           </button>
 
+          {/* Item 4: Hồ sơ chủ trọ */}
           <button
             onClick={() => setMainSection('owner_upgrades')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'owner_upgrades'
-                ? 'bg-[#006d37] text-white shadow-xs'
-                : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'owner_upgrades' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <span>Hồ Sơ Chủ Trọ</span>
+            <FileCheck className={`w-6 h-6 mb-2 ${mainSection === 'owner_upgrades' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Hồ Sơ Chủ Trọ</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'owner_upgrades' ? 'bg-white/20 text-white' : 'bg-amber-100 text-amber-800'
               }`}
             >
@@ -379,15 +498,19 @@ export const AdminModerationPage: React.FC = () => {
             </span>
           </button>
 
+          {/* Item 5: Báo cáo vi phạm */}
           <button
             onClick={() => setMainSection('reports')}
-            className={`flex-1 py-2 px-3 text-xs font-bold rounded-xl transition flex items-center justify-center gap-2 shrink-0 ${
-              mainSection === 'reports' ? 'bg-[#006d37] text-white shadow-xs' : 'text-gray-600 hover:text-gray-900'
+            className={`relative flex flex-col items-center justify-center p-4 rounded-2xl transition-all duration-200 overflow-hidden ${
+              mainSection === 'reports' 
+              ? 'bg-[#006d37] text-white shadow-lg shadow-[#006d37]/30 scale-[1.02] border-none' 
+              : 'bg-white text-gray-600 border border-gray-200 hover:border-[#006d37]/30 hover:bg-emerald-50/50'
             }`}
           >
-            <span>Báo Cáo Vi Phạm</span>
+            <Flag className={`w-6 h-6 mb-2 ${mainSection === 'reports' ? 'text-white' : 'text-gray-400'}`} />
+            <span className="font-bold text-sm">Báo Cáo Vi Phạm</span>
             <span
-              className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+              className={`absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
                 mainSection === 'reports' ? 'bg-white/20 text-white' : 'bg-rose-100 text-rose-800'
               }`}
             >
@@ -399,23 +522,49 @@ export const AdminModerationPage: React.FC = () => {
         {/* SECTION 1: DUYỆT PHÒNG TRỌ KÈM CHECKLIST */}
         {mainSection === 'rooms' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="inline-flex items-center p-1 bg-gray-100/80 rounded-xl overflow-x-auto border border-gray-200 shadow-inner max-w-full">
               {[
-                { id: 'pending', label: 'Chờ duyệt' },
-                { id: 'approved', label: 'Đang công khai' },
-                { id: 'rejected', label: 'Bị từ chối / Hạ tin' },
-                { id: 'all', label: 'Tất cả' },
+                {
+                  id: 'pending',
+                  label: 'Chờ duyệt',
+                  count: rooms.filter((r) => r.moderation_status === 'pending' || r.status === 'Chờ duyệt').length,
+                },
+                {
+                  id: 'approved',
+                  label: 'Đang công khai',
+                  count: rooms.filter(
+                    (r) =>
+                      (r.moderation_status === 'approved' || r.status === 'Còn trống' || r.status === 'available') &&
+                      r.moderation_status !== 'pending' &&
+                      r.moderation_status !== 'rejected' &&
+                      r.status !== 'Chờ duyệt' &&
+                      r.status !== 'Bị từ chối'
+                  ).length,
+                },
+                {
+                  id: 'rejected',
+                  label: 'Bị từ chối / Hạ tin',
+                  count: rooms.filter((r) => r.moderation_status === 'rejected' || r.status === 'Bị từ chối').length,
+                },
+                { id: 'all', label: 'Tất cả', count: rooms.length },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveRoomTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                     activeRoomTab === tab.id
-                      ? 'bg-[#006d37] text-white shadow-xs'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-white text-[#006d37] shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
                   }`}
                 >
                   {tab.label}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeRoomTab === tab.id ? 'bg-emerald-100 text-[#006d37]' : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
                 </button>
               ))}
             </div>
@@ -526,10 +675,135 @@ export const AdminModerationPage: React.FC = () => {
           </div>
         )}
 
+        {/* SECTION 1b: DUYỆT TÒA NHÀ */}
+        {mainSection === 'buildings' && (
+          <div className="space-y-4">
+            <div className="inline-flex items-center p-1 bg-gray-100/80 rounded-xl overflow-x-auto border border-gray-200 shadow-inner max-w-full">
+              {[
+                { id: 'pending', label: 'Chờ duyệt', count: buildings.filter((b) => b.moderation_status === 'pending').length },
+                { id: 'approved', label: 'Đã duyệt', count: buildings.filter((b) => b.moderation_status === 'approved').length },
+                { id: 'rejected', label: 'Bị từ chối', count: buildings.filter((b) => b.moderation_status === 'rejected').length },
+                { id: 'all', label: 'Tất cả', count: buildings.length },
+              ].map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveBuildingTab(tab.id as any)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
+                    activeBuildingTab === tab.id
+                      ? 'bg-white text-[#006d37] shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
+                  }`}
+                >
+                  {tab.label}
+                  <span
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeBuildingTab === tab.id ? 'bg-emerald-100 text-[#006d37]' : 'bg-gray-200 text-gray-500'
+                    }`}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            {filteredBuildings.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-3xl border border-gray-200 text-gray-400 text-xs">
+                Không có tòa nhà nào trong danh mục này.
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredBuildings.map((building) => {
+                  const isPending = building.moderation_status === 'pending';
+                  return (
+                    <div
+                      key={building.id}
+                      className="bg-white rounded-3xl border border-gray-200/80 shadow-xs p-5 flex flex-col justify-between space-y-4 hover:shadow-md transition-all"
+                    >
+                      <div className="space-y-2.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              isPending
+                                ? 'bg-amber-100 text-amber-800'
+                                : building.moderation_status === 'rejected'
+                                ? 'bg-rose-100 text-rose-800'
+                                : 'bg-emerald-100 text-emerald-800'
+                            }`}
+                          >
+                            {isPending
+                              ? 'Chờ duyệt'
+                              : building.moderation_status === 'rejected'
+                              ? 'Bị từ chối'
+                              : 'Đã duyệt'}
+                          </span>
+                          <span className="text-[10px] text-gray-400">
+                            {new Date(building.created_at).toLocaleDateString('vi-VN')}
+                          </span>
+                        </div>
+
+                        <h3 className="font-extrabold text-sm text-gray-900 line-clamp-1">{building.name}</h3>
+                        <p className="text-xs text-gray-500 line-clamp-2 flex items-start gap-1">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0 mt-0.5" />
+                          {building.address}, {building.district}, {building.city || 'Hà Nội'}
+                        </p>
+
+                        <div className="text-xs text-gray-500 bg-gray-50 p-2.5 rounded-xl space-y-1 mt-2">
+                          <div>
+                            Chủ trọ: <strong>{building.profiles?.full_name || 'Đối tác'}</strong>
+                          </div>
+                          <div>SĐT: {building.profiles?.phone || 'Chưa có'}</div>
+                        </div>
+
+                        {building.rejection_reason && (
+                          <div className="text-[11px] text-rose-700 bg-rose-50 border border-rose-100 p-2.5 rounded-xl mt-2">
+                            <strong>Lý do từ chối:</strong> {building.rejection_reason}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-100 flex items-center gap-2">
+                        {isPending ? (
+                          <div className="flex gap-2 w-full">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="flex-1 text-xs text-rose-600 border-rose-200"
+                              onClick={() => handleOpenRejectBuildingModal(building)}
+                            >
+                              Từ chối
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              className="flex-1 text-xs"
+                              onClick={() => handleApproveBuilding(building.id)}
+                            >
+                              Duyệt
+                            </Button>
+                          </div>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs"
+                            disabled
+                          >
+                            Đã xử lý
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* SECTION: DUYỆT TIN ĐĂNG CHỢ ĐỒ CŨ SINH VIÊN */}
         {mainSection === 'marketplace' && (
           <div className="space-y-4">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            <div className="inline-flex items-center p-1 bg-gray-100/80 rounded-xl overflow-x-auto border border-gray-200 shadow-inner max-w-full">
               {[
                 {
                   id: 'pending',
@@ -570,18 +844,16 @@ export const AdminModerationPage: React.FC = () => {
                 <button
                   key={tab.id}
                   onClick={() => setActiveMarketplaceTab(tab.id as any)}
-                  className={`px-3.5 py-1.5 text-xs font-bold rounded-xl transition flex items-center gap-1.5 shrink-0 ${
+                  className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-lg transition-all whitespace-nowrap ${
                     activeMarketplaceTab === tab.id
-                      ? 'bg-[#006d37] text-white shadow-xs'
-                      : 'bg-white text-gray-700 border border-gray-200 hover:bg-gray-50'
+                      ? 'bg-white text-[#006d37] shadow-sm ring-1 ring-black/5'
+                      : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200/50'
                   }`}
                 >
-                  <span>{tab.label}</span>
+                  {tab.label}
                   <span
-                    className={`px-1.5 py-0.2 rounded-full text-[10px] ${
-                      activeMarketplaceTab === tab.id
-                        ? 'bg-white/20 text-white'
-                        : 'bg-gray-100 text-gray-600'
+                    className={`px-1.5 py-0.5 rounded-full text-[10px] ${
+                      activeMarketplaceTab === tab.id ? 'bg-emerald-100 text-[#006d37]' : 'bg-gray-200 text-gray-500'
                     }`}
                   >
                     {tab.count}
@@ -831,6 +1103,15 @@ export const AdminModerationPage: React.FC = () => {
                           >
                             <Check className="w-3.5 h-3.5 mr-1" />
                             Cấp quyền Chủ trọ
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-xs py-2 text-amber-700 border-amber-300 hover:bg-amber-50"
+                            onClick={() => handleOpenRequestInfoOwnerModal(app)}
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 mr-1 text-amber-600" />
+                            Yêu cầu bổ sung
                           </Button>
                           <Button
                             variant="destructive"

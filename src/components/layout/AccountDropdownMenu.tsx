@@ -2,15 +2,12 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { User } from '../../types';
+import { useAppStore } from '../../store/useAppStore';
 import {
-  Heart,
   Bookmark,
   Clock,
   MapPin,
   ShieldCheck,
-  Store,
-  Sparkles,
-  TicketPercent,
   Settings,
   Headphones,
   ChevronRight,
@@ -18,6 +15,8 @@ import {
   User as UserIcon,
   Building2,
   FileText,
+  AlertTriangle,
+  Edit3,
 } from 'lucide-react';
 
 interface AccountDropdownMenuProps {
@@ -28,7 +27,7 @@ interface AccountDropdownMenuProps {
   logout: () => void;
 }
 
-// Mascot Vịt Vàng Trọ Xinh Cute chuẩn phong cách Chợ Tốt
+// Mascot Vịt Vàng của Trọ Xinh
 const YellowDuckMascot: React.FC<{ className?: string }> = ({ className = 'w-16 h-16' }) => (
   <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
     {/* Body / Head */}
@@ -80,6 +79,17 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
   logout,
 }) => {
   const navigate = useNavigate();
+  const { ownerApplications } = useAppStore();
+
+  const userApp = ownerApplications.find(
+    (a) => a.userId === currentUser?.id || (currentUser?.id && a.id === `app_${currentUser.id}`)
+  );
+  const ownerAppStatus = currentUser?.ownerApplicationStatus || userApp?.status;
+  const isNeedsInfo = ownerAppStatus === 'needs_info';
+  const isPending = ownerAppStatus === 'pending';
+
+  // Khớp điều kiện của OwnerRoute: chỉ chủ trọ mới vào được khu vực /chu-tro
+  const isLandlord = currentUser?.role === 'owner';
 
   if (!isOpen) return null;
 
@@ -168,12 +178,12 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                     )}
                   </div>
                   <span
-                    className={`inline-block mt-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                    className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
                       currentUser.role === 'owner'
-                        ? 'bg-emerald-100 text-emerald-800'
+                        ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
                         : currentUser.role === 'admin'
-                        ? 'bg-purple-100 text-purple-800'
-                        : 'bg-blue-100 text-blue-800'
+                        ? 'bg-purple-100 text-purple-800 ring-1 ring-purple-300'
+                        : 'bg-emerald-50 text-[#006d37] font-black ring-1 ring-emerald-200'
                     }`}
                   >
                     {currentUser.role === 'owner'
@@ -196,7 +206,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 <Link
                   to={currentUser.role === 'owner' ? '/chu-tro/toi' : '/toi'}
                   onClick={onClose}
-                  className="text-center py-1.5 px-2 bg-gray-50 hover:bg-gray-100 text-xs font-bold text-gray-800 rounded-xl transition"
+                  className="text-center py-2 px-2 bg-gray-50 hover:bg-gray-100 text-xs font-bold text-gray-800 rounded-xl transition"
                 >
                   Trang cá nhân
                 </Link>
@@ -212,21 +222,117 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   <Link
                     to="/chu-tro"
                     onClick={onClose}
-                    className="text-center py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-[#006d37] rounded-xl transition"
+                    className="text-center py-2 px-2 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-[#006d37] rounded-xl transition"
                   >
                     Quản lý phòng
                   </Link>
+                ) : isNeedsInfo ? (
+                  <Link
+                    to="/dang-ky-chu-tro"
+                    onClick={onClose}
+                    className="text-center py-2 px-2 bg-amber-500 hover:bg-amber-600 text-xs font-black text-gray-950 rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
+                  >
+                    <AlertTriangle className="w-3.5 h-3.5 text-gray-950" />
+                    Cập nhật hồ sơ
+                  </Link>
+                ) : isPending ? (
+                  <Link
+                    to="/nang-cap-chu-tro/trang-thai"
+                    onClick={onClose}
+                    className="text-center py-2 px-2 bg-amber-100 hover:bg-amber-200 text-xs font-bold text-amber-900 rounded-xl transition flex items-center justify-center gap-1"
+                  >
+                    <Clock className="w-3.5 h-3.5" />
+                    Hồ sơ chờ duyệt
+                  </Link>
                 ) : (
                   <Link
-                    to="/nang-cap-chu-tro"
+                    to="/dang-ky-chu-tro"
                     onClick={onClose}
-                    className="text-center py-1.5 px-2 bg-emerald-50 hover:bg-emerald-100 text-xs font-bold text-[#006d37] rounded-xl transition"
+                    className="text-center py-2 px-2 bg-[#00a854] hover:bg-[#008f47] text-xs font-black text-white rounded-xl transition shadow-xs flex items-center justify-center gap-1.5"
                   >
-                    Đăng ký Chủ trọ
+                    <Building2 className="w-3.5 h-3.5" />
+                    Đăng ký chủ trọ
                   </Link>
                 )}
               </div>
             </div>
+          )}
+
+          {/* BANNER NỔI BẬT: ĐĂNG KÝ CHỦ TRỌ HOẶC CẬP NHẬT HỒ SƠ CHO KHÁCH THUÊ */}
+          {currentUser && currentUser.role !== 'owner' && currentUser.role !== 'admin' && (
+            isNeedsInfo ? (
+              <Link
+                to="/dang-ky-chu-tro"
+                onClick={onClose}
+                className="block p-3.5 bg-gradient-to-r from-amber-900 via-amber-800 to-emerald-900 rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden border border-amber-500/30"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[220px]">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <AlertTriangle className="w-4 h-4 text-amber-300 shrink-0" />
+                      <span className="text-xs font-black text-white">Cập Nhật Hồ Sơ Chủ Trọ</span>
+                      <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                        Cần bổ sung
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-amber-100 font-medium leading-tight line-clamp-2">
+                      {currentUser.ownerApplicationReason || userApp?.rejectionReason || 'Admin yêu cầu bổ sung thông tin. Nhấn để cập nhật ngay.'}
+                    </p>
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-amber-800 transition shrink-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            ) : isPending ? (
+              <Link
+                to="/nang-cap-chu-tro/trang-thai"
+                onClick={onClose}
+                className="block p-3.5 bg-gradient-to-r from-emerald-950 to-emerald-800 rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[220px]">
+                    <div className="flex items-center gap-1.5">
+                      <Clock className="w-4 h-4 text-amber-300" />
+                      <span className="text-xs font-black text-white">Hồ Sơ Đang Chờ Duyệt</span>
+                      <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                        Đang xét duyệt
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-100 font-medium leading-tight">
+                      Ban quản trị đang thẩm định hồ sơ trong vòng 24 giờ làm việc
+                    </p>
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-[#006d37] transition shrink-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            ) : (
+              <Link
+                to="/dang-ky-chu-tro"
+                onClick={onClose}
+                className="block p-3.5 bg-gradient-to-r from-emerald-900 to-[#006d37] rounded-2xl text-white shadow-md hover:shadow-lg transition group relative overflow-hidden"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5 max-w-[220px]">
+                    <div className="flex items-center gap-1.5">
+                      <Building2 className="w-4 h-4 text-amber-300" />
+                      <span className="text-xs font-black text-white">Đăng Ký Chủ Trọ</span>
+                      <span className="bg-amber-400 text-gray-950 text-[9px] font-black px-1.5 py-0.2 rounded-full">
+                        Mở duyệt
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-emerald-100 font-medium leading-tight">
+                      Điền biểu mẫu 3 bước để đăng tin và quản lý phòng trọ
+                    </p>
+                  </div>
+                  <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center group-hover:bg-white group-hover:text-[#006d37] transition shrink-0">
+                    <ChevronRight className="w-4 h-4" />
+                  </div>
+                </div>
+              </Link>
+            )
           )}
 
           {/* BAN QUẢN TRỊ SHORTCUT */}
@@ -282,32 +388,8 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
               >
                 <div className="flex items-center gap-3">
-                  <Heart className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Tin đã lưu</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/tim-kiem"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
                   <Bookmark className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Tìm kiếm đã lưu</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/da-luu"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Lịch sử xem tin</span>
+                  <span>Mục đã lưu</span>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
               </Link>
@@ -331,123 +413,76 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               >
                 <div className="flex items-center gap-3">
                   <MapPin className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Đánh giá khu vực</span>
+                  <span>Bản đồ phòng trọ</span>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  <span className="bg-[#ff3b5c] text-white text-[10px] font-black px-2 py-0.5 rounded-full">
-                    Tính năng mới
-                  </span>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
+            </div>
+          </div>
+
+          {/* 3. NHÓM "DỊCH VỤ TRẢ PHÍ": các trang này nằm trong khu vực chủ trọ nên chỉ hiện cho chủ trọ */}
+          {isLandlord && (
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
+              <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center font-black text-[10px]">
+                      XU
+                    </div>
+                    <span>Trọ Xinh Xu</span>
+                  </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
-                </div>
-              </Link>
-            </div>
-          </div>
+                </Link>
 
-          {/* 3. NHÓM "DỊCH VỤ TRẢ PHÍ" */}
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
-            <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center font-black text-[10px]">
-                    ĐT
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
+                      PRO
+                    </span>
+                    <span>Gói PRO</span>
                   </div>
-                  <span>Đồng Tốt / Trọ Xinh Xu</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
 
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
-                    PRO
-                  </span>
-                  <span>Gói PRO</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/chu-tro"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
-                    <ShieldCheck className="w-3.5 h-3.5" />
+                <Link
+                  to="/chu-tro"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
+                      <ShieldCheck className="w-3.5 h-3.5" />
+                    </div>
+                    <span>Kênh Đối Tác</span>
                   </div>
-                  <span>Kênh Đối Tác</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
 
-              <Link
-                to="/chu-tro/quan-ly-goi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Lịch sử giao dịch</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/chu-tro/toa-nha"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Store className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Cửa hàng / chuyên trang</span>
-                </div>
-                <span className="bg-gray-100 hover:bg-gray-200 text-gray-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                  Tạo ngay
-                </span>
-              </Link>
+                <Link
+                  to="/chu-tro/quan-ly-goi"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
+                    <span>Lịch sử giao dịch</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* 4. NHÓM "ƯU ĐÃI, KHUYẾN MÃI" */}
-          <div className="space-y-1.5">
-            <span className="text-xs font-semibold text-gray-500 px-1 block">Ưu đãi, khuyến mãi</span>
-            <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-              <Link
-                to="/ve-chung-toi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <Sparkles className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Trọ Xinh ưu đãi</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-
-              <Link
-                to="/ve-chung-toi"
-                onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-              >
-                <div className="flex items-center gap-3">
-                  <TicketPercent className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                  <span>Ưu đãi của tôi</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400" />
-              </Link>
-            </div>
-          </div>
-
-          {/* 5. NHÓM "KHÁC" */}
+          {/* 4. NHÓM "KHÁC" */}
           <div className="space-y-1.5">
             <span className="text-xs font-semibold text-gray-500 px-1 block">Khác</span>
             <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">

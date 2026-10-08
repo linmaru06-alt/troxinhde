@@ -63,6 +63,7 @@ export const LandingPage: React.FC = () => {
         title="Trọ Xinh - Nền Tảng Tìm Phòng Trọ Đã Xác Minh Tại Hà Nội"
         description="Tìm phòng trọ sinh viên đã đối chiếu thực tế, biết rõ tổng chi phí hàng tháng, tìm bạn ở ghép và chợ đồ cũ sinh viên."
         url="/"
+        isHome={true}
       />
 
       {/* 1. HERO BANNER WITH CUSTOM ILLUSTRATION BACKGROUND */}
@@ -74,6 +75,8 @@ export const LandingPage: React.FC = () => {
             alt="Trọ Xinh Hero Background"
             className="w-full h-full object-cover object-center"
             loading="eager"
+            fetchPriority="high"
+            decoding="async"
           />
         </div>
 
@@ -239,7 +242,7 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div className="flex flex-col sm:flex-row gap-3 shrink-0">
-            <Link to="/nang-cap-chu-tro">
+            <Link to="/landlord-registration">
               <button className="px-6 py-3 bg-gray-950 hover:bg-black text-white font-black rounded-2xl text-xs sm:text-sm shadow-md transition">
                 Đăng ký làm chủ trọ
               </button>

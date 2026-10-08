@@ -1,12 +1,12 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
+import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { MarketplaceCard } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Pagination } from '../components/ui/Pagination';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
-  PlusCircle,
   Sparkles,
   Tag,
   Gift,
@@ -36,7 +36,8 @@ import { MarketplaceItem, MarketplaceConditionCode, MarketplaceDeliveryMethodCod
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
-import { createMarketplaceItem } from '../lib/api/marketplace';
+import { useMarketplaceItemMutations } from '../hooks/queries/useMarketplace';
+import { getItemAvailability, MarketplaceItemInput, normalizePriceInput, formatPriceInput } from '../lib/marketplaceStatus';
 import {
   filterMarketplaceItems,
   validatePriceRange,
@@ -71,36 +72,101 @@ const CATEGORY_SHOWCASE = [
     name: 'Nội thất',
     label: 'Nội thất sinh viên',
     desc: 'Bàn ghế, tủ vải, kệ sách',
-    icon: '🪑',
     image: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=500&auto=format&fit=crop&q=80',
   },
   {
     name: 'Đồ điện tử',
     label: 'Đồ điện tử giá rẻ',
     desc: 'Tủ lạnh mini, màn hình, tai nghe',
-    icon: '⚡',
     image: 'https://images.unsplash.com/photo-1571175443880-49e1d25b2bc5?w=500&auto=format&fit=crop&q=80',
   },
   {
     name: 'Sách vở',
     label: 'Sách & Giáo trình',
     desc: 'TOEIC, IT, giáo trình đại học 0đ',
-    icon: '📚',
     image: 'https://images.unsplash.com/photo-1512820790803-83ca734da794?w=500&auto=format&fit=crop&q=80',
   },
   {
     name: 'Đồ gia dụng',
     label: 'Đồ gia dụng phòng trọ',
     desc: 'Nồi cơm điện, bếp từ, quạt máy',
-    icon: '🍳',
     image: 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=500&auto=format&fit=crop&q=80',
   },
 ];
 
+/**
+ * Ô nhập giá bán: hiển thị dấu chấm ngăn cách hàng nghìn (150.000), tự bỏ số 0 thừa ở đầu
+ * (005555 → 5.555) và cho xóa trống khi đang gõ.
+ * (input type="number" với state kiểu số ép ô trống về 0 nên gõ tiếp bị dính số 0 phía trước)
+ */
+const PriceInput: React.FC<{ value: number; onChange: (value: number) => void; placeholder: string }> = ({
+  value,
+  onChange,
+  placeholder,
+}) => {
+  // Giá 0 (thỏa thuận / chưa nhập) hiển thị ô trống thay vì số 0 đứng sẵn
+  const toDisplay = (price: number) => (price > 0 ? formatPriceInput(String(price)) : '');
+  const [text, setText] = useState<string>(toDisplay(value));
+  const inputRef = useRef<HTMLInputElement>(null);
+  // Số chữ số đứng trước con trỏ, để đặt lại con trỏ đúng chỗ sau khi chèn dấu chấm
+  const caretDigitsRef = useRef<number | null>(null);
+
+  // Giá đổi từ bên ngoài (mở bản nháp, sửa tin, đặt lại form) thì hiển thị theo
+  useEffect(() => {
+    if (Number(normalizePriceInput(text) || 0) !== value) setText(toDisplay(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  useLayoutEffect(() => {
+    const el = inputRef.current;
+    const digitsBefore = caretDigitsRef.current;
+    if (!el || digitsBefore === null || document.activeElement !== el) return;
+    caretDigitsRef.current = null;
+    let pos = 0;
+    let seen = 0;
+    while (pos < el.value.length && seen < digitsBefore) {
+      if (/\d/.test(el.value[pos])) seen++;
+      pos++;
+    }
+    el.setSelectionRange(pos, pos);
+  }, [text]);
+
+  return (
+    <Input
+      label="Mức giá bán (VNĐ)"
+      type="text"
+      inputMode="numeric"
+      autoComplete="off"
+      ref={inputRef}
+      value={text}
+      onChange={(e) => {
+        const raw = e.target.value;
+        const caret = e.target.selectionStart ?? raw.length;
+        const digits = normalizePriceInput(raw);
+        const digitsAfterCaret = raw.slice(caret).replace(/\D/g, '').length;
+        caretDigitsRef.current = Math.max(0, digits.length - digitsAfterCaret);
+        setText(formatPriceInput(digits));
+        onChange(digits === '' ? 0 : Number(digits));
+      }}
+      placeholder={placeholder}
+    />
+  );
+};
+
 export const MarketplaceListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { marketplaceItems, currentUser, addMarketplaceItem, resubmitMarketplaceItem, showToast } = useAppStore();
+  const {
+    marketplaceItems,
+    currentUser,
+    showToast,
+    hiddenItemIds,
+    blockedUserIds,
+    marketplaceLoadError,
+    refreshMarketplaceItems,
+  } = useAppStore();
+  const { createItem, updateItem } = useMarketplaceItemMutations();
+  const [isRetryingLoad, setIsRetryingLoad] = useState<boolean>(false);
 
   const [viewMode, setViewMode] = useState<'public' | 'my_items'>('public');
 
@@ -225,7 +291,7 @@ export const MarketplaceListPage: React.FC = () => {
   const [resubmitDeliveryMethods, setResubmitDeliveryMethods] = useState<MarketplaceDeliveryMethodCode[]>(['tai_truong']);
   const [resubmitDeliveryError, setResubmitDeliveryError] = useState<string | null>(null);
   const [resubmitIsNegotiable, setResubmitIsNegotiable] = useState<boolean>(false);
-  const [isResubmitting, setIsResubmitting] = useState<boolean>(false);
+  const isResubmitting = updateItem.isPending;
 
   const handleOpenResubmitModal = (itemToEdit: MarketplaceItem) => {
     setResubmittingItem(itemToEdit);
@@ -437,6 +503,8 @@ export const MarketplaceListPage: React.FC = () => {
       sortBy: urlState.sortBy,
       viewMode,
       currentUserId: currentUser?.id,
+      hiddenItemIds,
+      blockedUserIds,
     });
   }, [
     marketplaceItems,
@@ -454,6 +522,8 @@ export const MarketplaceListPage: React.FC = () => {
     urlState.sortBy,
     viewMode,
     currentUser,
+    hiddenItemIds,
+    blockedUserIds,
   ]);
 
   // Phân trang: 12 sản phẩm/trang
@@ -473,16 +543,59 @@ export const MarketplaceListPage: React.FC = () => {
     window.scrollTo({ top: 350, behavior: 'smooth' });
   };
 
+  // Thanh "Chợ đồ cũ sinh viên" bám theo khi banner đầu trang đã cuộn khuất dưới thanh menu
+  const heroRef = useRef<HTMLDivElement>(null);
+  const [showStickyBar, setShowStickyBar] = useState<boolean>(false);
+
+  useEffect(() => {
+    const STICKY_NAV_HEIGHT = 64;
+    let frame = 0;
+    // Gộp các sự kiện cuộn vào một khung hình (requestAnimationFrame) như thanh menu
+    const handleScroll = () => {
+      if (frame) return;
+      frame = window.requestAnimationFrame(() => {
+        frame = 0;
+        const hero = heroRef.current;
+        if (!hero) return;
+        setShowStickyBar(hero.getBoundingClientRect().bottom < STICKY_NAV_HEIGHT);
+      });
+    };
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('resize', handleScroll);
+    handleScroll();
+    return () => {
+      if (frame) window.cancelAnimationFrame(frame);
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, []);
+
   const handlePostItem = () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đăng tin thanh lý đồ cũ', 'warning');
-      navigate('/dang-nhap?returnUrl=/cho-do-cu');
+      // Đăng nhập xong quay lại và mở luôn form đăng tin
+      navigate('/dang-nhap?returnUrl=' + encodeURIComponent('/cho-do-cu?dangTin=1'));
       return;
     }
     setIsModalOpen(true);
   };
 
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  // Nút ĐĂNG TIN trên thanh menu (hoặc quay lại sau đăng nhập) mở form qua ?dangTin=1
+  useEffect(() => {
+    if (searchParams.get('dangTin') !== '1') return;
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('dangTin');
+        return next;
+      },
+      { replace: true }
+    );
+    handlePostItem();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
+  const isSubmitting = createItem.isPending;
 
   const handleFormSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -503,53 +616,25 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
-    const sellerId =
-      currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
-        ? currentUser.id
-        : '00000000-0000-0000-0000-000000000003';
+    if (!currentUser || isSubmitting) return;
 
-    const catMap: Record<string, string> = {
-      'Nội thất': 'furniture',
-      'Đồ điện tử': 'electronics',
-      'Sách vở': 'books',
-      'Đồ gia dụng': 'household',
+    const input: MarketplaceItemInput = {
+      name: title.trim(),
+      price: pricingType === 'Miễn phí' ? 0 : Number(price),
+      pricingType,
+      category,
+      condition,
+      location,
+      district,
+      images,
+      description: description.trim() || 'Đồ thanh lý sinh viên chính chủ.',
+      deliveryMethods,
+      isNegotiable,
     };
 
-    setIsSubmitting(true);
     try {
-      try {
-        await createMarketplaceItem({
-          seller_id: sellerId,
-          title: title.trim(),
-          price: pricingType === 'Miễn phí' ? 0 : Number(price),
-          is_free: pricingType === 'Miễn phí',
-          category: (catMap[category] as any) || 'other',
-          district,
-          description: description || 'Đồ thanh lý sinh viên chính chủ.',
-          image_urls: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
-        });
-      } catch (apiErr) {
-        console.warn('[API marketplace fallback]:', apiErr);
-      }
-
-      // Lưu tin vào store với trạng thái "Chờ duyệt"
-      addMarketplaceItem({
-        userId: currentUser?.id || 'user_1',
-        userName: currentUser?.name || 'Người dùng Trọ Xinh',
-        userPhone: currentUser?.phone || '',
-        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
-        name: title.trim(),
-        price: pricingType === 'Miễn phí' ? 0 : Number(price),
-        pricingType,
-        category,
-        condition,
-        location,
-        district,
-        images: images.length > 0 ? images : ['/images/marketplace-banner.webp'],
-        description: description || 'Đồ thanh lý sinh viên chính chủ.',
-        deliveryMethods,
-        isNegotiable,
-      });
+      // Máy chủ luôn đưa tin mới vào trạng thái chờ duyệt
+      await createItem.mutateAsync({ sellerId: currentUser.id, input });
 
       // Xóa bản nháp sau khi đăng thành công
       localStorage.removeItem(DRAFT_KEY);
@@ -566,13 +651,11 @@ export const MarketplaceListPage: React.FC = () => {
       const errorMsg = err?.message || 'Không thể đăng tin lúc này. Dữ liệu của bạn đã được giữ nguyên.';
       setSubmitError(errorMsg);
       showToast('Lỗi khi đăng tin', errorMsg, 'error');
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
   // Xử lý gửi lại tin sau khi chỉnh sửa
-  const handleResubmitSubmit = (e: React.FormEvent) => {
+  const handleResubmitSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resubmittingItem) return;
 
@@ -591,36 +674,91 @@ export const MarketplaceListPage: React.FC = () => {
       return;
     }
 
-    setIsResubmitting(true);
+    if (isResubmitting) return;
     try {
-      resubmitMarketplaceItem(resubmittingItem.id, {
-        name: resubmitTitle.trim(),
-        price: resubmitPricingType === 'Miễn phí' ? 0 : Number(resubmitPrice),
-        pricingType: resubmitPricingType,
-        category: resubmitCategory,
-        condition: resubmitCondition,
-        location: resubmitLocation,
-        district: resubmitDistrict,
-        description: resubmitDescription.trim(),
-        images: resubmitImages,
-        deliveryMethods: resubmitDeliveryMethods,
-        isNegotiable: resubmitIsNegotiable,
+      await updateItem.mutateAsync({
+        id: resubmittingItem.id,
+        input: {
+          name: resubmitTitle.trim(),
+          price: resubmitPricingType === 'Miễn phí' ? 0 : Number(resubmitPrice),
+          pricingType: resubmitPricingType,
+          category: resubmitCategory,
+          condition: resubmitCondition,
+          location: resubmitLocation,
+          district: resubmitDistrict,
+          description: resubmitDescription.trim(),
+          images: resubmitImages,
+          deliveryMethods: resubmitDeliveryMethods,
+          isNegotiable: resubmitIsNegotiable,
+        },
       });
 
       setResubmitModalOpen(false);
       setResubmittingItem(null);
       showToast('Đã gửi lại duyệt thành công! 🚀', 'Tin đăng đã được cập nhật và chuyển vào danh sách chờ Admin kiểm duyệt lại.', 'success');
     } catch (err: any) {
-      showToast('Lỗi khi gửi lại duyệt', err?.message || 'Không thể gửi lại tin lúc này', 'error');
-    } finally {
-      setIsResubmitting(false);
+      showToast('Lỗi khi gửi lại duyệt', err?.message || 'Không thể gửi lại tin lúc này. Dữ liệu đã được giữ nguyên.', 'error');
     }
   };
 
+  const handleRetryLoad = async () => {
+    setIsRetryingLoad(true);
+    try {
+      await refreshMarketplaceItems();
+    } finally {
+      setIsRetryingLoad(false);
+    }
+  };
+
+  const publicItemCount = useMemo(
+    () => marketplaceItems.filter((i) => ['available', 'sold'].includes(getItemAvailability(i))).length,
+    [marketplaceItems]
+  );
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title="Chợ Đồ Cũ Sinh Viên Hà Nội - Thanh Lý Bàn Ghế, Tủ Lạnh, Đồ Dùng Trọ Giá Rẻ | TroXinh"
+        description="Chợ thanh lý đồ cũ sinh viên Hà Nội: bàn học, tủ quần áo, đệm, tủ lạnh, quạt điện, đồ gia dụng chuyển trọ giá rẻ từ 50k - 500k. Nhận đồ tặng 0đ an toàn."
+        image="/images/marketplace-banner.webp"
+        url="/cho-do-cu"
+        keywords="chợ đồ cũ sinh viên, thanh lý đồ chuyển trọ hà nội, bàn học sinh viên cũ, tủ lạnh cũ hà nội, đồ gia dụng cũ cầu giấy, bách khoa"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Chợ đồ cũ sinh viên', url: '/cho-do-cu' },
+        ]}
+      />
+
+      {/* Thanh chợ đồ cũ bám dưới thanh menu khi cuộn: nút đăng tin thanh lý luôn trong tầm tay,
+          tách bạch với nút "ĐĂNG TIN" phòng trọ trên thanh menu */}
+      <div
+        className={`fixed top-14 sm:top-16 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-b border-gray-200/90 shadow-sm transition-all duration-300 ease-in-out ${
+          showStickyBar ? 'translate-y-0 opacity-100 pointer-events-auto' : '-translate-y-full opacity-0 pointer-events-none'
+        }`}
+        aria-hidden={!showStickyBar}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-12 sm:h-14 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="text-sm sm:text-base font-black text-gray-900 tracking-tight truncate cursor-pointer hover:text-[#006d37] transition"
+            tabIndex={showStickyBar ? 0 : -1}
+          >
+            Chợ đồ cũ sinh viên
+          </button>
+          <button
+            type="button"
+            onClick={handlePostItem}
+            className="shrink-0 px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-xs sm:text-sm tracking-wide shadow-md cursor-pointer transition"
+            tabIndex={showStickyBar ? 0 : -1}
+          >
+            Đăng tin thanh lý
+          </button>
+        </div>
+      </div>
+
       {/* Header Banner */}
-      <div className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
+      <div ref={heroRef} className="relative overflow-hidden rounded-3xl shadow-2xl border border-gray-900/10">
         {/* Background Image */}
         <div
           className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -629,38 +767,34 @@ export const MarketplaceListPage: React.FC = () => {
         {/* Dark Gradient & Frosted Overlay */}
         <div className="absolute inset-0 bg-gradient-to-r from-slate-950/95 via-slate-900/80 to-slate-950/40" />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-transparent to-transparent" />
-        {/* Ambient Warm Amber Glow */}
-        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-amber-500/20 rounded-full blur-3xl pointer-events-none" />
+        {/* Ambient Emerald Glow */}
+        <div className="absolute -top-10 right-1/4 w-80 h-80 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none" />
 
         {/* Content Container */}
         <div className="relative z-10 p-6 sm:p-10 lg:p-12 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
             <h1 className="text-2xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight leading-tight drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)]">
               Chợ Đồ Cũ Sinh Viên <br />
-              <span className="text-[#f59e0b]">Tiết Kiệm Tối Đa Chi Phí</span>
+              <span className="text-emerald-400">Tiết Kiệm Tối Đa Chi Phí</span>
             </h1>
-            <p className="text-gray-100 text-xs sm:text-sm md:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-lg">
-              Mua bán bàn ghế, tủ lạnh, quạt điện, giáo trình giá rẻ từ các anh chị khóa trên hoặc nhận đồ tặng 0 đồng tại các cụm trọ sinh viên Hà Nội.
+            <p className="text-emerald-50/90 text-sm sm:text-base leading-relaxed font-medium drop-shadow-[0_1px_4px_rgba(0,0,0,0.9)] max-w-md">
+              Sang nhượng đồ dùng giá sinh viên & nhận đồ tặng 0đ quanh cụm trọ.
             </p>
           </div>
 
-          {/* Phần đăng món đồ thanh lý nổi bật vượt trội */}
+          {/* Phần đăng món đồ thanh lý đồng nhất màu xanh lá chủ đạo */}
           <div className="shrink-0 flex flex-col items-center md:items-end gap-2.5 w-full md:w-auto">
-            <div className="p-1 rounded-2xl bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 shadow-[0_0_30px_rgba(245,158,11,0.5)] hover:shadow-[0_0_40px_rgba(245,158,11,0.75)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
+            <div className="p-1 rounded-2xl bg-gradient-to-r from-emerald-400 via-[#006d37] to-emerald-500 shadow-[0_0_25px_rgba(0,109,55,0.45)] hover:shadow-[0_0_35px_rgba(0,109,55,0.7)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
               <button
                 type="button"
                 onClick={handlePostItem}
-                className="w-full md:w-auto flex items-center justify-center gap-3 px-5 sm:px-7 py-3.5 rounded-xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 hover:from-amber-600 hover:to-orange-600 text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
+                className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
               >
-                <span className="p-1 bg-white/25 rounded-lg flex items-center justify-center shadow-inner">
-                  <PlusCircle className="w-5 h-5 text-white shrink-0" strokeWidth={2.5} />
-                </span>
-                <span>Đăng Món Đồ Muốn Thanh Lý</span>
-                <Sparkles className="w-4 h-4 text-amber-200 shrink-0" />
+                <span>Đăng Tin Thanh Lý</span>
               </button>
             </div>
-            <div className="inline-flex items-center gap-1.5 text-[11px] text-amber-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-amber-500/35 shadow-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+            <div className="inline-flex items-center gap-1.5 text-[11px] text-emerald-200 font-semibold bg-slate-900/85 backdrop-blur-md px-3.5 py-1 rounded-full border border-emerald-500/35 shadow-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
               <span>Đăng tin miễn phí • Tặng 0đ hoặc sang nhượng</span>
             </div>
           </div>
@@ -682,7 +816,7 @@ export const MarketplaceListPage: React.FC = () => {
             <Layers className="w-4 h-4" />
             <span>Tất cả đồ thanh lý</span>
             <span className={`text-[11px] px-2 py-0.5 rounded-full ${viewMode === 'public' ? 'bg-white/20 text-white' : 'bg-gray-100 text-gray-700'}`}>
-              {marketplaceItems.filter(i => i.status !== 'Chờ duyệt' && i.moderationStatus !== 'pending' && i.status !== 'Bị từ chối' && i.moderationStatus !== 'rejected').length}
+              {publicItemCount}
             </span>
           </button>
 
@@ -766,9 +900,8 @@ export const MarketplaceListPage: React.FC = () => {
                 }`}
               />
 
-              {/* Top Row: Icon & Count Badge */}
-              <div className="relative z-10 flex items-center justify-between w-full">
-                <span className="text-2xl sm:text-3xl filter drop-shadow-xs">{cat.icon}</span>
+              {/* Top Row: Count Badge */}
+              <div className="relative z-10 flex items-center justify-end w-full">
                 <span
                   className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${
                     isSelected ? 'bg-white text-[#006d37] shadow-xs' : 'bg-gray-100 text-gray-700'
@@ -1196,6 +1329,25 @@ export const MarketplaceListPage: React.FC = () => {
         </div>
       </div>
 
+      {marketplaceLoadError && (
+        <div role="alert" className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-rose-800">
+          <span className="flex items-start gap-1.5">
+            <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+            <span>Không thể tải danh sách chợ đồ cũ: {marketplaceLoadError}</span>
+          </span>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRetryLoad}
+            disabled={isRetryingLoad}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isRetryingLoad ? 'animate-spin' : ''}`} />}
+            className="border-rose-300 text-rose-700 hover:bg-rose-100 shrink-0"
+          >
+            {isRetryingLoad ? 'Đang tải lại...' : 'Thử lại'}
+          </Button>
+        </div>
+      )}
+
       {/* Items Grid */}
       {filteredItems.length === 0 ? (
         <EmptyState
@@ -1268,7 +1420,7 @@ export const MarketplaceListPage: React.FC = () => {
                         </div>
                       )}
 
-                      {!isRejected && !isPending && item.status !== 'Đã bán' && (
+                      {getItemAvailability(item) === 'available' && (
                         <div className="p-2 bg-emerald-50 border border-emerald-200 rounded-xl flex items-center justify-between text-[11px] text-emerald-800">
                           <span className="flex items-center gap-1 font-semibold">
                             <CheckCircle2 className="w-3.5 h-3.5 text-[#006d37]" />
@@ -1382,15 +1534,10 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
 
           {pricingType === 'Giá rẻ' && (
-            <Input
-              label="Mức giá bán (VNĐ)"
-              type="number"
-              required
-              min={0}
-              step={10000}
+            <PriceInput
               value={price}
-              onChange={(e) => setPrice(Number(e.target.value))}
-              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận / chưa nhập giá)"
+              onChange={setPrice}
+              placeholder="Ví dụ: 150.000 (để trống nếu giá thỏa thuận)"
             />
           )}
 
@@ -1616,15 +1763,10 @@ export const MarketplaceListPage: React.FC = () => {
           </div>
 
           {resubmitPricingType === 'Giá rẻ' && (
-            <Input
-              label="Mức giá bán (VNĐ)"
-              type="number"
-              required
-              min={0}
-              step={10000}
+            <PriceInput
               value={resubmitPrice}
-              onChange={(e) => setResubmitPrice(Number(e.target.value))}
-              placeholder="150000 (Nhập 0 nếu là giá thỏa thuận)"
+              onChange={setResubmitPrice}
+              placeholder="Ví dụ: 150.000 (để trống nếu giá thỏa thuận)"
             />
           )}
 

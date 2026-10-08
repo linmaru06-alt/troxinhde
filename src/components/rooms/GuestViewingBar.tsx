@@ -15,15 +15,22 @@ export const GuestViewingBar: React.FC = () => {
     const sessionDismissed = sessionStorage.getItem('troxinh_guest_viewing_bar_dismissed');
     if (sessionDismissed === 'true' || currentUser) return;
 
+    let ticking = false;
     const handleScroll = () => {
-      const scrollY = window.scrollY;
-      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (docHeight > 0 && scrollY / docHeight > 0.65) {
-        setIsVisible(true);
+      if (!ticking) {
+        window.requestAnimationFrame(() => {
+          const scrollY = window.scrollY || window.pageYOffset || 0;
+          const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+          if (docHeight > 0 && scrollY / docHeight > 0.65) {
+            setIsVisible(true);
+          }
+          ticking = false;
+        });
+        ticking = true;
       }
     };
 
-    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
   }, [currentUser]);
 

@@ -9,7 +9,7 @@ export type UploadFolder =
 
 // Upload 1 ảnh
 export async function uploadImage(
-  file: File,
+  file: File | Blob,
   folder: UploadFolder = 'troxinh/rooms'
 ): Promise<string> {
   const cloudName = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME;
@@ -31,23 +31,34 @@ export async function uploadImage(
     }
   }
 
-  const formData = new FormData();
-  formData.append('file', file);
-  formData.append('upload_preset', uploadPreset);
-  formData.append('folder', folder);
+  try {
+    const formData = new FormData();
+    const fileName = file instanceof File ? file.name : 'upload.webp';
+    formData.append('file', file, fileName);
+    formData.append('upload_preset', uploadPreset);
+    formData.append('folder', folder);
 
-  const response = await fetch(
-    `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-    { method: 'POST', body: formData }
-  );
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+      { method: 'POST', body: formData }
+    );
 
-  if (!response.ok) {
-    const errData = await response.json().catch(() => ({}));
-    throw new Error(errData?.error?.message || 'Upload thất bại. Vui lòng kiểm tra Cloudinary config.');
+    if (!response.ok) {
+      throw new Error('Cloudinary response not ok');
+    }
+
+    const data = await response.json();
+    return data.secure_url;
+  } catch (error) {
+    // Fallback sang Data URL nếu Cloudinary gặp lỗi mạng hoặc cấu hình preset sai
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        resolve(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    });
   }
-
-  const data = await response.json();
-  return data.secure_url;
 }
 
 // Upload nhiều ảnh tuần tự

@@ -17,8 +17,10 @@ import {
   Trash2,
 } from 'lucide-react';
 
-import { getOrCreateConversation } from '../lib/api/messages';
+import { getOrCreateConversation, saveConversationMeta, isSameUserId } from '../lib/api/messages';
 import { getRoommatePostById } from '../lib/api/roommates';
+import { SEOHead } from '../components/seo/SEOHead';
+import { extractIdFromParam, buildRoommateUrl } from '../utils/slugify';
 import type { RoommatePost } from '../types';
 
 /**
@@ -37,7 +39,8 @@ function maskContactInfo(text?: string | null): string {
 }
 
 export const RoommateDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
   const {
     roommates = [],
@@ -145,10 +148,10 @@ export const RoommateDetailPage: React.FC = () => {
   const handleContactChat = async () => {
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người đăng bài', 'warning');
-      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/roommate/${post.id}`)}`);
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(buildRoommateUrl(post))}`);
       return;
     }
-    if (currentUser.id === post.userId) {
+    if (isSameUserId(currentUser.id, post.userId)) {
       showToast('Đây là bài đăng của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
       return;
     }
@@ -168,7 +171,13 @@ export const RoommateDetailPage: React.FC = () => {
           otherAvatar: post.userAvatar || '/images/user-avatar.jpg',
         }
       );
-      navigate(`/tin-nhan/${convId}`);
+      saveConversationMeta(convId, {
+        other_name: post.userName || 'Thành viên Trọ Xinh',
+        other_avatar: post.userAvatar || '/images/user-avatar.jpg',
+        roommate_id: post.id,
+        roommate_post: post,
+      });
+      navigate(`/tin-nhan/${convId}?roommateId=${encodeURIComponent(post.id)}`);
     } catch (err: any) {
       console.error('[RoommateDetail] Lỗi mở chat:', err);
       showToast('Không thể mở cuộc trò chuyện', err?.message || 'Vui lòng thử lại sau', 'error');
@@ -179,6 +188,19 @@ export const RoommateDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title={`Tìm Bạn Ở Ghép: ${post.userName} (${post.userSchool || post.district}) | TroXinh`}
+        description={`Tìm bạn cùng phòng: ${post.userName}, ${post.userSchool || ''} tại ${post.district}. Ngân sách chia sẻ ${formatPrice(post.budgetShare)}/tháng. Đã xác thực sinh viên.`}
+        image={post.userAvatar || '/roommate-banner.webp'}
+        url={buildRoommateUrl(post)}
+        type="article"
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tìm bạn ở ghép', url: '/roommate' },
+          { name: post.userName || 'Chi tiết', url: buildRoommateUrl(post) },
+        ]}
+      />
+
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-xs text-gray-500">
         <Link to="/" className="hover:text-[#006d37]">Trang chủ</Link>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 import { Navbar } from './components/layout/Navbar';
 import { Footer } from './components/layout/Footer';
 import { MobileBottomNav } from './components/layout/MobileBottomNav';
@@ -7,12 +7,14 @@ import { ToastContainer } from './components/ui/ToastContainer';
 import { PushPermissionToast } from './components/ui/PushPermissionToast';
 import { useAppStore } from './store/useAppStore';
 import { Button } from './components/ui/Button';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2, ArrowRight, ShieldAlert, Home } from 'lucide-react';
 import { BackToTopButton } from './components/common/BackToTopButton';
 import { OfflineBanner } from './components/common/OfflineBanner';
+import { FramebustingGuard } from './components/common/FramebustingGuard';
 import { AuthModal } from './components/modals/AuthModal';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { PublicOnlyRoute } from './components/auth/PublicOnlyRoute';
+import { isPermittedAdmin, isAdminIdentifier } from './lib/security/sessionIntegrity';
 
 // Lazy Loaded Pages
 const LandingPage = React.lazy(() => import('./pages/LandingPage').then((m) => ({ default: m.LandingPage })));
@@ -29,7 +31,6 @@ const ContractTemplatePage = React.lazy(() => import('./pages/ContractTemplatePa
 const DepositContractPage = React.lazy(() => import('./pages/DepositContractPage').then((m) => ({ default: m.DepositContractPage })));
 const TermsPage = React.lazy(() => import('./pages/TermsPage').then((m) => ({ default: m.TermsPage })));
 const PrivacyPage = React.lazy(() => import('./pages/PrivacyPage').then((m) => ({ default: m.PrivacyPage })));
-const PrivacyPolicyPage = React.lazy(() => import('./pages/PrivacyPolicyPage').then((m) => ({ default: m.PrivacyPolicyPage })));
 const HelpPage = React.lazy(() => import('./pages/HelpPage').then((m) => ({ default: m.HelpPage })));
 
 // Auth Pages
@@ -58,15 +59,20 @@ const PaymentResultPage = React.lazy(() => import('./pages/PaymentResultPage').t
 const OwnerOnboardingPage = React.lazy(() => import('./pages/OwnerOnboardingPage').then((m) => ({ default: m.OwnerOnboardingPage })));
 const OwnerDashboardPage = React.lazy(() => import('./pages/OwnerDashboardPage').then((m) => ({ default: m.OwnerDashboardPage })));
 const OwnerBuildingListPage = React.lazy(() => import('./pages/OwnerBuildingListPage').then((m) => ({ default: m.OwnerBuildingListPage })));
+const OwnerBuildingDetailPage = React.lazy(() => import('./pages/OwnerBuildingDetailPage').then((m) => ({ default: m.OwnerBuildingDetailPage })));
 const OwnerCreateBuildingPage = React.lazy(() => import('./pages/OwnerCreateBuildingPage').then((m) => ({ default: m.OwnerCreateBuildingPage })));
 const OwnerCreateRoomPage = React.lazy(() => import('./pages/OwnerCreateRoomPage').then((m) => ({ default: m.OwnerCreateRoomPage })));
 const OwnerRoomDetailPage = React.lazy(() => import('./pages/OwnerRoomDetailPage').then((m) => ({ default: m.OwnerRoomDetailPage })));
+const OwnerChatPage = React.lazy(() => import('./pages/OwnerChatPage').then((m) => ({ default: m.OwnerChatPage })));
+const OwnerBookingsPage = React.lazy(() => import('./pages/OwnerBookingsPage').then((m) => ({ default: m.OwnerBookingsPage })));
+const OwnerNotificationsPage = React.lazy(() => import('./pages/OwnerNotificationsPage').then((m) => ({ default: m.OwnerNotificationsPage })));
 const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
 const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
 
 // Admin Pages
 const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
+const AdminReportsPage = React.lazy(() => import('./pages/AdminReportsPage').then((m) => ({ default: m.AdminReportsPage })));
 const AdminModerationPage = React.lazy(() => import('./pages/AdminModerationPage').then((m) => ({ default: m.AdminModerationPage })));
 const AdminOwnerApplicationsPage = React.lazy(() => import('./pages/AdminOwnerApplicationsPage').then((m) => ({ default: m.AdminOwnerApplicationsPage })));
 const AdminUsersPage = React.lazy(() => import('./pages/AdminUsersPage').then((m) => ({ default: m.AdminUsersPage })));
@@ -95,7 +101,7 @@ const PageSkeleton = () => (
 
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
 import { auth, onAuthStateChanged, onIdTokenChanged } from './lib/firebase';
-import { getProfileByFirebaseUid, syncFirebaseUserToSupabase } from './lib/authService';
+import { logoutAuth, syncFirebaseUserToSupabase } from './lib/authService';
 import { setAnalyticsUser } from './lib/analytics';
 
 // Global Firebase Auth & Cloud Data Loader
@@ -114,41 +120,45 @@ const AppCloudDataLoader: React.FC = () => {
     // 2. Lắng nghe trạng thái đăng nhập Firebase Auth duy nhất
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
+        const email = fbUser.email?.toLowerCase();
+        const isSuperAdmin = isAdminIdentifier(fbUser.email, fbUser.phoneNumber);
+        const isLandlord = email === 'phuonglinh832005@gmail.com';
         try {
-          const email = fbUser.email?.toLowerCase();
-          const isSuperAdmin = email === 'quan66934@gmail.com' || email === 'admin@troxinh.vn';
-          const profile = await getProfileByFirebaseUid(fbUser.uid);
-          if (profile) {
-            loginWithSocialUser({
-              id: profile.id,
-              name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
-              email: profile.email || fbUser.email || undefined,
-              phone: profile.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : profile.role,
-              avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
-              emailVerified: fbUser.emailVerified,
-              phoneVerified: !!fbUser.phoneNumber,
-            });
-          } else {
-            const synced = await syncFirebaseUserToSupabase(fbUser);
-            loginWithSocialUser({
-              id: synced.id,
-              name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : synced.name,
-              email: synced.email || fbUser.email || undefined,
-              phone: synced.phone || fbUser.phoneNumber || undefined,
-              role: isSuperAdmin ? 'admin' : synced.role,
-              avatarUrl: synced.avatarUrl || fbUser.photoURL || undefined,
-              emailVerified: fbUser.emailVerified,
-              phoneVerified: !!fbUser.phoneNumber,
-            });
-          }
-        } catch (err) {
+          // Hồ sơ luôn lấy theo Firebase UID của phiên thật, ghi đè currentUser cũ còn lưu trong trình duyệt
+          const profile = await syncFirebaseUserToSupabase(fbUser, isLandlord ? 'owner' : 'renter');
+          const isApprovedOwner = profile.ownerApplicationStatus === 'approved' || profile.role === 'owner' || isLandlord;
+          const targetRole = isSuperAdmin ? 'admin' : (isApprovedOwner ? 'owner' : (profile.role || 'user'));
+
+          loginWithSocialUser({
+            id: profile.id,
+            firebaseUid: fbUser.uid,
+            isDemoAccount: profile.isDemoAccount,
+            name: isSuperAdmin ? 'Quản Trị Viên (Quân)' : profile.name,
+            email: profile.email || fbUser.email || undefined,
+            phone: profile.phone || fbUser.phoneNumber || undefined,
+            role: targetRole,
+            avatarUrl: profile.avatarUrl || fbUser.photoURL || undefined,
+            emailVerified: fbUser.emailVerified,
+            phoneVerified: !!fbUser.phoneNumber,
+          });
+        } catch (err: any) {
+          // Không gắn được phiên với hồ sơ: không giữ định danh tạm, báo lỗi và đăng xuất an toàn
           console.warn('[Auth] Lỗi đồng bộ profile Firebase:', err);
+          useAppStore.getState().setCurrentUser(null);
+          logoutAuth().catch(() => {});
+          useAppStore.getState().showToast(
+            'Không thể đồng bộ tài khoản',
+            err?.message || 'Vui lòng đăng nhập lại.',
+            'error'
+          );
         }
+        // Tải lại chợ đồ cũ bằng phiên Firebase để người bán thấy cả tin chờ duyệt của mình
+        useAppStore.getState().refreshMarketplaceItems();
       } else {
-        // Nếu không có Firebase user và không phải tài khoản demo đang đăng nhập
-        if (currentUser && !currentUser.isDemoAccount && !currentUser.id.startsWith('demo_')) {
-          // logout();
+        // Không có phiên Firebase: bỏ currentUser cũ lưu trong trình duyệt (trừ tài khoản demo)
+        const storedUser = useAppStore.getState().currentUser;
+        if (storedUser && !storedUser.isDemoAccount && !storedUser.id.startsWith('demo_')) {
+          useAppStore.getState().setCurrentUser(null);
         }
       }
     });
@@ -177,7 +187,7 @@ const OwnerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
   if (currentUser.role !== 'owner') {
     if (currentUser.ownerApplicationStatus === 'pending') {
-      return <Navigate to="/nang-cap-chu-tro/trang-thai" replace />;
+      return <Navigate to="/landlord-registration/trang-thai" replace />;
     }
 
     return (
@@ -195,7 +205,7 @@ const OwnerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           <Button
             variant="primary"
             size="md"
-            onClick={() => (window.location.href = '/nang-cap-chu-tro')}
+            onClick={() => (window.location.href = '/landlord-registration')}
             rightIcon={<ArrowRight className="w-4 h-4" />}
           >
             Nộp Hồ Sơ Nâng Cấp Ngay (24h)
@@ -211,27 +221,82 @@ const OwnerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 // Route Guard for Admin Routes
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser } = useAppStore();
+  const location = useLocation();
 
-  if (!currentUser || currentUser.role !== 'admin') {
-    return <Navigate to="/dang-nhap?returnUrl=/admin" replace />;
+  if (!currentUser) {
+    const returnUrl = encodeURIComponent(location.pathname + location.search);
+    return <Navigate to={`/dang-nhap?returnUrl=${returnUrl}`} replace />;
+  }
+
+  const isAdmin = isPermittedAdmin(currentUser);
+
+  if (!isAdmin) {
+    return (
+      <div className="flex-1 min-h-[calc(100vh-4rem)] flex items-center justify-center p-6 bg-gray-50">
+        <div className="bg-white rounded-3xl p-8 border border-gray-200 shadow-sm max-w-md w-full text-center space-y-5">
+          <div className="w-16 h-16 bg-rose-100 text-rose-600 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-xl font-black text-gray-900">Không có quyền truy cập</h2>
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Tài khoản của bạn ({currentUser.phone || currentUser.email || currentUser.name}) không có quyền quản trị viên để truy cập khu vực này.
+            </p>
+          </div>
+          <div className="pt-2 flex flex-col sm:flex-row gap-3 justify-center">
+            <Link to="/" className="w-full">
+              <Button variant="outline" size="sm" className="w-full text-xs">
+                <Home className="w-4 h-4 mr-1.5" />
+                Về Trang chủ
+              </Button>
+            </Link>
+            <Link
+              to={`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname + location.search)}`}
+              className="w-full"
+            >
+              <Button variant="primary" size="sm" className="w-full text-xs">
+                Đổi tài khoản khác
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return <>{children}</>;
 };
 
-export const App: React.FC = () => {
-  return (
-    <BrowserRouter>
-      <RouteNavigationHandler />
-      <AppCloudDataLoader />
-      <div className="flex flex-col min-h-screen">
-        <Navbar />
+// Smart Home Route: Tự động điều hướng Chủ trọ vào trang Tổng quan & Phòng
+const HomeRoute: React.FC = () => {
+  const { currentUser } = useAppStore();
+  if (currentUser && (currentUser.role === 'owner' || currentUser.ownerApplicationStatus === 'approved')) {
+    return <Navigate to="/chu-tro" replace />;
+  }
+  return <LandingPage />;
+};
 
-        <div className="flex-1">
-          <React.Suspense fallback={<PageSkeleton />}>
+const AppContent: React.FC = () => {
+  const location = useLocation();
+  const isChatRoute =
+    location.pathname.startsWith('/tin-nhan') ||
+    location.pathname.startsWith('/chu-tro/tin-nhan');
+
+  return (
+    <div className={`flex flex-col ${isChatRoute ? 'h-screen overflow-hidden' : 'min-h-screen'}`}>
+      <Navbar />
+
+      <div
+        className={`flex-1 ${
+          isChatRoute
+            ? 'h-[calc(100dvh-3.5rem)] sm:h-[calc(100dvh-4rem)] overflow-hidden flex flex-col min-h-0'
+            : ''
+        }`}
+      >
+        <React.Suspense fallback={<PageSkeleton />}>
             <Routes>
               {/* Public Core Routes */}
-              <Route path="/" element={<LandingPage />} />
+              <Route path="/" element={<HomeRoute />} />
               <Route path="/tim-kiem" element={<SearchPage />} />
               <Route path="/tim-phong" element={<SearchPage />} />
               <Route path="/ban-do" element={<MapViewPage />} />
@@ -241,6 +306,8 @@ export const App: React.FC = () => {
             {/* Roommate & Marketplace */}
             <Route path="/roommate" element={<RoommateListPage />} />
             <Route path="/roommate/:id" element={<RoommateDetailPage />} />
+            <Route path="/o-ghep" element={<RoommateListPage />} />
+            <Route path="/o-ghep/:id" element={<RoommateDetailPage />} />
             <Route path="/tim-ban-cung-phong" element={<RoommateListPage />} />
             <Route path="/tim-ban-cung-phong/:id" element={<RoommateDetailPage />} />
             <Route path="/cho-do-cu" element={<MarketplaceListPage />} />
@@ -333,8 +400,22 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+            {/* Chưa có trang ưu đãi: đưa link cũ về trang chủ thay vì trang không tồn tại (404) */}
+            <Route path="/vouchers" element={<Navigate to="/" replace />} />
+            <Route path="/offers" element={<Navigate to="/" replace />} />
+            <Route path="/uu-dai" element={<Navigate to="/" replace />} />
+            <Route path="/kho-voucher" element={<Navigate to="/" replace />} />
+
             <Route
               path="/da-luu"
+              element={
+                <ProtectedRoute>
+                  <SavedRoomsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/saved-items"
               element={
                 <ProtectedRoute>
                   <SavedRoomsPage />
@@ -389,7 +470,13 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             />
+            <Route path="/landlord-registration" element={<OwnerUpgradePage />} />
+            <Route path="/landlord-registration/trang-thai" element={<OwnerApplicationStatusPage />} />
+            <Route path="/landlord-registration/status" element={<OwnerApplicationStatusPage />} />
             <Route path="/nang-cap-chu-tro" element={<OwnerUpgradePage />} />
+            <Route path="/landlord-registration" element={<OwnerUpgradePage />} />
+            <Route path="/dang-ky-chu-tro" element={<OwnerUpgradePage />} />
+            <Route path="/dang-ky-cho-thue" element={<OwnerUpgradePage />} />
             <Route path="/nang-cap-chu-tro/trang-thai" element={<OwnerApplicationStatusPage />} />
 
             {/* Owner SaaS Features (Protected) */}
@@ -437,7 +524,7 @@ export const App: React.FC = () => {
               path="/chu-tro/toa-nha/:id"
               element={
                 <OwnerRoute>
-                  <BuildingDetailPage />
+                  <OwnerBuildingDetailPage />
                 </OwnerRoute>
               }
             />
@@ -473,13 +560,35 @@ export const App: React.FC = () => {
                 </OwnerRoute>
               }
             />
-            <Route path="/chu-tro/tin-nhan" element={<Navigate to="/tin-nhan" replace />} />
-            <Route path="/chu-tro/lich-hen" element={<Navigate to="/lich-hen" replace />} />
+            <Route
+              path="/chu-tro/tin-nhan"
+              element={
+                <OwnerRoute>
+                  <OwnerChatPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/tin-nhan/:conversationId"
+              element={
+                <OwnerRoute>
+                  <OwnerChatPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/lich-hen"
+              element={
+                <OwnerRoute>
+                  <OwnerBookingsPage />
+                </OwnerRoute>
+              }
+            />
             <Route
               path="/chu-tro/thong-bao"
               element={
                 <OwnerRoute>
-                  <NotificationsPage />
+                  <OwnerNotificationsPage />
                 </OwnerRoute>
               }
             />
@@ -518,6 +627,22 @@ export const App: React.FC = () => {
               }
             />
             <Route
+              path="/admin/bao-cao"
+              element={
+                <AdminRoute>
+                  <AdminReportsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/reports"
+              element={
+                <AdminRoute>
+                  <AdminReportsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
               path="/admin/kiem-duyet"
               element={
                 <AdminRoute>
@@ -535,6 +660,22 @@ export const App: React.FC = () => {
             />
             <Route
               path="/admin/don-chu-tro"
+              element={
+                <AdminRoute>
+                  <AdminOwnerApplicationsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/admin/owner-applications"
+              element={
+                <AdminRoute>
+                  <AdminOwnerApplicationsPage />
+                </AdminRoute>
+              }
+            />
+            <Route
+              path="/quan-tri/duyet-chu-tro"
               element={
                 <AdminRoute>
                   <AdminOwnerApplicationsPage />
@@ -600,14 +741,24 @@ export const App: React.FC = () => {
         </React.Suspense>
       </div>
 
-        <Footer />
-        <MobileBottomNav />
-        <BackToTopButton />
-        <OfflineBanner />
-        <PushPermissionToast />
-        <ToastContainer />
-        <AuthModal />
-      </div>
+      {!isChatRoute && <Footer />}
+      {!isChatRoute && <MobileBottomNav />}
+      {!isChatRoute && <BackToTopButton />}
+      <OfflineBanner />
+      <PushPermissionToast />
+      <ToastContainer />
+      <AuthModal />
+    </div>
+  );
+};
+
+export const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <FramebustingGuard />
+      <RouteNavigationHandler />
+      <AppCloudDataLoader />
+      <AppContent />
     </BrowserRouter>
   );
 };

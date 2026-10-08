@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&subset=vietnamese&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -11,9 +13,13 @@
     --mobile-bottom-offset: calc(var(--mobile-nav-height) + env(safe-area-inset-bottom, 0px));
   }
 
+  html, body, button, input, select, textarea {
+    font-family: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
+  }
+
   body {
-    @apply bg-[#f9f9f9] text-[#1a1c1c] font-sans antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+    @apply bg-[#f9f9f9] text-[#1a1c1c] antialiased;
+    font-family: 'Be Vietnam Pro', 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, Helvetica, Arial, sans-serif;
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
     overflow-x: clip;
@@ -43,6 +49,27 @@
 }
 
 @layer utilities {
+  /* GPU Layer Acceleration & 60 FPS Compositing */
+  .gpu-layer {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+
+  /* DOM Containment & Off-screen Rendering Optimization (Skip off-screen reflow/paint) */
+  .feed-item-contain {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 380px;
+  }
+
+  .contain-paint {
+    contain: paint;
+  }
+
+  .contain-layout {
+    contain: layout paint;
+  }
+
   .glass-card {
     background: rgba(255, 255, 255, 0.9);
     backdrop-filter: blur(12px);
@@ -109,6 +136,39 @@
   100% {
     background-position: 200% 0;
   }
+}
+
+@keyframes shimmerWave {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.shimmer-wave {
+  position: relative;
+  overflow: hidden;
+  background-color: #f1f3f4;
+}
+
+.shimmer-wave::after {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmerWave 1.6s infinite;
+  content: '';
+  will-change: transform;
 }
 
 /* Leaflet Custom Pin & Popup Styles */

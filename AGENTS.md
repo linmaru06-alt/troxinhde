@@ -42,4 +42,13 @@
 - Khi người dùng yêu cầu đồng bộ hoặc đẩy code: kiểm tra build thành công và đẩy trực tiếp lên nhánh `main`.
 - Báo cáo: nguyên nhân, thay đổi, kiểm thử đã chạy và hạn chế còn lại.
 
+## 6. Vibe Coding & Supabase Workflow
+
+- **Không tự ý chạy lệnh phá hủy DB**: Tuyệt đối không sinh các lệnh xóa bảng (`DROP TABLE`) hoặc làm mất dữ liệu đang có.
+- **Cơ chế 1-Click SQL**: Khi cần thêm bảng, thêm cột hoặc RLS cho tính năng mới:
+  1. Viết code Frontend/Backend trước (sử dụng TypeScript type an toàn).
+  2. Xuất toàn bộ mã SQL cần thiết (`CREATE TABLE IF NOT EXISTS`, `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`, RLS policies, Index) vào một khối mã duy nhất ở cuối câu trả lời.
+  3. Viết sẵn RLS bảo mật theo chuẩn: `auth.uid() = user_id` cho dữ liệu cá nhân, hoặc cho phép đọc công khai (`SELECT`) nếu là trang tin tức, phòng trọ, bài viết tìm ở ghép hoặc chợ đồ cũ công khai.
+  4. Người dùng chỉ việc copy đoạn SQL này dán vào Supabase SQL Editor và chạy.
+
 Khi tác vụ liên quan auth, Supabase/RLS, thanh toán hoặc hành trình nhiều trang, đọc thêm `.agents/skills/troxinh-workflow/SKILL.md`.

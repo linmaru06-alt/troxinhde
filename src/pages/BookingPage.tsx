@@ -19,6 +19,9 @@ import {
   MapPin,
   Loader2,
 } from 'lucide-react';
+import { useThrottleAction } from '../lib/utils/throttle';
+import { BookingCardSkeleton } from '../components/ui/BookingCardSkeleton';
+import { getOccupiedSlots, bookViewingSlotAtomic, transitionBookingStatus } from '../lib/api/bookings';
 
 export const BookingPage: React.FC = () => {
   const { roomId } = useParams<{ roomId?: string }>();
@@ -36,6 +39,10 @@ export const BookingPage: React.FC = () => {
   const [note, setNote] = useState<string>('');
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+
+  // Trụ cột 2: Realtime Slot Concurrency & Anti-Collision state
+  const [occupiedSlots, setOccupiedSlots] = useState<string[]>([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState<boolean>(false);
 
   // Danh sách lịch hẹn nạp từ Supabase thật
   const [cloudBookings, setCloudBookings] = useState<any[]>([]);
@@ -67,8 +74,7 @@ export const BookingPage: React.FC = () => {
             status,
             owner_response_note,
             created_at,
-            rooms(id, name, price),
-            owner:profiles!owner_id(id, full_name, name, phone, avatar_url)
+            rooms(id, name, price, owner_name, owner_phone)
           `)
           .eq('renter_id', currentUser!.id)
           .order('created_at', { ascending: false });
@@ -94,15 +100,58 @@ export const BookingPage: React.FC = () => {
     };
   }, [roomId, currentUser?.id]);
 
-  // Xử lý hủy lịch hẹn thật trên Supabase
+  // TRỤ CỘT 2: Lắng nghe danh sách khung giờ đã bận & đồng bộ Realtime < 50ms
+  useEffect(() => {
+    if (!room?.id || !date) return;
+    let isMounted = true;
+    setIsLoadingSlots(true);
+
+    // 1. Nạp ban đầu danh sách slot bận
+    getOccupiedSlots(room.id, date).then((slots) => {
+      if (isMounted) {
+        setOccupiedSlots(slots);
+        setIsLoadingSlots(false);
+      }
+    });
+
+    // 2. Kênh Realtime nghe thay đổi lịch của phòng này theo ngày
+    const channel = supabase
+      .channel(`room-slots-${room.id}-${date}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'viewing_requests',
+          filter: `room_id=eq.${room.id}`,
+        },
+        () => {
+          getOccupiedSlots(room.id, date).then((slots) => {
+            if (isMounted) setOccupiedSlots(slots);
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+      isMounted = false;
+    };
+  }, [room?.id, date]);
+
+  // TRỤ CỘT 4: Xử lý hủy lịch hẹn bằng Máy Trạng Thái FSM & Audit Log
   const handleCancelBooking = async (bookingId: string) => {
     try {
-      const { error } = await supabase
-        .from('viewing_requests')
-        .update({ status: 'cancelled' })
-        .eq('id', bookingId);
+      const res = await transitionBookingStatus({
+        bookingId,
+        nextStatus: 'cancelled_by_renter',
+        actorId: currentUser?.id,
+        actorRole: 'renter',
+        actorName: currentUser?.name || 'Khách thuê',
+        note: 'Khách thuê chủ động hủy lịch hẹn',
+      });
 
-      if (error) throw error;
+      if (!res.success) throw new Error(res.error);
 
       setCloudBookings((prev) =>
         prev.map((b) => (b.id === bookingId ? { ...b, status: 'cancelled' } : b))
@@ -115,23 +164,20 @@ export const BookingPage: React.FC = () => {
 
   const handleRespondToReschedule = async (bookingId: string, accept: boolean, proposedTime?: string) => {
     try {
-      const updates: any = accept 
-        ? { status: 'confirmed' }
-        : { status: 'cancelled' };
-      
-      if (accept && proposedTime) {
-        updates.time_slot = proposedTime;
-      }
-        
-      const { error } = await supabase
-        .from('viewing_requests')
-        .update(updates)
-        .eq('id', bookingId);
+      const nextStatus = accept ? 'confirmed' : 'cancelled_by_renter';
+      const res = await transitionBookingStatus({
+        bookingId,
+        nextStatus,
+        actorId: currentUser?.id,
+        actorRole: 'renter',
+        actorName: currentUser?.name || 'Khách thuê',
+        note: accept ? `Khách đồng ý giờ mới: ${proposedTime || ''}` : 'Khách từ chối giờ đề xuất mới',
+      });
 
-      if (error) throw error;
+      if (!res.success) throw new Error(res.error);
 
       setCloudBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, ...updates } : b))
+        prev.map((b) => (b.id === bookingId ? { ...b, status: accept ? 'confirmed' : 'cancelled' } : b))
       );
       showToast(
         accept ? 'Đã chấp nhận giờ hẹn mới' : 'Đã từ chối đổi giờ',
@@ -198,10 +244,7 @@ export const BookingPage: React.FC = () => {
         </div>
 
         {isFetchingBookings ? (
-          <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-gray-200">
-            <Loader2 className="w-8 h-8 animate-spin mx-auto text-[#006d37]" />
-            <p className="text-xs text-gray-500">Đang tải danh sách lịch hẹn từ hệ thống...</p>
-          </div>
+          <BookingCardSkeleton count={3} />
         ) : cloudBookings.length === 0 ? (
           <div className="text-center py-16 bg-white rounded-3xl border border-gray-200 p-8 space-y-4 shadow-xs">
             <div className="w-16 h-16 bg-gray-100 text-gray-400 rounded-full flex items-center justify-center mx-auto">
@@ -246,7 +289,8 @@ export const BookingPage: React.FC = () => {
 
               const roomTitle = b.rooms?.title || 'Phòng trọ';
               const roomPrice = b.rooms?.price;
-              const ownerPhone = b.owner?.phone;
+              // SĐT liên hệ chủ trọ lấy từ tin phòng (tôn trọng tùy chọn ẩn số của chủ trọ)
+              const ownerPhone = b.rooms?.owner_phone;
 
               return (
                 <div
@@ -345,7 +389,7 @@ export const BookingPage: React.FC = () => {
     { label: '19:00 - 20:00', period: 'Tối' },
   ];
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useThrottleAction(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!room) return;
 
@@ -360,59 +404,87 @@ export const BookingPage: React.FC = () => {
       return;
     }
 
-    setIsLoading(true);
+    // 1. Optimistic UI: Phản hồi 0ms tức thì cho người dùng
+    const tempId = `temp-${crypto.randomUUID()}`;
+    const optimisticBooking = {
+      id: tempId,
+      room_id: room.id,
+      renter_id: currentUser.id,
+      owner_id: room.ownerId,
+      requested_date: date,
+      requested_time: selectedSlot,
+      contact_phone: phone.trim(),
+      message: note.trim() || null,
+      status: 'pending',
+      isOptimistic: true,
+      created_at: new Date().toISOString(),
+      rooms: {
+        id: room.id,
+        name: room.title || room.name,
+        price: room.price,
+        owner_name: room.ownerName,
+        owner_phone: room.ownerPhone,
+      },
+    };
 
+    setIsSuccess(true);
+    // 2. Chạy ngầm dưới nền với Atomic Concurrency Engine (Trụ Cột 2)
     try {
-      // 1. Lưu chính xác vào Supabase viewing_requests
-      const viewingPayload = {
-        room_id: room.id,
-        renter_id: currentUser.id,
-        owner_id: room.ownerId,
-        requested_date: date,
-        requested_time: selectedSlot,
-        contact_phone: phone.trim(),
-        message: note.trim() || null,
-        status: 'pending',
-      };
+      const res = await bookViewingSlotAtomic({
+        roomId: room.id,
+        renterId: currentUser.id,
+        ownerId: room.ownerId,
+        requestedDate: date,
+        requestedTime: selectedSlot,
+        contactPhone: phone.trim(),
+        message: note.trim() || undefined,
+      });
 
-      const { data: createdReq, error: insertErr } = await supabase
-        .from('viewing_requests')
-        .insert(viewingPayload)
-        .select()
-        .single();
+      if (!res.success) {
+        // Safe Rollback khôi phục trạng thái form
+        setIsSuccess(false);
 
-      if (insertErr) {
-        throw insertErr;
+        if (res.errorCode === 'SLOT_ALREADY_BOOKED') {
+          // Vô hiệu hóa ngay slot này trên UI
+          setOccupiedSlots((prev) => [...prev, selectedSlot]);
+          showToast(
+            'Khung giờ này vừa có người đặt!',
+            'Một khách thuê khác vừa nhanh tay chọn khung giờ này. Vui lòng chọn khung giờ khác nhé!',
+            'warning'
+          );
+        } else {
+          showToast(
+            'Không thể gửi yêu cầu đặt lịch',
+            res.error || 'Đã có sự cố kết nối mạng. Vui lòng thử lại.',
+            'error'
+          );
+        }
+        return;
       }
 
-      // 2. Gửi notification thật cho Chủ trọ vào bảng notifications
-      try {
-        await supabase.from('notifications').insert({
+      // 3. Gửi notification ngầm cho Chủ trọ khi đặt lịch thành công
+      supabase
+        .from('notifications')
+        .insert({
           user_id: room.ownerId,
           type: 'booking_request',
           title: `Lịch hẹn xem phòng mới: ${room.title} 📅`,
           body: `Khách thuê ${name.trim()} (${phone.trim()}) đã đặt lịch xem phòng vào ngày ${date}, khung giờ ${selectedSlot}.`,
-          cta_url: '/chu-tro/tong-quan',
+          cta_url: '/chu-tro/lich-hen',
           cta_label: 'Xem lịch hẹn',
           is_read: false,
-        });
-      } catch (notifErr) {
-        console.warn('[Booking] Lỗi tạo thông báo cho chủ trọ:', notifErr);
-      }
-
-      setIsSuccess(true);
-      showToast('Đã gửi yêu cầu đặt lịch!', 'Chủ trọ sẽ nhận được thông báo và liên hệ lại.', 'success');
+        })
+        .then();
     } catch (err: any) {
-      console.error('[Booking] Lỗi đặt lịch hẹn trên Supabase:', err);
+      console.error('[Booking] Safe Rollback kích hoạt do lỗi hệ thống:', err);
+      setIsSuccess(false);
       showToast(
-        'Không thể đặt lịch hẹn',
-        err?.message || 'Có lỗi xảy ra khi lưu lịch hẹn vào cơ sở dữ liệu. Vui lòng thử lại.',
+        'Không thể đồng bộ lịch hẹn',
+        err?.message || 'Đã có sự cố kết nối mạng. Vui lòng kiểm tra và thử lại.',
         'error'
       );
-    } finally {
-      setIsLoading(false);
     }
-  };
+  }, 2000);
 
   if (!room) {
     return <div className="p-8 text-center">Không tìm thấy phòng</div>;
@@ -524,28 +596,49 @@ export const BookingPage: React.FC = () => {
                 />
               </div>
 
-              {/* 2. Time slot grid */}
+              {/* 2. Time slot grid (Trụ Cột 2: Anti-Collision Concurrency) */}
               <div className="space-y-1.5">
-                <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-4 h-4 text-[#00a854]" /> 2. Chọn khung giờ rảnh:
-                </label>
+                <div className="flex items-center justify-between">
+                  <label className="block text-xs font-black text-gray-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-4 h-4 text-[#00a854]" /> 2. Chọn khung giờ rảnh:
+                  </label>
+                  {isLoadingSlots && (
+                    <span className="text-[10px] text-gray-400 font-medium animate-pulse">
+                      Đang kiểm tra lịch trống...
+                    </span>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {timeSlots.map((slot) => {
                     const fullLabel = `${slot.label} (${slot.period})`;
+                    const isOccupied = occupiedSlots.some(
+                      (s) => s.includes(slot.label) || (slot.label && s.startsWith(slot.label))
+                    );
                     const isSelected = selectedSlot === fullLabel;
+
                     return (
                       <button
                         key={slot.label}
                         type="button"
-                        onClick={() => setSelectedSlot(fullLabel)}
-                        className={`p-2.5 text-xs rounded-2xl border font-bold transition text-left flex flex-col justify-between ${
-                          isSelected
-                            ? 'bg-emerald-50 border-[#00a854] text-[#00a854] ring-2 ring-[#00a854]/30 shadow-xs'
-                            : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300'
+                        disabled={isOccupied}
+                        onClick={() => !isOccupied && setSelectedSlot(fullLabel)}
+                        className={`p-2.5 text-xs rounded-2xl border font-bold transition-all duration-150 ease-out will-change-transform text-left flex flex-col justify-between ${
+                          isOccupied
+                            ? 'bg-gray-100/80 border-gray-200 text-gray-400 cursor-not-allowed opacity-60'
+                            : isSelected
+                            ? 'bg-emerald-50 border-[#00a854] text-[#00a854] ring-2 ring-[#00a854]/30 shadow-xs scale-[1.02] cursor-pointer'
+                            : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:shadow-2xs active:scale-95 cursor-pointer'
                         }`}
                       >
-                        <span>{slot.label}</span>
-                        <span className="text-[10px] opacity-70 font-semibold">{slot.period}</span>
+                        <div className="flex items-center justify-between w-full">
+                          <span className={isOccupied ? 'line-through text-gray-400' : ''}>{slot.label}</span>
+                          {isOccupied && (
+                            <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded bg-rose-50 text-rose-600 border border-rose-100">
+                              Đã kín
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-[10px] opacity-70 font-semibold mt-0.5">{slot.period}</span>
                       </button>
                     );
                   })}

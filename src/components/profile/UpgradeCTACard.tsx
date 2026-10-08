@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { Button } from '../ui/Button';
 import { Building2, ArrowRight, Clock } from 'lucide-react';
-import { validateSocialUrl } from './EditProfileForm';
 
 export const UpgradeCTACard: React.FC = () => {
   const navigate = useNavigate();
@@ -18,38 +17,11 @@ export const UpgradeCTACard: React.FC = () => {
     }
 
     if (!currentUser) {
-      navigate('/dang-nhap?returnUrl=/nang-cap-chu-tro');
+      navigate('/dang-nhap?returnUrl=/landlord-registration');
       return;
     }
 
-    const hasPhone = Boolean(currentUser.phone && currentUser.phone.replace(/\D/g, '').length >= 9);
-    const hasCard = Boolean(currentUser.studentCardUrl);
-    const hasSocial = Boolean(currentUser.socialLink && validateSocialUrl(currentUser.socialLink));
-
-    if (!hasPhone || !hasCard || !hasSocial) {
-      showToast(
-        'Vui lòng bổ sung SĐT, Ảnh xác minh và Link MXH để đăng ký làm chủ trọ',
-        'Hồ sơ chủ trọ yêu cầu đầy đủ thông tin định danh và kênh liên lạc trực tiếp.',
-        'error'
-      );
-
-      // Tự động cuộn mượt mà lên form hồ sơ
-      const targetInput = !hasPhone
-        ? document.getElementById('user-phone')
-        : !hasCard
-        ? document.getElementById('user-social-link')
-        : document.getElementById('user-social-link');
-
-      if (targetInput) {
-        targetInput.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        targetInput.focus();
-      } else {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
-      return;
-    }
-
-    navigate('/nang-cap-chu-tro');
+    navigate('/landlord-registration');
   };
 
   return (

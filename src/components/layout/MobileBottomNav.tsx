@@ -15,6 +15,8 @@ import {
   Users,
 } from 'lucide-react';
 
+import { deduplicateChatNotifications } from '../../utils/formatters';
+
 interface NavLinkItem {
   to: string;
   label: string;
@@ -26,8 +28,9 @@ export const MobileBottomNav: React.FC = () => {
   const { currentUser, notifications = [], savedRoomIds = [], bookings = [] } = useAppStore();
   const location = useLocation();
 
-  const unreadNotifs = (notifications || []).filter((n) => !n.read).length;
-  const unreadMessages = (notifications || []).filter(
+  const cleanNotifs = deduplicateChatNotifications(notifications || []);
+  const unreadNotifs = cleanNotifs.filter((n) => !n.read).length;
+  const unreadMessages = cleanNotifs.filter(
     (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
   ).length;
 
@@ -51,9 +54,9 @@ export const MobileBottomNav: React.FC = () => {
   // 2. Owner tabs (5 items): Tổng quan · Phòng · Lịch hẹn · Tin nhắn · Tài khoản
   const ownerTabs: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan', icon: LayoutDashboard },
-    { to: '/chu-tro/toa-nha', label: 'Phòng', icon: Building2 },
-    { to: '/lich-hen', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).length },
-    { to: '/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
+    { to: '/chu-tro/toa-nha', label: 'Phòng & Tòa', icon: Building2 },
+    { to: '/chu-tro/lich-hen', label: 'Lịch hẹn', icon: Calendar, badge: (bookings || []).filter(b => b.status === 'Chờ chủ trọ xác nhận').length },
+    { to: '/chu-tro/tin-nhan', label: 'Tin nhắn', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/toi', label: 'Tài khoản', icon: UserIcon },
   ];
 

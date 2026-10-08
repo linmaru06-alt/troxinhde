@@ -174,11 +174,8 @@ export async function checkMoMoPaymentStatus(orderId: string): Promise<{
   }
 
   try {
-    const { data, error } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('order_code', orderId)
-      .maybeSingle();
+    // Tra trạng thái theo mã đơn qua RPC (bảng transactions chỉ cho chủ giao dịch đọc)
+    const { data, error } = await supabase.rpc('get_payment_status', { p_order_code: orderId });
 
     if (error || !data) {
       return { paid: false, status: 'pending' };

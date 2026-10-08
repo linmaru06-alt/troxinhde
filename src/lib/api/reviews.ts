@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { attachPublicProfiles } from './publicProfiles';
 
 export async function getReviews(roomId: string) {
   if (!isSupabaseConfigured) return [];
@@ -13,7 +14,8 @@ export async function getReviews(roomId: string) {
     .order('created_at', { ascending: false });
 
   if (error) throw error;
-  return data || [];
+  // Tên/ảnh người đánh giá lấy qua RPC công khai
+  return attachPublicProfiles(data || [], 'reviewer_id', 'reviewer');
 }
 
 export async function createReview(reviewData: {

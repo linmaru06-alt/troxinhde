@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useRealtimeRoomStatus } from "../hooks/useRealtimeRoomStatus";
 import { supabase, isSupabaseConfigured } from "../lib/supabase";
@@ -7,7 +7,7 @@ import { useAppStore } from "../store/useAppStore";
 import { BookingRequest } from "../types";
 import { Button } from "../components/ui/Button";
 import { Badge } from "../components/ui/Badge";
-import { formatPrice, formatCurrency } from "../components/ui/Cards";
+import { formatPrice, formatCurrency, RoomCard } from "../components/ui/Cards";
 import { ReportModal } from "../components/modals/ReportModal";
 import { LoginPromptModal } from "../components/modals/LoginPromptModal";
 import { getReviews, createReview } from "../lib/api/reviews";
@@ -43,10 +43,12 @@ import {
 } from "lucide-react";
 
 
-import { getOrCreateConversation } from "../lib/api/messages";
+import { getOrCreateConversation, isSameUserId, ADMIN_USER_ID } from "../lib/api/messages";
+import { extractIdFromParam, buildRoomUrl } from "../utils/slugify";
 
 export const RoomDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
   const {
     rooms = [],
@@ -75,6 +77,18 @@ export const RoomDetailPage: React.FC = () => {
     (b) => room && b.id === room.buildingId,
   );
   const isSaved = room ? (savedRoomIds || []).includes(room.id) : false;
+
+  const similarRooms = useMemo(() => {
+    if (!room) return [];
+    return (rooms || [])
+      .filter(
+        (r) =>
+          r.id !== room.id &&
+          (r.status === "Còn trống" || (r as any).status === "available") &&
+          (r.district === room.district || Math.abs(r.price - room.price) <= 1000000)
+      )
+      .slice(0, 3);
+  }, [rooms, room]);
 
   const isUnavailable =
     room?.status === "Đã cho thuê" ||
@@ -174,7 +188,14 @@ export const RoomDetailPage: React.FC = () => {
       setShowLoginModal(true);
       return;
     }
-    if (currentUser.id === room.ownerId) {
+    const targetOwnerId =
+      room?.ownerId ||
+      (room as any)?.landlord_id ||
+      (room as any)?.owner_id ||
+      (room as any)?.userId ||
+      ADMIN_USER_ID;
+
+    if (isSameUserId(currentUser.id, targetOwnerId)) {
       showToast(
         "Bạn là chủ bài đăng này",
         "Không thể tự nhắn tin cho chính mình.",
@@ -187,12 +208,12 @@ export const RoomDetailPage: React.FC = () => {
     try {
       const convId = await getOrCreateConversation(
         currentUser.id,
-        room.ownerId,
-        room.id,
+        targetOwnerId,
+        room?.id,
         {
-          otherName: room.ownerName || "Chủ trọ",
-          otherAvatar: room.ownerAvatar,
-          roomTitle: room.title,
+          otherName: room?.ownerName || (room as any)?.landlordName || "Chủ trọ",
+          otherAvatar: room?.ownerAvatar || (room as any)?.landlordAvatar,
+          roomTitle: room?.title || room?.name,
         },
       );
       navigate(`/tin-nhan/${convId}`);
@@ -293,7 +314,7 @@ export const RoomDetailPage: React.FC = () => {
         title={`${room.title} - ${formatPrice(room.price)} | TroXinh`}
         description={`${room.area}m² tại ${room.district}, ${room.address}. Gần ${room.nearestSchool}. Đầy đủ tiện nghi: ${(room.amenities || []).slice(0, 4).join(", ")}. Liên hệ ngay để đặt lịch xem phòng.`}
         image={room.images?.[0] || '/images/hero-banner.webp'}
-        url={`/phong/${room.id}`}
+        url={buildRoomUrl(room)}
         type="article"
         accommodation={{
           name: room.title,
@@ -302,9 +323,20 @@ export const RoomDetailPage: React.FC = () => {
           address: room.address,
           district: room.district,
           price: room.price,
+          area: room.area,
+          amenities: room.amenities,
           avgRating: 4.9,
           reviewCount: userReviews.length || 5,
+          latitude: building?.geo?.lat || 21.0285,
+          longitude: building?.geo?.lng || 105.8542,
+          pcccPassed: room.verified,
         }}
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Tìm phòng', url: '/tim-kiem' },
+          { name: room.district || 'Hà Nội', url: `/tim-kiem?khuVuc=${encodeURIComponent(room.district || '')}` },
+          { name: room.title, url: buildRoomUrl(room) },
+        ]}
       />
 
       {/* Breadcrumb Header */}
@@ -326,6 +358,19 @@ export const RoomDetailPage: React.FC = () => {
         <span>/</span>
         <span className="text-gray-900 font-bold truncate">{room.title}</span>
       </div>
+
+      {/* Pending Notice Banner */}
+      {room.status === 'Chờ duyệt' && (
+        <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex items-center gap-3 text-xs text-amber-900 shadow-2xs">
+          <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="font-bold text-amber-950 text-sm">Tin Đăng Đang Chờ Ban Quản Trị Phê Duyệt ⏳</p>
+            <p className="text-amber-800">
+              Phòng trọ này đang trong quá trình xét duyệt nội dung và hồ sơ PCCC. Khách thuê chưa thể đặt lịch xem cho đến khi tin được duyệt chính thức.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Grid: Gallery & Details (Left) + Sticky Booking Card (Right) */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -1076,6 +1121,39 @@ export const RoomDetailPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* SỰ THẬT NAVBOOST: KHỐI PHÒNG TƯƠNG TỰ CÙNG KHU VỰC ĐỂ CHỐNG POGO-STICKING */}
+      {similarRooms.length > 0 && (
+        <section className="pt-8 border-t border-gray-200/80 space-y-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-lg sm:text-xl font-black text-gray-900">
+                Phòng Trọ Tương Tự Tại {room.district}
+              </h2>
+              <p className="text-xs text-gray-500">
+                Gợi ý các phòng cùng khu vực và mức giá để bạn dễ dàng so sánh
+              </p>
+            </div>
+            <Link
+              to={`/tim-kiem?khuVuc=${encodeURIComponent(room.district)}`}
+              className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1"
+            >
+              Xem tất cả ({room.district}) <ChevronRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+            {similarRooms.map((sRoom) => (
+              <RoomCard
+                key={sRoom.id}
+                room={sRoom}
+                onSave={toggleSaveRoom}
+                isSaved={savedRoomIds.includes(sRoom.id)}
+              />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* MOBILE STICKY BOTTOM ACTION CTA BAR - DUY NHẤT 1 THANH TRÊN MOBILE */}
       <div

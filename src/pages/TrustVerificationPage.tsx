@@ -186,7 +186,7 @@ export const TrustVerificationPage: React.FC = () => {
               Xem phòng đã kiểm duyệt
             </Button>
           </Link>
-          <Link to="/nang-cap-chu-tro">
+          <Link to="/landlord-registration">
             <Button
               variant="outline"
               size="md"

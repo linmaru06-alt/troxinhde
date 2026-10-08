@@ -1,0 +1,992 @@
+<!-- COPY OF INTERACTIVE SEO MINDMAP FOR LOCAL BROWSER VIEWING -->
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bản Đồ Tư Duy Tương Tác: 100+ Google Patents & Semantic SEO Mastery</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#ecfdf5',
+              100: '#d1fae5',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      overflow: hidden;
+      user-select: none;
+    }
+    .grid-bg {
+      background-size: 32px 32px;
+      background-image: 
+        linear-gradient(to right, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.04) 1px, transparent 1px);
+    }
+    .node-circle {
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .node-circle:hover {
+      filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.6));
+    }
+    .node-text {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      fill: #f1f5f9;
+      pointer-events: none;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
+    }
+    .link-line {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.15);
+      stroke-width: 1.5px;
+      transition: stroke 0.3s ease;
+    }
+    .link-line.active {
+      stroke: #10b981;
+      stroke-width: 2.5px;
+    }
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(51, 65, 85, 0.8);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #10b981;
+    }
+  </style>
+</head>
+<body class="w-screen h-screen flex flex-col font-sans grid-bg">
+
+  <!-- TOP HEADER & CONTROLS BAR -->
+  <header class="h-16 border-b border-slate-800/80 bg-slate-950/80 backdrop-blur-md px-6 flex items-center justify-between z-20 shrink-0">
+    <div class="flex items-center gap-4">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-500/20 font-black text-white text-lg tracking-wider">
+        TX
+      </div>
+      <div>
+        <h1 class="text-base font-bold text-white flex items-center gap-2">
+          SEO Mastery Mindmap: 100+ Patents & Leaks
+          <span class="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Interactive 360°</span>
+        </h1>
+        <p class="text-xs text-slate-400">Trực quan hóa cấu trúc thuật toán Google, Yandex & Bộ não Semantic SEO Trọ Xinh</p>
+      </div>
+    </div>
+
+    <!-- VIEW SELECTOR TABS -->
+    <div class="flex items-center bg-slate-900/90 border border-slate-800 p-1 rounded-xl">
+      <button onclick="switchView('patents')" id="tab-patents" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-emerald-500 text-slate-950 shadow-md">
+        1. 100+ Google Patents (10 Cụm)
+      </button>
+      <button onclick="switchView('consensus')" id="tab-consensus" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-200">
+        2. Đồng Thuận Google vs Yandex
+      </button>
+      <button onclick="switchView('roadmap')" id="tab-roadmap" class="px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-200">
+        3. Lộ Trình Triển Khai Trọ Xinh
+      </button>
+    </div>
+
+    <!-- UTILITY CONTROLS -->
+    <div class="flex items-center gap-3">
+      <!-- Search Input -->
+      <div class="relative w-64">
+        <input 
+          type="text" 
+          id="searchInput" 
+          placeholder="Tìm patent, thuật toán, signal..." 
+          oninput="handleSearch(this.value)"
+          class="w-full bg-slate-900 border border-slate-700/60 rounded-xl px-3.5 py-1.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-emerald-500 transition-colors"
+        >
+        <span class="absolute right-3 top-2 text-[10px] text-slate-500 pointer-events-none">Ctrl+K</span>
+      </div>
+
+      <!-- Zoom Controls -->
+      <div class="flex items-center bg-slate-900 border border-slate-800 rounded-xl overflow-hidden p-0.5">
+        <button onclick="zoomIn()" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition" title="Phóng to">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+        </button>
+        <button onclick="zoomOut()" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition" title="Thu nhỏ">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+        </button>
+        <button onclick="resetZoom()" class="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition" title="Khôi phục góc nhìn">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+        </button>
+      </div>
+
+      <!-- Expand/Collapse All -->
+      <button onclick="toggleExpandAll()" id="btn-expand" class="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 border border-slate-800 text-xs font-semibold text-slate-300 rounded-xl transition">
+        Thu gọn / Mở rộng
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CANVAS & SIDEBAR CONTAINER -->
+  <main class="flex-1 relative w-full h-full overflow-hidden flex">
+    
+    <!-- SVG CANVAS AREA -->
+    <div id="mindmap-container" class="w-full h-full relative cursor-grab active:cursor-grabbing">
+      <svg id="mindmap-svg" class="w-full h-full"></svg>
+
+      <!-- FLOATING HINT -->
+      <div class="absolute bottom-6 left-6 px-4 py-2.5 rounded-xl bg-slate-950/80 backdrop-blur-md border border-slate-800/80 text-xs text-slate-400 flex items-center gap-3 pointer-events-none shadow-xl">
+        <span class="inline-flex w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        <span>Kéo chuột để di chuyển canvas · Cuộn để Zoom · Click vào nút tròn để mở nhánh hoặc xem chi tiết</span>
+      </div>
+    </div>
+
+    <!-- DETAIL INSPECTOR DRAWER -->
+    <aside id="inspector" class="w-96 border-l border-slate-800/80 bg-slate-950/95 backdrop-blur-xl p-6 flex flex-col justify-between transform translate-x-full transition-transform duration-300 ease-in-out z-30 shadow-2xl absolute right-0 top-0 bottom-0">
+      <div class="space-y-4 overflow-y-auto pr-1">
+        <!-- Close Button & Tag -->
+        <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+          <span id="inspect-tag" class="text-[10px] font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+            Chi tiết thành phần
+          </span>
+          <button onclick="closeInspector()" class="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+          </button>
+        </div>
+
+        <!-- Node Title -->
+        <div>
+          <h2 id="inspect-title" class="text-lg font-bold text-white leading-snug">Tiêu đề Node</h2>
+          <p id="inspect-subtitle" class="text-xs text-emerald-400 font-mono mt-1">Mã bằng sáng chế / Tác giả</p>
+        </div>
+
+        <!-- Technical Description -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Cơ Chế Kỹ Thuật (Under The Hood)</h3>
+          <div id="inspect-desc" class="text-xs text-slate-300 leading-relaxed bg-slate-900/80 p-3.5 rounded-xl border border-slate-800">
+            Mô tả kỹ thuật chi tiết của thuật toán sẽ hiển thị ở đây.
+          </div>
+        </div>
+
+        <!-- Leaked Signal Mapping -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Ánh Xạ Tín Hiệu (Leaked Signals)</h3>
+          <div id="inspect-leak" class="text-xs text-teal-300 font-mono bg-teal-950/40 p-3 rounded-xl border border-teal-800/40">
+            Module Google Leak / Yandex Leak
+          </div>
+        </div>
+
+        <!-- Practical Action for TroXinh -->
+        <div class="space-y-2">
+          <h3 class="text-xs font-bold text-slate-400 uppercase tracking-wider">Ứng Dụng Thực Chiến Cho Trọ Xinh</h3>
+          <div id="inspect-action" class="text-xs text-emerald-200 leading-relaxed bg-emerald-950/40 p-3.5 rounded-xl border border-emerald-800/40">
+            Hướng dẫn hành động và tối ưu cụ thể.
+          </div>
+        </div>
+      </div>
+
+      <!-- Drawer Footer -->
+      <div class="pt-4 border-t border-slate-800 mt-4 flex items-center justify-between text-[11px] text-slate-500">
+        <span>Google & Yandex Ranking Architecture</span>
+        <button onclick="copyNodeInfo()" class="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition font-medium">
+          Copy Info
+        </button>
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- DATA & MINDMAP JAVASCRIPT ENGINE -->
+  <script>
+    const dataPatents = {
+      name: "100+ Google Patents Master Engine",
+      tag: "CORE ARCHITECTURE",
+      desc: "Trung tâm các bằng sáng chế đã được cấp của Google định hình cỗ máy tìm kiếm từ 1998 đến nay.",
+      children: [
+        {
+          name: "1. PageRank & Link Graph",
+          tag: "GRAPH & AUTHORITY",
+          desc: "Cơ chế phân bổ trọng số và đồ thị liên kết Web.",
+          children: [
+            {
+              name: "US6285999B1 - PageRank Nguyên Bản",
+              subtitle: "Lawrence Page (Larry Page)",
+              desc: "Mô hình Random Surfer với hệ số damping factor d=0.85.",
+              leak: "Google PageRank service, Anchor index",
+              action: "Tối ưu hóa luồng PageRank từ trang chủ tỏa đều sang các trang danh mục quận huyện."
+            },
+            {
+              name: "US7058628B1 - Topic-Sensitive PageRank",
+              subtitle: "Taher Haveliwala",
+              desc: "16 vector PageRank theo từng phân ngành chủ đề riêng biệt.",
+              leak: "Topical PageRank, siteRadius",
+              action: "Giữ 100% nội dung và backlink xoay quanh ngách phòng trọ, bất động sản thuê."
+            },
+            {
+              name: "US7269587B1 - Seed-based TrustRank",
+              subtitle: "Zoltán Gyöngyi et al.",
+              desc: "Điểm tin cậy lan tỏa từ tập website hạt giống (Seed Sites như .edu, .gov).",
+              leak: "siteAuthority, Scholastic trust",
+              action: "Kết nối liên kết và trích dẫn từ các cổng thông tin trường đại học (ĐHQG, Bách Khoa)."
+            },
+            {
+              name: "US7912842B1 - Reasonable Surfer Model",
+              subtitle: "Jeffrey Dean et al.",
+              desc: "Xác suất nhấp link phụ thuộc font size, màu sắc, vị trí trong DOM.",
+              leak: "fontSizeBoost, demoteAnchorMismatch",
+              action: "Đặt internal link ở vị trí mắt dễ đọc, font rõ ràng, không giấu ở footer dạng spam."
+            },
+            {
+              name: "US7716225B1 - Link History & Link Churn",
+              subtitle: "Jeffrey Dean, Amit Singhal",
+              desc: "Giám sát tốc độ sinh và mất liên kết, phạt backlink xuất hiện ồ ạt.",
+              leak: "Link Velocity Spike Penalty",
+              action: "Phát triển liên kết tự nhiên, bền vững theo thời gian, tránh mua backlink số lượng lớn."
+            },
+            {
+              name: "US8595225B2 - DOM Visual Link Positioning",
+              subtitle: "Simon Tong, Anurag Acharya",
+              desc: "Liên kết trong nội dung chính (Main Content) có giá trị gấp nhiều lần footer/sidebar.",
+              leak: "Quality Navboost & Center Block",
+              action: "Đan xen liên kết nội bộ tự nhiên trong các bài viết cẩm nang thuê trọ."
+            }
+          ]
+        },
+        {
+          name: "2. NavBoost & Click Models",
+          tag: "USER FEEDBACK (P0)",
+          desc: "Bộ máy tái xếp hạng dựa trên nhật ký click của hàng tỷ người dùng.",
+          children: [
+            {
+              name: "US7711679B2 - NavBoost Core Engine",
+              subtitle: "Paul Haahr, Amit Singhal",
+              desc: "Lưu vết click log 13 tháng, chia theo thiết bị/quốc gia để tái xếp hạng.",
+              leak: "QualityNavboost, unsquashedClicks",
+              action: "Tối ưu hóa tiêu đề và snippet để thu hút click tự nhiên thực sự có giá trị."
+            },
+            {
+              name: "US8583648B2 - Dwell Time & Pogo-Sticking",
+              subtitle: "Amit Singhal, Matt Cutts",
+              desc: "Phân loại Long Click (>60s) và Short Click (<10s, nhảy ngược lại SERP).",
+              leak: "goodClicks, badClicks, lastLongestClicks",
+              action: "Trong 3 giây đầu tiên phải hiển thị ngay ảnh thật và giá phòng thật, triệt tiêu nút Back."
+            },
+            {
+              name: "US8661029B1 - Position Bias Correction (CoEC)",
+              subtitle: "Michael Bendersky et al.",
+              desc: "Chuẩn hóa chỉ số Click vượt kỳ vọng toán học (Clicks over Expected Clicks).",
+              leak: "Navboost Normalized CTR",
+              action: "Đứng vị trí #4 nhưng có CTR cao hơn vị trí #2 sẽ được đẩy thẳng lên Top 1."
+            },
+            {
+              name: "US10671672B2 - Chrome Clickstream Telemetry",
+              subtitle: "Mike Bendersky, Paul Haahr",
+              desc: "Theo dõi luồng duyệt web thực tế từ trình duyệt Chrome.",
+              leak: "chromeViews, chromeInTotal",
+              action: "Xây dựng cộng đồng sinh viên truy cập trực tiếp (Direct Traffic) qua Chrome."
+            }
+          ]
+        },
+        {
+          name: "3. Content Quality & Panda",
+          tag: "QUALITY FILTERS",
+          desc: "Bộ lọc trừng phạt thin content, nội dung rác và trùng lặp.",
+          children: [
+            {
+              name: "US8682892B1 - Panda Algorithm Core",
+              subtitle: "Navneet Panda, Vladimir Ofitserov",
+              desc: "Tính tỷ lệ giữa truy vấn tìm kiếm thương hiệu so với tổng lưu lượng truy cập.",
+              leak: "QualityPanda, siteAuthority",
+              action: "Xây dựng nhận diện thương hiệu để sinh viên chủ động tìm kiếm 'Trọ Xinh' trên Google."
+            },
+            {
+              name: "US9251264B2 - SimHash Duplicate Detection",
+              subtitle: "Moses Charikar et al.",
+              desc: "Hàm băm 64-bit phát hiện nội dung xào xáo, sao chép văn bản trong vài mili-giây.",
+              leak: "LowQualityFilter, Scraper penalty",
+              action: "Nội dung mô tả phòng trọ phải tự viết thực tế, không copy từ các trang tin BĐS khác."
+            },
+            {
+              name: "US10204173B2 - Knowledge-Based Trust (KBT)",
+              subtitle: "Xin Luna Dong, Evgeniy Gabrilovich",
+              desc: "Chấm điểm độ tin cậy dựa trên số lượng sự thật khách quan được kiểm chứng.",
+              leak: "kbtScore, Ground Truth Verification",
+              action: "Niêm yết giá điện, nước, cọc, diện tích chuẩn xác tuyệt đối, không ghi giá thương lượng."
+            }
+          ]
+        },
+        {
+          name: "4. Semantic & Knowledge Graph",
+          tag: "ENTITY SEO",
+          desc: "Chuyển dịch từ tìm kiếm chuỗi ký tự (Strings) sang thực thể (Things).",
+          children: [
+            {
+              name: "US8589406B2 - Entity Extraction & ID Mapping",
+              subtitle: "John Giannandrea, Amit Singhal",
+              desc: "Bóc tách câu chữ thành các thực thể độc lập có mã định danh duy nhất.",
+              leak: "Entity Annotations, Semantic Triples",
+              action: "Gắn thẻ Schema Apartment, PostalAddress, GeoCoordinates chuẩn hóa mọi thông tin."
+            },
+            {
+              name: "US8972388B2 - Entity Disambiguation",
+              subtitle: "David Orr, Shashi Thakur",
+              desc: "Giải quyết hiện tượng đa nghĩa của từ dựa trên ngữ cảnh đồng xuất hiện.",
+              leak: "Topicality Vector, Co-occurrence",
+              action: "Trong bài viết nhắc đến các địa danh cụ thể (Xuân Thủy, Chùa Láng, Cầu Giấy)."
+            },
+            {
+              name: "US10726107B2 - Schema & DOM Alignment",
+              subtitle: "Dan Brickley, Ramanathan Guha",
+              desc: "So khớp tuyệt đối giữa dữ liệu Schema JSON-LD và nội dung hiển thị trên giao diện.",
+              leak: "Structured Data Validator",
+              action: "Dữ liệu giá trong Schema bắt buộc phải khớp 100% với giá ghi trên nút bấm web."
+            }
+          ]
+        },
+        {
+          name: "5. AI: RankBrain & Transformers",
+          tag: "NEURAL SEARCH",
+          desc: "Học sâu, vector nhúng và hiểu ngôn ngữ tự nhiên.",
+          children: [
+            {
+              name: "US8918413B2 - RankBrain Learning Function",
+              subtitle: "Jeffrey Dean, Greg Corrado",
+              desc: "Mạng nơ-ron tự động điều chỉnh trọng số yếu tố xếp hạng theo từng loại truy vấn.",
+              leak: "RankBrain Dynamic Re-ranking",
+              action: "Không tối ưu cứng nhắc một tiêu chí, ưu tiên trải nghiệm giải quyết intent của người dùng."
+            },
+            {
+              name: "US9165040B2 - Word & Concept Embeddings",
+              subtitle: "Tomas Mikolov et al. (Word2Vec)",
+              desc: "Chuyển từ ngữ thành vector toán học trong không gian đa chiều.",
+              leak: "RankEmbed, Query Vector Space",
+              action: "Viết nội dung tự nhiên, mở rộng trường từ vựng liên quan (chuyển trọ, gác xép, nóng lạnh)."
+            },
+            {
+              name: "US10402484B2 - Passage Ranking with Attention",
+              subtitle: "Donald Metzler et al.",
+              desc: "Xếp hạng độc lập từng đoạn văn trong trang mà không cần xét cả bài dài.",
+              leak: "Passage Embeddings, MUM attention",
+              action: "Tạo các đoạn tóm tắt trực diện 40-60 từ giải quyết nhanh câu hỏi ở đầu bài."
+            }
+          ]
+        },
+        {
+          name: "6. Crawl, Index & JavaScript SPA",
+          tag: "TECHNICAL SEO",
+          desc: "Hạ tầng thu thập và kết xuất ứng dụng web hiện đại.",
+          children: [
+            {
+              name: "US9189551B2 - JavaScript Client Rendering",
+              subtitle: "Eric Kuan, Ziv Bar-Yossef",
+              desc: "Sử dụng Chrome Headless WRS để nạp và render Single Page Application (React/Vue).",
+              leak: "Web Rendering Service (WRS)",
+              action: "Dùng react-helmet-async cập nhật thẻ meta và schema ngay khi route vừa mount."
+            },
+            {
+              name: "US8280879B2 - Crawl Budget Prioritization",
+              subtitle: "Craig Silverstein, Jeffrey Dean",
+              desc: "Phân bổ ngân sách thu thập dữ liệu dựa trên PageRank và độ sâu URL.",
+              leak: "Crawl Scheduling Pipeline",
+              action: "Giữ cấu trúc URL nông (/phong/id), không để qua quá 3 tầng phân cấp thư mục."
+            },
+            {
+              name: "US9971842B2 - Deep Sitemaps Processing",
+              subtitle: "Sreeram Ramachandran et al.",
+              desc: "Thu thập các trang nằm sâu qua sitemap.xml và thẻ lastmod.",
+              leak: "Sitemap Ingestion Engine",
+              action: "Xây dựng dynamic sitemap chứa toàn bộ 1000+ phòng trọ có ngày cập nhật mới."
+            }
+          ]
+        },
+        {
+          name: "7. Freshness & QDF Engine",
+          tag: "TEMPORAL SIGNALS",
+          desc: "Độ tươi mới của tài liệu và phát hiện thao túng thời gian.",
+          children: [
+            {
+              name: "US7562076B2 - Query Deserves Freshness (QDF)",
+              subtitle: "Amit Singhal, Matt Cutts",
+              desc: "Đẩy bài viết mới lên top đầu khi có đột biến lượng tìm kiếm theo thời gian thực.",
+              leak: "freshnessDocBoost, QDF detector",
+              action: "Đăng tải cập nhật phòng trống đầu năm học mới hoặc mùa cao điểm thuê trọ (tháng 8 - 10)."
+            },
+            {
+              name: "US8073840B2 - Fake Freshness Detection",
+              subtitle: "Amit Singhal, Paul Haahr",
+              desc: "Phạt các website chỉ đổi nhãn ngày tháng mà không thay đổi giá trị nội dung.",
+              leak: "bylineDate vs synthesizedDate",
+              action: "Khi cập nhật bài viết, bổ sung thêm ảnh mới, cập nhật giá phòng và tiện ích thật."
+            }
+          ]
+        },
+        {
+          name: "8. Local Search & Proximity",
+          tag: "LOCAL SEO",
+          desc: "Bộ ba: Khoảng cách, Độ nổi bật và Bán kính di chuyển.",
+          children: [
+            {
+              name: "US8131745B2 - Local Distance & Prominence",
+              subtitle: "Sreeram Ramachandran et al.",
+              desc: "Cân bằng giữa khoảng cách thực tế và độ uy tín của thương hiệu địa phương.",
+              leak: "demoteLocationMismatch, Local Map Pack",
+              action: "Khai báo địa chỉ trụ sở rõ ràng tại Hà Nội và tích hợp bản đồ Google Maps chỉ đường."
+            },
+            {
+              name: "US8386465B2 - Implicit Local Intent",
+              subtitle: "Paul Haahr, Ben Gomes",
+              desc: "Nhận diện ý định địa phương ngầm định ngay cả khi không gõ tên thành phố.",
+              leak: "Geo Query Classifier",
+              action: "Tối ưu hóa các cụm từ 'quanh đây', 'gần trường ĐH', 'gần trạm metro'."
+            }
+          ]
+        },
+        {
+          name: "9. Page Speed & Core Web Vitals",
+          tag: "USER EXPERIENCE",
+          desc: "Trải nghiệm mượt mà đo kiểm qua telemetry người dùng thật từ Chrome.",
+          children: [
+            {
+              name: "US10657212B2 - Chrome Real-World Telemetry (CrUX)",
+              subtitle: "Bryan McQuade, Arvind Jain",
+              desc: "Đo LCP, CLS, INP trực tiếp từ người dùng thật cài trình duyệt Chrome.",
+              leak: "chromeInTotal, Web Vitals score",
+              action: "Nén ảnh dạng WebP, tải bất đồng bộ decoding=async để tối ưu LCP < 2.5s."
+            },
+            {
+              name: "US10152541B2 - Cumulative Layout Shift (CLS)",
+              subtitle: "Steve Souders et al.",
+              desc: "Đo độ xô lệch bố cục trong quá trình render.",
+              leak: "Layout Stability Index",
+              action: "Luôn khai báo thuộc tính width/height hoặc aspect-ratio cho khung ảnh phòng."
+            }
+          ]
+        },
+        {
+          name: "10. E-E-A-T & Agent Rank",
+          tag: "AUTHOR & TRUST",
+          desc: "Định danh tác giả độc lập và xác minh độ tin cậy dữ liệu.",
+          children: [
+            {
+              name: "US7792823B2 - Agent Rank (Khai sinh E-E-A-T)",
+              subtitle: "Dirk Fox, Krishna Bharat",
+              desc: "Gán điểm uy tín độc lập cho từng cá nhân tác giả/người kiểm duyệt.",
+              leak: "author, scholasticAuthority",
+              action: "Gắn thẻ 'Kiểm duyệt viên PCCC' và hồ sơ người vận hành Trọ Xinh lên bài đăng."
+            },
+            {
+              name: "US11188599B2 - Multi-dimensional E-E-A-T",
+              subtitle: "Paul Haahr, Ben Gomes, Jeff Dean",
+              desc: "Tổng hợp đồng thời: Tác giả + Uy tín Domain + Tính xác thực sự thật + NavBoost.",
+              leak: "E-E-A-T Composite Vector",
+              action: "Xây dựng hệ thống toàn diện: thông tin minh bạch, giấy tờ cọc rõ ràng, đánh giá thật."
+            }
+          ]
+        }
+      ]
+    };
+
+    const dataConsensus = {
+      name: "Ma Trận Đồng Thuận Tuyệt Đối (Google vs Yandex)",
+      tag: "ALGORITHM CONSENSUS",
+      desc: "Những nhóm tín hiệu cả Google và Yandex đều đánh giá là yếu tố sống còn.",
+      children: [
+        {
+          name: "P0: User Engagement & Clicks (35%)",
+          tag: "TRỌNG SỐ 35% - P0",
+          desc: "Sự đồng thuận 98%: Hành vi người dùng quyết định vị trí cuối cùng qua Re-ranking.",
+          children: [
+            {
+              name: "Google: NavBoost & LastLongestClicks",
+              subtitle: "QualityNavboost / goodClicks",
+              desc: "Ghi nhận phiên dừng chân cuối cùng của người dùng khi được thỏa mãn nhu cầu.",
+              leak: "badClicks, unsquashedClicks",
+              action: "Tránh mọi hình thức giật tít câu view làm người dùng thất vọng bấm Back."
+            },
+            {
+              name: "Yandex: Expected CTR & Pogo-Sticking Penalty",
+              subtitle: "Factor 248 / Session Dwell Time",
+              desc: "Phạt nặng các trang có thời gian ở lại <15s hoặc nhảy về SERP để click kết quả khác.",
+              leak: "Bounce Rate Re-ranking",
+              action: "Cung cấp danh sách phòng thật, số điện thoại chủ nhà trực diện ngay đầu trang."
+            }
+          ]
+        },
+        {
+          name: "P0: Host Authority & Topical Focus (25%)",
+          tag: "TRỌNG SỐ 25% - P0",
+          desc: "Sự đồng thuận 92%: Không có bài viết nào đứng độc lập; sức mạnh toàn domain quyết định trần thứ hạng.",
+          children: [
+            {
+              name: "Google: siteAuthority & siteRadius",
+              subtitle: "Host-level Quality / Focus Score",
+              desc: "Website viết ngoài bán kính chủ đề chuyên môn sẽ bị hạ điểm uy tín.",
+              leak: "siteRadius, smallPersonalSite",
+              action: "Tập trung 100% tài nguyên cho ngách phòng trọ và đời sống sinh viên Hà Nội."
+            },
+            {
+              name: "Yandex: Host Quality Index (ИКС) & Catalog Size",
+              subtitle: "Factor 33 (Host Age) / Assortment",
+              desc: "Đo lường quy mô danh mục sản phẩm và lượng người dùng truy cập định kỳ.",
+              leak: "Host Quality Score",
+              action: "Gia tăng số lượng phòng trọ thực tế đã kiểm duyệt trên nền tảng."
+            }
+          ]
+        },
+        {
+          name: "P1: Anchor Text & Internal Linking (15%)",
+          tag: "TRỌNG SỐ 15% - P1",
+          desc: "Sự đồng thuận 90%: Anchor Text là nhãn định danh ngữ nghĩa số 1 cho trang đích.",
+          children: [
+            {
+              name: "Google: fontSizeBoost & demoteAnchorMismatch",
+              subtitle: "Reasonable Surfer Link Weight",
+              desc: "Link đặt ở vị trí mắt dễ thấy có giá trị cao; phạt link không ăn nhập ngữ cảnh.",
+              leak: "Anchor Weight Multiplier",
+              action: "Đặt liên kết nội bộ theo cụm quận/trường ĐH ở chân trang với kích cỡ chữ chuẩn."
+            },
+            {
+              name: "Yandex: Anchor BM25 & Link Age",
+              subtitle: "Factor 101-150 / Link Spam Filter",
+              desc: "Đo lường độ khớp của từ khóa trong neo và thời gian tồn tại của liên kết.",
+              leak: "Text Relevance Factor",
+              action: "Sử dụng anchor text mô tả cụ thể: 'Phòng trọ Cầu Giấy', 'Trọ gần Bách Khoa'."
+            }
+          ]
+        },
+        {
+          name: "P1: Search Intent & Title/H1 Prominence (15%)",
+          tag: "TRỌNG SỐ 15% - P1",
+          desc: "Sự đồng thuận 88%: Từ khóa ở Title và H1 là tín hiệu lọc sơ bộ mạnh nhất.",
+          children: [
+            {
+              name: "Google: Passage Ranking & Title Prominence",
+              subtitle: "MUM & BERT Lexical Match",
+              desc: "Từ khóa nằm trong 30-40 ký tự đầu của Title mang trọng số đối sánh cao nhất.",
+              leak: "Title Position Weight",
+              action: "Công thức Title: [Từ khóa chính xác] + [Khu vực/Giá] | Trọ Xinh."
+            },
+            {
+              name: "Yandex: Exact Match Title / First Paragraph Match",
+              subtitle: "Factor 1-50 / Headings Relevance",
+              desc: "Sự xuất hiện của từ khóa ở đoạn văn đầu tiên giúp xác thực độ liên quan.",
+              leak: "BM25 Document Body",
+              action: "Đoạn mở đầu nêu rõ khu vực, mức giá và tiện ích phòng trọ."
+            }
+          ]
+        },
+        {
+          name: "P2: Commercial & Local Real-World Signals (10%)",
+          tag: "TRỌNG SỐ 10% - P2",
+          desc: "Sự đồng thuận 85%: Trang dịch vụ bắt buộc phải minh bạch thông tin thương mại.",
+          children: [
+            {
+              name: "Google: Local Schema & Merchant Data",
+              subtitle: "LocalBusiness / GeoCoordinates",
+              desc: "Xác thực tọa độ thực tế và giá cả minh bạch qua dữ liệu có cấu trúc.",
+              leak: "demoteLocationMismatch",
+              action: "Nhúng Schema Apartment, PostalAddress, GeoCoordinates cho mọi phòng trọ."
+            },
+            {
+              name: "Yandex: Commercial Factors Ranking",
+              subtitle: "Price, Phone, Delivery, Physical Address",
+              desc: "Trang không có giá rõ ràng hoặc thiếu hotline sẽ bị xếp sau đối thủ.",
+              leak: "Commercial Readiness Score",
+              action: "Hiển thị công khai Hotline 0888 110 789, tiền cọc, tiền điện, nước."
+            }
+          ]
+        }
+      ]
+    };
+
+    const dataRoadmap = {
+      name: "Lộ Trình Nâng Cấp Semantic SEO Trọ Xinh",
+      tag: "ACTION PLAN",
+      desc: "Kế hoạch hành động 4 giai đoạn dựa trên phân tích lỗ hổng và bằng sáng chế.",
+      children: [
+        {
+          name: "Giai Đoạn 1: Vá Lỗ Hổng Nền Tảng (P0)",
+          tag: "KHẨN CẤP (P0)",
+          desc: "Đảm bảo 100% trang được index đúng chuẩn và AI crawlers không bị sai lệch.",
+          children: [
+            {
+              name: "Nâng Cấp SEOHead.tsx Toàn Diện",
+              subtitle: "src/components/seo/SEOHead.tsx",
+              desc: "Thêm GeoCoordinates vào Apartment Schema, thêm BreadcrumbList và RealEstateAgent.",
+              leak: "Local Schema & Entity Graph",
+              action: "Triển khai code ngay trong Phase 1."
+            },
+            {
+              name: "Gắn SEOHead Cho 5 Trang Bị Thiếu",
+              subtitle: "Building, Roommate, Marketplace, MapView",
+              desc: "Chấm dứt tình trạng trang 'mù SEO' chỉ hiển thị title tĩnh mặc định.",
+              leak: "Passage & Title Relevance",
+              action: "Gắn thẻ dynamic meta cho từng trang chi tiết và danh mục."
+            },
+            {
+              name: "Đồng Bộ llms.txt & robots.txt",
+              subtitle: "public/llms.txt, public/robots.txt",
+              desc: "Sửa đường dẫn sai lệch (/rooms -> /tim-kiem) và đồng bộ domain troxinh.vn.",
+              leak: "AI Crawler Accessibility",
+              action: "Đảm bảo các AI Agents (ChatGPT, Perplexity) trích dẫn đúng link."
+            }
+          ]
+        },
+        {
+          name: "Giai Đoạn 2: Lan Tỏa PageRank & Bán Kính Chủ Đề (P1)",
+          tag: "CẤU TRÚC LIÊN KẾT (P1)",
+          desc: "Kích hoạt mô hình Reasonable Surfer để lan tỏa dòng chảy PageRank.",
+          children: [
+            {
+              name: "Internal Link Matrix Tại Footer.tsx",
+              subtitle: "12 Quận Hà Nội + 4 Cụm Trường ĐH",
+              desc: "Xây dựng ma trận liên kết nội bộ phong phú với anchor text thực thể sắc bén.",
+              leak: "fontSizeBoost, Reasonable Surfer",
+              action: "Thêm 2 cột danh mục quận và trường ĐH trọng điểm vào chân trang."
+            },
+            {
+              name: "Dynamic Sitemap Generator",
+              subtitle: "public/sitemap.xml",
+              desc: "Tạo danh sách toàn bộ phòng trọ thực tế kèm thẻ lastmod để bot quét sâu.",
+              leak: "Deep Web Discovery (US9971842B2)",
+              action: "Cập nhật sitemap định kỳ tự động."
+            }
+          ]
+        },
+        {
+          name: "Giai Đoạn 3: NavBoost & Chống Pogo-Sticking (P1+)",
+          tag: "HÀNH VI NGƯỜI DÙNG (P1+)",
+          desc: "Tối đa hóa goodClicks và lastLongestClicks để củng cố vị thế Top 1.",
+          children: [
+            {
+              name: "Khối Gợi Ý Phòng Tương Tự Khu Vực",
+              subtitle: "RoomDetailPage.tsx",
+              desc: "Luôn hiển thị 3-4 phòng cùng tầm giá ở cuối bài để giữ chân người dùng.",
+              leak: "NavBoost lastLongestClicks",
+              action: "Triệt tiêu thao tác bấm nút Back của người dùng."
+            },
+            {
+              name: "Tối Ưu Mobile Sticky CTA Bar",
+              subtitle: "Mobile UX Optimization",
+              desc: "Nút gọi Hotline và Zalo luôn bám đáy màn hình, tương tác tức thì (INP < 200ms).",
+              leak: "Chrome Telemetry CrUX",
+              action: "Giúp người thuê chốt lịch xem phòng nhanh chóng."
+            }
+          ]
+        },
+        {
+          name: "Giai Đoạn 4: Đón Đầu AI/GEO & E-E-A-T (P2)",
+          tag: "ĐÓN ĐẦU TƯƠNG LAI (P2)",
+          desc: "Khẳng định danh tiếng thực thể Agent Rank và đón đầu Google AI Overviews.",
+          children: [
+            {
+              name: "Schema FAQPage Cho Trang Chủ & Trợ Giúp",
+              subtitle: "FAQ Schema Structured Data",
+              desc: "Cung cấp câu trả lời có cấu trúc sẵn sàng cho AI trích dẫn làm nguồn uy tín.",
+              leak: "Direct Answer Extraction",
+              action: "Biên soạn 5 câu hỏi cốt lõi về cọc an toàn và kiểm duyệt PCCC."
+            },
+            {
+              name: "Cập Nhật Bộ Quy Chuẩn troxinh-seo/SKILL.md",
+              subtitle: ".agents/skills/troxinh-seo/SKILL.md",
+              desc: "Lưu giữ toàn bộ tinh hoa 100 bằng sáng chế làm cẩm nang vĩnh viễn cho team.",
+              leak: "System Documentation & Rules",
+              action: "Đồng bộ quy chuẩn vào kho mã nguồn dự án."
+            }
+          ]
+        }
+      ]
+    };
+
+    let currentData = dataPatents;
+    let svg, g, zoom, tree, root;
+    let i = 0;
+    const duration = 500;
+    const width = window.innerWidth;
+    const height = window.innerHeight - 64;
+
+    function initMindmap() {
+      d3.select("#mindmap-svg").selectAll("*").remove();
+
+      svg = d3.select("#mindmap-svg")
+        .attr("width", "100%")
+        .attr("height", "100%")
+        .attr("viewBox", [0, 0, width, height]);
+
+      zoom = d3.zoom()
+        .scaleExtent([0.15, 3])
+        .on("zoom", (event) => {
+          g.attr("transform", event.transform);
+        });
+
+      svg.call(zoom);
+
+      g = svg.append("g")
+        .attr("transform", `translate(120, ${height / 2})`);
+
+      tree = d3.tree().nodeSize([45, 260]);
+
+      loadData(currentData);
+    }
+
+    function loadData(sourceData) {
+      root = d3.hierarchy(sourceData, d => d.children);
+      root.x0 = height / 2;
+      root.y0 = 0;
+
+      if (root.children) {
+        root.children.forEach(collapse);
+      }
+
+      update(root);
+      resetZoom();
+    }
+
+    function collapse(d) {
+      if (d.children) {
+        d._children = d.children;
+        d._children.forEach(collapse);
+        d.children = null;
+      }
+    }
+
+    function expand(d) {
+      if (d._children) {
+        d.children = d._children;
+        d.children.forEach(expand);
+        d._children = null;
+      }
+    }
+
+    function update(source) {
+      const treeData = tree(root);
+      const nodes = treeData.descendants();
+      const links = treeData.links();
+
+      nodes.forEach(d => { d.y = d.depth * 250; });
+
+      const node = g.selectAll('g.node')
+        .data(nodes, d => d.id || (d.id = ++i));
+
+      const nodeEnter = node.enter().append('g')
+        .attr('class', 'node')
+        .attr("transform", d => `translate(${source.y0},${source.x0})`)
+        .on('click', (event, d) => {
+          if (d.children) {
+            d._children = d.children;
+            d.children = null;
+          } else {
+            d.children = d._children;
+            d._children = null;
+          }
+          update(d);
+          inspectNode(d.data);
+        });
+
+      nodeEnter.append('circle')
+        .attr('class', 'node-circle')
+        .attr('r', 1e-6)
+        .style("fill", d => d._children ? "#10b981" : d.depth === 0 ? "#059669" : "#1e293b")
+        .style("stroke", d => d.depth === 0 ? "#34d399" : "#10b981")
+        .style("stroke-width", "2.5px");
+
+      nodeEnter.append('text')
+        .attr('class', 'node-text')
+        .attr("dy", ".35em")
+        .attr("x", d => d.children || d._children ? -16 : 16)
+        .attr("text-anchor", d => d.children || d._children ? "end" : "start")
+        .text(d => d.data.name)
+        .style("fill-opacity", 1e-6);
+
+      const nodeUpdate = node.merge(nodeEnter).transition()
+        .duration(duration)
+        .attr("transform", d => `translate(${d.y},${d.x})`);
+
+      nodeUpdate.select('circle')
+        .attr('r', d => d.depth === 0 ? 12 : d._children ? 8 : 6)
+        .style("fill", d => d._children ? "#10b981" : d.depth === 0 ? "#059669" : "#0f172a")
+        .style("stroke", d => d._children ? "#6ee7b7" : "#10b981");
+
+      nodeUpdate.select('text')
+        .style("fill-opacity", 1);
+
+      const nodeExit = node.exit().transition()
+        .duration(duration)
+        .attr("transform", d => `translate(${source.y},${source.x})`)
+        .remove();
+
+      nodeExit.select('circle')
+        .attr('r', 1e-6);
+
+      nodeExit.select('text')
+        .style("fill-opacity", 1e-6);
+
+      const link = g.selectAll('path.link-line')
+        .data(links, d => d.target.id);
+
+      const linkEnter = link.enter().insert('path', "g")
+        .attr("class", "link-line")
+        .attr('d', d => {
+          const o = { x: source.x0, y: source.y0 };
+          return diagonal(o, o);
+        });
+
+      const linkUpdate = link.merge(linkEnter).transition()
+        .duration(duration)
+        .attr('d', d => diagonal(d.source, d.target));
+
+      link.exit().transition()
+        .duration(duration)
+        .attr('d', d => {
+          const o = { x: source.x, y: source.y };
+          return diagonal(o, o);
+        })
+        .remove();
+
+      nodes.forEach(d => {
+        d.x0 = d.x;
+        d.y0 = d.y;
+      });
+    }
+
+    function diagonal(s, d) {
+      return `M ${s.y} ${s.x}
+              C ${(s.y + d.y) / 2} ${s.x},
+                ${(s.y + d.y) / 2} ${d.x},
+                ${d.y} ${d.x}`;
+    }
+
+    let activeNodeData = null;
+
+    function inspectNode(data) {
+      activeNodeData = data;
+      const drawer = document.getElementById("inspector");
+      
+      document.getElementById("inspect-tag").innerText = data.tag || "SIGNAL & PATENT";
+      document.getElementById("inspect-title").innerText = data.name;
+      document.getElementById("inspect-subtitle").innerText = data.subtitle || "Hệ thống thuật toán Google Search";
+      document.getElementById("inspect-desc").innerText = data.desc || "Không có mô tả chi tiết cho mục này.";
+      document.getElementById("inspect-leak").innerText = data.leak || "Mapped into Google NavBoost & Content Warehouse API";
+      document.getElementById("inspect-action").innerText = data.action || "Áp dụng theo tài liệu hướng dẫn troxinh-seo/SKILL.md.";
+
+      drawer.classList.remove("translate-x-full");
+    }
+
+    function closeInspector() {
+      document.getElementById("inspector").classList.add("translate-x-full");
+    }
+
+    function copyNodeInfo() {
+      if (!activeNodeData) return;
+      const text = `${activeNodeData.name}\n${activeNodeData.subtitle || ''}\n${activeNodeData.desc || ''}\nLeak: ${activeNodeData.leak || ''}\nAction: ${activeNodeData.action || ''}`;
+      navigator.clipboard.writeText(text);
+      alert("Đã sao chép thông tin thành công!");
+    }
+
+    function switchView(viewName) {
+      ['patents', 'consensus', 'roadmap'].forEach(t => {
+        const tab = document.getElementById(`tab-${t}`);
+        if (t === viewName) {
+          tab.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 bg-emerald-500 text-slate-950 shadow-md";
+        } else {
+          tab.className = "px-3.5 py-1.5 rounded-lg text-xs font-semibold text-slate-400 hover:text-white transition-all duration-200";
+        }
+      });
+
+      closeInspector();
+
+      if (viewName === 'patents') currentData = dataPatents;
+      else if (viewName === 'consensus') currentData = dataConsensus;
+      else if (viewName === 'roadmap') currentData = dataRoadmap;
+
+      loadData(currentData);
+    }
+
+    function zoomIn() {
+      svg.transition().duration(300).call(zoom.scaleBy, 1.3);
+    }
+
+    function zoomOut() {
+      svg.transition().duration(300).call(zoom.scaleBy, 0.7);
+    }
+
+    function resetZoom() {
+      svg.transition().duration(500).call(
+        zoom.transform,
+        d3.zoomIdentity.translate(140, height / 2).scale(0.85)
+      );
+    }
+
+    let isExpandedAll = false;
+    function toggleExpandAll() {
+      if (isExpandedAll) {
+        if (root.children) root.children.forEach(collapse);
+        isExpandedAll = false;
+        document.getElementById("btn-expand").innerText = "Mở rộng tất cả";
+      } else {
+        expand(root);
+        isExpandedAll = true;
+        document.getElementById("btn-expand").innerText = "Thu gọn tất cả";
+      }
+      update(root);
+    }
+
+    function handleSearch(term) {
+      const q = term.toLowerCase().trim();
+      if (!q) {
+        d3.selectAll("g.node").style("opacity", 1);
+        return;
+      }
+
+      expand(root);
+      update(root);
+
+      d3.selectAll("g.node").style("opacity", d => {
+        const match = d.data.name.toLowerCase().includes(q) || 
+                      (d.data.desc && d.data.desc.toLowerCase().includes(q)) ||
+                      (d.data.subtitle && d.data.subtitle.toLowerCase().includes(q));
+        return match ? 1 : 0.15;
+      });
+    }
+
+    window.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
+        e.preventDefault();
+        document.getElementById("searchInput").focus();
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      initMindmap();
+    });
+
+    window.addEventListener('DOMContentLoaded', () => {
+      initMindmap();
+    });
+  </script>
+</body>
+</html>

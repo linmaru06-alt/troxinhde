@@ -25,9 +25,11 @@ import {
   Phone,
   MessageSquare,
   XCircle,
+  AlertTriangle,
 } from 'lucide-react';
 
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
 export const OwnerDashboardPage: React.FC = () => {
   const {
@@ -35,14 +37,46 @@ export const OwnerDashboardPage: React.FC = () => {
     buildings,
     currentUser,
     ownerSubscription,
-    bookings,
-    updateBookingStatus,
     updateRoomStatus,
     showToast,
   } = useAppStore();
+  const [cloudBookings, setCloudBookings] = useState<ViewingRequestItem[]>([]);
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleTime, setRescheduleTime] = useState<string>('');
+
+  // Nạp danh sách lịch hẹn thật từ Supabase Cloud
+  React.useEffect(() => {
+    if (!currentUser?.id) return;
+
+    let isMounted = true;
+    async function loadBookings() {
+      try {
+        const data = await getOwnerViewingRequests(currentUser!.id);
+        if (isMounted) setCloudBookings(data);
+      } catch (err) {
+        console.error('[OwnerDashboard] Lỗi tải lịch hẹn:', err);
+      }
+    }
+
+    loadBookings();
+
+    const channel = supabase
+      .channel(`owner-dashboard-bookings-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'viewing_requests' },
+        () => {
+          loadBookings();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      isMounted = false;
+      supabase.removeChannel(channel);
+    };
+  }, [currentUser?.id]);
 
   // Supabase Real-time Room Status Subscription
   useRealtimeRoomStatus();
@@ -62,33 +96,36 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const handleUpdateBookingStatus = (bookingId: string, status: any, note?: string) => {
-    updateBookingStatus(bookingId, status);
-    if (isSupabaseConfigured && bookingId.length === 36) {
-      const updates: any = {
-        updated_at: new Date().toISOString(),
-      };
-      
-      if (status === 'Đã xác nhận') updates.status = 'confirmed';
-      else if (status === 'Đổi giờ') {
-        updates.status = 'rescheduled';
-        updates.owner_response_note = note;
-      }
-      else updates.status = 'cancelled';
-
-      supabase
-        .from('viewing_requests')
-        .update(updates)
-        .eq('id', bookingId)
-        .then();
+  const handleUpdateBookingStatus = async (bookingId: string, status: any, note?: string) => {
+    const res = await updateViewingRequestStatus(bookingId, status, note);
+    if (res.success) {
+      setCloudBookings((prev) =>
+        prev.map((b) => (b.id === bookingId ? { ...b, status } : b))
+      );
+      showToast(
+        status === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
+        'Khách thuê sẽ nhận được thông báo về lịch hẹn của họ.',
+        status === 'Đã xác nhận' ? 'success' : 'info'
+      );
+    } else {
+      showToast('Không thể cập nhật lịch hẹn', res.error || 'Vui lòng thử lại', 'error');
     }
   };
 
-  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
+  const myRooms = rooms.filter(
+    (r) =>
+      r.ownerId === currentUser?.id ||
+      (currentUser?.id === 'user_owner_1' && r.ownerId === 'user_owner_1') ||
+      (currentUser?.firebaseUid && r.ownerId === currentUser.firebaseUid)
+  );
   const currentPlan =
     SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
 
-  const totalRooms = myRooms.length;
+  // Tổng số phòng của tất cả các tòa nhà đã được admin duyệt
+  const approvedRooms = myRooms.filter(
+    (r) => (r.status === 'Còn trống' || r.status === 'Đã cho thuê') && r.status !== 'Chờ duyệt' && r.status !== 'Bị từ chối'
+  );
+  const totalApprovedRooms = approvedRooms.length;
   const availableRooms = myRooms.filter((r) => r.status === 'Còn trống').length;
   const rentedRooms = myRooms.filter((r) => r.status === 'Đã cho thuê').length;
   const pendingRooms = myRooms.filter((r) => r.status === 'Chờ duyệt').length;
@@ -115,7 +152,7 @@ export const OwnerDashboardPage: React.FC = () => {
               <div className="flex items-center gap-2">
                 <span className="font-black text-sm sm:text-base">{currentPlan.name}</span>
                 <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
-                  {totalRooms}/{currentPlan.roomLimit === 999 ? '∞' : currentPlan.roomLimit} phòng
+                  {totalApprovedRooms}/{currentPlan.roomLimit === 999 ? '∞' : currentPlan.roomLimit} phòng
                 </span>
               </div>
               <p className="text-xs text-emerald-100/90 mt-0.5">
@@ -126,12 +163,12 @@ export const OwnerDashboardPage: React.FC = () => {
 
           <div className="flex items-center gap-2">
             <Link to="/chu-tro/quan-ly-goi">
-              <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition">
+              <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer">
                 Quản lý gói & Hóa đơn
               </button>
             </Link>
-            <Link to="/nang-cap">
-              <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs">
+            <Link to="/chu-tro/quan-ly-goi">
+              <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs cursor-pointer">
                 Nâng cấp gói ⭐
               </button>
             </Link>
@@ -165,14 +202,14 @@ export const OwnerDashboardPage: React.FC = () => {
 
         {/* 4 Stat Cards Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-white p-5 rounded-3xl border border-gray-200 shadow-xs space-y-2">
+          <Link to="/chu-tro/toa-nha" className="bg-white p-5 rounded-3xl border border-gray-200 shadow-xs space-y-2 hover:border-gray-300 transition block">
             <div className="flex items-center justify-between text-xs text-gray-500 font-bold">
               <span>Tổng số phòng</span>
               <Building2 className="w-4 h-4 text-gray-400" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-gray-950">{totalRooms}</div>
-            <p className="text-[11px] text-emerald-600 font-bold">↑ 2 tòa nhà đang vận hành</p>
-          </div>
+            <div className="text-2xl sm:text-3xl font-black text-gray-950">{totalApprovedRooms}</div>
+            <p className="text-[11px] text-emerald-600 font-bold">↑ Đã được duyệt công khai</p>
+          </Link>
 
           <div className="bg-white p-5 rounded-3xl border border-emerald-200 shadow-xs space-y-2 bg-emerald-50/40">
             <div className="flex items-center justify-between text-xs text-emerald-800 font-bold">
@@ -192,32 +229,38 @@ export const OwnerDashboardPage: React.FC = () => {
             <p className="text-[11px] text-emerald-600 font-bold">Tỷ lệ lấp đầy cao</p>
           </div>
 
-          <div className="bg-white p-5 rounded-3xl border border-amber-200 shadow-xs space-y-2 bg-amber-50/40">
+          <Link to="/chu-tro/lich-hen" className="bg-white p-5 rounded-3xl border border-amber-200 shadow-xs space-y-2 bg-amber-50/40 hover:border-amber-300 transition block">
             <div className="flex items-center justify-between text-xs text-amber-800 font-bold">
               <span>Lịch hẹn xem phòng</span>
               <Calendar className="w-4 h-4 text-amber-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-amber-700">{bookings.length}</div>
-            <p className="text-[11px] text-gray-500 font-medium">Khách hẹn trực tiếp</p>
-          </div>
+            <div className="text-2xl sm:text-3xl font-black text-amber-700">{cloudBookings.length}</div>
+            <p className="text-[11px] text-amber-700 font-bold">→ Quản lý lịch hẹn</p>
+          </Link>
         </div>
 
         {/* 🌟 2-WAY BOOKING APPOINTMENTS SECTION FOR LANDLORD */}
-        {bookings.length > 0 && (
+        {cloudBookings.length > 0 && (
           <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
                 <h3 className="text-base font-black text-gray-950 flex items-center gap-2">
                   <Calendar className="w-5 h-5 text-[#00a854]" />
-                  Khách Đặt Lịch Xem Phòng Trực Tiếp ({bookings.length})
+                  Khách Đặt Lịch Xem Phòng Trực Tiếp ({cloudBookings.length})
                 </h3>
                 <p className="text-xs text-gray-500">Xác nhận để khách chuẩn bị đến xem phòng đúng giờ</p>
               </div>
+              <Link
+                to="/chu-tro/lich-hen"
+                className="text-xs font-bold text-[#006d37] hover:underline"
+              >
+                Xem tất cả lịch hẹn →
+              </Link>
             </div>
 
             <div className="space-y-3">
-              {bookings.map((b: BookingRequest) => {
-                const currentStatus: BookingRequest['status'] = b.status;
+              {cloudBookings.map((b: ViewingRequestItem) => {
+                const currentStatus = b.status;
                 return (
                 <div
                   key={b.id}
@@ -351,54 +394,144 @@ export const OwnerDashboardPage: React.FC = () => {
 
           {/* Rooms Table / Grid */}
           <div className="space-y-4">
-            {filteredRooms.map((room) => (
-              <div
-                key={room.id}
-                className="p-4 rounded-3xl border border-gray-200 hover:border-[#00a854]/40 bg-white transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs"
-              >
-                <div className="flex items-center gap-4">
-                  <img
-                    src={room.images?.[0] || '/images/hero-banner.webp'}
-                    alt={room.title}
-                    className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0"
-                  />
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-black text-sm text-gray-950">{room.roomNumber} - {room.title}</span>
+            {filteredRooms.map((room) => {
+              const isApproved =
+                (room.status === 'Còn trống' || room.status === 'Đã cho thuê') &&
+                room.status !== 'Chờ duyệt' &&
+                room.status !== 'Bị từ chối';
+              const isNeedsInfo = room.status === 'Bị từ chối' || Boolean(room.rejectionReason);
+              const isPending = room.status === 'Chờ duyệt';
+
+              return (
+                <div
+                  key={room.id}
+                  className="p-4 sm:p-5 rounded-3xl border border-gray-200 hover:border-[#00a854]/40 bg-white transition space-y-3.5 shadow-2xs"
+                >
+                  {/* Top Row: Room info + Status badge + Actions */}
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={room.images?.[0] || '/images/hero-banner.webp'}
+                        alt={room.title}
+                        className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0"
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-gray-950">
+                            {room.roomNumber} - {room.title}
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-500">
+                          {room.buildingName} • {room.area} m²
+                        </p>
+                        <div className="text-xs font-black text-[#00a854]">
+                          {formatPrice(room.price)}
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-xs text-gray-500">{room.buildingName} • {room.area} m²</p>
-                    <div className="text-xs font-black text-[#00a854]">
-                      {formatPrice(room.price)}
+
+                    {/* Right Column: Status Badge + Action Buttons + Toggle Button underneath */}
+                    <div className="flex flex-col items-stretch sm:items-end gap-2.5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
+                      {/* Top Row: Status indicator + Action Buttons */}
+                      <div className="flex flex-wrap items-center gap-2 justify-between sm:justify-end w-full">
+                        {/* Status indicator */}
+                        {isPending && (
+                          <span className="px-3 py-1.5 rounded-xl bg-amber-50 text-amber-800 border border-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            <span>Chờ duyệt</span>
+                          </span>
+                        )}
+
+                        {isNeedsInfo && (
+                          <Link
+                            to={`/chu-tro/phong/chinh-sua/${room.id}`}
+                            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition shadow-2xs cursor-pointer"
+                          >
+                            <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                            <span>Bổ sung thông tin</span>
+                          </Link>
+                        )}
+
+                        {isApproved && room.status === 'Còn trống' && (
+                          <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Còn trống</span>
+                          </span>
+                        )}
+
+                        {isApproved && room.status === 'Đã cho thuê' && (
+                          <span className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 border border-gray-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <Home className="w-3.5 h-3.5 text-gray-500" />
+                            <span>Đã cho thuê</span>
+                          </span>
+                        )}
+
+                        <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}
+                          >
+                            Đẩy Tin
+                          </Button>
+                        </Link>
+
+                        <Link to={`/chu-tro/phong/${room.id}`}>
+                          <Button variant="outline" size="sm">
+                            Chi tiết →
+                          </Button>
+                        </Link>
+                      </div>
+
+                      {/* Bottom Row under 3 buttons: Action Button to toggle Còn trống / Đã cho thuê */}
+                      <div className="w-full flex justify-end">
+                        {isApproved ? (
+                          room.status === 'Còn trống' ? (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateRoomStatus(room.id, 'Đã cho thuê')}
+                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-950 border border-orange-300 hover:border-orange-400 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-xs"
+                              title="Nhấn để đổi trạng thái sang Đã cho thuê"
+                            >
+                              <Home className="w-3.5 h-3.5 text-orange-600" />
+                              <span>
+                                Đánh dấu phòng: <strong className="text-orange-700 underline underline-offset-2">Đã cho thuê</strong> (Tạm ngừng đón khách)
+                              </span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => handleUpdateRoomStatus(room.id, 'Còn trống')}
+                              className="w-full sm:w-full py-2 px-3.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-950 border border-emerald-300 hover:border-emerald-400 text-xs font-bold flex items-center justify-center gap-2 transition cursor-pointer active:scale-[0.98] shadow-xs"
+                              title="Nhấn để đổi trạng thái sang Còn trống"
+                            >
+                              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                              <span>
+                                Đánh dấu phòng: <strong className="text-emerald-700 underline underline-offset-2">Còn trống</strong> (Sẵn sàng mở đón khách)
+                              </span>
+                            </button>
+                          )
+                        ) : (
+                          <div className="w-full py-2 px-3.5 rounded-xl bg-gray-100/90 border border-dashed border-gray-300 text-gray-400 text-xs font-semibold flex items-center justify-center gap-2 cursor-not-allowed select-none">
+                            {isPending ? (
+                              <>
+                                <Clock className="w-3.5 h-3.5 text-gray-400" />
+                                <span>Đang chờ Admin duyệt — Chưa thể đổi trạng thái</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertTriangle className="w-3.5 h-3.5 text-gray-400" />
+                                <span>Cần bổ sung thông tin để mở khóa hoạt động</span>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Status selector & Actions */}
-                <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-between sm:justify-end pt-2 sm:pt-0 border-t sm:border-t-0 border-gray-100">
-                  <select
-                    value={room.status}
-                    onChange={(e) => handleUpdateRoomStatus(room.id, e.target.value as any)}
-                    className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#00a854]"
-                  >
-                    <option value="Còn trống">Còn trống</option>
-                    <option value="Đã cho thuê">Đã cho thuê</option>
-                    <option value="Chờ duyệt">Chờ duyệt</option>
-                  </select>
-
-                  <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
-                    <Button variant="outline" size="sm" leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}>
-                      Đẩy Tin
-                    </Button>
-                  </Link>
-
-                  <Link to={`/chu-tro/phong/${room.id}`}>
-                    <Button variant="outline" size="sm">
-                      Chi tiết →
-                    </Button>
-                  </Link>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </main>

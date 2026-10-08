@@ -18,6 +18,9 @@ import {
   onAuthStateChanged,
   onIdTokenChanged,
   updateProfile,
+  PhoneAuthProvider,
+  linkWithCredential,
+  updatePhoneNumber,
   User as FirebaseUser,
   IdTokenResult,
 } from 'firebase/auth';
@@ -70,6 +73,9 @@ export {
   onAuthStateChanged,
   onIdTokenChanged,
   updateProfile,
+  PhoneAuthProvider,
+  linkWithCredential,
+  updatePhoneNumber,
   firebaseConfig,
 };
 export type { ConfirmationResult, FirebaseUser, IdTokenResult };

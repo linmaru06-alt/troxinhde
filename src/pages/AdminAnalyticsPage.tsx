@@ -181,91 +181,62 @@ export const AdminAnalyticsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Module Báo Cáo Phân Tích (Giao diện chuẩn GA4) */}
-        <div className="bg-[#111827] text-white rounded-3xl p-6 shadow-xl border border-gray-800">
-          <div className="flex items-center gap-3 mb-6">
-            <Activity className="w-6 h-6 text-blue-500" />
-            <h2 className="text-xl font-bold tracking-tight">Tổng quan về báo cáo (Mô phỏng GA4)</h2>
+        {/* Module Báo Cáo Phân Tích GA4 (Looker Studio) */}
+        <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-200">
+          <div className="flex items-center justify-between mb-6">
+            <div className="flex items-center gap-3">
+              <Activity className="w-6 h-6 text-blue-600" />
+              <h2 className="text-xl font-bold tracking-tight text-gray-900">Báo cáo Google Analytics (GA4)</h2>
+            </div>
+            {lookerUrl && (
+              <button
+                onClick={handleRemoveLookerUrl}
+                className="text-sm text-red-600 hover:text-red-700 font-medium px-3 py-1.5 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                Xóa liên kết
+              </button>
+            )}
           </div>
 
-          <div className="flex flex-col xl:flex-row gap-6">
-            {/* Cột trái: Biểu đồ đường */}
-            <div className="flex-1 bg-[#1f2937] border border-gray-700 rounded-2xl p-5">
-              <div className="flex items-center gap-6 mb-8 border-b border-gray-700 pb-4">
-                <div className="cursor-pointer border-b-2 border-blue-500 pb-2">
-                  <div className="text-sm text-gray-400 font-medium">Số người dùng đang hoạt động</div>
-                  <div className="text-3xl font-bold mt-1">{metrics.totalUsers}</div>
-                </div>
-                <div className="cursor-pointer pb-2 opacity-50 hover:opacity-100 transition-opacity">
-                  <div className="text-sm text-gray-400 font-medium">Số lượng sự kiện</div>
-                  <div className="text-3xl font-bold mt-1">{metrics.totalBookings * 12 + metrics.totalUsers * 4}</div>
-                </div>
+          {lookerUrl ? (
+            <div className="w-full h-[600px] rounded-xl overflow-hidden border border-gray-200">
+              <iframe
+                src={lookerUrl}
+                width="100%"
+                height="100%"
+                frameBorder="0"
+                style={{ border: 0 }}
+                allowFullScreen
+                sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+              ></iframe>
+            </div>
+          ) : (
+            <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-8 text-center max-w-2xl mx-auto my-8">
+              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="w-8 h-8" />
               </div>
-              
-              {/* Interactive Line Chart using Recharts */}
-              <div className="h-56 relative w-full mt-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={[
-                    { date: '25 thg 8', users: Math.round(metrics.totalUsers * 0.2), events: Math.round(metrics.totalBookings * 2) },
-                    { date: '31 thg 8', users: Math.round(metrics.totalUsers * 0.4), events: Math.round(metrics.totalBookings * 3) },
-                    { date: '6 thg 9', users: Math.round(metrics.totalUsers * 0.6), events: Math.round(metrics.totalBookings * 5) },
-                    { date: '12 thg 9', users: Math.round(metrics.totalUsers * 0.5), events: Math.round(metrics.totalBookings * 4) },
-                    { date: '18 thg 9', users: Math.round(metrics.totalUsers * 0.9), events: Math.round(metrics.totalBookings * 10) },
-                    { date: 'Hôm nay', users: metrics.totalUsers, events: metrics.totalBookings * 12 + metrics.totalUsers * 4 }
-                  ]}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-                    <XAxis dataKey="date" stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
-                    <YAxis stroke="#9ca3af" fontSize={12} tickLine={false} axisLine={false} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff' }}
-                      itemStyle={{ color: '#60a5fa' }}
-                    />
-                    <Line type="monotone" dataKey="users" name="Người dùng" stroke="#3b82f6" strokeWidth={3} dot={{ r: 4, fill: '#3b82f6' }} activeDot={{ r: 6 }} />
-                    <Line type="monotone" dataKey="events" name="Sự kiện" stroke="#f97316" strokeWidth={2} dot={false} />
-                  </LineChart>
-                </ResponsiveContainer>
+              <h3 className="text-lg font-bold text-gray-900 mb-2">Chưa kết nối Google Analytics</h3>
+              <p className="text-gray-600 mb-6 text-sm">
+                Để xem báo cáo lưu lượng truy cập thực tế, vui lòng tạo báo cáo trên Looker Studio kết nối với GA4 và dán liên kết nhúng (embed URL) vào đây.
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={tempLookerInput}
+                  onChange={(e) => setTempLookerInput(e.target.value)}
+                  placeholder="https://lookerstudio.google.com/embed/reporting/..."
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-gray-300 focus:ring-2 focus:ring-[#006d37] focus:border-transparent outline-none"
+                />
+                <button
+                  onClick={handleSaveLookerUrl}
+                  disabled={!tempLookerInput.trim()}
+                  className="px-6 py-2.5 bg-[#006d37] text-white font-bold rounded-xl hover:bg-[#005a2e] disabled:opacity-50 transition-colors whitespace-nowrap"
+                >
+                  Kết nối
+                </button>
               </div>
             </div>
-
-            {/* Cột phải: 30 phút qua */}
-            <div className="w-full xl:w-80 bg-[#1f2937] border border-gray-700 rounded-2xl p-5 flex flex-col">
-              <div className="text-sm text-gray-400 font-medium mb-1">Số người dùng trong 30 phút qua</div>
-              <div className="text-3xl font-bold mb-6">3</div>
-              
-              {/* Interactive Bar Chart using Recharts */}
-              <div className="h-24 w-full mb-4">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={[
-                    { minute: '30p trước', users: 2 }, { minute: '28p', users: 4 }, { minute: '26p', users: 1 },
-                    { minute: '24p', users: 5 }, { minute: '22p', users: 8 }, { minute: '20p', users: 3 },
-                    { minute: '18p', users: 6 }, { minute: '16p', users: 9 }, { minute: '14p', users: 4 },
-                    { minute: '12p', users: 7 }, { minute: '10p', users: 2 }, { minute: '8p', users: 5 },
-                    { minute: '6p', users: 3 }, { minute: 'Vừa xong', users: 8 }
-                  ]}>
-                    <Tooltip 
-                      cursor={{ fill: '#374151' }}
-                      contentStyle={{ backgroundColor: '#1f2937', borderColor: '#374151', color: '#fff', fontSize: '12px' }}
-                    />
-                    <Bar dataKey="users" name="Người dùng" fill="#3b82f6" radius={[2, 2, 0, 0]}>
-                      {
-                        [2,4,1,5,8,3,6,9,4,7,2,5,3,8].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 13 ? '#60a5fa' : '#3b82f6'} />
-                        ))
-                      }
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-              
-              <div className="text-xs text-gray-400 font-medium mb-3 uppercase">Quốc gia hàng đầu</div>
-              <div className="flex-1 space-y-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2"><span className="w-4 h-3 bg-red-500 inline-block rounded-xs"></span>Vietnam</span>
-                  <span className="font-semibold">3</span>
-                </div>
-              </div>
-            </div>
-          </div>
+          )}
         </div>
 
 

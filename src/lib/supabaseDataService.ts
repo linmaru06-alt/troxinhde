@@ -1,6 +1,8 @@
 import { supabase } from './supabase';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../types';
-import { normalizeCondition } from './marketplaceFilter';
+import { fetchMarketplaceItems } from './api/marketplace';
+import { attachPublicProfiles } from './api/publicProfiles';
+import { resolveUserIdToUuid } from './api/messages';
 
 /**
  * ==============================================================================
@@ -98,7 +100,10 @@ export async function fetchBuildingsFromSupabase(): Promise<Building[]> {
 
     if (!bldData || bldData.length === 0) return [];
 
-    return bldData.map((b: any) => {
+    // Tên/ảnh chủ trọ khác lấy qua RPC công khai (profiles chỉ trả hồ sơ của chính mình)
+    const bldRows = await attachPublicProfiles(bldData, 'owner_id', 'profiles');
+
+    return bldRows.map((b: any) => {
       const owner = b.profiles || {};
       const lat = Number(b.lat) || 21.0285;
       const lng = Number(b.lng) || 105.8542;
@@ -185,7 +190,8 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       .order('created_at', { ascending: false });
 
     if (!rmErr && rmData) {
-      directPosts = rmData.map(mapRecord);
+      const rmRows = await attachPublicProfiles(rmData, 'poster_id', 'profiles');
+      directPosts = rmRows.map(mapRecord);
     }
   } catch (err) {
     console.warn('[Supabase] Không thể tải roommate_posts:', err);
@@ -201,10 +207,30 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       .order('created_at', { ascending: false });
 
     if (!auditErr && auditData) {
-      cloudAuditPosts = auditData
+      const activeCloud = auditData
         .map((item: any) => item.data_after)
-        .filter((p: any) => p && p.status === 'active')
-        .map(mapRecord);
+        .filter((p: any) => p && p.status === 'active');
+        
+      const posterIds = Array.from(new Set(activeCloud.map((p: any) => p.poster_id).filter(Boolean)));
+      let profileMap: Record<string, any> = {};
+      
+      if (posterIds.length > 0) {
+        try {
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url').in('id', posterIds);
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.id, p]));
+          }
+        } catch (err) {
+          console.warn('[Supabase] Lỗi khi tải profiles cho audit_logs:', err);
+        }
+      }
+
+      cloudAuditPosts = activeCloud.map((p: any) => {
+        if (p.poster_id && profileMap[p.poster_id]) {
+          p.profiles = profileMap[p.poster_id];
+        }
+        return mapRecord(p);
+      });
     }
   } catch (err) {
     console.warn('[Supabase] Lỗi khi tải audit_logs roommate posts:', err);
@@ -225,62 +251,9 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
 }
 
 // 4. TẢI CHỢ ĐỒ CŨ SINH VIÊN TỪ SUPABASE
+// Tải danh sách chợ đồ cũ; lỗi được ném ra để store hiển thị trên giao diện
 export async function fetchMarketplaceItemsFromSupabase(): Promise<MarketplaceItem[]> {
-  try {
-    const { data: mkData, error: mkErr } = await supabase
-      .from('marketplace_items')
-      .select('*, profiles:seller_id(*)')
-      .order('created_at', { ascending: false });
-
-    if (mkErr) {
-      console.warn('[Supabase] Không thể tải marketplace_items:', mkErr.message);
-      return [];
-    }
-
-    if (!mkData || mkData.length === 0) return [];
-
-    const categoryMap: Record<string, string> = {
-      furniture: 'Nội thất',
-      electronics: 'Đồ điện tử',
-      books: 'Sách vở',
-      household: 'Đồ gia dụng',
-      other: 'Đồ gia dụng',
-    };
-
-    const conditionMap: Record<string, string> = {
-      new90: 'Mới 99%',
-      used: 'Còn dùng tốt',
-      needs_repair: 'Đã qua sử dụng',
-    };
-
-    return mkData.map((m: any) => {
-      const seller = m.profiles || {};
-      const images = Array.isArray(m.image_urls) && m.image_urls.length > 0
-        ? m.image_urls
-        : (Array.isArray(m.images) && m.images.length > 0 ? m.images : ['https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800']);
-
-      return {
-        id: m.id,
-        userId: m.seller_id || seller.id || 'user_1',
-        userName: seller.full_name || m.user_name || 'Sinh viên Trọ Xinh',
-        userPhone: seller.phone || m.user_phone || '0912889900',
-        userAvatar: seller.avatar_url || '/images/user-avatar.jpg',
-        name: m.title || m.name || 'Món đồ thanh lý',
-        price: Number(m.price) || 0,
-        pricingType: (m.is_free || m.price === 0 ? 'Miễn phí' : 'Giá rẻ') as any,
-        category: (categoryMap[m.category] || m.category || 'Nội thất') as any,
-        condition: normalizeCondition(conditionMap[m.condition] || m.condition) || 'con_tot',
-        images,
-        location: m.location || m.district || 'Hà Nội',
-        district: m.district || 'Quận Cầu Giấy',
-        description: m.description || '',
-        createdAt: m.created_at || new Date().toISOString(),
-      };
-    });
-  } catch (err) {
-    console.error('[Supabase] Lỗi khi fetch marketplace items:', err);
-    return [];
-  }
+  return fetchMarketplaceItems();
 }
 
 // 5. GHI / ĐỒNG BỘ PHÒNG TRỌ MỚI LÊN SUPABASE
@@ -294,7 +267,7 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
       amenities: room.amenities,
       description: room.description,
       status: 'available',
-      moderation_status: 'pending',
+      moderation_status: 'approved',
     };
 
     const { error } = await supabase.from('rooms').insert(payload);
@@ -311,14 +284,18 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
 
 // 6. GHI / ĐỒNG BỘ BÀI ĐĂNG TÌM BẠN Ở GHÉP LÊN SUPABASE
 export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<boolean> {
-  const validPosterId = (post.userId && post.userId.length === 36)
-    ? post.userId
-    : '0016bd8f-d19e-4348-9175-3a4379cffad4';
+  let validPosterId = '0016bd8f-d19e-4348-9175-3a4379cffad4';
+  if (post.userId) {
+    try {
+      validPosterId = await resolveUserIdToUuid(post.userId);
+    } catch {
+      validPosterId = post.userId.length === 36 ? post.userId : validPosterId;
+    }
+  }
 
   const payload = {
     id: post.id,
     poster_id: validPosterId,
-    original_user_id: post.userId, // Preserve original userId (e.g. 'user_1') for Demo accounts
     room_id: (post.linkedRoomId && post.linkedRoomId.length === 36) ? post.linkedRoomId : null,
     nickname: post.userName,
     age: post.userAge || 20,
@@ -357,31 +334,4 @@ export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<bo
   }
 
   return true;
-}
-
-// 7. GHI / ĐỒNG BỘ MÓN ĐỒ CHỢ SINH VIÊN LÊN SUPABASE
-export async function syncMarketplaceItemToSupabase(item: MarketplaceItem): Promise<boolean> {
-  try {
-    const payload = {
-      title: item.name,
-      price: item.price,
-      is_free: item.pricingType === 'Miễn phí',
-      category: item.category === 'Đồ điện tử' ? 'electronics' : item.category === 'Sách vở' ? 'books' : 'furniture',
-      condition: item.condition === 'nhu_moi' ? 'new90' : item.condition === 'da_cu' ? 'needs_repair' : 'used',
-      district: item.district,
-      description: item.description,
-      image_urls: item.images,
-      status: 'available',
-    };
-
-    const { error } = await supabase.from('marketplace_items').insert(payload);
-    if (error) {
-      console.warn('[Supabase] Sync marketplace item error:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[Supabase] Lỗi khi sync marketplace item:', err);
-    return false;
-  }
 }

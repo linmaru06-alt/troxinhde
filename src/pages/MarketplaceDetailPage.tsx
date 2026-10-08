@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -9,6 +9,7 @@ import { ImageUploader } from '../components/ui/ImageUploader';
 import { MarketplaceCard, formatCurrency } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
+import { SEOHead } from '../components/seo/SEOHead';
 import {
   ShoppingBag,
   MapPin,
@@ -30,14 +31,31 @@ import {
   Save,
   Check,
   RefreshCw,
+  Flag,
 } from 'lucide-react';
 import { findOrCreateConversation, isSameUserId } from '../lib/api/messages';
-import { updateMarketplaceItem as updateMarketplaceItemApi } from '../lib/api/marketplace';
+import {
+  approveMarketplaceItem as approveMarketplaceItemApi,
+  rejectMarketplaceItem as rejectMarketplaceItemApi,
+} from '../lib/api/admin';
+import { hasUserReported } from '../lib/api/reports';
 import {
   CONDITION_LABELS,
   MarketplaceConditionCode,
   normalizeCondition,
 } from '../lib/marketplaceFilter';
+import {
+  getItemAvailability,
+  getUnavailableReason,
+  MarketplaceItemInput,
+  MarketplaceSellerStatus,
+} from '../lib/marketplaceStatus';
+import {
+  MARKETPLACE_STATUS_TOASTS,
+  useMarketplaceItem,
+  useMarketplaceItemMutations,
+} from '../hooks/queries/useMarketplace';
+import { extractIdFromParam, buildMarketplaceUrl } from '../utils/slugify';
 
 const CATEGORY_ICONS: Record<string, string> = {
   'Nội thất': '🪑',
@@ -47,47 +65,42 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const MarketplaceDetailPage: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id: rawId } = useParams<{ id: string }>();
+  const id = extractIdFromParam(rawId);
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
-  const {
-    marketplaceItems,
-    currentUser,
-    updateMarketplaceItem,
-    resubmitMarketplaceItem,
-    approveMarketplaceItem,
-    rejectMarketplaceItem,
-    showToast,
-  } = useAppStore();
+  const { marketplaceItems, currentUser, showToast } = useAppStore();
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
   const [showReport, setShowReport] = useState<boolean>(false);
   const [isChatLoading, setIsChatLoading] = useState<boolean>(false);
+  const [hasReported, setHasReported] = useState<boolean>(false);
+  const [showReportSeller, setShowReportSeller] = useState<boolean>(false);
+  const [hasReportedSeller, setHasReportedSeller] = useState<boolean>(false);
 
-  const item = marketplaceItems.find((i) => i.id === id);
+  const { item, isLoading: isItemLoading, error: itemError, refetch: refetchItem } = useMarketplaceItem(id);
+  const { updateItem, setStatus } = useMarketplaceItemMutations();
+  const sellerUserId = item?.userId ?? item?.seller_id ?? item?.sellerId ?? '';
 
   // Phân quyền và trạng thái kiểm duyệt
-  const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, item.userId));
+  const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, sellerUserId));
   const isAdmin = currentUser && (currentUser.role === 'admin' || (currentUser as any).app_role === 'admin');
-  const isSold = item?.status === 'Đã bán';
-  const isPending = Boolean(item && (item.status === 'Chờ duyệt' || item.moderationStatus === 'pending'));
-  const isRejected = Boolean(item && (item.status === 'Bị từ chối' || item.moderationStatus === 'rejected'));
-  const isHidden = Boolean(item && (item as any).isHidden);
-  const isUnavailable = Boolean(isSold || isPending || isRejected || isHidden);
-
-  const unavailableReason = isSold
-    ? 'Món đồ này đã bán, không thể liên hệ.'
-    : isPending
-      ? 'Món đồ đang chờ duyệt, chưa thể liên hệ.'
-      : isRejected
-        ? 'Món đồ bị từ chối duyệt, không thể liên hệ.'
-        : isHidden
-          ? 'Món đồ hiện đang bị ẩn, không thể liên hệ.'
-          : '';
+  const availability = item ? getItemAvailability(item) : 'available';
+  const isSold = availability === 'sold';
+  const isClosed = availability === 'closed';
+  const isPending = availability === 'pending';
+  const isRejected = availability === 'rejected';
+  const isUnavailable = availability !== 'available';
+  const unavailableReason = getUnavailableReason(availability);
+  // Tin đã bán/đã đóng phải mở lại trước khi sửa (admin được sửa trực tiếp)
+  const canEdit = Boolean(isAdmin || (isOwner && !isSold && !isClosed));
+  const pendingStatus = setStatus.isPending ? setStatus.variables?.status : undefined;
 
   // Admin moderation modal
   const [adminConfirmOpen, setAdminConfirmOpen] = useState<boolean>(false);
+  const [isModerating, setIsModerating] = useState<boolean>(false);
 
   // Edit Item Modal State
   const [isEditModalOpen, setIsEditModalOpen] = useState<boolean>(false);
@@ -104,14 +117,13 @@ export const MarketplaceDetailPage: React.FC = () => {
   const [editDistrict, setEditDistrict] = useState<string>(item?.district || '');
   const [editDescription, setEditDescription] = useState<string>(item?.description || '');
   const [editImages, setEditImages] = useState<string[]>(item?.images || []);
-  const [editStatus, setEditStatus] = useState<
-    'Còn hàng' | 'Đã bán' | 'Chờ duyệt' | 'Bị từ chối' | 'Đã duyệt'
-  >(item?.status || 'Còn hàng');
-  const [isSavingEdit, setIsSavingEdit] = useState<boolean>(false);
+  const isSavingEdit = updateItem.isPending;
+  // Người bán sửa tin thì tin phải được duyệt lại; admin sửa tin của người khác giữ nguyên trạng thái
+  const editRequiresReview = !isAdmin || isOwner;
 
-  // Sync edit state whenever item changes or modal opens
+  // Chỉ nạp lại biểu mẫu khi mở modal, tránh ghi đè nội dung đang gõ khi dữ liệu được tải lại
   useEffect(() => {
-    if (item) {
+    if (isEditModalOpen && item) {
       setEditTitle(item.name);
       setEditPrice(item.price);
       setEditPricingType(item.pricingType);
@@ -121,20 +133,36 @@ export const MarketplaceDetailPage: React.FC = () => {
       setEditDistrict(item.district);
       setEditDescription(item.description);
       setEditImages(item.images || []);
-      setEditStatus(item.status || 'Còn hàng');
     }
-  }, [item, isEditModalOpen]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isEditModalOpen, item?.id]);
 
   // Tự động mở modal sửa nếu URL có param ?edit=true và là người đăng
   useEffect(() => {
     if (searchParams.get('edit') === 'true' && isOwner) {
-      setIsEditModalOpen(true);
+      if (canEdit) {
+        setIsEditModalOpen(true);
+      } else {
+        showToast('Chưa thể sửa tin', 'Tin đã bán hoặc đã đóng. Hãy mở lại tin trước khi chỉnh sửa.', 'info');
+      }
     }
-  }, [searchParams, isOwner]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, isOwner, canEdit]);
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  // Kiểm tra người dùng đã báo cáo tin đăng hoặc người bán này hay chưa
+  useEffect(() => {
+    if (currentUser && item) {
+      setHasReported(hasUserReported(currentUser.id, 'tin_dang', item.id));
+      setHasReportedSeller(hasUserReported(currentUser.id, 'nguoi_dung', sellerUserId));
+    } else {
+      setHasReported(false);
+      setHasReportedSeller(false);
+    }
+  }, [currentUser, item, sellerUserId]);
+
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!item) return;
+    if (!item || isSavingEdit) return;
 
     if (!editTitle.trim()) {
       showToast('Thiếu tiêu đề', 'Vui lòng nhập tên món đồ', 'warning');
@@ -145,58 +173,110 @@ export const MarketplaceDetailPage: React.FC = () => {
       return;
     }
 
-    setIsSavingEdit(true);
-    try {
-      if (isRejected || isPending) {
-        // Gửi lại cho Admin duyệt lại
-        resubmitMarketplaceItem(item.id, {
-          name: editTitle.trim(),
-          price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
-          pricingType: editPricingType,
-          category: editCategory,
-          condition: editCondition,
-          location: editLocation,
-          district: editDistrict,
-          description: editDescription.trim(),
-          images: editImages,
-        });
-        showToast('Đã gửi lại duyệt thành công! 🚀', 'Tin đăng của bạn đã được cập nhật và chuyển sang chờ Admin duyệt.', 'success');
-      } else {
-        updateMarketplaceItem(item.id, {
-          name: editTitle.trim(),
-          price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
-          pricingType: editPricingType,
-          category: editCategory,
-          condition: editCondition,
-          location: editLocation,
-          district: editDistrict,
-          description: editDescription.trim(),
-          images: editImages,
-          status: editStatus,
-        });
-        showToast('Cập nhật tin thành công!', 'Các thay đổi đã được áp dụng ngay lập tức', 'success');
-      }
+    const input: MarketplaceItemInput = {
+      name: editTitle.trim(),
+      price: editPricingType === 'Miễn phí' ? 0 : Number(editPrice),
+      pricingType: editPricingType,
+      category: editCategory,
+      condition: editCondition,
+      location: editLocation,
+      district: editDistrict,
+      description: editDescription.trim(),
+      images: editImages,
+      deliveryMethods: item.deliveryMethods || [],
+      isNegotiable: Boolean(item.isNegotiable),
+    };
 
+    try {
+      await updateItem.mutateAsync({ id: item.id, input });
+      if (editRequiresReview) {
+        showToast('Đã lưu và gửi duyệt lại ⏳', 'Tin đăng đã được cập nhật và chuyển sang chờ Admin duyệt.', 'success');
+      } else {
+        showToast('Cập nhật tin thành công!', 'Các thay đổi đã được lưu trên máy chủ.', 'success');
+      }
       setIsEditModalOpen(false);
     } catch (err: any) {
       showToast('Lỗi cập nhật', err?.message || 'Không thể lưu thay đổi. Dữ liệu đã được giữ nguyên.', 'error');
-    } finally {
-      setIsSavingEdit(false);
     }
   };
 
-  const handleAdminApprove = () => {
-    if (!item) return;
-    approveMarketplaceItem(item.id);
-    showToast('Đã phê duyệt tin! 🎉', 'Tin đăng đồ thanh lý đã được công khai trên chợ sinh viên.', 'success');
+  const handleChangeStatus = async (nextStatus: MarketplaceSellerStatus) => {
+    if (!item || setStatus.isPending) return;
+    try {
+      await setStatus.mutateAsync({ id: item.id, status: nextStatus });
+      const toast = MARKETPLACE_STATUS_TOASTS[nextStatus];
+      showToast(toast.title, toast.description, 'success');
+    } catch (err: any) {
+      showToast('Không thể cập nhật trạng thái', err?.message || 'Vui lòng thử lại sau', 'error');
+    }
   };
 
-  const handleAdminRejectSubmit = (reason: string) => {
-    if (!item) return;
-    rejectMarketplaceItem(item.id, reason);
-    setAdminConfirmOpen(false);
-    showToast('Đã từ chối tin', `Đã gửi lý do từ chối "${reason}" đến người đăng tin.`, 'info');
+  // Admin: ghi lên máy chủ rồi tải lại tin để xác nhận trạng thái thật
+  const handleAdminApprove = async () => {
+    if (!item || isModerating) return;
+    setIsModerating(true);
+    try {
+      await approveMarketplaceItemApi(item.id, currentUser);
+      const { data: fresh } = await refetchItem();
+      if (fresh?.moderationStatus !== 'approved') {
+        throw new Error('Máy chủ chưa ghi nhận phê duyệt. Vui lòng thử lại.');
+      }
+      showToast('Đã phê duyệt tin! 🎉', 'Tin đăng đồ thanh lý đã được công khai trên chợ sinh viên.', 'success');
+    } catch (err: any) {
+      showToast('Không thể phê duyệt', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsModerating(false);
+    }
   };
+
+  const handleAdminRejectSubmit = async (reason: string) => {
+    if (!item || isModerating) return;
+    setIsModerating(true);
+    try {
+      await rejectMarketplaceItemApi(item.id, reason, currentUser);
+      const { data: fresh } = await refetchItem();
+      if (fresh?.moderationStatus !== 'rejected') {
+        throw new Error('Máy chủ chưa ghi nhận từ chối. Vui lòng thử lại.');
+      }
+      setAdminConfirmOpen(false);
+      showToast('Đã từ chối tin', `Đã gửi lý do từ chối "${reason}" đến người đăng tin.`, 'info');
+    } catch (err: any) {
+      showToast('Không thể từ chối tin', err?.message || 'Vui lòng thử lại sau', 'error');
+    } finally {
+      setIsModerating(false);
+    }
+  };
+
+  if (!item && isItemLoading) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-3" role="status" aria-live="polite">
+        <RefreshCw className="w-8 h-8 text-[#006d37] animate-spin mx-auto" />
+        <p className="text-sm text-gray-600">Đang tải thông tin món đồ...</p>
+      </div>
+    );
+  }
+
+  if (!item && itemError) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-20 text-center space-y-4">
+        <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center mx-auto text-rose-600">
+          <AlertTriangle className="w-8 h-8" />
+        </div>
+        <h2 className="text-xl font-bold text-gray-800">Không thể tải món đồ</h2>
+        <p className="text-xs text-gray-500">{itemError.message}</p>
+        <div className="flex items-center justify-center gap-2">
+          <Button variant="primary" size="sm" onClick={() => refetchItem()} leftIcon={<RefreshCw className="w-3.5 h-3.5" />}>
+            Thử lại
+          </Button>
+          <Link to="/cho-do-cu" className="inline-block">
+            <Button variant="outline" size="sm">
+              ← Về Chợ Đồ Cũ
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!item) {
     return (
@@ -253,7 +333,12 @@ export const MarketplaceDetailPage: React.FC = () => {
 
   // Related items in same category or district
   const relatedItems = marketplaceItems
-    .filter((i) => i.id !== item.id && (i.category === item.category || i.district === item.district))
+    .filter(
+      (i) =>
+        i.id !== item.id &&
+        getItemAvailability(i) === 'available' &&
+        (i.category === item.category || i.district === item.district)
+    )
     .slice(0, 4);
 
   const handlePrevImage = (e?: React.MouseEvent) => {
@@ -279,33 +364,14 @@ export const MarketplaceDetailPage: React.FC = () => {
     }
   };
 
-  const handleMarkAsSold = async () => {
-    if (!item || !isOwner) return;
-
-    try {
-      updateMarketplaceItem(item.id, {
-        status: 'Đã bán',
-      });
-
-      try {
-        await updateMarketplaceItemApi(item.id, { status: 'sold' });
-      } catch {
-        // Fallback
-      }
-
-      showToast('Đã đánh dấu đã bán! 🎉', 'Món đồ đã được chuyển sang trạng thái Đã bán.', 'success');
-    } catch (err: any) {
-      showToast('Lỗi thao tác', err?.message || 'Không thể đánh dấu đã bán', 'error');
-    }
-  };
-
   const handleContactSeller = async () => {
+    if (!item) return;
     if (!currentUser) {
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để nhắn tin với người bán', 'warning');
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(`/cho-do-cu/${item.id}`)}`);
       return;
     }
-    if (currentUser.id === item.userId) {
+    if (isSameUserId(currentUser.id, sellerUserId)) {
       showToast('Đây là món đồ của bạn', 'Không thể tự nhắn tin cho chính mình', 'info');
       return;
     }
@@ -314,14 +380,14 @@ export const MarketplaceDetailPage: React.FC = () => {
     try {
       const result = await findOrCreateConversation(
         currentUser.id,
-        item.userId,
+        sellerUserId,
         item.id,
         {
           mockItem: {
             id: item.id,
             title: item.name,
             price: item.price,
-            user_id: item.userId,
+            user_id: sellerUserId,
             images: item.images,
           },
           currentUserId: currentUser.id,
@@ -336,8 +402,61 @@ export const MarketplaceDetailPage: React.FC = () => {
     }
   };
 
+  const handleReportClick = () => {
+    if (!currentUser) {
+      // Chưa đăng nhập thì chuyển sang đăng nhập kèm returnUrl quay lại đúng trang này
+      const returnUrl = encodeURIComponent(location.pathname + location.search);
+      navigate(`/dang-nhap?returnUrl=${returnUrl}`);
+      return;
+    }
+    if (hasReported) {
+      showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho tin đăng này rồi.', 'info');
+      return;
+    }
+    setShowReport(true);
+  };
+
+  const handleReportSellerClick = () => {
+    if (!currentUser) {
+      const returnUrl = encodeURIComponent(location.pathname + location.search);
+      navigate(`/dang-nhap?returnUrl=${returnUrl}`);
+      return;
+    }
+    if (hasReportedSeller) {
+      showToast('Đã gửi báo cáo', 'Bạn đã gửi báo cáo cho người bán này rồi.', 'info');
+      return;
+    }
+    setShowReportSeller(true);
+  };
+
+  const itemUrl = buildMarketplaceUrl({
+    id: item.id,
+    title: item.name,
+    district: (item as any).sellerDistrict || item.location,
+  });
+
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-8">
+      <SEOHead
+        title={`${item.name} - ${item.pricingType === 'Miễn phí' ? 'Miễn phí 0đ' : formatCurrency(item.price)} | Chợ Đồ Cũ Trọ Xinh`}
+        description={`Thanh lý ${item.name} tại ${(item as any).sellerDistrict || item.location || 'Hà Nội'}. Tình trạng: ${CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}. Giá sinh viên: ${item.pricingType === 'Miễn phí' ? '0đ' : formatCurrency(item.price)}.`}
+        image={images[0] || '/images/hero-banner.webp'}
+        url={itemUrl}
+        type="article"
+        product={{
+          name: item.name,
+          description: item.description,
+          images: images,
+          price: item.price || 0,
+          condition: item.condition,
+        }}
+        breadcrumbs={[
+          { name: 'Trang chủ', url: '/' },
+          { name: 'Chợ đồ cũ sinh viên', url: '/cho-do-cu' },
+          { name: item.name, url: itemUrl },
+        ]}
+      />
+
       {/* 1. Breadcrumb Navigation */}
       <div className="flex items-center justify-between gap-2 text-xs text-gray-500">
         <div className="flex items-center gap-1.5 truncate">
@@ -351,7 +470,7 @@ export const MarketplaceDetailPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2 shrink-0">
-          {(isOwner || isAdmin) && (
+          {canEdit && (
             <Button
               variant="outline"
               size="sm"
@@ -359,7 +478,7 @@ export const MarketplaceDetailPage: React.FC = () => {
               leftIcon={<Edit className="w-3.5 h-3.5 text-[#006d37]" />}
               className="text-xs border-[#006d37]/40 text-[#006d37] hover:bg-emerald-50"
             >
-              {isRejected ? 'Sửa & Gửi Lại Duyệt' : 'Sửa Tin Này'}
+              {isRejected || isPending ? 'Sửa & Gửi Lại Duyệt' : 'Sửa Tin Này'}
             </Button>
           )}
 
@@ -370,6 +489,23 @@ export const MarketplaceDetailPage: React.FC = () => {
             <Share2 className="w-3.5 h-3.5" />
             <span>Chia sẻ</span>
           </button>
+
+          {!isOwner && (
+            <button
+              type="button"
+              onClick={handleReportClick}
+              disabled={hasReported}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold shrink-0 transition cursor-pointer ${
+                hasReported
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-100 hover:bg-rose-50 text-gray-700 hover:text-rose-600'
+              }`}
+              title={hasReported ? 'Bạn đã gửi báo cáo cho món đồ này' : 'Báo cáo tin đăng'}
+            >
+              <Flag className={`w-3.5 h-3.5 ${hasReported ? 'text-gray-400' : 'text-gray-500'}`} />
+              <span>{hasReported ? 'Đã báo cáo' : 'Báo cáo'}</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -412,9 +548,10 @@ export const MarketplaceDetailPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={handleAdminApprove}
+                disabled={isModerating}
                 className="border-emerald-600 text-emerald-700 hover:bg-emerald-50 text-xs"
               >
-                ✓ Quản trị viên: Duyệt lại tin này
+                {isModerating ? 'Đang xử lý...' : '✓ Quản trị viên: Duyệt lại tin này'}
               </Button>
             </div>
           )}
@@ -431,23 +568,30 @@ export const MarketplaceDetailPage: React.FC = () => {
               </div>
               <div className="space-y-0.5">
                 <h3 className="text-base font-black text-amber-950">
-                  Tin đăng đang chờ Admin kiểm duyệt
+                  {item.rejectionReason?.toLowerCase().includes('xem xét lại') || item.rejectionReason?.toLowerCase().includes('phản ánh')
+                    ? 'Tin đăng đang được xem xét lại ⚠️'
+                    : 'Tin đăng đang chờ Admin kiểm duyệt ⏳'}
                 </h3>
                 <p className="text-xs text-amber-800 leading-relaxed">
-                  Tin này hiện chưa hiển thị công khai trên Chợ đồ cũ. Khi được Admin duyệt, tin sẽ tự động xuất hiện.
+                  {item.rejectionReason || 'Tin này hiện chưa hiển thị công khai trên Chợ đồ cũ. Khi được Admin duyệt, tin sẽ tự động xuất hiện.'}
                 </p>
+                {isOwner && (
+                  <p className="text-[11px] text-amber-700 font-medium">
+                    💡 Bạn có thể kiểm tra lại thông tin món đồ, cập nhật hình ảnh/mô tả và bấm "Sửa & Gửi lại duyệt".
+                  </p>
+                )}
               </div>
             </div>
 
             {isOwner && (
               <Button
-                variant="outline"
+                variant="primary"
                 size="sm"
                 onClick={() => setIsEditModalOpen(true)}
                 leftIcon={<Edit className="w-3.5 h-3.5" />}
-                className="border-amber-400 text-amber-900 hover:bg-amber-100 text-xs shrink-0 font-bold"
+                className="bg-amber-600 hover:bg-amber-700 text-white border-none text-xs shrink-0 font-bold shadow-xs cursor-pointer"
               >
-                Sửa nội dung
+                Sửa & Gửi Lại Duyệt
               </Button>
             )}
           </div>
@@ -459,6 +603,7 @@ export const MarketplaceDetailPage: React.FC = () => {
                 variant="outline"
                 size="sm"
                 onClick={() => setAdminConfirmOpen(true)}
+                disabled={isModerating}
                 className="border-rose-300 text-rose-700 hover:bg-rose-50 text-xs"
               >
                 ✕ Từ chối kèm lý do
@@ -467,9 +612,10 @@ export const MarketplaceDetailPage: React.FC = () => {
                 variant="primary"
                 size="sm"
                 onClick={handleAdminApprove}
+                disabled={isModerating}
                 className="bg-[#006d37] hover:bg-emerald-700 text-xs"
               >
-                ✓ Phê duyệt ngay
+                {isModerating ? 'Đang xử lý...' : '✓ Phê duyệt ngay'}
               </Button>
             </div>
           )}
@@ -541,11 +687,11 @@ export const MarketplaceDetailPage: React.FC = () => {
                 Tình trạng: {CONDITION_LABELS[item.condition as MarketplaceConditionCode] || item.condition}
               </div>
 
-              {/* Sold Overlay */}
-              {item.status === 'Đã bán' && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20 rounded-2xl">
-                  <span className="bg-rose-600 text-white text-sm font-black px-6 py-2 rounded-full shadow-xl uppercase tracking-widest border-2 border-white/30">
-                    Đã bán
+              {/* Sold / Closed Overlay */}
+              {(isSold || isClosed) && (
+                <div className="absolute inset-0 bg-black/40 flex items-center justify-center z-20 rounded-2xl pointer-events-none">
+                  <span className={`${isSold ? 'bg-rose-600' : 'bg-slate-700'} text-white text-sm font-black px-6 py-2 rounded-full shadow-xl uppercase tracking-widest border-2 border-white/30`}>
+                    {isSold ? 'Đã bán' : 'Đã đóng tin'}
                   </span>
                 </div>
               )}
@@ -606,7 +752,7 @@ export const MarketplaceDetailPage: React.FC = () => {
 
               {/* Price Row */}
               <div className="flex flex-wrap items-baseline gap-3 pt-1">
-                <span className={`text-2xl sm:text-3xl font-black ${item.status === 'Đã bán' ? 'text-gray-400 line-through' : 'text-[#006d37]'}`}>
+                <span className={`text-2xl sm:text-3xl font-black ${isSold || isClosed ? 'text-gray-400 line-through' : 'text-[#006d37]'}`}>
                   {item.pricingType === 'Miễn phí'
                     ? 'Tặng 0đ (Miễn phí)'
                     : item.price > 0
@@ -625,14 +771,19 @@ export const MarketplaceDetailPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Status: Còn hàng / Đã bán */}
+              {/* Status: Còn hàng / Đã bán / Đã đóng */}
               <div className="flex items-center gap-2 pt-1">
-                {item.status === 'Đã bán' ? (
+                {isSold ? (
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold text-rose-700 bg-rose-50 border border-rose-200 px-3 py-1 rounded-full">
-                    <span className="w-2 h-2 bg-rose-500 rounded-full animate-pulse" />
-                    Đã đóng — Hết hàng
+                    <span className="w-2 h-2 bg-rose-500 rounded-full" />
+                    Đã bán
                   </span>
-                ) : (
+                ) : isClosed ? (
+                  <span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-300 px-3 py-1 rounded-full">
+                    <span className="w-2 h-2 bg-slate-500 rounded-full" />
+                    Đã đóng tin
+                  </span>
+                ) : isPending || isRejected ? null : (
                   <span className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1 rounded-full">
                     <span className="w-2 h-2 bg-emerald-500 rounded-full" />
                     Còn hàng
@@ -686,45 +837,100 @@ export const MarketplaceDetailPage: React.FC = () => {
                   className="w-11 h-11 rounded-full object-cover border-2 border-white shadow-xs"
                 />
                 <div>
-                  <h4 className="text-sm font-bold text-gray-900">{item.userName}</h4>
-                  <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
-                    ✓ Đã xác minh sinh viên
-                  </p>
+                  <div className="flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-gray-900">{item.userName}</h4>
+                    {!isOwner && (
+                      <button
+                        type="button"
+                        onClick={handleReportSellerClick}
+                        disabled={hasReportedSeller}
+                        className={`text-[11px] inline-flex items-center gap-1 px-2 py-0.5 rounded-md font-medium transition cursor-pointer ${
+                          hasReportedSeller
+                            ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                            : 'text-gray-500 hover:text-rose-600 hover:bg-rose-50'
+                        }`}
+                        title={hasReportedSeller ? 'Bạn đã gửi báo cáo cho người bán này' : 'Báo cáo người bán'}
+                      >
+                        <Flag className="w-3 h-3" />
+                        <span>{hasReportedSeller ? 'Đã báo cáo' : 'Báo cáo người bán'}</span>
+                      </button>
+                    )}
+                  </div>
+                  {/* Chỉ hiển thị huy hiệu khi hồ sơ người bán đã được xác minh thật */}
+                  {item.sellerStudentVerified ? (
+                    <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
+                      ✓ Đã xác minh sinh viên
+                    </p>
+                  ) : item.sellerPhoneVerified ? (
+                    <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1">
+                      ✓ Đã xác minh số điện thoại
+                    </p>
+                  ) : null}
                 </div>
               </div>
 
               <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2">
                 {isOwner ? (
-                  // Người xem là người đăng: Thay bằng nút "Sửa tin" và "Đánh dấu đã bán"
+                  // Người xem là người đăng: sửa tin, đánh dấu đã bán, đóng tin hoặc mở lại tin
                   <div className="flex flex-wrap items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setIsEditModalOpen(true)}
-                      leftIcon={<Edit className="w-3.5 h-3.5" />}
-                      className="border-[#006d37] text-[#006d37] hover:bg-emerald-50 text-xs font-bold"
-                    >
-                      Sửa tin
-                    </Button>
-                    {isSold ? (
+                    {canEdit && (
+                      <Button
+                        variant={isPending || isRejected ? "primary" : "outline"}
+                        size="sm"
+                        onClick={() => setIsEditModalOpen(true)}
+                        disabled={setStatus.isPending}
+                        leftIcon={<Edit className="w-3.5 h-3.5" />}
+                        className={
+                          isPending || isRejected
+                            ? "bg-amber-600 hover:bg-amber-700 text-white border-none text-xs font-bold shadow-xs cursor-pointer"
+                            : "border-[#006d37] text-[#006d37] hover:bg-emerald-50 text-xs font-bold"
+                        }
+                      >
+                        {isPending || isRejected ? 'Sửa & Gửi lại duyệt' : 'Sửa tin'}
+                      </Button>
+                    )}
+                    {availability === 'available' && (
+                      <>
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleChangeStatus('sold')}
+                          disabled={setStatus.isPending}
+                          leftIcon={
+                            pendingStatus === 'sold'
+                              ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              : <Check className="w-3.5 h-3.5" />
+                          }
+                          className="bg-emerald-700 hover:bg-emerald-800 text-xs font-bold shadow-xs"
+                        >
+                          {pendingStatus === 'sold' ? 'Đang lưu...' : 'Đánh dấu đã bán'}
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleChangeStatus('closed')}
+                          disabled={setStatus.isPending}
+                          leftIcon={
+                            pendingStatus === 'closed'
+                              ? <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              : <X className="w-3.5 h-3.5" />
+                          }
+                          className="border-gray-300 text-gray-700 hover:bg-gray-50 text-xs font-bold"
+                        >
+                          {pendingStatus === 'closed' ? 'Đang lưu...' : 'Đóng tin'}
+                        </Button>
+                      </>
+                    )}
+                    {(isSold || isClosed) && (
                       <Button
                         variant="outline"
                         size="sm"
-                        disabled
-                        leftIcon={<Check className="w-3.5 h-3.5 text-gray-400" />}
-                        className="border-gray-300 text-gray-400 bg-gray-50 text-xs font-semibold cursor-not-allowed opacity-80"
+                        onClick={() => handleChangeStatus('available')}
+                        disabled={setStatus.isPending}
+                        leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${pendingStatus === 'available' ? 'animate-spin' : ''}`} />}
+                        className="border-[#006d37] text-[#006d37] hover:bg-emerald-50 text-xs font-bold"
                       >
-                        Đã đánh dấu đã bán
-                      </Button>
-                    ) : (
-                      <Button
-                        variant="primary"
-                        size="sm"
-                        onClick={handleMarkAsSold}
-                        leftIcon={<Check className="w-3.5 h-3.5" />}
-                        className="bg-emerald-700 hover:bg-emerald-800 text-xs font-bold shadow-xs"
-                      >
-                        Đánh dấu đã bán
+                        {pendingStatus === 'available' ? 'Đang mở lại...' : 'Mở lại tin'}
                       </Button>
                     )}
                   </div>
@@ -787,15 +993,24 @@ export const MarketplaceDetailPage: React.FC = () => {
             </div>
 
             {/* Report link */}
-            <div className="text-center pt-1">
-              <button
-                onClick={() => setShowReport(true)}
-                className="text-xs text-gray-400 hover:text-rose-600 transition flex items-center justify-center gap-1 mx-auto cursor-pointer"
-              >
-                <AlertTriangle className="w-3.5 h-3.5" />
-                Báo cáo tin đăng vi phạm quy tắc chợ
-              </button>
-            </div>
+            {!isOwner && (
+              <div className="text-center pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={handleReportClick}
+                  disabled={hasReported}
+                  className={`text-xs transition inline-flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-full ${
+                    hasReported
+                      ? 'text-gray-400 bg-gray-100 cursor-not-allowed'
+                      : 'text-gray-500 hover:text-rose-600 hover:bg-rose-50 cursor-pointer'
+                  }`}
+                  title={hasReported ? 'Bạn đã gửi báo cáo cho tin đăng này' : 'Báo cáo tin đăng'}
+                >
+                  <Flag className="w-3.5 h-3.5" />
+                  <span>{hasReported ? 'Đã báo cáo' : 'Báo cáo'}</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -900,7 +1115,20 @@ export const MarketplaceDetailPage: React.FC = () => {
         onClose={() => setShowReport(false)}
         targetTitle={`Món đồ: ${item.name}`}
         targetId={item.id}
-        targetType="marketplace"
+        targetType="tin_dang"
+        targetOwnerId={sellerUserId}
+        onSuccess={() => setHasReported(true)}
+      />
+
+      {/* Report Seller Modal */}
+      <ReportModal
+        isOpen={showReportSeller}
+        onClose={() => setShowReportSeller(false)}
+        targetTitle={`Người bán: ${item.userName}`}
+        targetId={sellerUserId}
+        targetType="nguoi_dung"
+        targetOwnerId={sellerUserId}
+        onSuccess={() => setHasReportedSeller(true)}
       />
 
       {/* 6. Edit Marketplace Item Modal */}
@@ -980,17 +1208,12 @@ export const MarketplaceDetailPage: React.FC = () => {
               </div>
             )}
 
-            <div className="space-y-1.5 text-left">
-              <label className="block text-sm font-medium text-gray-700">Trạng thái tin đăng</label>
-              <select
-                value={editStatus}
-                onChange={(e) => setEditStatus(e.target.value as any)}
-                className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm font-bold text-gray-800 focus:ring-2 focus:ring-[#006d37]"
-              >
-                <option value="Còn hàng">🟢 Còn hàng (Đang mở bán/tặng)</option>
-                <option value="Đã bán">🔴 Đã bán (Đã đóng tin)</option>
-              </select>
-            </div>
+            {editRequiresReview && (
+              <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900 flex items-start gap-2">
+                <Clock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <span>Sau khi lưu, tin sẽ chuyển sang <b>Chờ duyệt</b> và tạm ẩn khỏi chợ cho đến khi Admin duyệt lại.</span>
+              </div>
+            )}
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1046,11 +1269,11 @@ export const MarketplaceDetailPage: React.FC = () => {
               size="md"
               type="submit"
               disabled={isSavingEdit}
-              leftIcon={isRejected || isPending ? <RefreshCw className={`w-4 h-4 ${isSavingEdit ? 'animate-spin' : ''}`} /> : undefined}
+              leftIcon={<RefreshCw className={`w-4 h-4 ${isSavingEdit ? 'animate-spin' : ''}`} />}
             >
               {isSavingEdit
-                ? (isRejected || isPending ? 'Đang Gửi Lại...' : 'Đang Lưu...')
-                : (isRejected || isPending ? 'Gửi Lại Cho Admin Duyệt' : 'Lưu Thay Đổi')}
+                ? 'Đang Lưu...'
+                : (editRequiresReview ? 'Lưu & Gửi Duyệt Lại' : 'Lưu Thay Đổi')}
             </Button>
           </div>
         </form>

@@ -47,6 +47,67 @@ const dbConversations = new Map();
 // 3. Bảng messages trong Database
 const dbMessages = [];
 
+// 1b. Bảng profiles trong Database (mô phỏng trạng thái bị khóa is_banned)
+const dbProfiles = new Map([
+  [
+    '00000000-0000-0000-0000-000000000002',
+    { id: '00000000-0000-0000-0000-000000000002', full_name: 'Người bán B', is_banned: false },
+  ],
+  [
+    'seller_sinh_vien_D',
+    { id: 'seller_sinh_vien_D', full_name: 'Người bán D', is_banned: false },
+  ],
+  [
+    'seller_banned_user',
+    { id: 'seller_banned_user', full_name: 'Người bán bị khóa', is_banned: true },
+  ],
+]);
+
+// Món đồ của người bán bị khóa
+dbMarketplaceItems.set('item-banned-seller-999', {
+  id: 'item-banned-seller-999',
+  user_id: 'seller_banned_user',
+  title: 'Đèn bàn học',
+  price: 50000,
+  images: [],
+  status: 'available',
+});
+
+// Đăng ký 15 món đồ của 15 người bán khác nhau để test rate limit
+for (let i = 1; i <= 15; i++) {
+  const sellerId = `seller_rate_limit_${i}`;
+  const itemId = `item-rate-limit-${i}`;
+  dbProfiles.set(sellerId, { id: sellerId, full_name: `Seller ${i}`, is_banned: false });
+  dbMarketplaceItems.set(itemId, {
+    id: itemId,
+    user_id: sellerId,
+    title: `Món đồ rate limit số ${i}`,
+    price: 10000 * i,
+    images: [],
+    status: 'available',
+  });
+}
+
+// Giới hạn tần suất: mỗi người mở tối đa 10 hội thoại mới về chợ đồ cũ trong 1 giờ
+const RATE_LIMIT_MAX = 10;
+const RATE_LIMIT_WINDOW_MS = 60 * 60 * 1000; // 1 giờ = 3,600,000 ms
+const userNewConvTimestamps = new Map();
+
+function checkRateLimit(buyerId, currentTime = Date.now()) {
+  const timestamps = userNewConvTimestamps.get(buyerId) || [];
+  const recent = timestamps.filter((t) => t > currentTime - RATE_LIMIT_WINDOW_MS);
+  if (recent.length >= RATE_LIMIT_MAX) {
+    throw new Error('Bạn thao tác quá nhanh, thử lại sau');
+  }
+}
+
+function recordNewConv(buyerId, currentTime = Date.now()) {
+  const timestamps = userNewConvTimestamps.get(buyerId) || [];
+  const recent = timestamps.filter((t) => t > currentTime - RATE_LIMIT_WINDOW_MS);
+  recent.push(currentTime);
+  userNewConvTimestamps.set(buyerId, recent);
+}
+
 // 4. Quản lý phiên đăng nhập hiện tại (mô phỏng auth.currentUser / store)
 let mockCurrentLoggedInUser = null;
 
@@ -140,13 +201,19 @@ async function findOrCreateConversation(buyerId, sellerId, itemId, options = {})
     throw new Error('Không thể tự nhắn tin cho chính mình.');
   }
 
-  // 3. Yêu cầu 3: buyerId phải là người dùng đang đăng nhập
+  // 3. Kiểm tra tài khoản người bán có bị khóa không
+  const sellerProf = dbProfiles.get(cleanSellerId);
+  if (sellerProf?.is_banned || options.sellerIsBanned) {
+    throw new Error('Tài khoản người bán hiện đang bị tạm khóa hoặc ngừng hoạt động.');
+  }
+
+  // 4. Yêu cầu 3: buyerId phải là người dùng đang đăng nhập
   const currentLoggedIn = options.currentUserId || mockCurrentLoggedInUser;
   if (currentLoggedIn && !isSameUserId(buyerId, currentLoggedIn)) {
     throw new Error('Người mua phải là người dùng đang đăng nhập.');
   }
 
-  // 4. Yêu cầu 3: Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId
+  // 5. Yêu cầu 3: Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId
   // Báo lỗi nếu sellerId không phải chủ món đồ hoặc món không tồn tại
   const itemInDb = dbMarketplaceItems.get(cleanItemId);
   if (!itemInDb) {
@@ -161,7 +228,7 @@ async function findOrCreateConversation(buyerId, sellerId, itemId, options = {})
   const itemPrice = itemInDb.price;
   const itemImage = itemInDb.images[0] || '';
 
-  // 5. Yêu cầu 4: Chống trùng - sắp xếp cặp id trước khi lưu (p1 < p2)
+  // 6. Yêu cầu 4: Chống trùng - sắp xếp cặp id trước khi lưu (p1 < p2)
   const [p1, p2] = cleanBuyerId < cleanSellerId ? [cleanBuyerId, cleanSellerId] : [cleanSellerId, cleanBuyerId];
   const pairKey = `${p1}__${p2}`;
 
@@ -170,18 +237,21 @@ async function findOrCreateConversation(buyerId, sellerId, itemId, options = {})
     await new Promise((r) => setTimeout(r, Math.floor(Math.random() * 20) + 5));
   }
 
-  // 6. Tìm cuộc trò chuyện hiện có theo cặp người dùng
+  // 7. Tìm cuộc trò chuyện hiện có theo cặp người dùng
   let conv = dbConversations.get(pairKey) || null;
   let isNew = false;
   let contextInserted = false;
 
-  // 7. Nếu chưa có -> Tạo mới (Mô phỏng DB Unique Constraint chống trùng khi gọi song song)
+  // 8. Nếu chưa có -> Tạo mới (Mô phỏng DB Unique Constraint chống trùng khi gọi song song)
   if (!conv) {
     // Kiểm tra lại lần nữa trong bộ nhớ DB để chống race condition (tương đương ON CONFLICT trên Supabase)
     if (dbConversations.has(pairKey)) {
       conv = dbConversations.get(pairKey);
       isNew = false;
     } else {
+      // Giới hạn tần suất: mỗi người mở tối đa 10 hội thoại mới về chợ đồ cũ trong 1 giờ
+      checkRateLimit(cleanBuyerId, options.now || Date.now());
+
       isNew = true;
       const newConvId = `conv_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
       conv = {
@@ -194,6 +264,9 @@ async function findOrCreateConversation(buyerId, sellerId, itemId, options = {})
         created_at: new Date().toISOString(),
       };
       dbConversations.set(pairKey, conv);
+
+      // Ghi nhận hội thoại mới vào danh sách rate limit
+      recordNewConv(cleanBuyerId, options.now || Date.now());
     }
   }
 
@@ -468,6 +541,102 @@ async function runAllTests() {
     assert.strictEqual(typeof res.contextInserted, 'boolean');
     assert.strictEqual(typeof res.itemId, 'string');
     assert.strictEqual(typeof res.lastItemId, 'string');
+  });
+
+  // Test 13: NGƯỜI BÁN BỊ KHÓA TÀI KHOẢN KHÔNG MỞ ĐƯỢC HỘI THOẠI MỚI VÀ BÁO LỖI RÕ RÀNG
+  await runTest('Người bán bị khóa tài khoản không mở được hội thoại mới và báo lỗi rõ ràng', async () => {
+    setMockCurrentUser('buyer_sinh_vien_A');
+    let threw = false;
+    let errorMsg = '';
+    const initialConvCount = dbConversations.size;
+
+    try {
+      await findOrCreateConversation('buyer_sinh_vien_A', 'seller_banned_user', 'item-banned-seller-999');
+    } catch (err) {
+      threw = true;
+      errorMsg = err.message;
+      assert.match(
+        err.message,
+        /Tài khoản người bán hiện đang bị tạm khóa hoặc ngừng hoạt động/,
+        'Thông báo lỗi phải rõ ràng về việc người bán bị khóa'
+      );
+    }
+
+    assert.strictEqual(threw, true, 'Hàm phải throw error khi người bán bị khóa');
+    assert.strictEqual(
+      dbConversations.size,
+      initialConvCount,
+      'Không được tạo hội thoại trong cơ sở dữ liệu khi người bán bị khóa'
+    );
+  });
+
+  // Test 14: GIỚI HẠN TỐI ĐA 10 HỘI THOẠI MỚI TRONG 1 GIỜ CHO MỖI NGƯỜI MUA
+  const rateBuyerId = 'buyer_rate_tester_99';
+  setMockCurrentUser(rateBuyerId);
+  const createdConvIds = [];
+
+  await runTest('Mở thành công 10 cuộc hội thoại mới trong vòng 1 giờ', async () => {
+    for (let i = 1; i <= 10; i++) {
+      const sellerId = `seller_rate_limit_${i}`;
+      const itemId = `item-rate-limit-${i}`;
+      const res = await findOrCreateConversation(rateBuyerId, sellerId, itemId);
+
+      assert.strictEqual(res.isNew, true, `Hội thoại mới thứ ${i} phải có isNew = true`);
+      assert.ok(res.conversationId, `Hội thoại thứ ${i} phải có conversationId`);
+      createdConvIds.push(res.conversationId);
+    }
+    assert.strictEqual(createdConvIds.length, 10, 'Đã mở đủ 10 cuộc hội thoại mới');
+  });
+
+  // Test 15: VƯỢT QUÁ 10 HỘI THOẠI MỚI TRONG 1 GIỜ BÁO "Bạn thao tác quá nhanh, thử lại sau"
+  await runTest('Mở hội thoại mới thứ 11 trong 1 giờ bị chặn và báo "Bạn thao tác quá nhanh, thử lại sau"', async () => {
+    let threw = false;
+    let exactMsg = '';
+    const convCountBefore = dbConversations.size;
+
+    try {
+      // Mở hội thoại mới thứ 11 với seller thứ 11
+      await findOrCreateConversation(rateBuyerId, 'seller_rate_limit_11', 'item-rate-limit-11');
+    } catch (err) {
+      threw = true;
+      exactMsg = err.message;
+    }
+
+    assert.strictEqual(threw, true, 'Phải throw error khi vượt quá 10 hội thoại mới trong 1 giờ');
+    assert.strictEqual(
+      exactMsg,
+      'Bạn thao tác quá nhanh, thử lại sau',
+      'Thông báo lỗi phải khớp nguyên văn: "Bạn thao tác quá nhanh, thử lại sau"'
+    );
+    assert.strictEqual(
+      dbConversations.size,
+      convCountBefore,
+      'Không được tạo thêm cuộc hội thoại thứ 11 trong cơ sở dữ liệu'
+    );
+  });
+
+  // Test 16: MỞ LẠI HỘI THOẠI ĐÃ CÓ KHÔNG BỊ TÍNH VÀO GIỚI HẠN VÀ KHÔNG BỊ CHẶN
+  await runTest('Mở lại hội thoại đã có giữa 2 người không bị chặn bởi giới hạn 10 hội thoại mới', async () => {
+    // Gọi lại với seller_rate_limit_1 (đã có hội thoại ở Test 14)
+    const resExisting = await findOrCreateConversation(rateBuyerId, 'seller_rate_limit_1', 'item-rate-limit-1');
+
+    assert.strictEqual(resExisting.isNew, false, 'Không phải là hội thoại mới');
+    assert.strictEqual(resExisting.conversationId, createdConvIds[0], 'Phải trả về đúng hội thoại đã có');
+  });
+
+  // Test 17: SAU 1 GIỜ, GIỚI HẠN ĐƯỢC GIẢI PHÓNG VÀ CÓ THỂ MỞ TIẾP HỘI THOẠI MỚI
+  await runTest('Sau 1 giờ trôi qua, người dùng có thể mở tiếp hội thoại mới thành công', async () => {
+    const oneHourLater = Date.now() + 60 * 60 * 1000 + 1000; // 1 giờ 1 giây sau
+    const resAfterOneHour = await findOrCreateConversation(
+      rateBuyerId,
+      'seller_rate_limit_11',
+      'item-rate-limit-11',
+      { now: oneHourLater }
+    );
+
+    assert.strictEqual(resAfterOneHour.isNew, true, 'Sau 1 giờ, hội thoại mới mở thành công với isNew = true');
+    assert.ok(resAfterOneHour.conversationId, 'Phải có conversationId mới');
+    setMockCurrentUser(null);
   });
 
   // ==============================================================

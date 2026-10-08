@@ -10,6 +10,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // Đăng ký trong src/main.tsx bằng virtual:pwa-register để tự tải lại khi có bản mới
+      injectRegister: false,
       includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
       manifest: {
         name: 'Trọ Xinh - Nền Tảng Tìm Trọ An Tâm tại Hà Nội',
@@ -34,6 +36,8 @@ export default defineConfig({
         ],
       },
       workbox: {
+        skipWaiting: true,
+        clientsClaim: true,
         runtimeCaching: [
           {
             urlPattern: /^https:\/\/.*tile\.openstreetmap\.org/,
@@ -62,12 +66,16 @@ export default defineConfig({
         ],
       },
     }),
-    visualizer({
-      filename: 'stats.html',
-      gzipSize: true,
-      brotliSize: true,
-      open: false,
-    }),
+    ...(process.env.ANALYZE === 'true'
+      ? [
+          visualizer({
+            filename: 'stats.html',
+            gzipSize: true,
+            brotliSize: true,
+            open: false,
+          }),
+        ]
+      : []),
   ],
   resolve: {
     alias: {
@@ -83,7 +91,6 @@ export default defineConfig({
           'leaflet-vendor': ['leaflet', 'react-leaflet'],
           'ui-vendor': ['framer-motion', 'lucide-react', 'clsx', 'tailwind-merge'],
           'supabase-vendor': ['@supabase/supabase-js'],
-          'cloudinary-vendor': ['@cloudinary/react', '@cloudinary/url-gen'],
         },
       },
     },

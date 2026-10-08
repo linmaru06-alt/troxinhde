@@ -1,36 +1,66 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { ShieldCheck, Phone, Mail, MapPin, Heart, MessageCircle, ExternalLink } from 'lucide-react';
-import { OptimizedImage } from '../ui/OptimizedImage';
+import { Phone, Mail, MapPin, MessageCircle, ExternalLink } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
     <footer className="bg-white border-t border-gray-200 mt-16 pt-12 pb-24 md:pb-12 text-sm text-gray-600">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-12">
-          {/* Col 1: Brand & Trust */}
-          <div className="space-y-4 md:col-span-1">
-            <Link to="/" className="flex items-center gap-2.5 group">
-              <OptimizedImage
-                src="/images/logo.png"
-                alt="Trọ Xinh Logo"
-                loading="lazy"
-                width={36}
-                height={36}
-                className="w-9 h-9 rounded-xl object-cover ring-1 ring-emerald-500/30 shadow-xs group-hover:scale-105 transition-transform"
-              />
-              <span className="text-xl font-black text-[#006d37]">Trọ Xinh</span>
-            </Link>
-            <p className="text-xs text-gray-500 leading-relaxed">
-              Nền tảng tìm trọ sinh viên Hà Nội uy tín. Mọi phòng trọ đều qua quy trình kiểm duyệt thực tế 100%.
-            </p>
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-emerald-50 text-emerald-800 rounded-full text-xs font-semibold">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              <span>Bảo vệ người thuê & giữ cọc an toàn</span>
+        {/* Internal Linking Matrix for SEO (Reasonable Surfer Patent US7912842B1 & Topic-Sensitive PageRank) */}
+        <div className="mb-10 pb-8 border-b border-gray-200/80 space-y-6">
+          {/* Cụm 12 Quận Hà Nội */}
+          <div>
+            <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">
+              Phòng Trọ 12 Quận Trọng Điểm Hà Nội
+            </h4>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                'Cầu Giấy', 'Đống Đa', 'Thanh Xuân', 'Nam Từ Liêm', 
+                'Bắc Từ Liêm', 'Hai Bà Trưng', 'Ba Đình', 'Hà Đông', 
+                'Hoàng Mai', 'Tây Hồ', 'Long Biên', 'Hoàn Kiếm'
+              ].map((district) => (
+                <Link
+                  key={district}
+                  to={`/tim-kiem?khuVuc=${encodeURIComponent(district)}`}
+                  className="px-2.5 py-1 rounded-lg bg-gray-100/80 hover:bg-emerald-50 text-gray-700 hover:text-[#006d37] font-medium transition-colors"
+                >
+                  Phòng trọ {district}
+                </Link>
+              ))}
             </div>
           </div>
 
-          {/* Col 2: Liên hệ */}
+          {/* Cụm Trường Đại Học */}
+          <div>
+            <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider mb-3">
+              Tìm Phòng Trọ Gần Trường Đại Học
+            </h4>
+            <div className="flex flex-wrap gap-2 text-xs">
+              {[
+                { name: 'ĐH Quốc Gia Hà Nội', short: 'ĐHQG Hà Nội' },
+                { name: 'Đại học Bách Khoa Hà Nội', short: 'ĐH Bách Khoa' },
+                { name: 'Đại học Kinh Tế Quốc Dân', short: 'ĐH Kinh Tế Quốc Dân' },
+                { name: 'Đại học Ngoại Thương', short: 'ĐH Ngoại Thương' },
+                { name: 'Đại học Sư Phạm Hà Nội', short: 'ĐH Sư Phạm' },
+                { name: 'Học viện Ngân Hàng', short: 'HV Ngân Hàng' },
+                { name: 'Học viện Bưu Chính Viễn Thông', short: 'HV Bưu Chính (PTIT)' },
+                { name: 'Đại học Hà Nội', short: 'ĐH Hà Nội (HANU)' },
+              ].map((school) => (
+                <Link
+                  key={school.name}
+                  to={`/tim-kiem?truong=${encodeURIComponent(school.name)}`}
+                  className="px-2.5 py-1 rounded-lg bg-gray-100/80 hover:bg-emerald-50 text-gray-700 hover:text-[#006d37] font-medium transition-colors"
+                >
+                  Trọ gần {school.short}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+          {/* Col 1: Liên hệ */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Thông Tin Liên Hệ</h4>
             <div className="space-y-2.5 text-xs text-gray-600">
@@ -72,7 +102,7 @@ export const Footer: React.FC = () => {
             </div>
           </div>
 
-          {/* Col 3: Pháp lý & Quy chế */}
+          {/* Col 2: Pháp lý & Quy chế */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Pháp Lý & Điều Khoản</h4>
             <ul className="space-y-2 text-xs">
@@ -91,13 +121,13 @@ export const Footer: React.FC = () => {
             </ul>
           </div>
 
-          {/* Col 4: Mạng xã hội & Khám phá */}
+          {/* Col 3: Mạng xã hội & Khám phá */}
           <div className="space-y-3">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Mạng Xã Hội & Tiện Ích</h4>
             <ul className="space-y-2.5 text-xs">
               <li>
                 <a
-                  href="https://www.facebook.com/troxinh.vn"
+                  href="https://www.facebook.com/chinh.nguyenvu.05"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 hover:text-[#006d37] transition"
@@ -196,16 +226,6 @@ export const Footer: React.FC = () => {
                 </Link>
               </li>
             </ul>
-          </div>
-        </div>
-
-        {/* Bottom copyright */}
-        <div className="pt-8 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between text-xs text-gray-500 gap-4">
-          <p>© 2026 Trọ Xinh · Vận hành bởi <strong>Nguyễn Vũ Chính</strong>. Nền tảng tìm trọ sinh viên Hà Nội đã kiểm duyệt.</p>
-          <div className="flex items-center gap-1 text-gray-500">
-            <span>Phát triển với</span>
-            <Heart className="w-3.5 h-3.5 text-rose-500 fill-current" />
-            <span>dành cho sinh viên & người đi làm Việt Nam</span>
           </div>
         </div>
       </div>

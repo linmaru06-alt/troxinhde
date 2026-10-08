@@ -6,7 +6,7 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
-import { RoomCard, formatPrice } from '../components/ui/Cards';
+import { RoomCard, formatPrice, formatCurrency } from '../components/ui/Cards';
 import { Room } from '../types';
 import {
   Eye,
@@ -21,6 +21,16 @@ import {
   MapPin,
   X,
   AlertTriangle,
+  Receipt,
+  FileCheck,
+  Star,
+  Zap,
+  Droplets,
+  Wifi,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Building2,
 } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { createRoom, updateRoom as apiUpdateRoom } from '../lib/api/rooms';
@@ -56,6 +66,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
   const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(isLimitReached);
   const [showFullPreview, setShowFullPreview] = useState<boolean>(false);
+  const [previewTab, setPreviewTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -350,7 +361,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
           roomNumber: roomNumber.trim(),
           price: Number(price),
           deposit: Number(deposit),
-          electricityPrice: selectedBuilding?.electricityPrice || 3800,
+          electricityPrice: selectedBuilding?.electricityPrice || 3500,
           waterPrice: selectedBuilding?.waterPrice || 100000,
           area: Number(area),
           type,
@@ -367,7 +378,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
         // Xóa bản nháp sau khi tạo thành công
         localStorage.removeItem(draftStorageKey);
-        showToast('Tạo phòng trọ thành công!', 'Tin đăng đã được chuyển đến ban quản trị phê duyệt trên Supabase.', 'success');
+        showToast('Gửi tin đăng thành công!', 'Tin đăng đã được gửi và đang chờ ban quản trị kiểm duyệt (trong vòng 24h).', 'success');
         navigate('/chu-tro');
       }
     } catch (err: any) {
@@ -379,6 +390,13 @@ export const OwnerCreateRoomPage: React.FC = () => {
       setIsSubmitting(false);
     }
   };
+
+  const estimatedElectricity = 80 * (selectedBuilding?.electricityPrice || 3500);
+  const estimatedWater = 100000;
+  const estimatedInternet = 100000;
+  const estimatedServices = 150000;
+  const totalEstimatedMonthly =
+    Number(price) + estimatedElectricity + estimatedWater + estimatedInternet + estimatedServices;
 
   return (
     <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
@@ -516,7 +534,16 @@ export const OwnerCreateRoomPage: React.FC = () => {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Select building */}
+              {/* 1. Tiêu đề tin đăng công khai (Đưa lên trên cùng) */}
+              <Input
+                label="Tiêu đề tin đăng công khai"
+                required
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="Ví dụ: Phòng Studio Ban Công Thoáng Mát Gần ĐH Quốc Gia..."
+              />
+
+              {/* 2. Select building */}
               <div className="space-y-1.5 text-left">
                 <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
                   Thuộc Tòa Nhà
@@ -534,6 +561,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
                 </select>
               </div>
 
+              {/* 3. Số phòng / Mã phòng & Loại phòng */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input
                   label="Số phòng / Mã phòng"
@@ -559,14 +587,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
                 </div>
               </div>
 
-              <Input
-                label="Tiêu đề tin đăng công khai"
-                required
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Ví dụ: Phòng Studio Ban Công Thoáng Mát Gần ĐH Quốc Gia..."
-              />
-
+              {/* 4. Giá thuê, Cọc, Diện tích */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <Input
                   label="Giá thuê (VNĐ/tháng)"
@@ -726,23 +747,23 @@ export const OwnerCreateRoomPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Modal Xem Trước Toàn Bộ Tin Đăng (Full Preview Modal) */}
+        {/* Modal Xem Trước Toàn Bộ Tin Đăng (Full Preview Modal - Giống Chi Tiết Khách Thấy) */}
         <Modal
           isOpen={showFullPreview}
           onClose={() => setShowFullPreview(false)}
           title="Xem Trước Tin Đăng Như Khách Thuê Thấy"
-          maxWidth="2xl"
+          maxWidth="3xl"
         >
-          <div className="space-y-5 max-h-[80vh] overflow-y-auto pr-1 text-left">
+          <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-1 text-left">
             {/* Gallery ảnh xem trước */}
             <div className="space-y-2">
-              <div className="relative aspect-16/9 rounded-2xl overflow-hidden bg-gray-100 border border-gray-200">
+              <div className="relative aspect-16/9 rounded-3xl overflow-hidden bg-gray-100 border border-gray-200 shadow-xs">
                 <img
                   src={previewRoom.images[0]}
                   alt="Ảnh bìa"
                   className="w-full h-full object-cover"
                 />
-                <span className="absolute top-3 left-3 bg-[#006d37] text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                <span className="absolute top-3 left-3 bg-[#006d37] text-white text-xs font-bold px-3 py-1 rounded-xl shadow-xs">
                   ★ Ảnh bìa chính
                 </span>
                 <span className="absolute bottom-3 right-3 bg-black/70 text-white text-xs font-bold px-2.5 py-1 rounded-md">
@@ -769,6 +790,9 @@ export const OwnerCreateRoomPage: React.FC = () => {
                 </span>
                 <span className="px-2.5 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs font-bold">
                   Phòng {previewRoom.roomNumber}
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold">
+                  Chờ duyệt
                 </span>
               </div>
               <h2 className="text-xl sm:text-2xl font-black text-gray-900">{previewRoom.title}</h2>
@@ -800,30 +824,227 @@ export const OwnerCreateRoomPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Tiện ích */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">
-                Tiện ích & Nội thất
-              </h4>
-              <div className="flex flex-wrap gap-1.5">
-                {previewRoom.amenities.map((a) => (
-                  <span
-                    key={a}
-                    className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-lg font-medium"
-                  >
-                    ✓ {a}
-                  </span>
-                ))}
+            {/* Detailed Tabs Header (Ảnh 4) */}
+            <div className="space-y-4 pt-2">
+              <div className="flex items-center gap-2 border-b border-gray-100 pb-3 overflow-x-auto">
+                {[
+                  { key: 'costs', label: 'Bảng chi phí dự kiến', icon: Receipt },
+                  { key: 'amenities', label: 'Tiện nghi phòng', icon: Sparkles },
+                  { key: 'description', label: 'Mô tả & Quy định', icon: FileCheck },
+                  { key: 'location', label: 'Vị trí & Trường ĐH', icon: MapPin },
+                  { key: 'reviews', label: 'Đánh giá (0)', icon: Star },
+                ].map((t) => {
+                  const Icon = t.icon;
+                  return (
+                    <button
+                      key={t.key}
+                      type="button"
+                      onClick={() => setPreviewTab(t.key as any)}
+                      className={`flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl transition shrink-0 cursor-pointer ${
+                        previewTab === t.key
+                          ? 'bg-[#006d37] text-white shadow-xs'
+                          : 'text-gray-600 hover:text-[#006d37] hover:bg-gray-50'
+                      }`}
+                    >
+                      <Icon className="w-3.5 h-3.5" />
+                      <span>{t.label}</span>
+                    </button>
+                  );
+                })}
               </div>
+
+              {/* TAB 1: BẢNG CHI PHÍ DỰ KIẾN (Bóc tách chi phí hàng tháng) */}
+              {previewTab === 'costs' && (
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-sm font-bold text-gray-900 mb-1">
+                      Bóc tách chi phí hàng tháng dự kiến:
+                    </h3>
+                    <p className="text-xs text-gray-500">
+                      Minh bạch toàn bộ chi phí trước khi đi xem phòng để dễ dàng cân đối ngân sách.
+                    </p>
+                  </div>
+
+                  <div className="rounded-2xl border border-gray-200 overflow-hidden text-xs">
+                    <div className="grid grid-cols-12 bg-gray-50 p-3 font-bold text-gray-700 border-b border-gray-200">
+                      <div className="col-span-7 sm:col-span-8">Khoản phí</div>
+                      <div className="col-span-5 sm:col-span-4 text-right">Đơn giá / Định mức</div>
+                    </div>
+
+                    <div className="divide-y divide-gray-100">
+                      <div className="grid grid-cols-12 p-3 items-center">
+                        <div className="col-span-7 sm:col-span-8 flex items-center gap-2">
+                          <span className="w-2.5 h-2.5 rounded-full bg-[#006d37]" />
+                          <strong className="text-gray-900 font-bold">Tiền thuê phòng</strong>
+                        </div>
+                        <div className="col-span-5 sm:col-span-4 text-right font-bold text-gray-900">
+                          {formatCurrency(previewRoom.price)} / tháng
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-12 p-3 items-center bg-gray-50/40">
+                        <div className="col-span-7 sm:col-span-8 flex items-center gap-2 text-gray-600">
+                          <FileCheck className="w-3.5 h-3.5 text-gray-400" />
+                          <span>Tiền đặt cọc hợp đồng</span>
+                        </div>
+                        <div className="col-span-5 sm:col-span-4 text-right font-medium text-gray-700">
+                          {formatCurrency(previewRoom.deposit)} (hoàn cọc khi kết thúc HĐ)
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-12 p-3 items-center">
+                        <div className="col-span-7 sm:col-span-8 flex items-center gap-2 text-gray-600">
+                          <Zap className="w-3.5 h-3.5 text-amber-500" />
+                          <span>Tiền điện sinh hoạt</span>
+                        </div>
+                        <div className="col-span-5 sm:col-span-4 text-right font-medium text-gray-700">
+                          {previewRoom.electricityPrice.toLocaleString('vi-VN')} đ / kWh (công tơ riêng)
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-12 p-3 items-center bg-gray-50/40">
+                        <div className="col-span-7 sm:col-span-8 flex items-center gap-2 text-gray-600">
+                          <Droplets className="w-3.5 h-3.5 text-blue-500" />
+                          <span>Tiền nước sinh hoạt</span>
+                        </div>
+                        <div className="col-span-5 sm:col-span-4 text-right font-medium text-gray-700">
+                          {previewRoom.waterPrice.toLocaleString('vi-VN')} đ / người / tháng
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-12 p-3 items-center">
+                        <div className="col-span-7 sm:col-span-8 flex items-center gap-2 text-gray-600">
+                          <Wifi className="w-3.5 h-3.5 text-indigo-500" />
+                          <span>Internet cáp quang tốc độ cao</span>
+                        </div>
+                        <div className="col-span-5 sm:col-span-4 text-right font-medium text-gray-700">
+                          100.000 đ / phòng / tháng
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-12 p-3 items-center bg-gray-50/40">
+                        <div className="col-span-7 sm:col-span-8 flex items-center gap-2 text-gray-600">
+                          <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Phí dịch vụ chung (Vệ sinh, máy giặt, rác, thang máy)</span>
+                        </div>
+                        <div className="col-span-5 sm:col-span-4 text-right font-medium text-gray-700">
+                          150.000 đ / người / tháng
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-12 p-4 bg-emerald-50/80 border-t-2 border-emerald-200 items-center">
+                      <div className="col-span-6 sm:col-span-7">
+                        <strong className="text-sm font-extrabold text-[#006d37] block">
+                          Tổng chi phí dự kiến / tháng:
+                        </strong>
+                        <span className="text-[11px] text-gray-500">
+                          (Ước tính cho 1 người ở, 80 kWh điện)
+                        </span>
+                      </div>
+                      <div className="col-span-6 sm:col-span-5 text-right">
+                        <span className="text-lg sm:text-xl font-black text-[#006d37]">
+                          ~ {formatCurrency(totalEstimatedMonthly)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 2: TIỆN NGHI PHÒNG */}
+              {previewTab === 'amenities' && (
+                <div className="space-y-4">
+                  <h3 className="text-sm font-bold text-gray-900">
+                    Danh mục tiện nghi có sẵn trong phòng:
+                  </h3>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    {previewRoom.amenities.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center gap-2.5 p-3 rounded-xl bg-gray-50 border border-gray-100 text-xs font-semibold text-gray-800"
+                      >
+                        <CheckCircle2 className="w-4 h-4 text-[#006d37] shrink-0" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 3: MÔ TẢ & QUY ĐỊNH */}
+              {previewTab === 'description' && (
+                <div className="space-y-4 text-xs sm:text-sm text-gray-700 leading-relaxed">
+                  <p className="whitespace-pre-line bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                    {previewRoom.description}
+                  </p>
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                    <h4 className="font-bold text-gray-900">Quy định chung của nhà trọ:</h4>
+                    <ul className="list-disc list-inside space-y-1 text-gray-600 text-xs">
+                      <li>Giờ giấc tự do 24/24, ra vào bằng khóa vân tay an ninh.</li>
+                      <li>Khu trọ an ninh, có camera hành lang 24/7 và hệ thống PCCC đạt chuẩn.</li>
+                      <li>Hợp đồng thuê tối thiểu 06 tháng, thanh toán tiền phòng đầu tháng.</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: VỊ TRÍ & TRƯỜNG ĐH */}
+              {previewTab === 'location' && (
+                <div className="space-y-4">
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                    <h4 className="font-bold text-gray-900 text-sm">Vị trí & Khoảng cách:</h4>
+                    <p className="text-xs text-gray-600">
+                      Địa chỉ: <strong>{previewRoom.address}, {previewRoom.district}</strong>
+                    </p>
+                    <p className="text-xs text-emerald-700 font-bold">
+                      Gần: {previewRoom.nearestSchool}
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 5: ĐÁNH GIÁ */}
+              {previewTab === 'reviews' && (
+                <div className="py-8 text-center text-gray-500 text-xs space-y-1.5 border border-gray-100 rounded-2xl bg-gray-50">
+                  <p className="font-semibold text-gray-700">Chưa có đánh giá nào cho phòng trọ này</p>
+                  <p>Tin đăng mới tạo đang trong quá trình xuất bản.</p>
+                </div>
+              )}
             </div>
 
-            {/* Mô tả */}
-            <div className="space-y-1.5">
-              <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wider">Mô tả chi tiết</h4>
-              <p className="text-xs text-gray-600 leading-relaxed whitespace-pre-line bg-gray-50 p-3 rounded-xl border border-gray-100">
-                {previewRoom.description}
-              </p>
-            </div>
+            {/* Khối Thuộc Tòa Nhà (Ảnh 4) */}
+            {selectedBuilding && (
+              <div className="bg-gray-50/70 rounded-3xl p-5 border border-gray-200/80 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={selectedBuilding.images?.[0] || '/images/hero-banner.webp'}
+                    alt={selectedBuilding.name}
+                    className="w-16 h-16 rounded-2xl object-cover shrink-0 border border-gray-200"
+                  />
+                  <div>
+                    <span className="text-[11px] font-bold text-[#006d37] uppercase">
+                      THUỘC TÒA NHÀ
+                    </span>
+                    <h4 className="text-sm font-bold text-gray-900">
+                      {selectedBuilding.name}
+                    </h4>
+                    <p className="text-xs text-gray-500">
+                      {selectedBuilding.totalRooms || 1} phòng • Đã kiểm duyệt PCCC
+                    </p>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  rightIcon={<ChevronRight className="w-4 h-4" />}
+                >
+                  Xem Toàn Bộ Tòa Nhà
+                </Button>
+              </div>
+            )}
 
             <div className="flex justify-end gap-2 pt-3 border-t border-gray-100">
               <Button variant="outline" size="sm" onClick={() => setShowFullPreview(false)}>

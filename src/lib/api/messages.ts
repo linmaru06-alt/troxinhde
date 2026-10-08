@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from "../supabase";
 import { Conversation, Message } from "../../types";
+import { getPublicProfiles } from "./publicProfiles";
 import {
   UUID_REGEX,
   KNOWN_DEMO_UUIDS,
@@ -54,6 +55,67 @@ export function clearLocalChatCache(): void {
   inMemoryStore.clear();
 }
 
+export const MARKETPLACE_CONVERSATION_RATE_LIMIT = 10;
+export const MARKETPLACE_CONVERSATION_RATE_WINDOW_MS = 60 * 60 * 1000; // 1 giờ
+export const MARKETPLACE_RATE_LIMIT_ERROR_MSG = "Bạn thao tác quá nhanh, thử lại sau";
+export const SELLER_BANNED_ERROR_MSG = "Tài khoản người bán hiện đang bị tạm khóa hoặc ngừng hoạt động.";
+
+export function checkMarketplaceConversationRateLimit(
+  buyerId: string,
+  now: number = Date.now(),
+): void {
+  if (!buyerId) return;
+  const cleanId = resolveDemoAlias(buyerId) || buyerId;
+  const key = `troxinh_mp_conv_rate_${cleanId}`;
+  let timestamps: number[] = [];
+  try {
+    const raw = safeGetStorage(key);
+    if (raw) {
+      timestamps = JSON.parse(raw);
+    }
+  } catch {}
+
+  const windowStart = now - MARKETPLACE_CONVERSATION_RATE_WINDOW_MS;
+  const recent = timestamps.filter((t) => typeof t === "number" && t > windowStart);
+  if (recent.length >= MARKETPLACE_CONVERSATION_RATE_LIMIT) {
+    throw new Error(MARKETPLACE_RATE_LIMIT_ERROR_MSG);
+  }
+}
+
+export function recordMarketplaceNewConversation(
+  buyerId: string,
+  now: number = Date.now(),
+): void {
+  if (!buyerId) return;
+  const cleanId = resolveDemoAlias(buyerId) || buyerId;
+  const key = `troxinh_mp_conv_rate_${cleanId}`;
+  let timestamps: number[] = [];
+  try {
+    const raw = safeGetStorage(key);
+    if (raw) {
+      timestamps = JSON.parse(raw);
+    }
+  } catch {}
+
+  const windowStart = now - MARKETPLACE_CONVERSATION_RATE_WINDOW_MS;
+  const recent = timestamps.filter((t) => typeof t === "number" && t > windowStart);
+  recent.push(now);
+  safeSetStorage(key, JSON.stringify(recent));
+}
+
+export function clearMarketplaceConversationRateLimits(): void {
+  inMemoryStore.forEach((_, key) => {
+    if (key.startsWith("troxinh_mp_conv_rate_")) {
+      inMemoryStore.delete(key);
+      try {
+        if (typeof localStorage !== "undefined" && localStorage) {
+          localStorage.removeItem(key);
+        }
+      } catch {}
+    }
+  });
+}
+
 export function getConversationMeta(
   convId: string,
 ): ConversationMeta | null {
@@ -74,6 +136,61 @@ export function saveConversationMeta(
     const merged = { ...existing, ...meta };
     safeSetStorage(`${CONV_META_PREFIX}${convId}`, JSON.stringify(merged));
   } catch {}
+}
+
+export const ADMIN_USER_ID = "00000000-0000-0000-0000-000000000001";
+
+/**
+ * Kiểm tra xem một cuộc hội thoại có phải là với Admin / Ban Quản Trị hay không
+ */
+export function isConversationWithAdmin(
+  c?: Conversation | null,
+  currentUserId?: string
+): boolean {
+  if (!c) return false;
+  try {
+    const isMe = isSameUserId(c.participant_1, currentUserId);
+    const other = isMe ? c.p2 : c.p1;
+    const otherId = isMe ? c.participant_2 : c.participant_1;
+
+    if (
+      otherId === ADMIN_USER_ID ||
+      otherId === "usr_admin_quan66934" ||
+      otherId === "demo_admin_uuid" ||
+      otherId === "demo_admin_troxinh"
+    ) {
+      return true;
+    }
+    if (other?.app_role === "admin" || (other as any)?.role === "admin") {
+      return true;
+    }
+    const name = String(
+      c.other_name ||
+      other?.full_name ||
+      other?.name ||
+      ""
+    ).toLowerCase();
+    if (
+      name.includes("ban quản trị") ||
+      name.includes("bqt trọ xinh") ||
+      name.includes("quản trị viên")
+    ) {
+      return true;
+    }
+  } catch {
+    return false;
+  }
+  return false;
+}
+
+/**
+ * Khởi tạo hoặc tìm cuộc hội thoại trực tiếp với Ban Quản Trị Trọ Xinh
+ */
+export async function getOrCreateAdminConversation(userId: string): Promise<string> {
+  return getOrCreateConversation(userId, ADMIN_USER_ID, undefined, {
+    otherName: "Ban Quản Trị Trọ Xinh",
+    otherAvatar: "/images/logo.png",
+  });
 }
 
 function getLocalConversations(): Conversation[] {
@@ -126,24 +243,38 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
   if (!userId) return "";
   const trimmed = userId.trim();
 
+  // 1. Đã là UUID chuẩn -> trả về ngay
   if (UUID_REGEX.test(trimmed)) {
     return trimmed;
   }
 
+  // 2. Demo alias (usr_admin_quan66934, usr_renter_..., usr_owner_...) -> lấy UUID tương ứng
   const demoUuid = resolveDemoAlias(trimmed);
   if (demoUuid) {
     return demoUuid;
   }
 
+  // 3. Nếu là currentUser trong Zustand store đã có profile id là UUID -> lấy ngay (0ms)
+  try {
+    const { useAppStore } = await import("../../store/useAppStore");
+    const current = useAppStore.getState().currentUser;
+    if (current?.id && UUID_REGEX.test(current.id)) {
+      if (current.id === trimmed || current.firebaseUid === trimmed || isSameUserId(current.id, trimmed)) {
+        return current.id;
+      }
+    }
+  } catch {}
+
+  // 4. Tra cứu trên bảng profiles bằng firebase_uid (LƯU Ý: profiles KHÔNG CÓ cột email)
   if (isSupabaseConfigured) {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error } = await supabase
         .from("profiles")
         .select("id")
-        .or(`firebase_uid.eq.${trimmed},email.eq.${trimmed}`)
+        .eq("firebase_uid", trimmed)
         .maybeSingle();
 
-      if (profile?.id && UUID_REGEX.test(profile.id)) {
+      if (!error && profile?.id && UUID_REGEX.test(profile.id)) {
         return profile.id;
       }
     } catch (err) {
@@ -155,8 +286,15 @@ export async function resolveUserIdToUuid(userId: string): Promise<string> {
     }
   }
 
-  // Fallback an toàn về ID demo renter để không làm gãy câu lệnh SQL nếu ở chế độ demo
-  return "00000000-0000-4000-8000-000000000003";
+  // 5. Fallback an toàn: Sinh UUID xác định (deterministic) từ chuỗi ID để không bao giờ bị trùng đối tác
+  //    Đồng thời không làm gãy câu lệnh PostgreSQL UUID
+  let hash = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    hash = (hash << 5) - hash + trimmed.charCodeAt(i);
+    hash |= 0;
+  }
+  const hexPart = Math.abs(hash).toString(16).padStart(12, "0").slice(0, 12);
+  return `00000000-0000-4000-8000-${hexPart}`;
 }
 
 /**
@@ -191,7 +329,77 @@ export async function getOrCreateConversation(
   const validRoomId =
     roomId && UUID_REGEX.test(roomId.trim()) ? roomId.trim() : null;
 
-  // 1. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
+  // 1. Đảm bảo hồ sơ 2 bên tồn tại trên Supabase trước khi tạo hội thoại
+  if (isSupabaseConfigured) {
+    try {
+      await Promise.all([
+        supabase.rpc("ensure_profile_exists", {
+          p_user_id: cleanTenantId,
+          p_name: "Khách thuê Trọ Xinh",
+        }),
+        supabase.rpc("ensure_profile_exists", {
+          p_user_id: cleanLandlordId,
+          p_name: extra?.otherName || "Chủ trọ / Người bán",
+        }),
+      ]);
+    } catch {}
+  }
+
+  // 2. Thử gọi Postgres RPC get_or_create_conversation_v2 (v2 hỗ trợ sender_id trực tiếp)
+  if (isSupabaseConfigured) {
+    try {
+      const { data: convId, error: rpcV2Err } = await supabase.rpc("get_or_create_conversation_v2", {
+        p_sender_id: cleanTenantId,
+        p_partner_id: cleanLandlordId,
+        p_room_id: validRoomId,
+      });
+
+      if (!rpcV2Err && convId) {
+        saveConversationMeta(convId, {
+          other_name: extra?.otherName,
+          other_avatar: extra?.otherAvatar,
+          partner_id: cleanLandlordId,
+          room_title: extra?.roomTitle,
+        });
+        return convId;
+      }
+    } catch (errV2) {
+      console.warn("[MessagesAPI] RPC get_or_create_conversation_v2 thử nghiệm:", errV2);
+    }
+
+    // 2b. Fallback gọi RPC v1 get_or_create_conversation
+    try {
+      const { data: convId, error: rpcErr } = await supabase.rpc("get_or_create_conversation", {
+        p_partner_id: cleanLandlordId,
+        p_room_id: validRoomId,
+      });
+
+      if (!rpcErr && convId) {
+        saveConversationMeta(convId, {
+          other_name: extra?.otherName,
+          other_avatar: extra?.otherAvatar,
+          partner_id: cleanLandlordId,
+          room_title: extra?.roomTitle,
+        });
+        return convId;
+      }
+
+      if (rpcErr) {
+        if (rpcErr.message?.includes('P0005') || rpcErr.message?.includes('Không thể gửi tin nhắn')) {
+          throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+        }
+        if (rpcErr.message?.includes('P0004') || rpcErr.message?.includes('tạm khóa')) {
+          throw new Error("Tài khoản người dùng hiện đang bị tạm khóa hoặc ngừng hoạt động.");
+        }
+      }
+    } catch (err: any) {
+      if (err?.message?.includes("Không thể gửi tin nhắn") || err?.message?.includes("tạm khóa")) {
+        throw err;
+      }
+    }
+  }
+
+  // 3. Kiểm tra hội thoại đã tồn tại giữa 2 participant trong Supabase
   let existingId: string | null = null;
   if (isSupabaseConfigured) {
     try {
@@ -219,16 +427,16 @@ export async function getOrCreateConversation(
   }
 
   if (existingId) {
-    if (extra?.otherName || extra?.otherAvatar) {
-      saveConversationMeta(existingId, {
-        other_name: extra.otherName,
-        other_avatar: extra.otherAvatar,
-      });
-    }
+    saveConversationMeta(existingId, {
+      other_name: extra?.otherName,
+      other_avatar: extra?.otherAvatar,
+      partner_id: cleanLandlordId,
+      room_title: extra?.roomTitle,
+    });
     return existingId;
   }
 
-  // 2. Thử tạo mới trên Supabase
+  // 4. Thử tạo mới trực tiếp trên Supabase
   if (isSupabaseConfigured) {
     try {
       const { data: created, error: insertErr } = await supabase
@@ -244,12 +452,12 @@ export async function getOrCreateConversation(
         .maybeSingle();
 
       if (!insertErr && created?.id) {
-        if (extra?.otherName || extra?.otherAvatar) {
-          saveConversationMeta(created.id, {
-            other_name: extra.otherName,
-            other_avatar: extra.otherAvatar,
-          });
-        }
+        saveConversationMeta(created.id, {
+          other_name: extra?.otherName,
+          other_avatar: extra?.otherAvatar,
+          partner_id: cleanLandlordId,
+          room_title: extra?.roomTitle,
+        });
         return created.id;
       }
       if (insertErr) {
@@ -285,14 +493,8 @@ export async function getOrCreateConversation(
 
   let otherProfile: any = null;
   if (isSupabaseConfigured) {
-    try {
-      const { data: prof } = await supabase
-        .from("profiles")
-        .select("id, full_name, name, avatar_url, app_role, phone")
-        .eq("id", cleanLandlordId)
-        .maybeSingle();
-      otherProfile = prof;
-    } catch {}
+    const profiles = await getPublicProfiles([cleanLandlordId]);
+    otherProfile = profiles.get(cleanLandlordId) || null;
   }
 
   const fallbackConversation: Conversation = {
@@ -351,8 +553,16 @@ export async function getConversations(
   const cleanUserId = await resolveUserIdToUuid(userId);
   let serverList: Conversation[] = [];
 
-  if (isSupabaseConfigured && cleanUserId) {
+  const candidateIds = Array.from(
+    new Set([cleanUserId, userId].filter((id) => id && UUID_REGEX.test(id.trim())))
+  );
+
+  if (isSupabaseConfigured && candidateIds.length > 0) {
     try {
+      const orFilter = candidateIds
+        .flatMap((id) => [`participant_1.eq.${id}`, `participant_2.eq.${id}`])
+        .join(",");
+
       const { data, error } = await supabase
         .from("conversations")
         .select(
@@ -368,16 +578,27 @@ export async function getConversations(
           unread_count_p1,
           unread_count_p2,
           created_at,
-          rooms(id, name, price),
-          p1:profiles!participant_1(id, full_name, name, avatar_url, app_role, phone),
-          p2:profiles!participant_2(id, full_name, name, avatar_url, app_role, phone)
+          rooms(id, name, price)
         `,
         )
-        .or(`participant_1.eq.${cleanUserId},participant_2.eq.${cleanUserId}`)
+        .or(orFilter)
         .order("last_message_at", { ascending: false, nullsFirst: false });
 
       if (!error && data) {
         serverList = data as unknown as Conversation[];
+        // Hồ sơ người dùng lấy qua RPC công khai (không phụ thuộc RLS join)
+        const allParticipantIds = serverList.flatMap((c: any) => [
+          c.participant_1,
+          c.participant_2,
+        ]);
+        const profiles = await getPublicProfiles(allParticipantIds);
+        if (profiles.size > 0) {
+          serverList = serverList.map((c: any) => ({
+            ...c,
+            p1: profiles.get(c.participant_1) || null,
+            p2: profiles.get(c.participant_2) || null,
+          }));
+        }
       }
     } catch (error) {
       console.warn("[MessagesAPI] getConversations error:", error);
@@ -387,8 +608,7 @@ export async function getConversations(
   // Kết hợp an toàn với các cuộc trò chuyện cục bộ trong phiên
   const localList = getLocalConversations().filter(
     (c) =>
-      isSameUserId(c.participant_1, cleanUserId) ||
-      isSameUserId(c.participant_2, cleanUserId),
+      candidateIds.some((uid) => isSameUserId(c.participant_1, uid) || isSameUserId(c.participant_2, uid))
   );
 
   const convMap = new Map<string, Conversation>();
@@ -403,11 +623,12 @@ export async function getConversations(
   });
 
   const merged = Array.from(convMap.values()).map((c) => {
-    const isMe = isSameUserId(c.participant_1, cleanUserId);
+    const isMe = candidateIds.some((uid) => isSameUserId(c.participant_1, uid));
     const other = isMe ? c.p2 : c.p1;
     const otherId = isMe ? c.participant_2 : c.participant_1;
     const known = KNOWN_USER_NAMES[otherId];
     const savedMeta = getConversationMeta(c.id);
+    const unreadCount = isMe ? (c.unread_count_p1 || 0) : (c.unread_count_p2 || 0);
 
     const resolvedName =
       c.other_name ||
@@ -426,6 +647,7 @@ export async function getConversations(
 
     return {
       ...c,
+      unread_count: unreadCount,
       other_name: resolvedName,
       other_avatar: resolvedAvatar,
     };
@@ -436,6 +658,58 @@ export async function getConversations(
       new Date(b.last_message_at || b.created_at || 0).getTime() -
       new Date(a.last_message_at || a.created_at || 0).getTime(),
   );
+}
+
+/**
+ * Đánh dấu toàn bộ tin nhắn trong cuộc trò chuyện là đã đọc
+ * Đặt lại unread_count = 0 và cập nhật thông báo
+ */
+export async function markConversationAsRead(
+  conversationId: string,
+  userId?: string,
+): Promise<void> {
+  if (!conversationId) return;
+
+  if (isSupabaseConfigured && UUID_REGEX.test(conversationId.trim())) {
+    try {
+      const { error } = await supabase.rpc("mark_conversation_read", {
+        p_conversation_id: conversationId,
+      });
+      if (error) {
+        // Fallback cập nhật trực tiếp nếu RPC chưa có
+        await supabase
+          .from("messages")
+          .update({ is_read: true })
+          .eq("conversation_id", conversationId)
+          .eq("is_read", false);
+      }
+    } catch (err) {
+      console.warn("[MessagesAPI] Ngoại lệ markConversationAsRead:", err);
+    }
+  }
+
+  // Cập nhật bộ nhớ cục bộ nếu có
+  try {
+    const localConvs = getLocalConversations();
+    const updated = localConvs.map((c) => {
+      if (c.id === conversationId) {
+        return {
+          ...c,
+          unread_count_p1: 0,
+          unread_count_p2: 0,
+          unread_count: 0,
+        };
+      }
+      return c;
+    });
+    safeSetStorage(LOCAL_CONVS_KEY, JSON.stringify(updated));
+  } catch {}
+
+  // Tự động xóa thông báo chưa đọc của cuộc hội thoại này
+  try {
+    const { useAppStore } = await import("../../store/useAppStore");
+    useAppStore.getState().markChatNotificationsRead(conversationId);
+  } catch {}
 }
 
 /**
@@ -501,7 +775,26 @@ export async function sendMessage(
     throw new Error("Nội dung tin nhắn không được để trống.");
   }
 
-  const cleanSenderId = senderId ? await resolveUserIdToUuid(senderId) : null;
+  let cleanSenderId = senderId ? await resolveUserIdToUuid(senderId) : null;
+  if (!cleanSenderId || !UUID_REGEX.test(cleanSenderId)) {
+    try {
+      const { useAppStore } = await import("../../store/useAppStore");
+      const current = useAppStore.getState().currentUser;
+      if (current?.id && UUID_REGEX.test(current.id)) {
+        cleanSenderId = current.id;
+      }
+    } catch {}
+  }
+
+  if (!cleanSenderId || !UUID_REGEX.test(cleanSenderId)) {
+    throw new Error("Không thể xác định danh tính người gửi. Vui lòng đăng nhập lại.");
+  }
+
+  const cleanConvId = conversationId?.trim();
+  if (!cleanConvId || !UUID_REGEX.test(cleanConvId)) {
+    throw new Error("Mã cuộc trò chuyện không hợp lệ.");
+  }
+
   const newMsgId =
     messageId && UUID_REGEX.test(messageId.trim())
       ? messageId.trim()
@@ -511,7 +804,7 @@ export async function sendMessage(
 
   const msgPayload: Message = {
     id: newMsgId,
-    conversation_id: conversationId,
+    conversation_id: cleanConvId,
     sender_id: cleanSenderId,
     content: cleanContent,
     type,
@@ -523,26 +816,46 @@ export async function sendMessage(
 
   let savedMessage: Message = msgPayload;
 
-  // 1. Thử gửi lên Supabase
+  // 1. Thử gửi lên Supabase Cloud
   if (isSupabaseConfigured) {
     try {
-      // Đảm bảo cuộc trò chuyện tồn tại
-      if (UUID_REGEX.test(conversationId.trim())) {
-        const { data: convExists } = await supabase
-          .from("conversations")
-          .select("id")
-          .eq("id", conversationId)
-          .maybeSingle();
-
-        if (!convExists && cleanSenderId) {
-          await supabase.from("conversations").insert({
-            id: conversationId,
-            participant_1: cleanSenderId,
-            participant_2: "00000000-0000-0000-0000-000000000001",
-            last_message: cleanContent,
-            last_message_at: new Date().toISOString(),
+      // Đảm bảo người gửi đã có hồ sơ trong bảng profiles
+      if (cleanSenderId) {
+        try {
+          await supabase.rpc("ensure_profile_exists", {
+            p_user_id: cleanSenderId,
+            p_name: senderName || "Người dùng Trọ Xinh",
           });
-        }
+        } catch {}
+      }
+
+      // Đảm bảo cuộc trò chuyện tồn tại trên Supabase Cloud
+      const { data: convExists } = await supabase
+        .from("conversations")
+        .select("id, participant_1, participant_2")
+        .eq("id", cleanConvId)
+        .maybeSingle();
+
+      if (!convExists && cleanSenderId) {
+        const meta = getConversationMeta(cleanConvId);
+        const partnerId = meta?.partner_id && UUID_REGEX.test(meta.partner_id)
+          ? meta.partner_id
+          : "00000000-0000-0000-0000-000000000001"; // Fallback về Admin BQT
+        try {
+          await supabase.rpc("ensure_profile_exists", {
+            p_user_id: partnerId,
+            p_name: meta?.other_name || "Đối tác Trọ Xinh",
+          });
+        } catch {}
+
+        const [p1, p2] = cleanSenderId < partnerId ? [cleanSenderId, partnerId] : [partnerId, cleanSenderId];
+        await supabase.from("conversations").insert({
+          id: cleanConvId,
+          participant_1: p1,
+          participant_2: p2,
+          last_message: cleanContent,
+          last_message_at: new Date().toISOString(),
+        });
       }
 
       const { data, error } = await supabase
@@ -550,7 +863,7 @@ export async function sendMessage(
         .upsert(
           {
             id: newMsgId,
-            conversation_id: conversationId,
+            conversation_id: cleanConvId,
             sender_id: cleanSenderId,
             content: cleanContent,
             type,
@@ -568,28 +881,36 @@ export async function sendMessage(
           type,
           item_id,
           is_read,
-          created_at,
-          sender:profiles!sender_id(id, full_name, name, avatar_url)
+          created_at
         `,
         )
         .maybeSingle();
 
       if (error) {
-        if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
+        if (error.message?.includes('P0005') || error.message?.includes('Không thể gửi tin nhắn') || error.message?.includes('blocked')) {
+          throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+        }
+        if (error.message?.includes('No suitable key') || (error as any).code === 'PGRST301') {
+          throw new Error("Supabase chưa bật Firebase Third-Party Auth. Vui lòng thêm Firebase Project ID (troxinh-eb) vào Supabase Dashboard.");
+        }
+        if (!isDemoUser(cleanSenderId) && !isDemoUser(cleanConvId)) {
           throw new Error(`Lỗi gửi tin nhắn Supabase: ${error.message}`);
         }
       } else if (data) {
-        savedMessage = data as unknown as Message;
+        savedMessage = { ...msgPayload, ...(data as any) };
         supabase
           .from("conversations")
           .update({
             last_message: cleanContent,
             last_message_at: new Date().toISOString(),
           })
-          .eq("id", conversationId)
+          .eq("id", cleanConvId)
           .then();
       }
     } catch (error: any) {
+      if (error?.message?.includes("Không thể gửi tin nhắn")) {
+        throw error;
+      }
       if (!isDemoUser(cleanSenderId) && !isDemoUser(conversationId)) {
         throw error;
       }
@@ -602,42 +923,127 @@ export async function sendMessage(
     saveLocalMessage(savedMessage);
   }
 
-  // 3. Gửi thông báo Realtime cho người nhận nếu là tin nhắn người dùng
+  // 3. Xác định người nhận và gửi thông báo 2 chiều
+  let receiverId = "";
   try {
-    if (cleanSenderId) {
-      const localConvs = getLocalConversations();
-      const conv = localConvs.find((c) => c.id === conversationId);
-      let receiverId = "";
-      if (conv) {
-        receiverId = isSameUserId(conv.participant_1, cleanSenderId)
-          ? conv.participant_2
-          : conv.participant_1;
-      }
+    const meta = getConversationMeta(conversationId);
+    const localConvs = getLocalConversations();
+    const conv = localConvs.find((c) => c.id === conversationId);
+    if (conv) {
+      receiverId = isSameUserId(conv.participant_1, cleanSenderId)
+        ? conv.participant_2
+        : conv.participant_1;
+    }
+    if (!receiverId && meta?.partner_id && !isSameUserId(meta.partner_id, cleanSenderId)) {
+      receiverId = meta.partner_id;
+    }
 
-      if (
-        isSupabaseConfigured &&
-        receiverId &&
-        !isSameUserId(receiverId, cleanSenderId)
-      ) {
-        supabase
-          .from("notifications")
-          .insert({
-            user_id: receiverId,
-            title: `Tin nhắn từ ${senderName || "Người dùng"} 💬`,
-            body:
-              cleanContent.length > 80
-                ? cleanContent.slice(0, 80) + "..."
-                : cleanContent,
-            type: "chat_message",
-            cta_url: `/tin-nhan/${conversationId}`,
-            cta_label: "Trả lời ngay",
-            is_read: false,
-          })
-          .then();
+    if (!receiverId && UUID_REGEX.test(conversationId.trim()) && isSupabaseConfigured) {
+      const { data: dbConv } = await supabase
+        .from("conversations")
+        .select("participant_1, participant_2")
+        .eq("id", conversationId)
+        .maybeSingle();
+
+      if (dbConv) {
+        receiverId = isSameUserId(dbConv.participant_1, cleanSenderId)
+          ? dbConv.participant_2
+          : dbConv.participant_1;
       }
+    }
+
+    if (
+      receiverId &&
+      cleanSenderId &&
+      !isSameUserId(receiverId, cleanSenderId) &&
+      isSupabaseConfigured
+    ) {
+      const ctaUrl = `/tin-nhan/${conversationId}`;
+      const shortBody =
+        cleanContent.length > 80
+          ? cleanContent.slice(0, 80) + "..."
+          : cleanContent;
+      const notifTitle = `Tin nhắn từ ${senderName || "Người dùng"} 💬`;
+
+      // Kiểm tra xem đã có thông báo chưa đọc của hội thoại này chưa
+      supabase
+        .from("notifications")
+        .select("id")
+        .eq("user_id", receiverId)
+        .eq("cta_url", ctaUrl)
+        .eq("is_read", false)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+        .then(({ data: existingNotif }) => {
+          if (existingNotif?.id) {
+            // Cập nhật thông báo hiện tại (nội dung mới nhất) thay vì tạo mới tràn màn hình
+            supabase
+              .from("notifications")
+              .update({
+                title: notifTitle,
+                body: shortBody,
+                created_at: new Date().toISOString(),
+              })
+              .eq("id", existingNotif.id)
+              .then();
+          } else {
+            // Chỉ tạo 1 thông báo duy nhất
+            supabase
+              .from("notifications")
+              .insert({
+                user_id: receiverId,
+                title: notifTitle,
+                body: shortBody,
+                type: "chat_message",
+                cta_url: ctaUrl,
+                cta_label: "Trả lời ngay",
+                is_read: false,
+              })
+              .then();
+          }
+        });
     }
   } catch (notifErr) {
     console.warn("[MessagesAPI] Lỗi gửi thông báo tin nhắn:", notifErr);
+  }
+
+  // 4. Phát sóng thời gian thực đa luồng (BroadcastChannel + CustomEvent) để cả 2 phía nhận được tin nhắn và chuông/toast ngay lập tức
+  try {
+    const syncPayload = {
+      type: "NEW_MESSAGE",
+      conversationId,
+      message: savedMessage,
+      senderId: cleanSenderId,
+      senderName: senderName || "Người dùng",
+      receiverId,
+      content: cleanContent,
+    };
+
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("troxinh:internal-message-sent", {
+          detail: syncPayload,
+        }),
+      );
+      window.dispatchEvent(
+        new CustomEvent("troxinh:conversation-updated", {
+          detail: {
+            id: conversationId,
+            last_message: cleanContent,
+            last_message_at: savedMessage.created_at,
+          },
+        }),
+      );
+
+      if (typeof BroadcastChannel !== "undefined") {
+        const bc = new BroadcastChannel("troxinh_chat_sync");
+        bc.postMessage(syncPayload);
+        bc.close();
+      }
+    }
+  } catch (syncErr) {
+    console.warn("[MessagesAPI] Lỗi broadcast tin nhắn 2 chiều:", syncErr);
   }
 
   return savedMessage;
@@ -651,9 +1057,15 @@ export interface FindOrCreateConversationOptions {
     user_id?: string;
     sellerId?: string;
     images?: string[];
+    sellerIsBanned?: boolean;
+    is_banned?: boolean;
   };
   currentUserId?: string;
   isTestEnv?: boolean;
+  sellerIsBanned?: boolean;
+  isBlocked?: boolean;
+  blockedUserIds?: string[];
+  now?: number;
 }
 
 export interface FindOrCreateConversationResult {
@@ -685,16 +1097,20 @@ export function formatItemContextSummary(
 
 /**
  * Tìm hoặc khởi tạo cuộc hội thoại cho Chợ đồ cũ sinh viên trong hệ thống chat chung:
- * 1. Không gửi tin nhắn thay mặt người mua: Ngữ cảnh món đồ là tin nhắn hệ thống (type: 'item_context', lưu item_id),
+ * 1. Giới hạn tần suất: mỗi người mở tối đa 10 hội thoại mới về chợ đồ cũ trong 1 giờ.
+ *    Vượt quá báo: "Bạn thao tác quá nhanh, thử lại sau".
+ * 2. Người bán bị khóa tài khoản hoặc ngừng hoạt động thì không mở được hội thoại mới
+ *    và hiển thị thông báo rõ ràng.
+ * 3. Không gửi tin nhắn thay mặt người mua: Ngữ cảnh món đồ là tin nhắn hệ thống (type: 'item_context', lưu item_id),
  *    hiển thị dạng thẻ, bỏ câu "Món này còn không bạn?".
- * 2. Chèn ngữ cảnh khi last_item_id khác itemId đang hỏi (kể cả quay lại món đã hỏi trước đó), không dựa vào discussed_items.
- * 3. Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId;
+ * 4. Chèn ngữ cảnh khi last_item_id khác itemId đang hỏi (kể cả quay lại món đã hỏi trước đó), không dựa vào discussed_items.
+ * 5. Không tin dữ liệu từ client: lấy tên, giá, ảnh, người bán từ DB theo itemId;
  *    báo lỗi nếu sellerId không phải chủ món đồ hoặc món không tồn tại;
  *    buyerId phải là người dùng đang đăng nhập.
- * 4. Chống trùng: sắp xếp cặp id trước khi lưu (p1 < p2), ràng buộc unique cho cặp người dùng;
+ * 6. Chống trùng: sắp xếp cặp id trước khi lưu (p1 < p2), ràng buộc unique cho cặp người dùng;
  *    insert bị trùng do race condition thì tự động lấy hội thoại đã có.
- * 5. Fallback safeStorage chỉ dùng khi ở chế độ demo/test; môi trường thật lỗi Supabase thì ném lỗi rõ ràng.
- * 6. Trả về object thuần { id, conversationId, isNew, contextInserted, itemId, lastItemId }.
+ * 7. Fallback safeStorage chỉ dùng khi ở chế độ demo/test; môi trường thật lỗi Supabase thì ném lỗi rõ ràng.
+ * 8. Trả về object thuần { id, conversationId, isNew, contextInserted, itemId, lastItemId }.
  */
 export async function findOrCreateConversation(
   buyerId: string,
@@ -724,9 +1140,34 @@ export async function findOrCreateConversation(
     throw new Error("Không thể tự nhắn tin cho chính mình.");
   }
 
+  // 3. Kiểm tra tài khoản người bán bị khóa
+  if (
+    options?.sellerIsBanned ||
+    options?.mockItem?.sellerIsBanned ||
+    options?.mockItem?.is_banned
+  ) {
+    throw new Error(SELLER_BANNED_ERROR_MSG);
+  }
+
+  if (isSupabaseConfigured && cleanSellerId) {
+    // is_banned từ RPC công khai đã tính cả thời hạn khóa; máy chủ vẫn kiểm tra lại khi tạo hội thoại
+    const profiles = await getPublicProfiles([cleanSellerId]);
+    if (profiles.get(cleanSellerId)?.is_banned) {
+      throw new Error(SELLER_BANNED_ERROR_MSG);
+    }
+  }
+
+  // 3.1. Kiểm tra quan hệ chặn liên hệ 2 chiều
+  if (
+    options?.isBlocked ||
+    (options?.blockedUserIds && (options.blockedUserIds.includes(cleanSellerId) || options.blockedUserIds.includes(cleanBuyerId)))
+  ) {
+    throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+  }
+
   const isDemoOrTest = options?.isTestEnv || isDemoUser(cleanBuyerId) || isDemoUser(cleanSellerId);
 
-  // 3. YÊU CẦU 2: GỌI HÀM POSTGRES RPC TRÊN SUPABASE (SECURITY DEFINER)
+  // 4. YÊU CẦU 2: GỌI HÀM POSTGRES RPC TRÊN SUPABASE (SECURITY DEFINER)
   // Trong môi trường thật, toàn bộ transaction (xác thực, kiểm tra chủ món đồ, chống trùng, khóa dòng, chèn tin)
   // được thực thi trong 1 giao dịch nguyên tử (atomic transaction) trên Postgres.
   if (isSupabaseConfigured && !isDemoOrTest) {
@@ -736,22 +1177,29 @@ export async function findOrCreateConversation(
       });
 
       if (error) {
+        if (error.message?.includes('P0005') || error.message?.includes('Không thể gửi tin nhắn')) {
+          throw new Error("Không thể gửi tin nhắn trong cuộc trò chuyện này");
+        }
         throw new Error(error.message || "Lỗi xử lý cuộc trò chuyện từ cơ sở dữ liệu.");
       }
 
       if (data && typeof data === "object") {
         const convId = data.conversationId || data.id;
+        const isNewConv = Boolean(data.isNew);
+        if (isNewConv) {
+          recordMarketplaceNewConversation(cleanBuyerId, options?.now);
+        }
         return {
           id: convId,
           conversationId: convId,
-          isNew: Boolean(data.isNew),
+          isNew: isNewConv,
           contextInserted: Boolean(data.contextInserted),
           itemId: data.itemId || cleanItemId,
           lastItemId: data.lastItemId || cleanItemId,
         };
       }
     } catch (rpcErr: any) {
-      // Yêu cầu 6: Môi trường thật lỗi Supabase thì ném lỗi rõ ràng, không fallback che giấu
+      // Môi trường thật lỗi Supabase thì ném lỗi rõ ràng, không fallback che giấu
       throw rpcErr;
     }
   }
@@ -792,6 +1240,9 @@ export async function findOrCreateConversation(
   }
 
   if (!existingConvId) {
+    // Kiểm tra giới hạn: mỗi người mở tối đa 10 hội thoại mới trong 1 giờ
+    checkMarketplaceConversationRateLimit(cleanBuyerId, options?.now);
+
     isNew = true;
     existingConvId =
       typeof crypto !== "undefined" && crypto.randomUUID
@@ -811,6 +1262,8 @@ export async function findOrCreateConversation(
       unread_count_p2: 0,
       created_at: new Date().toISOString(),
     });
+
+    recordMarketplaceNewConversation(cleanBuyerId, options?.now);
   }
 
   const shouldInsertContext = isNew || (currentLastItemId !== cleanItemId);
@@ -841,6 +1294,8 @@ export async function findOrCreateConversation(
       last_item_id: cleanItemId,
       last_item_name: itemTitle,
       last_item_price: itemPrice,
+      partner_id: cleanSellerId,
+      other_name: "Người bán đồ cũ",
     });
   }
 

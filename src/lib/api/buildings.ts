@@ -1,4 +1,5 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { attachPublicProfiles } from './publicProfiles';
 
 export async function getBuildings(ownerId?: string) {
   if (!isSupabaseConfigured) return [];
@@ -44,7 +45,9 @@ export async function getBuildingById(id: string) {
     .single();
 
   if (error) throw error;
-  return data;
+  // Tên/ảnh chủ trọ lấy qua RPC công khai khi người xem không phải chủ tòa nhà
+  const [building] = await attachPublicProfiles([data], 'owner_id', 'profiles');
+  return building;
 }
 
 export async function createBuilding(buildingData: {

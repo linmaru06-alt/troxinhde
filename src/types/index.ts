@@ -1,3 +1,5 @@
+export * from './supabase';
+
 export type UserRole = "guest" | "user" | "owner" | "admin" | "renter";
 export type AdminRole = "super_admin" | "moderator" | "support" | "finance";
 
@@ -8,10 +10,15 @@ export interface User {
   phone?: string;
   name: string;
   role: "user" | "owner" | "admin";
+  app_role?: "user" | "owner" | "admin" | "renter";
+  appRole?: string;
   avatarUrl: string;
   email?: string;
   school?: string;
+  university?: string;
   year?: string;
+  student_year?: string;
+  studentYear?: string;
   bio?: string;
   address?: string;
   rating?: number;
@@ -25,7 +32,7 @@ export interface User {
   adminRole?: AdminRole;
   onboardingCompleted?: boolean;
   ownerOnboardingCompleted?: boolean;
-  ownerApplicationStatus?: "none" | "pending" | "approved" | "rejected";
+  ownerApplicationStatus?: "none" | "pending" | "approved" | "rejected" | "needs_info";
   ownerApplicationDate?: string;
   ownerApplicationReason?: string;
   ownerApplicationRejectionReason?: string;
@@ -41,14 +48,32 @@ export interface OwnerApplication {
   userName: string;
   userPhone: string;
   userEmail?: string;
+  // 1. Personal / Org info
+  fullName?: string;
+  organizationType?: 'personal' | 'business';
+  taxOrCccdNumber?: string;
+  cccdNumber: string;
+  cccdIssueDate?: string;
+  cccdIssuePlace?: string;
+  phoneVerified?: boolean;
+  permanentAddress?: string;
+  // 2. KYC Verification
+  cccdImageUrl?: string;
+  cccdFrontUrl?: string;
+  cccdBackUrl?: string;
+  portraitWithCccdUrl?: string;
+  businessDocUrl?: string;
+  // 3. Payment Account
+  bankName?: string;
+  bankAccountNumber?: string;
+  bankAccountName?: string;
+  // Facility / Property info
   buildingName: string;
   address: string;
   district: string;
   totalRooms: number;
-  cccdNumber: string;
-  cccdImageUrl?: string;
   legalDocsNote?: string;
-  status: "pending" | "approved" | "rejected";
+  status: "pending" | "approved" | "rejected" | "needs_info";
   rejectionReason?: string;
   createdAt: string;
   reviewedAt?: string;
@@ -69,6 +94,7 @@ export interface Room {
   electricityPrice: number;
   waterPrice: number;
   area: number;
+  floor?: number;
   type: "Phòng đơn" | "Studio" | "Phòng ghép" | "Căn hộ mini";
   status: "Còn trống" | "Đã cho thuê" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn";
   verified: boolean;
@@ -149,8 +175,10 @@ export type MarketplaceDeliveryMethodCode = 'tai_truong' | 'giao_tan_noi' | 'tu_
 
 export interface MarketplaceItem {
   id: string;
-  userId: string;
+  seller_id?: string;
   sellerId?: string;
+  userId?: string;
+  user_id?: string;
   userName: string;
   userPhone?: string;
   userAvatar: string;
@@ -163,14 +191,23 @@ export interface MarketplaceItem {
   location: string;
   district: string;
   images: string[];
+  image_urls?: string[];
   description: string;
   deliveryMethods?: MarketplaceDeliveryMethodCode[];
   isNegotiable?: boolean;
-  status?: "Còn hàng" | "Đã bán" | "Chờ duyệt" | "Bị từ chối" | "Đã duyệt";
+  status?: "Còn hàng" | "Đã bán" | "Đã đóng" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn" | "Đã duyệt";
   moderationStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
+  isHidden?: boolean;
+  showPhone?: boolean;
+  closedAt?: string;
+  // Trạng thái xác minh của người bán (lấy từ hồ sơ trên máy chủ)
+  sellerStudentVerified?: boolean;
+  sellerPhoneVerified?: boolean;
   createdAt: string;
+  created_at?: string;
   updatedAt?: string;
+  updated_at?: string;
 }
 
 export interface Message {
@@ -211,6 +248,7 @@ export interface Conversation {
   last_message_at?: string | null;
   unread_count_p1?: number;
   unread_count_p2?: number;
+  unread_count?: number;
   created_at?: string;
   other_name?: string;
   other_avatar?: string;
@@ -228,7 +266,7 @@ export interface Conversation {
 
 export interface NotificationItem {
   id: string;
-  userId: string;
+  userId?: string;
   title: string;
   body: string;
   type:
@@ -239,8 +277,11 @@ export interface NotificationItem {
     | "system"
     | "rejected"
     | "rejection"
+    | "moderation"
     | "upgrade"
     | "action_required"
+    | "needs_info"
+    | "supplement_required"
     | "owner_approved"
     | "owner_rejected"
     | "room_approved"
@@ -251,6 +292,7 @@ export interface NotificationItem {
   ctaUrl?: string;
   ctaLabel?: string;
   actionLink?: string;
+  actionType?: string;
   priority?: "normal" | "urgent";
   createdAt: string;
 }
@@ -269,6 +311,8 @@ export interface BookingRequest {
   status: "Chờ chủ trọ xác nhận" | "Đã xác nhận" | "Đã hủy" | "Đổi giờ" | "completed" | "Đã xem phòng";
   createdAt: string;
 }
+
+export * from './report';
 
 export interface ReportItem {
   id: string;

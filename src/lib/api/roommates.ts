@@ -1,5 +1,7 @@
 import { supabase, isSupabaseConfigured } from '../supabase';
+import { resolveUserIdToUuid } from './messages';
 import type { RoommatePost } from '../../types';
+import { attachPublicProfiles } from './publicProfiles';
 
 export function formatRoommatePost(r: any): RoommatePost {
   const poster = r.poster || r.profiles || {};
@@ -66,7 +68,9 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
 
     const { data, error } = await query.order('created_at', { ascending: false });
     if (!error && data) {
-      directPosts = data
+      // Trạng thái khóa của người đăng lấy qua RPC công khai
+      const rows = await attachPublicProfiles(data, 'poster_id', 'poster');
+      directPosts = rows
         .filter((r: any) => !r.poster?.is_banned)
         .map(formatRoommatePost);
     }
@@ -84,9 +88,30 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
       .order('created_at', { ascending: false });
 
     if (!auditErr && auditData) {
-      cloudAuditPosts = auditData
+      const activeCloud = auditData
         .map((item: any) => item.data_after)
         .filter((p: any) => p && p.status === 'active');
+        
+      const posterIds = Array.from(new Set(activeCloud.map((p: any) => p.poster_id).filter(Boolean)));
+      let profileMap: Record<string, any> = {};
+      if (posterIds.length > 0) {
+        try {
+          const { data: profiles } = await supabase.from('profiles').select('id, full_name, avatar_url, is_banned').in('id', posterIds);
+          if (profiles) {
+            profileMap = Object.fromEntries(profiles.map((p: any) => [p.id, p]));
+          }
+        } catch (e) {
+          console.warn('[Roommates API] Lỗi tải profiles cho auditData:', e);
+        }
+      }
+
+      cloudAuditPosts = activeCloud.map((p: any) => {
+        if (p.poster_id && profileMap[p.poster_id]) {
+          p.poster = profileMap[p.poster_id];
+        }
+        return p;
+      });
+
       if (district && district !== 'Tất cả quận' && district !== 'Tất cả khu vực') {
         cloudAuditPosts = cloudAuditPosts.filter((p: any) => p.district === district);
       }
@@ -125,8 +150,9 @@ export async function getRoommatePostById(id: string): Promise<RoommatePost | nu
       .maybeSingle();
 
     if (!error && data) {
-      if (data.poster?.is_banned) return null;
-      return formatRoommatePost(data);
+      const [row] = await attachPublicProfiles([data], 'poster_id', 'poster');
+      if (row.poster?.is_banned) return null;
+      return formatRoommatePost(row);
     }
   } catch (err) {
     console.warn('[Roommates API] Lỗi tìm roommate_posts theo ID:', err);
@@ -142,7 +168,16 @@ export async function getRoommatePostById(id: string): Promise<RoommatePost | nu
       .maybeSingle();
 
     if (!auditErr && auditItem?.data_after) {
-      return formatRoommatePost(auditItem.data_after);
+      const p = auditItem.data_after;
+      if (p.poster_id) {
+        try {
+          const { data: profile } = await supabase.from('profiles').select('id, full_name, avatar_url, is_banned').eq('id', p.poster_id).maybeSingle();
+          if (profile) p.poster = profile;
+        } catch (e) {
+          console.warn('[Roommates API] Lỗi tải profile cho auditItem:', e);
+        }
+      }
+      return formatRoommatePost(p);
     }
   } catch (auditErr) {
     console.warn('[Roommates API] Lỗi tìm audit_logs theo ID:', auditErr);
@@ -166,11 +201,21 @@ export async function createRoommatePost(postData: {
   school?: string;
   images?: string[];
 }) {
-  const newPostId = postData.id || ((typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : `rm_${Date.now()}`);
+  const generateUUID = () => {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+  const newPostId = postData.id || generateUUID();
+  const cleanPosterId = await resolveUserIdToUuid(postData.poster_id);
 
   const fullPayload = {
     id: newPostId,
-    poster_id: postData.poster_id,
+    poster_id: cleanPosterId,
     room_id: postData.room_id || null,
     nickname: postData.nickname,
     age: postData.age,

@@ -1,9 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppStore } from '../store/useAppStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { OwnerApplication } from '../types';
+import { getAllOwnerApplicationsAdmin } from '../lib/api/ownerUpgrade';
+import {
+  approveOwnerApplication as approveOwnerApplicationCloud,
+  rejectOwnerApplication as rejectOwnerApplicationCloud,
+  requestOwnerApplicationInfo as requestOwnerApplicationInfoCloud,
+} from '../lib/api/admin';
 import {
   Building2,
   Search,
@@ -19,22 +26,85 @@ import {
   FileCheck,
   ChevronRight,
   AlertTriangle,
+  RefreshCw,
+  Loader2,
+  HelpCircle,
+  Edit3,
 } from 'lucide-react';
 
 export const AdminOwnerApplicationsPage: React.FC = () => {
-  const { ownerApplications, approveOwnerApplication, rejectOwnerApplication } = useAppStore();
+  const {
+    ownerApplications,
+    approveOwnerApplication,
+    rejectOwnerApplication,
+    requestInfoOwnerApplication,
+    currentUser,
+    showToast,
+  } = useAppStore();
 
-  const [filterTab, setFilterTab] = useState<'pending' | 'approved' | 'rejected' | 'all'>('pending');
+  const [applications, setApplications] = useState<OwnerApplication[]>(ownerApplications);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [filterTab, setFilterTab] = useState<'pending' | 'needs_info' | 'approved' | 'rejected' | 'all'>('pending');
   const [search, setSearch] = useState<string>('');
   const [selectedApp, setSelectedApp] = useState<OwnerApplication | null>(null);
 
-  // Rejection Form state
+  // Rejection & Supplement Form state
   const [isRejectFormOpen, setIsRejectFormOpen] = useState<boolean>(false);
+  const [isRequestInfoFormOpen, setIsRequestInfoFormOpen] = useState<boolean>(false);
   const [rejectReason, setRejectReason] = useState<string>('Ảnh CCCD không rõ hoặc không hợp lệ');
   const [customRejectNote, setCustomRejectNote] = useState<string>('');
+  const [requestInfoReason, setRequestInfoReason] = useState<string>('Ảnh CCCD mờ, lóa hoặc mất 4 góc');
+  const [customRequestInfoNote, setCustomRequestInfoNote] = useState<string>('');
   const [showConfirmApprove, setShowConfirmApprove] = useState<boolean>(false);
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
-  const filteredApps = ownerApplications.filter((app) => {
+  const loadData = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const cloudApps = await getAllOwnerApplicationsAdmin();
+      if (cloudApps && cloudApps.length > 0) {
+        // Merge cloud apps với local store nếu có đơn chưa sync
+        const map = new Map<string, OwnerApplication>();
+        cloudApps.forEach((a) => map.set(a.id, a));
+        ownerApplications.forEach((a) => {
+          if (!map.has(a.id)) {
+            map.set(a.id, a);
+          }
+        });
+        setApplications(Array.from(map.values()));
+      } else {
+        setApplications(ownerApplications);
+      }
+    } catch (err) {
+      console.warn('[AdminOwnerApplicationsPage] Lỗi tải dữ liệu cloud:', err);
+      setApplications(ownerApplications);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [ownerApplications]);
+
+  useEffect(() => {
+    loadData();
+
+    if (!isSupabaseConfigured) return;
+
+    const channel = supabase
+      .channel('admin_owner_applications_realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'owner_applications' },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [loadData]);
+
+  const filteredApps = applications.filter((app) => {
     if (filterTab !== 'all' && app.status !== filterTab) return false;
     if (
       search &&
@@ -47,24 +117,117 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
     return true;
   });
 
-  const pendingCount = ownerApplications.filter((a) => a.status === 'pending').length;
+  const pendingCount = applications.filter((a) => a.status === 'pending').length;
+  const needsInfoCount = applications.filter((a) => a.status === 'needs_info').length;
 
-  const handleApprove = (id: string) => {
-    approveOwnerApplication(id);
-    setShowConfirmApprove(false);
-    // Update local selectedApp if open
-    if (selectedApp?.id === id) {
-      setSelectedApp({ ...selectedApp, status: 'approved', reviewedAt: new Date().toISOString() });
+  const handleApprove = async (id: string) => {
+    setIsProcessing(true);
+    try {
+      const app = applications.find((a) => a.id === id);
+      const userId = app?.userId || id;
+
+      // 1. Cập nhật trên Supabase Cloud
+      try {
+        await approveOwnerApplicationCloud(id, userId, currentUser);
+      } catch (cloudErr) {
+        console.warn('[Admin] Lỗi cập nhật cloud, tiếp tục cập nhật store:', cloudErr);
+      }
+
+      // 2. Cập nhật Store cục bộ
+      approveOwnerApplication(id);
+
+      // 3. Cập nhật state trang hiện tại
+      setApplications((prev) =>
+        prev.map((a) => (a.id === id ? { ...a, status: 'approved', reviewedAt: new Date().toISOString() } : a))
+      );
+
+      setShowConfirmApprove(false);
+      if (selectedApp?.id === id) {
+        setSelectedApp({ ...selectedApp, status: 'approved', reviewedAt: new Date().toISOString() });
+      }
+
+      showToast('Đã phê duyệt hồ sơ chủ trọ thành công!', `Tài khoản ${app?.userName || ''} đã được cấp quyền Chủ trọ.`, 'success');
+    } catch (err: any) {
+      showToast('Lỗi khi phê duyệt hồ sơ', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsProcessing(false);
     }
   };
 
-  const handleReject = (e: React.FormEvent) => {
+  const handleReject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedApp) return;
     const finalReason = customRejectNote ? `${rejectReason}: ${customRejectNote}` : rejectReason;
-    rejectOwnerApplication(selectedApp.id, finalReason);
-    setIsRejectFormOpen(false);
-    setSelectedApp({ ...selectedApp, status: 'rejected', rejectionReason: finalReason, reviewedAt: new Date().toISOString() });
+
+    setIsProcessing(true);
+    try {
+      // 1. Cập nhật trên Supabase Cloud
+      try {
+        await rejectOwnerApplicationCloud(selectedApp.id, selectedApp.userId, finalReason, currentUser);
+      } catch (cloudErr) {
+        console.warn('[Admin] Lỗi cập nhật cloud, tiếp tục cập nhật store:', cloudErr);
+      }
+
+      // 2. Cập nhật Store cục bộ
+      rejectOwnerApplication(selectedApp.id, finalReason);
+
+      // 3. Cập nhật state trang hiện tại
+      setApplications((prev) =>
+        prev.map((a) => (a.id === selectedApp.id ? { ...a, status: 'rejected', rejectionReason: finalReason, reviewedAt: new Date().toISOString() } : a))
+      );
+
+      setIsRejectFormOpen(false);
+      setSelectedApp({
+        ...selectedApp,
+        status: 'rejected',
+        rejectionReason: finalReason,
+        reviewedAt: new Date().toISOString(),
+      });
+
+      showToast('Đã từ chối hồ sơ', `Lý do: ${finalReason}`, 'info');
+    } catch (err: any) {
+      showToast('Lỗi khi từ chối hồ sơ', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRequestInfo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedApp) return;
+    const finalReason = customRequestInfoNote ? `${requestInfoReason}: ${customRequestInfoNote}` : requestInfoReason;
+
+    setIsProcessing(true);
+    try {
+      // 1. Cập nhật trên Supabase Cloud
+      try {
+        await requestOwnerApplicationInfoCloud(selectedApp.id, selectedApp.userId, finalReason, currentUser);
+      } catch (cloudErr) {
+        console.warn('[Admin] Lỗi cập nhật cloud, tiếp tục cập nhật store:', cloudErr);
+      }
+
+      // 2. Cập nhật Store cục bộ
+      requestInfoOwnerApplication(selectedApp.id, finalReason);
+
+      // 3. Cập nhật state trang hiện tại
+      setApplications((prev) =>
+        prev.map((a) => (a.id === selectedApp.id ? { ...a, status: 'needs_info', rejectionReason: finalReason, reviewedAt: new Date().toISOString() } : a))
+      );
+
+      setIsRequestInfoFormOpen(false);
+      setSelectedApp({
+        ...selectedApp,
+        status: 'needs_info',
+        rejectionReason: finalReason,
+        reviewedAt: new Date().toISOString(),
+      });
+
+      showToast('Đã gửi yêu cầu bổ sung thông tin', `Thông báo kèm tùy chọn "Cập nhật ngay" đã gửi đến người dùng.`, 'info');
+    } catch (err: any) {
+      showToast('Lỗi khi gửi yêu cầu bổ sung', err?.message || 'Vui lòng thử lại', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   return (
@@ -82,6 +245,17 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
               Thẩm định hồ sơ, xác minh CCCD và cấp quyền đối tác cho chủ cơ sở nhà trọ
             </p>
           </div>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={loadData}
+            isLoading={isLoading}
+            leftIcon={<RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />}
+            className="self-start sm:self-auto"
+          >
+            Làm mới danh sách
+          </Button>
         </div>
 
         {/* Filter Bar & Search */}
@@ -89,6 +263,7 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
           <div className="flex items-center gap-2 overflow-x-auto w-full sm:w-auto">
             {[
               { key: 'pending', label: `Chờ duyệt (${pendingCount})` },
+              { key: 'needs_info', label: `Cần bổ sung (${needsInfoCount})` },
               { key: 'approved', label: 'Đã duyệt' },
               { key: 'rejected', label: 'Bị từ chối' },
               { key: 'all', label: 'Tất cả' },
@@ -161,10 +336,24 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                       </td>
                       <td className="p-4">
                         <Badge
-                          variant={app.status === 'approved' ? 'verified' : app.status === 'pending' ? 'pending' : 'rejected'}
+                          variant={
+                            app.status === 'approved'
+                              ? 'verified'
+                              : app.status === 'needs_info'
+                              ? 'pending'
+                              : app.status === 'pending'
+                              ? 'pending'
+                              : 'rejected'
+                          }
                           size="sm"
                         >
-                          {app.status === 'approved' ? 'Đã duyệt' : app.status === 'pending' ? 'Chờ duyệt' : 'Từ chối'}
+                          {app.status === 'approved'
+                            ? 'Đã duyệt'
+                            : app.status === 'needs_info'
+                            ? 'Cần bổ sung'
+                            : app.status === 'pending'
+                            ? 'Chờ duyệt'
+                            : 'Từ chối'}
                         </Badge>
                       </td>
                       <td className="p-4 text-right">
@@ -174,6 +363,7 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                           onClick={() => {
                             setSelectedApp(app);
                             setIsRejectFormOpen(false);
+                            setIsRequestInfoFormOpen(false);
                           }}
                         >
                           Xem Chi Tiết →
@@ -218,38 +408,162 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
               <div className="flex items-center justify-between p-3 bg-gray-50 rounded-2xl border border-gray-100">
                 <span className="font-semibold text-gray-500">Trạng thái hồ sơ:</span>
                 <Badge
-                  variant={selectedApp.status === 'approved' ? 'verified' : selectedApp.status === 'pending' ? 'pending' : 'rejected'}
+                  variant={
+                    selectedApp.status === 'approved'
+                      ? 'verified'
+                      : selectedApp.status === 'needs_info'
+                      ? 'pending'
+                      : selectedApp.status === 'pending'
+                      ? 'pending'
+                      : 'rejected'
+                  }
                   size="md"
                 >
-                  {selectedApp.status === 'approved' ? '✓ Đã Phê Duyệt' : selectedApp.status === 'pending' ? '⏳ Chờ Duyệt (24h)' : '✗ Bị Từ Chối'}
+                  {selectedApp.status === 'approved'
+                    ? '✓ Đã Phê Duyệt'
+                    : selectedApp.status === 'needs_info'
+                    ? '⚠️ Cần Bổ Sung Thông Tin'
+                    : selectedApp.status === 'pending'
+                    ? '⏳ Chờ Duyệt (24h)'
+                    : '✗ Bị Từ Chối'}
                 </Badge>
               </div>
 
-              {/* Section: Verification Details */}
+              {/* Section 1: Personal / Org Details */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 uppercase text-[11px] tracking-wider text-[#006d37]">
-                  1. Thông Tin Xác Minh
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4" /> 1. Thông Tin Cá Nhân / Tổ Chức Cho Thuê
                 </h4>
-                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2.5">
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Số Căn cước công dân (CCCD):</span>
-                    <span className="font-mono font-bold text-gray-900">
-                      {selectedApp.cccdNumber ? `${selectedApp.cccdNumber.slice(0, 3)} xxx xxx ${selectedApp.cccdNumber.slice(-3)}` : '079 xxx xxx 123'}
+                    <span className="text-gray-500">Loại hình:</span>
+                    <span className="font-bold text-gray-900">
+                      {selectedApp.organizationType === 'business' ? 'Doanh Nghiệp / Hộ Kinh Doanh' : 'Cá Nhân Cho Thuê'}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-gray-500">Xác thực số điện thoại OTP:</span>
-                    <span className="text-emerald-700 font-bold flex items-center gap-1">
-                      <CheckCircle2 className="w-3.5 h-3.5" /> Đã xác thực
+                    <span className="text-gray-500">Họ và tên / Đại diện:</span>
+                    <span className="font-bold text-gray-900">{selectedApp.fullName || selectedApp.userName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Số CCCD / CMND / MST:</span>
+                    <span className="font-mono font-bold text-gray-900">
+                      {selectedApp.taxOrCccdNumber || selectedApp.cccdNumber || '079098001234'}
                     </span>
+                  </div>
+                  {(selectedApp.cccdIssueDate || selectedApp.cccdIssuePlace) && (
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Ngày & Nơi cấp:</span>
+                      <span className="font-medium text-gray-800 text-right">
+                        {selectedApp.cccdIssueDate || '15/08/2021'} • {selectedApp.cccdIssuePlace || 'Cục Cảnh sát QLHC'}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Số điện thoại liên hệ:</span>
+                    <span className="font-mono font-bold text-[#006d37] flex items-center gap-1">
+                      {selectedApp.userPhone}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Email giao dịch:</span>
+                    <span className="font-medium text-gray-800">{selectedApp.userEmail || 'Chưa có'}</span>
+                  </div>
+                  {selectedApp.permanentAddress && (
+                    <div>
+                      <span className="text-gray-400 block text-[10px]">Địa chỉ liên hệ / Hộ khẩu:</span>
+                      <span className="font-medium text-gray-800">{selectedApp.permanentAddress}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 2: KYC Photos */}
+              <div className="space-y-2">
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <ShieldCheck className="w-4 h-4" /> 2. Thông Tin Xác Thực Tài Khoản (KYC)
+                </h4>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-3">
+                  <div className="grid grid-cols-2 gap-2.5">
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-500 block">Mặt trước CCCD:</span>
+                      <div className="h-28 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                        <img
+                          src={selectedApp.cccdFrontUrl || selectedApp.cccdImageUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80'}
+                          alt="Mặt trước CCCD"
+                          className="w-full h-full object-cover hover:scale-105 transition cursor-pointer"
+                          onClick={() => window.open(selectedApp.cccdFrontUrl || selectedApp.cccdImageUrl || 'https://images.unsplash.com/photo-1589829545856-d10d557cf95f?w=600&auto=format&fit=crop&q=80', '_blank')}
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-500 block">Mặt sau CCCD:</span>
+                      <div className="h-28 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                        <img
+                          src={selectedApp.cccdBackUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80'}
+                          alt="Mặt sau CCCD"
+                          className="w-full h-full object-cover hover:scale-105 transition cursor-pointer"
+                          onClick={() => window.open(selectedApp.cccdBackUrl || 'https://images.unsplash.com/photo-1554224155-8d04cb21cd6c?w=600&auto=format&fit=crop&q=80', '_blank')}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {selectedApp.portraitWithCccdUrl && (
+                    <div className="space-y-1">
+                      <span className="text-[10px] font-bold text-gray-500 block">Chân dung chủ trọ cầm CCCD:</span>
+                      <div className="h-32 rounded-xl overflow-hidden border border-gray-200 bg-white">
+                        <img
+                          src={selectedApp.portraitWithCccdUrl}
+                          alt="Chân dung cầm CCCD"
+                          className="w-full h-full object-cover hover:scale-105 transition cursor-pointer"
+                          onClick={() => window.open(selectedApp.portraitWithCccdUrl, '_blank')}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedApp.businessDocUrl && (
+                    <div className="p-2.5 bg-white rounded-xl border border-gray-200 flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-gray-700">Giấy CNQSDĐ / Giấy phép kinh doanh</span>
+                      <a
+                        href={selectedApp.businessDocUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[#006d37] font-bold text-[11px] hover:underline"
+                      >
+                        Xem tài liệu →
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Section 3: Bank Payment Details */}
+              <div className="space-y-2">
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <FileCheck className="w-4 h-4" /> 3. Thông Tin Tài Khoản Nhận Tiền
+                </h4>
+                <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Ngân hàng:</span>
+                    <span className="font-bold text-gray-900">{selectedApp.bankName || 'Vietcombank'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Số tài khoản:</span>
+                    <span className="font-mono font-bold text-emerald-800">{selectedApp.bankAccountNumber || '0011004328999'}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-500">Chủ tài khoản:</span>
+                    <span className="font-mono font-bold text-gray-900">{selectedApp.bankAccountName || selectedApp.userName.toUpperCase()}</span>
                   </div>
                 </div>
               </div>
 
-              {/* Section: Property Info */}
+              {/* Section 4: Property Info */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 uppercase text-[11px] tracking-wider text-[#006d37]">
-                  2. Thông Tin Cơ Sở Nhà Trọ
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37] flex items-center gap-1.5">
+                  <Building2 className="w-4 h-4" /> 4. Thông Tin Cơ Sở Nhà Trọ
                 </h4>
                 <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 space-y-2">
                   <div>
@@ -275,10 +589,10 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Section: Commitments */}
+              {/* Section 5: Commitments */}
               <div className="space-y-2">
-                <h4 className="font-bold text-gray-900 uppercase text-[11px] tracking-wider text-[#006d37]">
-                  3. Cam Kết Từ Chủ Cơ Sở
+                <h4 className="font-bold uppercase text-[11px] tracking-wider text-[#006d37]">
+                  5. Cam Kết Từ Chủ Cơ Sở
                 </h4>
                 <div className="p-3 bg-emerald-50/50 rounded-2xl border border-emerald-100 space-y-1.5 text-emerald-950">
                   <div className="flex items-center gap-2 font-medium">
@@ -296,8 +610,17 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Rejection Reason display if rejected */}
-              {selectedApp.rejectionReason && (
+              {/* Rejection / Needs info display */}
+              {selectedApp.status === 'needs_info' && selectedApp.rejectionReason && (
+                <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 text-amber-900 space-y-1">
+                  <span className="font-bold flex items-center gap-1 text-amber-800">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" /> Lý do yêu cầu bổ sung thông tin:
+                  </span>
+                  <p className="leading-relaxed">{selectedApp.rejectionReason}</p>
+                </div>
+              )}
+
+              {selectedApp.status === 'rejected' && selectedApp.rejectionReason && (
                 <div className="p-4 bg-rose-50 rounded-2xl border border-rose-200 text-rose-900 space-y-1">
                   <span className="font-bold flex items-center gap-1 text-rose-700">
                     <XCircle className="w-4 h-4" /> Lý do từ chối trước đó:
@@ -309,33 +632,123 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
 
             {/* Action Zone (Sticky bottom) */}
             <div className="p-4 border-t border-gray-200 bg-white space-y-3">
-              {selectedApp.status === 'pending' && !isRejectFormOpen && (
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="md"
-                    className="flex-1 text-rose-600 border-rose-200 hover:bg-rose-50"
-                    onClick={() => setIsRejectFormOpen(true)}
-                    leftIcon={<XCircle className="w-4 h-4" />}
-                  >
-                    Từ Chối Đơn
-                  </Button>
+              {(selectedApp.status === 'pending' || selectedApp.status === 'needs_info') &&
+                !isRejectFormOpen &&
+                !isRequestInfoFormOpen && (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="md"
+                        className="flex-1 text-amber-700 border-amber-300 hover:bg-amber-50"
+                        onClick={() => {
+                          setIsRequestInfoFormOpen(true);
+                          setIsRejectFormOpen(false);
+                        }}
+                        leftIcon={<HelpCircle className="w-4 h-4" />}
+                      >
+                        Yêu Cầu Bổ Sung
+                      </Button>
 
-                  <Button
-                    variant="primary"
-                    size="md"
-                    className="flex-1"
-                    onClick={() => setShowConfirmApprove(true)}
-                    leftIcon={<CheckCircle2 className="w-4 h-4" />}
-                  >
-                    Phê Duyệt Làm Chủ Trọ
-                  </Button>
-                </div>
+                      <Button
+                        variant="outline"
+                        size="md"
+                        className="flex-1 text-rose-600 border-rose-200 hover:bg-rose-50"
+                        onClick={() => {
+                          setIsRejectFormOpen(true);
+                          setIsRequestInfoFormOpen(false);
+                        }}
+                        leftIcon={<XCircle className="w-4 h-4" />}
+                      >
+                        Từ Chối Đơn
+                      </Button>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      size="md"
+                      className="w-full"
+                      onClick={() => setShowConfirmApprove(true)}
+                      leftIcon={<CheckCircle2 className="w-4 h-4" />}
+                    >
+                      Phê Duyệt Làm Chủ Trọ
+                    </Button>
+                  </div>
+                )}
+
+              {/* Expanded Request Info Form */}
+              {isRequestInfoFormOpen && (
+                <form
+                  onSubmit={handleRequestInfo}
+                  className="space-y-3 p-3 bg-amber-50/70 rounded-2xl border border-amber-200 animate-fadeIn"
+                >
+                  <div className="flex items-center justify-between pb-1 border-b border-amber-200">
+                    <span className="text-xs font-black text-amber-900 flex items-center gap-1.5">
+                      <HelpCircle className="w-4 h-4 text-amber-600" /> Yêu cầu người dùng bổ sung thông tin
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRequestInfoFormOpen(false)}
+                      className="text-gray-400 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-amber-900 uppercase">Hạng mục cần bổ sung *:</label>
+                    <select
+                      value={requestInfoReason}
+                      onChange={(e) => setRequestInfoReason(e.target.value)}
+                      className="w-full bg-white border border-amber-300 rounded-xl p-2 text-xs focus:ring-2 focus:ring-amber-500"
+                    >
+                      <option value="Ảnh CCCD mờ, lóa hoặc mất 4 góc">Ảnh CCCD mờ, lóa hoặc mất 4 góc</option>
+                      <option value="Cần bổ sung giấy chứng nhận PCCC / Giấy phép kinh doanh">Cần bổ sung giấy chứng nhận PCCC / Giấy phép kinh doanh</option>
+                      <option value="Thông tin tài khoản ngân hàng chưa khớp với CCCD">Thông tin tài khoản ngân hàng chưa khớp với CCCD</option>
+                      <option value="Địa chỉ cơ sở nhà trọ chưa rõ số nhà / tên đường">Địa chỉ cơ sở nhà trọ chưa rõ số nhà / tên đường</option>
+                      <option value="Cần làm rõ quy mô và số lượng phòng cho thuê">Cần làm rõ quy mô và số lượng phòng cho thuê</option>
+                      <option value="Lý do khác">Lý do khác...</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[11px] font-bold text-gray-700">Hướng dẫn cụ thể cho người đăng ký:</label>
+                    <textarea
+                      rows={2}
+                      value={customRequestInfoNote}
+                      onChange={(e) => setCustomRequestInfoNote(e.target.value)}
+                      placeholder="Ví dụ: Vui lòng chụp lại ảnh mặt sau CCCD rõ nét không bị chói sáng..."
+                      className="w-full bg-white border border-gray-300 rounded-xl p-2 text-xs focus:ring-2 focus:ring-amber-500"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 justify-end pt-1">
+                    <Button type="button" variant="outline" size="sm" onClick={() => setIsRequestInfoFormOpen(false)}>
+                      Hủy
+                    </Button>
+                    <Button type="submit" variant="primary" size="sm" className="bg-amber-600 hover:bg-amber-700 text-white">
+                      Gửi Yêu Cầu Bổ Sung
+                    </Button>
+                  </div>
+                </form>
               )}
 
               {/* Expanded Rejection Form */}
               {isRejectFormOpen && (
                 <form onSubmit={handleReject} className="space-y-3 p-3 bg-rose-50/50 rounded-2xl border border-rose-200 animate-fadeIn">
+                  <div className="flex items-center justify-between pb-1 border-b border-rose-200">
+                    <span className="text-xs font-black text-rose-900 flex items-center gap-1.5">
+                      <XCircle className="w-4 h-4 text-rose-600" /> Từ chối hồ sơ đăng ký
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setIsRejectFormOpen(false)}
+                      className="text-gray-400 hover:text-gray-700"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
                   <div className="space-y-1">
                     <label className="text-[11px] font-bold text-rose-900 uppercase">Lý do từ chối *:</label>
                     <select
@@ -409,10 +822,10 @@ export const AdminOwnerApplicationsPage: React.FC = () => {
               Bạn đang nâng cấp <strong>{selectedApp.userName}</strong> thành Đối Tác Chủ Trọ TroXinh. Hành động này sẽ kích hoạt quyền đăng phòng và quản lý tòa nhà.
             </p>
             <div className="flex gap-2 pt-2">
-              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowConfirmApprove(false)}>
+              <Button variant="outline" size="sm" className="flex-1" disabled={isProcessing} onClick={() => setShowConfirmApprove(false)}>
                 Hủy
               </Button>
-              <Button variant="primary" size="sm" className="flex-1" onClick={() => handleApprove(selectedApp.id)}>
+              <Button variant="primary" size="sm" className="flex-1" isLoading={isProcessing} onClick={() => handleApprove(selectedApp.id)}>
                 Xác Nhận Duyệt
               </Button>
             </div>

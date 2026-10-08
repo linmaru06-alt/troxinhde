@@ -4,6 +4,7 @@ import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
+import { StudentVerificationQueue } from '../components/admin/StudentVerificationQueue';
 import { User } from '../types';
 import {
   getUsers,
@@ -128,7 +129,7 @@ export const AdminUsersPage: React.FC = () => {
   // Mở khóa tài khoản
   const handleUnbanUser = async (user: User) => {
     try {
-      await unbanUserApi(user.id, currentUser);
+      await unbanUserApi(user.id, 'Quản trị viên mở khóa tài khoản', currentUser);
       showToast(`Đã mở khóa tài khoản ${user.name}!`, 'success');
       fetchUsersList();
     } catch (err: any) {
@@ -200,6 +201,9 @@ export const AdminUsersPage: React.FC = () => {
             Làm mới danh sách
           </Button>
         </div>
+
+        {/* Hàng chờ duyệt thẻ sinh viên */}
+        <StudentVerificationQueue />
 
         {/* Thanh tìm kiếm & bộ lọc vai trò */}
         <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-xs flex flex-col sm:flex-row gap-3 items-center justify-between">

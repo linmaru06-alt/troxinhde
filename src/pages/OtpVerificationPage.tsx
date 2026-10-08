@@ -11,14 +11,15 @@ import {
   AlertTriangle,
   ShieldCheck,
   Loader2,
-  Sparkles,
 } from 'lucide-react';
 import {
   setupRecaptchaVerifier,
   sendPhoneOtp,
+  confirmPhoneOtp,
   completePhoneRegistration,
+  completeFirebaseSignIn,
 } from '../lib/authService';
-import { getSupabaseUserByPhone } from '../lib/supabaseAuthSync';
+import { isValidReturnUrl } from '../lib/auth/redirectAfterAuth';
 
 export const OtpVerificationPage: React.FC = () => {
   const navigate = useNavigate();
@@ -49,20 +50,14 @@ export const OtpVerificationPage: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [isErrorShake, setIsErrorShake] = useState<boolean>(false);
 
-  // Mã OTP sinh trực tiếp từ Google reCAPTCHA
-  const [generatedOtpCode, setGeneratedOtpCode] = useState<string>(() => {
-    return sessionStorage.getItem('troxinh_current_otp') || '';
-  });
-  const generatedOtpRef = useRef<string>(sessionStorage.getItem('troxinh_current_otp') || '');
-
-  // Trạng thái reCAPTCHA và gửi SMS
+  // Trạng thái reCAPTCHA và gửi SMS. Mã OTP chỉ do Firebase gửi qua SMS, không sinh hay hiển thị trên màn hình.
   const [isRecaptchaReady, setIsRecaptchaReady] = useState<boolean>(false);
   const [isRecaptchaVerified, setIsRecaptchaVerified] = useState<boolean>(false);
-  const [smsSent, setSmsSent] = useState<boolean>(Boolean(sessionStorage.getItem('troxinh_current_otp')));
+  const [smsSent, setSmsSent] = useState<boolean>(false);
 
   const masterInputRef = useRef<HTMLInputElement>(null);
 
-  // 1. Khởi tạo reCAPTCHA Verifier và sinh mã OTP trực tiếp trên màn hình
+  // 1. Khởi tạo reCAPTCHA Verifier; qua reCAPTCHA thì yêu cầu Firebase gửi SMS chứa mã OTP
   const initRecaptcha = useCallback(() => {
     if (mode !== 'phone' || !phone) return;
 
@@ -72,35 +67,25 @@ export const OtpVerificationPage: React.FC = () => {
     const verifier = setupRecaptchaVerifier(
       'recaptcha-container',
       async () => {
-        // Khi người dùng tích reCAPTCHA thành công -> Cấp mã OTP trực tiếp trên màn hình
         setIsRecaptchaVerified(true);
         setIsSending(true);
         setErrorMsg('');
 
-        // Tự động tạo mã OTP 6 số ngẫu nhiên sau khi qua reCAPTCHA
-        const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-        generatedOtpRef.current = newCode;
-        sessionStorage.setItem('troxinh_current_otp', newCode);
-        setGeneratedOtpCode(newCode);
+        const res = await sendPhoneOtp(phone, window.recaptchaVerifier);
+        setIsSending(false);
 
-        // Chạy ngầm yêu cầu gửi SMS của Firebase nếu có thể, không làm nghẽn luồng người dùng
-        try {
-          sendPhoneOtp(phone, window.recaptchaVerifier).catch(() => {});
-        } catch {}
+        if (!res.success) {
+          setIsRecaptchaVerified(false);
+          setErrorMsg(res.error || 'Không thể gửi mã OTP qua SMS. Vui lòng thử lại.');
+          return;
+        }
 
+        setSmsSent(true);
+        setCountdown(60);
+        showToast('Đã gửi mã OTP 📩', `Mã xác thực 6 số đã được gửi qua SMS tới ${phone}.`, 'success');
         setTimeout(() => {
-          setIsSending(false);
-          setSmsSent(true);
-          setCountdown(60);
-          showToast(
-            'Xác thực reCAPTCHA thành công! 🛡️',
-            'Mã OTP của bạn đã được hiển thị trực tiếp trên màn hình.',
-            'success'
-          );
-          setTimeout(() => {
-            masterInputRef.current?.focus();
-          }, 300);
-        }, 400);
+          masterInputRef.current?.focus();
+        }, 300);
       },
       () => {
         setIsRecaptchaVerified(false);
@@ -118,19 +103,23 @@ export const OtpVerificationPage: React.FC = () => {
         .catch((err) => {
           console.warn('[reCAPTCHA] Lỗi render widget:', err);
           setIsRecaptchaReady(true);
+          setErrorMsg('Không thể tải Google reCAPTCHA. Vui lòng tải lại trang.');
         });
+    } else {
+      setIsRecaptchaReady(true);
+      setErrorMsg('Không thể khởi tạo reCAPTCHA bảo mật. Vui lòng tải lại trang.');
     }
   }, [mode, phone, showToast]);
 
-  // Khởi tạo reCAPTCHA khi vào trang nếu chưa có mã
+  // Khởi tạo reCAPTCHA khi vào trang (và khi bấm gửi lại mã) nếu chưa gửi SMS
   useEffect(() => {
-    if (mode === 'phone' && phone && !smsSent && !generatedOtpCode) {
+    if (mode === 'phone' && phone && !smsSent) {
       const timer = setTimeout(() => {
         initRecaptcha();
       }, 200);
       return () => clearTimeout(timer);
     }
-  }, [mode, phone, smsSent, generatedOtpCode, initRecaptcha]);
+  }, [mode, phone, smsSent, initRecaptcha]);
 
   // Cleanup reCAPTCHA khi unmount
   useEffect(() => {
@@ -146,11 +135,11 @@ export const OtpVerificationPage: React.FC = () => {
 
   // 2. Đồng hồ đếm ngược 60s
   useEffect(() => {
-    if (countdown > 0 && (smsSent || Boolean(generatedOtpCode))) {
+    if (countdown > 0 && smsSent) {
       const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
       return () => clearTimeout(timer);
     }
-  }, [countdown, smsSent, generatedOtpCode]);
+  }, [countdown, smsSent]);
 
   // 4. Hàm xử lý Xác thực mã OTP
   const handleVerifyOtp = useCallback(
@@ -163,133 +152,79 @@ export const OtpVerificationPage: React.FC = () => {
         return;
       }
 
+      // A. Email được bảo vệ bằng mật khẩu hoặc Google, không dùng OTP tại đây
+      if (mode === 'email') {
+        setErrorMsg('Đăng nhập và Đăng ký Email được bảo vệ trực tiếp bằng Mật khẩu hoặc Google Auth. Vui lòng quay lại trang Đăng nhập.');
+        showToast('Thông báo', 'Vui lòng đăng nhập bằng Email & Mật khẩu từ trang Đăng nhập.', 'info');
+        return;
+      }
+
       setIsLoading(true);
       setErrorMsg('');
       setIsErrorShake(false);
 
-      try {
-        // A. XÁC MINH OTP CHO EMAIL
-        if (mode === 'email') {
-          setIsLoading(false);
-          setErrorMsg('Đăng nhập và Đăng ký Email được bảo vệ trực tiếp bằng Mật khẩu hoặc Google Auth. Vui lòng quay lại trang Đăng nhập.');
-          showToast('Thông báo', 'Vui lòng đăng nhập bằng Email & Mật khẩu từ trang Đăng nhập.', 'info');
-          return;
-        }
-
-        // B. XÁC MINH OTP CHO SỐ ĐIỆN THOẠI
-        let firebaseAuthUser: any = null;
-        if (window.confirmationResult) {
-          try {
-            const confirmResult = await window.confirmationResult.confirm(cleanCode);
-            firebaseAuthUser = confirmResult.user;
-          } catch {}
-        }
-
-        // Đọc mã kỳ vọng từ ref, state hoặc sessionStorage
-        const expectedOtp = (
-          generatedOtpRef.current ||
-          generatedOtpCode ||
-          sessionStorage.getItem('troxinh_current_otp') ||
-          ''
-        ).trim();
-
-        // Kiểm tra khớp mã OTP sinh từ reCAPTCHA hoặc mã test 123456 hoặc phiên Firebase
-        const isMatch = (expectedOtp && cleanCode === expectedOtp) || (cleanCode === '123456');
-
-        if (!isMatch && !firebaseAuthUser) {
-          setIsLoading(false);
-          setIsErrorShake(true);
-          setErrorMsg(`Mã OTP không chính xác. Vui lòng nhập đúng mã [${expectedOtp || '123456'}] hiển thị ở trên.`);
+      const failVerify = (message: string, clearInput = true) => {
+        setIsLoading(false);
+        setIsErrorShake(true);
+        setErrorMsg(message);
+        if (clearInput) {
           setOtp('');
           masterInputRef.current?.focus();
-          setTimeout(() => setIsErrorShake(false), 600);
+        }
+        setTimeout(() => setIsErrorShake(false), 600);
+      };
+
+      try {
+        // B. Chỉ Firebase xác nhận mã OTP
+        const confirmed = await confirmPhoneOtp(cleanCode);
+        if (!confirmed.success || !confirmed.user) {
+          failVerify(confirmed.error || 'Mã OTP không chính xác. Vui lòng thử lại!');
           return;
         }
 
-        if (isRegisterAction) {
-          const res = await completePhoneRegistration(
-            phone,
-            name || `Người dùng ${phone.slice(-4)}`,
-            role,
-            firebaseAuthUser || undefined,
-            !firebaseAuthUser
-          );
+        // C. Gắn phiên Firebase với hồ sơ profiles (đăng ký: tạo hồ sơ nếu số chưa có tài khoản)
+        const res = isRegisterAction
+          ? await completePhoneRegistration(phone, name || `Người dùng ${phone.slice(-4)}`, role, confirmed.user)
+          : await completeFirebaseSignIn(confirmed.user, role);
 
-          if (res.success && res.user) {
-            sessionStorage.removeItem('troxinh_current_otp');
-            loginWithSocialUser({
-              id: res.user.id,
-              firebaseUid: res.user.firebaseUid,
-              name: res.user.name,
-              email: res.user.email,
-              phone: res.user.phone,
-              role: res.user.role as any,
-              avatarUrl: res.user.avatarUrl,
-              isDemoAccount: res.user.isDemoAccount,
-              phoneVerified: true,
-              emailVerified: false,
-            });
+        if (!res.success || !res.user) {
+          failVerify(res.error || 'Không thể đồng bộ hồ sơ tài khoản từ số điện thoại này.', false);
+          return;
+        }
 
-            showToast(
-              'Đăng ký số điện thoại thành công! 🎉',
-              `Chào mừng ${res.user.name} đến với Trọ Xinh!`,
-              'success'
-            );
+        const user = res.user;
+        window.confirmationResult = undefined;
+        loginWithSocialUser({
+          id: user.id,
+          firebaseUid: user.firebaseUid,
+          name: user.name,
+          email: user.email,
+          phone: user.phone,
+          role: user.role as any,
+          avatarUrl: user.avatarUrl,
+          isDemoAccount: user.isDemoAccount,
+          phoneVerified: true,
+          emailVerified: isRegisterAction || !user.email ? false : undefined,
+        });
 
-            setIsLoading(false);
+        showToast(
+          isRegisterAction ? 'Đăng ký số điện thoại thành công! 🎉' : 'Đăng nhập thành công! 👋',
+          isRegisterAction ? `Chào mừng ${user.name} đến với Trọ Xinh!` : `Chào mừng ${user.name}`,
+          'success'
+        );
+        setIsLoading(false);
 
-            if (returnUrl) {
-              navigate(decodeURIComponent(returnUrl), { replace: true });
-            } else if (res.user.role === 'owner') {
-              navigate('/chu-tro', { replace: true });
-            } else {
-              navigate('/tim-phong', { replace: true });
-            }
+        if (typeof window !== 'undefined') {
+          if (returnUrl && returnUrl !== '/') {
+            window.location.href = decodeURIComponent(returnUrl);
+          } else if (user.role === 'owner') {
+            window.location.href = '/chu-tro';
           } else {
-            setIsLoading(false);
-            setIsErrorShake(true);
-            setErrorMsg(res.error || 'Không thể tạo hồ sơ tài khoản từ số điện thoại này.');
-            setTimeout(() => setIsErrorShake(false), 600);
-          }
-        } else {
-          // Đăng nhập OTP SĐT
-          const cleanPhone = phone.replace(/\D/g, '');
-          let existingUser = await getSupabaseUserByPhone(cleanPhone);
-
-          const userId = existingUser?.id || firebaseAuthUser?.uid || `usr_phone_${cleanPhone}`;
-          const userName = existingUser?.name || name || `Người dùng ${cleanPhone.slice(-4)}`;
-
-          sessionStorage.removeItem('troxinh_current_otp');
-          loginWithSocialUser({
-            id: userId,
-            firebaseUid: existingUser?.id || firebaseAuthUser?.uid || `usr_phone_${cleanPhone}`,
-            name: userName,
-            phone: cleanPhone,
-            role: (existingUser?.role === 'user' ? 'renter' : existingUser?.role || role) as any,
-            avatarUrl: existingUser?.avatar_url || '/images/user-avatar.jpg',
-            isDemoAccount: false,
-            phoneVerified: true,
-            emailVerified: existingUser?.email ? undefined : false,
-          });
-
-          showToast('Đăng nhập thành công! 👋', `Chào mừng ${userName}`, 'success');
-          setIsLoading(false);
-
-          if (returnUrl) {
-            navigate(decodeURIComponent(returnUrl), { replace: true });
-          } else if (existingUser?.role === 'owner' || role === 'owner') {
-            navigate('/chu-tro', { replace: true });
-          } else {
-            navigate('/tim-phong', { replace: true });
+            window.location.href = '/';
           }
         }
       } catch (err: any) {
-        setIsLoading(false);
-        setIsErrorShake(true);
-        setErrorMsg('Đã xảy ra lỗi khi kiểm tra mã OTP: ' + (err.message || 'Vui lòng thử lại.'));
-        setOtp('');
-        masterInputRef.current?.focus();
-        setTimeout(() => setIsErrorShake(false), 600);
+        failVerify('Đã xảy ra lỗi khi kiểm tra mã OTP: ' + (err.message || 'Vui lòng thử lại.'));
       }
     },
     [
@@ -299,11 +234,9 @@ export const OtpVerificationPage: React.FC = () => {
       name,
       role,
       isRegisterAction,
-      generatedOtpCode,
       loginWithSocialUser,
       showToast,
       returnUrl,
-      navigate,
     ]
   );
 
@@ -318,20 +251,20 @@ export const OtpVerificationPage: React.FC = () => {
     }
   };
 
-  // 6. Gửi lại mã
+  // 6. Gửi lại mã: xác minh reCAPTCHA lần nữa rồi Firebase gửi SMS mới
   const handleResend = () => {
-    if (countdown > 0 || isSending) return;
+    if ((smsSent && countdown > 0) || isSending) return;
     setCountdown(60);
     setOtp('');
     setErrorMsg('');
-    setSmsSent(false);
-    setGeneratedOtpCode('');
-    generatedOtpRef.current = '';
-    sessionStorage.removeItem('troxinh_current_otp');
+    window.confirmationResult = undefined;
     setIsRecaptchaVerified(false);
-    setTimeout(() => {
+    if (smsSent) {
+      // Hiện lại khối reCAPTCHA; effect phía trên khởi tạo lại widget
+      setSmsSent(false);
+    } else {
       initRecaptcha();
-    }, 150);
+    }
   };
 
   // Nếu không có thông tin email lẫn sđt
@@ -374,15 +307,15 @@ export const OtpVerificationPage: React.FC = () => {
           </p>
         </div>
 
-        {/* Khối Xác Thực reCAPTCHA (Hiển thị khi chưa có mã OTP trực tiếp) */}
-        {mode === 'phone' && !smsSent && !generatedOtpCode && (
+        {/* Khối Xác Thực reCAPTCHA (Hiển thị khi chưa gửi SMS) */}
+        {mode === 'phone' && !smsSent && (
           <div className="p-4 bg-emerald-50/50 border border-emerald-200/80 rounded-2xl space-y-3 text-center">
             <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#006d37]">
               <ShieldCheck className="w-4 h-4 text-[#00a854]" />
               <span>Xác Thực Bảo Mật reCAPTCHA</span>
             </div>
             <p className="text-[11px] text-gray-500 leading-relaxed">
-              Vui lòng tích vào ô <strong className="text-gray-800">"Tôi không phải là người máy"</strong> bên dưới để hệ thống xác thực và cấp mã OTP trực tiếp cho bạn.
+              Vui lòng tích vào ô <strong className="text-gray-800">"Tôi không phải là người máy"</strong> bên dưới để hệ thống gửi mã OTP qua SMS tới số điện thoại của bạn.
             </p>
 
             {/* Container hiển thị widget Google reCAPTCHA v2 */}
@@ -399,35 +332,9 @@ export const OtpVerificationPage: React.FC = () => {
             {isSending && (
               <div className="flex items-center justify-center gap-2 text-xs text-[#00a854] font-semibold animate-pulse py-1">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Đã xác thực reCAPTCHA! Đang cấp mã OTP...</span>
+                <span>Đã xác thực reCAPTCHA! Đang gửi mã OTP qua SMS...</span>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Khung hiển thị mã OTP tạo trực tiếp từ reCAPTCHA */}
-        {generatedOtpCode && mode === 'phone' && (
-          <div className="p-4 bg-emerald-50/90 border-2 border-[#00a854] rounded-2xl space-y-3 animate-fadeIn text-center shadow-xs">
-            <div className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#006d37]">
-              <ShieldCheck className="w-4 h-4 text-[#00a854]" />
-              <span>reCAPTCHA đã xác thực — Mã OTP của bạn là:</span>
-            </div>
-            <div className="py-2.5 px-6 bg-white rounded-xl border border-emerald-300 inline-block shadow-2xs">
-              <span className="text-3xl font-black text-[#00a854] tracking-[0.25em] font-mono select-all">
-                {generatedOtpCode}
-              </span>
-            </div>
-            <button
-              type="button"
-              onClick={() => {
-                setOtp(generatedOtpCode);
-                handleVerifyOtp(generatedOtpCode);
-              }}
-              className="w-full py-2.5 bg-[#00a854] hover:bg-[#008f47] text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-xs transition cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span>Tự động điền mã {generatedOtpCode} & Xác nhận</span>
-            </button>
           </div>
         )}
 
@@ -437,21 +344,21 @@ export const OtpVerificationPage: React.FC = () => {
             <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
             <div className="flex-1 space-y-1">
               <span>{errorMsg}</span>
-              {errorMsg.includes('hết hạn') && mode === 'phone' && (
+              {mode === 'phone' && !smsSent && (
                 <button
                   type="button"
                   onClick={initRecaptcha}
                   className="block font-bold text-[#00a854] hover:underline cursor-pointer"
                 >
-                  👉 Bấm vào đây để tải lại reCAPTCHA
+                  👉 Bấm vào đây để xác minh reCAPTCHA và gửi lại mã
                 </button>
               )}
             </div>
           </div>
         )}
 
-        {/* Khối Nhập OTP (Hiển thị khi đã có mã hoặc khi là Email) */}
-        {(smsSent || mode === 'email' || Boolean(generatedOtpCode)) && (
+        {/* Khối Nhập OTP (Hiển thị khi Firebase đã gửi SMS hoặc khi là Email) */}
+        {(smsSent || mode === 'email') && (
           <div className="space-y-6">
             {/* CỤM 6 Ô NHẬP OTP */}
             <div
@@ -519,7 +426,7 @@ export const OtpVerificationPage: React.FC = () => {
                 {mode === 'email' ? (
                   <span>Vui lòng kiểm tra mã OTP gửi đến hòm thư <strong className="text-gray-900">{email}</strong>.</span>
                 ) : (
-                  <span>Nhập 6 chữ số mã OTP hiển thị ở trên hoặc bấm nút tự động điền để tiếp tục.</span>
+                  <span>Nhập 6 chữ số mã OTP trong tin nhắn SMS vừa gửi tới số điện thoại của bạn.</span>
                 )}
               </p>
             </div>
@@ -543,7 +450,7 @@ export const OtpVerificationPage: React.FC = () => {
         {/* Resend OTP */}
         <div className="pt-2 text-center text-xs text-gray-500 flex items-center justify-center gap-1.5">
           <span>Chưa nhận được mã?</span>
-          {countdown > 0 && (smsSent || Boolean(generatedOtpCode)) ? (
+          {countdown > 0 && smsSent ? (
             <span className="font-bold text-[#00a854]">Gửi lại sau {countdown}s</span>
           ) : (
             <button
@@ -552,7 +459,7 @@ export const OtpVerificationPage: React.FC = () => {
               className="font-bold text-[#00a854] hover:underline flex items-center gap-1 cursor-pointer"
             >
               <RefreshCw className={`w-3.5 h-3.5 ${isSending ? 'animate-spin' : ''}`} />
-              <span>{smsSent || Boolean(generatedOtpCode) ? 'Tạo lại mã mới' : 'Xác thực lại reCAPTCHA'}</span>
+              <span>{smsSent ? 'Gửi lại mã mới' : 'Xác thực lại reCAPTCHA'}</span>
             </button>
           )}
         </div>
