@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import {
   MapContainer,
-  TileLayer,
   Marker,
   Popup,
   Circle,
@@ -14,6 +13,7 @@ import { Link } from 'react-router-dom';
 import { Room, Building } from '../../types';
 import { formatPrice } from '../ui/Cards';
 import { MapPin, Navigation, School, ExternalLink, Compass } from 'lucide-react';
+import { ResilientTileLayer, MapAutoResize } from './ResilientTileLayer';
 
 // Fix Leaflet default icon paths in bundler
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -287,10 +287,8 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
         scrollWheelZoom={true}
         className="w-full h-full"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        />
+        <ResilientTileLayer />
+        <MapAutoResize />
 
         <MapClickHandler onMapClick={onMapClick} />
         <MapRecenter center={mapCenter} zoom={zoom} />
@@ -473,10 +471,8 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
         scrollWheelZoom={false}
         className="w-full h-full z-0"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        />
+        <ResilientTileLayer />
+        <MapAutoResize />
 
         {/* 1.5km Radius circle around room */}
         <Circle
@@ -598,10 +594,8 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
         scrollWheelZoom={true}
         className="w-full h-full z-0"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        />
+        <ResilientTileLayer />
+        <MapAutoResize />
 
         <LocationPickerMarker
           position={position}

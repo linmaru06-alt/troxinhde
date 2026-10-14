@@ -27,6 +27,14 @@ export const TILE_PROVIDERS: TileProvider[] = [
     maxZoom: 18,
   },
   {
+    id: 'google_roads',
+    name: 'Google Maps Đường Phố',
+    url: 'https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}',
+    attribution: '&copy; <a href="https://maps.google.com" target="_blank" rel="noopener">Google Maps</a>',
+    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+    maxZoom: 20,
+  },
+  {
     id: 'osm_france',
     name: 'OpenStreetMap France (Dự phòng bổ sung)',
     url: 'https://{s}.tile.openstreetmap.fr/osmfr/{z}/{x}/{y}.png',
@@ -38,11 +46,14 @@ export const TILE_PROVIDERS: TileProvider[] = [
 
 /**
  * ResilientTileLayer - Lớp hiển thị mảnh bản đồ có khả năng tự phục hồi.
- * Khi một nguồn tile bị chặn bởi AdBlocker hoặc lỗi mạng (>= 5 lỗi tile liên tiếp),
+ * Khi một nguồn tile bị chặn bởi AdBlocker hoặc lỗi mạng (>= 3 lỗi tile liên tiếp),
  * tự động chuyển sang server dự phòng tiếp theo một cách an toàn và có debounce.
  */
-export const ResilientTileLayer: React.FC = () => {
-  const [providerIndex, setProviderIndex] = useState(0);
+export const ResilientTileLayer: React.FC<{ initialProviderId?: string }> = ({ initialProviderId }) => {
+  const initialIndex = initialProviderId
+    ? Math.max(0, TILE_PROVIDERS.findIndex((p) => p.id === initialProviderId))
+    : 0;
+  const [providerIndex, setProviderIndex] = useState(initialIndex);
   const map = useMap();
   const errorStreakRef = useRef(0);
   const lastSwitchTimeRef = useRef(0);
@@ -59,9 +70,9 @@ export const ResilientTileLayer: React.FC = () => {
     const now = Date.now();
 
     // Chỉ đổi provider khi:
-    // 1. Tích lũy tối thiểu 5 tile lỗi liên tiếp (tránh nhảy lung tung khi mạng lag 1 tile)
-    // 2. Đã qua ít nhất 3500ms kể từ lần đổi provider gần nhất
-    if (errorStreakRef.current >= 5 && now - lastSwitchTimeRef.current >= 3500) {
+    // 1. Tích lũy tối thiểu 3 tile lỗi liên tiếp (nhận diện nhanh khi nguồn bị AdBlock/mạng chặn)
+    // 2. Đã qua ít nhất 2000ms kể từ lần đổi provider gần nhất
+    if (errorStreakRef.current >= 3 && now - lastSwitchTimeRef.current >= 2000) {
       lastSwitchTimeRef.current = now;
       errorStreakRef.current = 0;
 
