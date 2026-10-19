@@ -7,8 +7,10 @@ import { Search, X, Sparkles, MapPin, School, Building, ArrowRight } from 'lucid
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   isPublicRoom,
+  normalizeRoom,
   removeVietnameseTones,
   isSchoolMatch,
+  isRoomMatchingSchool,
   isDistrictMatch,
   normalizeSchoolName,
 } from '../../lib/roomSearch';
@@ -215,20 +217,16 @@ export const SearchAutocomplete: React.FC<SearchAutocompleteProps> = ({
   // Lấy danh sách các phòng hợp lệ & công khai đang hoạt động
   const activeRooms = useMemo(() => {
     const raw = (propRooms && propRooms.length > 0 ? propRooms : storeRooms) || [];
-    return raw.filter(isPublicRoom);
+    return raw.filter(isPublicRoom).map(normalizeRoom);
   }, [propRooms, storeRooms]);
 
   // 1. Tính toán số phòng THỰC TẾ cho từng trường ĐH theo thời gian thực
   const universitiesWithCounts = useMemo(() => {
     return HANOI_UNIVERSITIES_DATA.map((uni) => {
       const count = activeRooms.filter((r) => {
-        if (!r.nearestSchool) return false;
-        // Kiểm tra khớp tên chuẩn
-        if (isSchoolMatch(uni.name, r.nearestSchool)) return true;
-        // Kiểm tra khớp tên ngắn
-        if (isSchoolMatch(uni.short, r.nearestSchool)) return true;
-        // Kiểm tra khớp bất kỳ alias nào (hust, neu, ftu...)
-        return uni.aliases.some((alias) => isSchoolMatch(alias, r.nearestSchool));
+        if (isRoomMatchingSchool(r, uni.name)) return true;
+        if (isRoomMatchingSchool(r, uni.short)) return true;
+        return uni.aliases.some((alias) => isRoomMatchingSchool(r, alias));
       }).length;
 
       return {

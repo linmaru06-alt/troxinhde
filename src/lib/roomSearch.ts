@@ -111,27 +111,103 @@ export function isPublicRoom(r: any): boolean {
 }
 
 /**
+ * Suy luận trường đại học gần nhất và khoảng cách dựa trên tiêu đề, địa chỉ, tòa nhà nếu Supabase chưa có cột nearest_school
+ */
+export function inferSchoolFromRoom(r: any, b: any = {}): { name: string; distanceKm: number } | null {
+  const text = removeVietnameseTones(
+    `${r?.title || ''} ${r?.address || ''} ${b?.address || ''} ${b?.name || ''} ${r?.description || ''}`
+  ).toLowerCase();
+
+  // 1. Chùa Láng / Đống Đa -> FTU / Ngoại Giao
+  if (text.includes('chua lang') || text.includes('ngoai thuong') || text.includes('ftu')) {
+    return { name: 'Đại học Ngoại Thương (300m)', distanceKm: 0.3 };
+  }
+  if (text.includes('ngoai giao') || text.includes('dav')) {
+    return { name: 'Học viện Ngoại Giao (400m)', distanceKm: 0.4 };
+  }
+  // 2. Bách Kinh Xây / Tạ Quang Bửu / Trần Đại Nghĩa -> HUST
+  if (
+    text.includes('bach kinh xay') ||
+    text.includes('bach khoa') ||
+    text.includes('hust') ||
+    text.includes('ta quang buu') ||
+    text.includes('tran dai nghia') ||
+    text.includes('hai ba trung')
+  ) {
+    return { name: 'Đại học Bách Khoa Hà Nội (400m)', distanceKm: 0.4 };
+  }
+  // 3. Cầu Giấy / Dịch Vọng / Xuân Thủy -> VNU
+  if (
+    text.includes('165 cau giay') ||
+    text.includes('dich vong') ||
+    text.includes('cau giay') ||
+    text.includes('xuan thuy') ||
+    text.includes('quoc gia')
+  ) {
+    return { name: 'Đại học Quốc Gia Hà Nội (500m)', distanceKm: 0.5 };
+  }
+  // 4. Thanh Xuân / Nguyễn Trãi -> ĐH Hà Nội
+  if (text.includes('nguyen trai') || text.includes('thanh xuan')) {
+    return { name: 'Đại học Hà Nội (600m)', distanceKm: 0.6 };
+  }
+  // 5. Hà Đông / Trần Phú -> PTIT / Kiến Trúc
+  if (text.includes('tran phu') || text.includes('ha dong') || text.includes('buu chinh') || text.includes('kien truc')) {
+    return { name: 'Học viện Bưu Chính Viễn Thông (500m)', distanceKm: 0.5 };
+  }
+
+  return null;
+}
+
+/**
  * Chuẩn hóa phòng trọ từ Supabase (snake_case) hoặc mockData (camelCase) sang kiểu Room chuẩn.
  */
 export function normalizeRoom(r: any): Room {
   const b = r.buildings || {};
-  const rawType = r.type || r.room_type || 'Phòng đơn';
-  const typeMap: Record<string, string> = {
+  const rawType = (r.type || r.room_type || 'Phòng đơn').toString().toLowerCase().trim();
+  const typeMap: Record<string, Room['type']> = {
     single: 'Phòng đơn',
+    'phong don': 'Phòng đơn',
+    'phòng đơn': 'Phòng đơn',
     shared: 'Phòng ghép',
+    'phong ghep': 'Phòng ghép',
+    'phòng ghép': 'Phòng ghép',
     studio: 'Studio',
     apartment: 'Căn hộ mini',
+    'can ho mini': 'Căn hộ mini',
+    'căn hộ mini': 'Căn hộ mini',
   };
-  const type = (typeMap[rawType] || rawType) as Room['type'];
+  const type = typeMap[rawType] || (r.type as Room['type']) || 'Phòng đơn';
 
-  const district = r.district || b.district || '';
+  let district = r.district || b.district || '';
   const address = r.address || b.address || '';
-  const nearestSchool = r.nearestSchool || r.nearest_school || '';
+
+  // Tự động suy luận quận nếu dữ liệu phòng bị thiếu
+  if (!district && address) {
+    for (const d of DISTRICTS) {
+      const cleanD = removeVietnameseTones(d).toLowerCase().replace(/^quan\s+/, '');
+      const normAddr = removeVietnameseTones(address).toLowerCase();
+      if (normAddr.includes(cleanD)) {
+        district = d;
+        break;
+      }
+    }
+  }
+
+  let nearestSchool = r.nearestSchool || r.nearest_school || '';
+  let distanceToSchoolKm = Number(r.distanceToSchoolKm ?? r.distance_to_school_km) || 0;
+
+  if (!nearestSchool) {
+    const inferred = inferSchoolFromRoom(r, b);
+    if (inferred) {
+      nearestSchool = inferred.name;
+      if (!distanceToSchoolKm) distanceToSchoolKm = inferred.distanceKm;
+    }
+  }
+
   const price = Number(r.price) || 0;
   const createdAt = r.createdAt || r.created_at || (r.updatedAt || r.updated_at) || new Date().toISOString();
   const verified = Boolean(r.verified || r.moderation_status === 'approved');
   const isBoosted = Boolean(r.isBoosted || r.is_boosted || r.boost_type);
-  const distanceToSchoolKm = Number(r.distanceToSchoolKm ?? r.distance_to_school_km) || 0;
   const amenities = Array.isArray(r.amenities) ? r.amenities : [];
   const images = Array.isArray(r.images) && r.images.length > 0
     ? r.images
@@ -268,6 +344,218 @@ export function isSchoolMatch(selected: string, roomSchool: string): boolean {
   return tokens.length > 0 && tokens.every((t) => normRoom.includes(t));
 }
 
+/**
+ * Bản đồ từ đồng nghĩa cho từng tiện ích (Synonym dictionary)
+ */
+export const AMENITY_ALIASES: Record<string, string[]> = {
+  'Máy lạnh': ['may lanh', 'dieu hoa', 'dieu hoa inverter', 'may lanh inverter', 'ac', 'dieu hoa 2 chieu'],
+  'Tủ lạnh': ['tu lanh', 'tu lanh 2 canh', 'refrigerator', 'fridge'],
+  'Gác lửng': ['gac lung', 'gac xep', 'tang lung', 'gac', 'mezzanine', 'loft'],
+  'Ban công': ['ban cong', 'logia', 'lo gia', 'balcony', 'san phoi', 'san thuong', 'cua so thoang'],
+  'Bếp': ['bep', 'tu bep', 'tu bep rieng', 'ke bep', 'bep tu', 'bep nau an', 'khu bep', 'nau an', 'kitchen'],
+  'Wifi': ['wifi', 'internet', 'mang', 'cap quang', 'wifi cap quang', 'wifi toc do cao', 'wifi mien phi'],
+  'Bảo vệ 24/7': ['bao ve', 'an ninh', 'camera', 'camera an ninh', 'bao ve 24/7', 'bao ve 24/24', 'an ninh 24/7', 'tu do', 'gio giac tu do', 'khong chung chu'],
+  'Thang máy': ['thang may', 'elevator', 'lift'],
+  'Khóa vân tay': ['khoa van tay', 'van tay', 'khoa tu', 'the tu', 'khoa thong minh', 'khoa dien tu', 'khoa van tay / the tu', 'khoa tu thong minh', 'mat ma'],
+};
+
+/**
+ * Kiểm tra xem phòng có chứa tiện ích yêu cầu hay không (kể cả từ đồng nghĩa)
+ */
+export function roomHasAmenity(room: Room | any, requestedAmenity: string): boolean {
+  if (!requestedAmenity || requestedAmenity === 'Tất cả') return true;
+  const normReq = removeVietnameseTones(requestedAmenity).toLowerCase().trim();
+  const aliases = AMENITY_ALIASES[requestedAmenity] || [normReq];
+
+  const amenitiesList = Array.isArray(room?.amenities) ? room.amenities : [];
+  for (const a of amenitiesList) {
+    const normA = removeVietnameseTones(a).toLowerCase().trim();
+    for (const alias of aliases) {
+      if (normA.includes(alias) || alias.includes(normA)) {
+        return true;
+      }
+    }
+  }
+
+  // Dự phòng kiểm tra trong tiêu đề và mô tả của phòng
+  const fullText = removeVietnameseTones(`${room?.title || ''} ${room?.description || ''}`).toLowerCase();
+  for (const alias of aliases) {
+    if (fullText.includes(alias)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/**
+ * So khớp loại hình phòng trọ chuẩn xác (chống lệch hoa thường, tiếng Anh / tiếng Việt)
+ */
+export function isRoomTypeMatch(roomType: string | null | undefined, targetType: string | null | undefined): boolean {
+  if (!targetType || targetType === 'Tất cả loại phòng' || targetType === 'Tất cả') return true;
+  if (!roomType) return false;
+
+  const normTarget = removeVietnameseTones(targetType).toLowerCase().trim();
+  const normRoom = removeVietnameseTones(roomType).toLowerCase().trim();
+
+  if (normTarget === normRoom || normRoom.includes(normTarget) || normTarget.includes(normRoom)) {
+    return true;
+  }
+
+  const typeCategories: Record<string, string[]> = {
+    studio: ['studio'],
+    canhomini: ['can ho mini', 'can ho', 'apartment', 'chung cu mini', 'chmn'],
+    phongdon: ['phong don', 'single', 'phong khep kin', 'don'],
+    phongghep: ['phong ghep', 'shared', 'o ghep', 'ktx', 'ky tuc xa', 'dorm'],
+  };
+
+  for (const aliases of Object.values(typeCategories)) {
+    const targetInAliases = aliases.some((a) => normTarget.includes(a) || a.includes(normTarget));
+    const roomInAliases = aliases.some((a) => normRoom.includes(a) || a.includes(normRoom));
+    if (targetInAliases && roomInAliases) return true;
+  }
+
+  return false;
+}
+
+/**
+ * So khớp phòng trọ với trường đại học được chọn (kiểm tra nearestSchool, từ khóa và địa bàn lân cận)
+ */
+export function isRoomMatchingSchool(r: Room | any, schoolQuery: string): boolean {
+  if (!schoolQuery || !r) return true;
+  const targetSchool = findMatchedUniversity(schoolQuery);
+  const normQuery = normalizeSchoolName(schoolQuery);
+  const normTarget = normalizeSchoolName(targetSchool);
+
+  // 1. So khớp trực tiếp với r.nearestSchool
+  if (r.nearestSchool && isSchoolMatch(schoolQuery, r.nearestSchool)) {
+    return true;
+  }
+
+  // 2. So khớp từ khóa trong toàn bộ thông tin phòng và tòa nhà
+  const b = r.buildings || {};
+  const searchable = removeVietnameseTones(
+    `${r.title || ''} ${r.address || ''} ${r.district || ''} ${r.nearestSchool || ''} ${b.name || ''} ${b.address || ''} ${b.district || ''} ${r.description || ''}`
+  ).toLowerCase();
+
+  const stopWords = new Set(['dai', 'hoc', 'vien', 'ha', 'noi', 'truong', 'gan', 'khu', 'vuc', 'co', 'so']);
+  const tokens = normTarget.split(' ').filter((w) => !stopWords.has(w) && w.length > 1);
+  if (tokens.length > 0 && tokens.every((t) => searchable.includes(t))) {
+    return true;
+  }
+
+  // 3. So khớp theo các cụm địa bàn trường ĐH (Hub Area Proximity)
+  // Ngoại Thương / Ngoại Giao / Luật
+  const isFTUGroup = ['dai hoc ngoai thuong', 'hoc vien ngoai giao', 'dai hoc luat'].some(
+    (s) => normTarget.includes(s) || normQuery.includes(s)
+  );
+  if (isFTUGroup) {
+    if (
+      searchable.includes('chua lang') ||
+      searchable.includes('lang thuong') ||
+      searchable.includes('phao dai lang') ||
+      searchable.includes('huynh thuc khang') ||
+      searchable.includes('ngoai thuong') ||
+      searchable.includes('ftu')
+    ) {
+      return true;
+    }
+  }
+
+  // Bách Khoa / Kinh Tế Quốc Dân / Xây Dựng ("Bách Kinh Xây")
+  const isBKGroup = ['dai hoc bach khoa', 'dai hoc kinh te quoc dan', 'dai hoc xay dung'].some(
+    (s) => normTarget.includes(s) || normQuery.includes(s)
+  );
+  if (isBKGroup) {
+    if (
+      searchable.includes('bach kinh xay') ||
+      searchable.includes('bach khoa') ||
+      searchable.includes('ta quang buu') ||
+      searchable.includes('tran dai nghia') ||
+      searchable.includes('le thanh nghi') ||
+      searchable.includes('dai co viet') ||
+      searchable.includes('dong tam')
+    ) {
+      return true;
+    }
+  }
+
+  // ĐHQG / Sư Phạm / Báo Chí
+  const isVNUGroup = ['dai hoc quoc gia', 'dai hoc su pham', 'hoc vien bao chi'].some(
+    (s) => normTarget.includes(s) || normQuery.includes(s)
+  );
+  if (isVNUGroup) {
+    if (
+      searchable.includes('cau giay') ||
+      searchable.includes('xuan thuy') ||
+      searchable.includes('dich vong') ||
+      searchable.includes('tran thai tong') ||
+      searchable.includes('ho tung mau') ||
+      searchable.includes('nghia tan') ||
+      searchable.includes('duy tan')
+    ) {
+      return true;
+    }
+  }
+
+  // Giao Thông Vận Tải
+  const isUTC = normTarget.includes('giao thong van tai') || normQuery.includes('giao thong') || normQuery.includes('utc');
+  if (isUTC) {
+    if (
+      searchable.includes('cau giay') ||
+      searchable.includes('chua lang') ||
+      searchable.includes('lang thuong') ||
+      searchable.includes('kim ma')
+    ) {
+      return true;
+    }
+  }
+
+  // Thương Mại
+  const isTMU = normTarget.includes('thuong mai') || normQuery.includes('tmu');
+  if (isTMU) {
+    if (
+      searchable.includes('ho tung mau') ||
+      searchable.includes('mai dich') ||
+      searchable.includes('le duc tho') ||
+      searchable.includes('thuong mai')
+    ) {
+      return true;
+    }
+  }
+
+  // Y Hà Nội
+  const isHMU = normTarget.includes('dai hoc y') || normQuery.includes('hmu');
+  if (isHMU) {
+    if (
+      searchable.includes('ton that tung') ||
+      searchable.includes('chua boc') ||
+      searchable.includes('tam khuong') ||
+      searchable.includes('khuong thuong')
+    ) {
+      return true;
+    }
+  }
+
+  // Bưu Chính / Kiến Trúc / ĐH Hà Nội
+  const isHaDongGroup = ['buu chinh', 'kien truc', 'dai hoc ha noi'].some(
+    (s) => normTarget.includes(s) || normQuery.includes(s)
+  );
+  if (isHaDongGroup) {
+    if (
+      searchable.includes('tran phu') ||
+      searchable.includes('nguyen trai') ||
+      searchable.includes('van quan') ||
+      searchable.includes('phung khoang') ||
+      searchable.includes('mo lao')
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 export function parsePriceRange(raw: string | null | undefined): [number, number] | null {
   if (!raw || typeof raw !== 'string') return null;
   const parts = raw.trim().split('-');
@@ -375,8 +663,9 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
 
       // 3. Lọc trường ĐH
       if (params.selectedSchool) {
-        const matchRoomSchool = r.nearestSchool && isSchoolMatch(params.selectedSchool, r.nearestSchool);
-        if (!matchRoomSchool) return false;
+        if (!isRoomMatchingSchool(r, params.selectedSchool)) {
+          return false;
+        }
       }
 
       // 4. Lọc từ khóa tìm kiếm (q)
@@ -384,25 +673,23 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
         const rawQ = params.searchQuery.trim();
         const normQ = removeVietnameseTones(rawQ).toLowerCase();
         if (normQ) {
-          // A. Khớp trường đại học (kể cả viết tắt HUST, NEU, FTU, VNU, TMU...)
-          const matchSchool = Boolean(r.nearestSchool && (
-            removeVietnameseTones(r.nearestSchool).toLowerCase().includes(normQ) ||
-            isSchoolMatch(rawQ, r.nearestSchool)
-          ));
+          // A. Khớp trường đại học (thông qua hàm so khớp thông minh)
+          const matchSchool = isRoomMatchingSchool(r, rawQ);
 
           // B. Khớp quận / khu vực
-          const matchDistrict = Boolean(r.district && isDistrictMatch(r.district, rawQ));
+          const matchDistrict = Boolean(
+            (r.district && isDistrictMatch(r.district, rawQ)) ||
+            (r.address && isDistrictMatch(r.address, rawQ))
+          );
 
           // C. Khớp tiêu đề, địa chỉ, mô tả, loại phòng
           const matchTitle = removeVietnameseTones(r.title).toLowerCase().includes(normQ);
           const matchAddress = removeVietnameseTones(r.address).toLowerCase().includes(normQ);
           const matchDesc = removeVietnameseTones(r.description || '').toLowerCase().includes(normQ);
-          const matchType = removeVietnameseTones(r.type || '').toLowerCase().includes(normQ);
+          const matchType = isRoomTypeMatch(r.type, rawQ);
 
           // D. Khớp tiện ích
-          const matchAmenity = Array.isArray(r.amenities) && r.amenities.some((a: string) =>
-            removeVietnameseTones(a).toLowerCase().includes(normQ)
-          );
+          const matchAmenity = roomHasAmenity(r, rawQ);
 
           // E. Khớp từ khóa ghép nhiều từ (Multi-token match: vd "phòng cầu giấy", "studio đống đa ban công")
           const qTokens = normQ.split(/\s+/).filter((w) => w.length > 1);
@@ -428,21 +715,20 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
       // 5. Lọc quận / khu vực
       if (params.selectedDistrict) {
         const target = matchedDistrict || params.selectedDistrict;
-        if (!isDistrictMatch(r.district, target)) {
+        if (!isDistrictMatch(r.district, target) && !isDistrictMatch(r.address, target)) {
           return false;
         }
       }
 
       // 6. Lọc loại phòng
       if (params.selectedType) {
-        const targetType = removeVietnameseTones(matchedType || params.selectedType).toLowerCase().trim();
-        const roomType = removeVietnameseTones(r.type || '').toLowerCase().trim();
-        if (!roomType.includes(targetType) && !targetType.includes(roomType)) {
+        const targetType = matchedType || params.selectedType;
+        if (!isRoomTypeMatch(r.type, targetType)) {
           return false;
         }
       }
 
-      // 7. Lọc tiện ích (hỗ trợ chọn 1 hoặc nhiều tiện ích cùng lúc dạng hộp kiểm)
+      // 7. Lọc tiện ích (hỗ trợ chọn 1 hoặc nhiều tiện ích cùng lúc dạng hộp kiểm, từ đồng nghĩa)
       const amenitiesToMatch =
         params.selectedAmenities && params.selectedAmenities.length > 0
           ? params.selectedAmenities
@@ -451,11 +737,7 @@ export function filterAndSortRooms(rooms: Room[], params: RoomSearchParams): Roo
           : [];
 
       if (amenitiesToMatch.length > 0) {
-        const roomAmenitiesNorm = (r.amenities || []).map((a: string) => removeVietnameseTones(a).toLowerCase());
-        const hasAllAmenities = amenitiesToMatch.every((req) => {
-          const normReq = removeVietnameseTones(req).toLowerCase().trim();
-          return roomAmenitiesNorm.some((a: string) => a.includes(normReq));
-        });
+        const hasAllAmenities = amenitiesToMatch.every((req) => roomHasAmenity(r, req));
         if (!hasAllAmenities) return false;
       }
 
