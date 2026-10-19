@@ -64,12 +64,27 @@ export const PRICE_OPTIONS = [
   { label: 'Trên 6 triệu', value: '6000000-99999999' },
 ] as const;
 
+export function isTargetDeletedRoom(r: any): boolean {
+  if (!r) return false;
+  const title = (r.title || r.name || '').toLowerCase();
+  return (
+    (title.includes('kim anh') && title.includes('hài nhi')) ||
+    title.includes('phòng dành cho kim anh và hồng hài nhi') ||
+    title.includes('kim anh và hồng hài nhi')
+  );
+}
+
 /**
  * Thống nhất điều kiện phòng công khai cho cả Tìm kiếm và Bản đồ.
  * Loại trừ phòng chưa duyệt, bị từ chối, đã ẩn, đã cho thuê hoặc lưu trữ.
  */
 export function isPublicRoom(r: any): boolean {
   if (!r) return false;
+
+  // Loại bỏ phòng được yêu cầu xóa vĩnh viễn
+  if (isTargetDeletedRoom(r)) {
+    return false;
+  }
 
   // Supabase moderation status
   if (r.moderation_status && r.moderation_status !== 'approved') {

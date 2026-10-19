@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useLocation, Link } from 'react-router-dom';
 import { useAppStore } from '../../store/useAppStore';
 import { RoomCard } from '../ui/Cards';
+import { isTargetDeletedRoom } from '../../lib/roomSearch';
 import { Sparkles, Bot, ArrowRight, Zap, ChevronDown, ChevronUp, Layers } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -50,8 +51,9 @@ export const AIRecommendationsSection: React.FC<AIRecommendationsSectionProps> =
   const recommendedRooms = useMemo(() => {
     if (!allRooms || !Array.isArray(allRooms) || allRooms.length === 0) return [];
 
-    const approved = allRooms.filter((r) => r && (r.status === 'Còn trống' || !r.status));
-    const targetPool = approved.length > 0 ? approved : allRooms.filter((r) => r && r.id);
+    const nonDeleted = allRooms.filter((r) => r && !isTargetDeletedRoom(r));
+    const approved = nonDeleted.filter((r) => r.status === 'Còn trống' || !r.status);
+    const targetPool = approved.length > 0 ? approved : nonDeleted.filter((r) => r && r.id);
 
     return targetPool.map((room, idx) => {
       const reasons = [

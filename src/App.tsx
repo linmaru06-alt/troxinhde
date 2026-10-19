@@ -114,6 +114,30 @@ const AppCloudDataLoader: React.FC = () => {
   }, [currentUser]);
 
   React.useEffect(() => {
+    // 0. Dọn dẹp phòng thử nghiệm đã xóa khỏi LocalStorage nếu còn sót
+    try {
+      const storageKey = 'troxinh_storage_v4';
+      const raw = localStorage.getItem(storageKey);
+      if (raw && (raw.includes('kim anh') || raw.includes('h\u1ed3ng h\u00e0i') || raw.includes('h\u00e0i nhi'))) {
+        const parsed = JSON.parse(raw);
+        if (parsed?.state) {
+          const isTarget = (r: any) => {
+            const title = (r?.title || r?.name || '').toLowerCase();
+            return (title.includes('kim anh') && title.includes('hài nhi')) || title.includes('hồng hài nhi');
+          };
+          if (parsed.state.localCreatedRooms) {
+            parsed.state.localCreatedRooms = parsed.state.localCreatedRooms.filter((r: any) => !isTarget(r));
+          }
+          if (parsed.state.rooms) {
+            parsed.state.rooms = parsed.state.rooms.filter((r: any) => !isTarget(r));
+          }
+          localStorage.setItem(storageKey, JSON.stringify(parsed));
+        }
+      }
+    } catch {
+      // ignore
+    }
+
     // 1. Tải dữ liệu từ Supabase Cloud khi mở web
     fetchInitialCloudData();
 

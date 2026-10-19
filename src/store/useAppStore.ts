@@ -47,6 +47,7 @@ import {
 } from '../lib/api/blocksAndHides';
 import { onAutoModerationTriggered } from '../lib/api/reports';
 import { isAdminIdentifier, isPermittedAdmin } from '../lib/security/sessionIntegrity';
+import { isTargetDeletedRoom } from '../lib/roomSearch';
 
 export type { BlockedUserRecord, HiddenItemRecord };
 
@@ -1554,10 +1555,11 @@ export const useAppStore = create<AppState>()(
             );
 
             // Gộp dữ liệu cloud với dữ liệu được tạo tại client nhưng chưa/không tải được từ cloud (vd: lỗi RLS demo user)
-            const localRooms = state.localCreatedRooms || [];
+            const localRooms = (state.localCreatedRooms || []).filter((lr) => !isTargetDeletedRoom(lr));
+            const validCloudRooms = cloudRooms.filter((cr) => !isTargetDeletedRoom(cr));
             const mergedRooms = [
-              ...localRooms.filter((lr) => !cloudRooms.some((cr) => cr.id === lr.id)),
-              ...cloudRooms,
+              ...localRooms.filter((lr) => !validCloudRooms.some((cr) => cr.id === lr.id)),
+              ...validCloudRooms,
             ];
 
             const localBuildings = state.localCreatedBuildings || [];
@@ -1625,22 +1627,36 @@ export const useAppStore = create<AppState>()(
     {
       name: 'troxinh_storage_v4',
       onRehydrateStorage: () => (state) => {
-        if (state?.currentUser) {
-          if (isPermittedAdmin(state.currentUser)) {
-            state.currentUser.role = 'admin';
-            if (state.currentUser.name === 'Người dùng Trọ Xinh' || !state.currentUser.name) {
-              state.currentUser.name = 'Quản Trị Viên (Quân)';
-            }
-          } else {
-            const email = state.currentUser.email?.toLowerCase();
-            if (email === 'phuonglinh832005@gmail.com') {
-              state.currentUser.role = 'owner';
-              state.currentUser.ownerApplicationStatus = 'approved';
-            } else if (state.currentUser.role === 'admin') {
-              // ZERO-TRUST LOCALSTORAGE GUARD:
-              // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng không thỏa mãn bất kỳ điều kiện admin nào
-              console.warn('[Security Guard] Phát hiện role admin giả mạo trong LocalStorage! Tự động hạ cấp về user an toàn.');
-              state.currentUser.role = 'user';
+        if (state) {
+          // Xóa dứt điểm phòng thử nghiệm được yêu cầu xóa khỏi localStorage và state
+          if (state.localCreatedRooms) {
+            state.localCreatedRooms = state.localCreatedRooms.filter((r) => !isTargetDeletedRoom(r));
+          }
+          if (state.rooms) {
+            state.rooms = state.rooms.filter((r) => !isTargetDeletedRoom(r));
+          }
+          if (state.savedRoomIds && state.rooms) {
+            const validIds = new Set(state.rooms.map((r) => r.id));
+            state.savedRoomIds = state.savedRoomIds.filter((id) => validIds.has(id));
+          }
+
+          if (state.currentUser) {
+            if (isPermittedAdmin(state.currentUser)) {
+              state.currentUser.role = 'admin';
+              if (state.currentUser.name === 'Người dùng Trọ Xinh' || !state.currentUser.name) {
+                state.currentUser.name = 'Quản Trị Viên (Quân)';
+              }
+            } else {
+              const email = state.currentUser.email?.toLowerCase();
+              if (email === 'phuonglinh832005@gmail.com') {
+                state.currentUser.role = 'owner';
+                state.currentUser.ownerApplicationStatus = 'approved';
+              } else if (state.currentUser.role === 'admin') {
+                // ZERO-TRUST LOCALSTORAGE GUARD:
+                // Nếu cố tình sửa role thành 'admin' trong LocalStorage nhưng không thỏa mãn bất kỳ điều kiện admin nào
+                console.warn('[Security Guard] Phát hiện role admin giả mạo trong LocalStorage! Tự động hạ cấp về user an toàn.');
+                state.currentUser.role = 'user';
+              }
             }
           }
         }

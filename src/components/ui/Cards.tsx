@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
 import { CONDITION_LABELS, MarketplaceConditionCode } from '../../lib/marketplaceFilter';
 import { useAppStore } from '../../store/useAppStore';
+import { isTargetDeletedRoom } from '../../lib/roomSearch';
+import { isPermittedAdmin } from '../../lib/security/sessionIntegrity';
 import { Badge } from './Badge';
 import { ImageWithFallback } from './ImageWithFallback';
 import { ConfirmDialog } from './ConfirmDialog';
@@ -31,10 +33,14 @@ export const formatCurrency = (amount?: number | null): string => {
 
 // 1. RoomCard
 export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
+  if (isTargetDeletedRoom(room)) {
+    return null;
+  }
+
   const { savedRoomIds, toggleSaveRoom, currentUser, removeRoom } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
   const isSaved = savedRoomIds.includes(room.id);
-  const isOwner = currentUser?.id === room.ownerId;
+  const isOwner = currentUser?.id === room.ownerId || currentUser?.role === 'admin' || isPermittedAdmin(currentUser);
 
   const handleConfirmDelete = () => {
     removeRoom(room.id);
