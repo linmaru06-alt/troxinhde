@@ -26,6 +26,17 @@ export const VALID_DISTRICTS = [
   'Quận Hoàng Mai',
 ] as const;
 
+export function isTargetDeletedMarketplaceItem(item: any): boolean {
+  if (!item) return false;
+  const id = String(item.id || '');
+  const title = (item.title || item.name || '').toLowerCase();
+  return (
+    id === 'f682d6ac-8663-4aa6-b123-991bc283398c' ||
+    title.includes('vàng miếng 9999') ||
+    (title.includes('vàng miếng') && title.includes('nổi'))
+  );
+}
+
 /**
  * Loại bỏ dấu tiếng Việt và chuẩn hóa chuỗi để tìm kiếm không phân biệt hoa thường và dấu
  */
@@ -518,6 +529,9 @@ export function filterMarketplaceItems(
 
   return items
     .filter((item) => {
+      // Loại bỏ tin bài đã xóa vĩnh viễn theo yêu cầu
+      if (isTargetDeletedMarketplaceItem(item)) return false;
+
       // 1. Phân quyền theo chế độ xem (View Mode):
       if (viewMode === 'public') {
         const isPending = item.status === 'Chờ duyệt' || item.moderationStatus === 'pending';

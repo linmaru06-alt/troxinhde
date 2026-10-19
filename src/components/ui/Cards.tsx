@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost, MarketplaceItem } from '../../types';
-import { CONDITION_LABELS, MarketplaceConditionCode } from '../../lib/marketplaceFilter';
+import { CONDITION_LABELS, MarketplaceConditionCode, isTargetDeletedMarketplaceItem } from '../../lib/marketplaceFilter';
 import { useAppStore } from '../../store/useAppStore';
 import { isTargetDeletedRoom } from '../../lib/roomSearch';
 import { isPermittedAdmin } from '../../lib/security/sessionIntegrity';
@@ -456,9 +456,13 @@ const CATEGORY_ICONS: Record<string, string> = {
 };
 
 export const MarketplaceCard: React.FC<{ item: MarketplaceItem }> = ({ item }) => {
+  if (isTargetDeletedMarketplaceItem(item)) {
+    return null;
+  }
+
   const { currentUser, removeMarketplaceItem } = useAppStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = React.useState(false);
-  const isOwner = currentUser?.id === item.userId;
+  const isOwner = currentUser?.id === item.userId || currentUser?.role === 'admin' || isPermittedAdmin(currentUser);
 
   const handleConfirmDelete = () => {
     removeMarketplaceItem(item.id);

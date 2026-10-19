@@ -7,6 +7,7 @@ import {
   MarketplaceItemInput,
   MarketplaceSellerStatus,
 } from '../marketplaceStatus';
+import { isTargetDeletedMarketplaceItem } from '../marketplaceFilter';
 
 const ITEM_SELECT = '*, profiles:seller_id(id, full_name, avatar_url, phone, student_verified, phone_verified)';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -71,17 +72,19 @@ export async function getMarketplaceItems(category?: string, district?: string) 
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
 
-  return (data || []).map((item: any) => {
-    const profile = item.profiles || {};
-    return {
-      ...item,
-      seller: {
-        full_name: profile.full_name || item.seller_name || 'Sinh viên Trọ Xinh',
-        avatar_url: profile.avatar_url || item.seller_avatar || '/images/user-avatar.jpg',
-        phone: profile.phone || item.seller_phone || '',
-      },
-    };
-  });
+  return (data || [])
+    .filter((item: any) => !isTargetDeletedMarketplaceItem(item))
+    .map((item: any) => {
+      const profile = item.profiles || {};
+      return {
+        ...item,
+        seller: {
+          full_name: profile.full_name || item.seller_name || 'Sinh viên Trọ Xinh',
+          avatar_url: profile.avatar_url || item.seller_avatar || '/images/user-avatar.jpg',
+          phone: profile.phone || item.seller_phone || '',
+        },
+      };
+    });
 }
 
 /**
@@ -97,7 +100,9 @@ export async function fetchMarketplaceItems(): Promise<MarketplaceItem[]> {
 
   if (error) throw toMarketplaceError(error, 'Không thể tải danh sách chợ đồ cũ');
   const rows = await attachPublicProfiles(data || [], 'seller_id', 'profiles');
-  return rows.map(mapMarketplaceRow).filter((item): item is MarketplaceItem => item !== null);
+  return rows
+    .map(mapMarketplaceRow)
+    .filter((item): item is MarketplaceItem => item !== null && !isTargetDeletedMarketplaceItem(item));
 }
 
 /**

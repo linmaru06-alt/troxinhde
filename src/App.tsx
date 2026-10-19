@@ -114,22 +114,31 @@ const AppCloudDataLoader: React.FC = () => {
   }, [currentUser]);
 
   React.useEffect(() => {
-    // 0. Dọn dẹp phòng thử nghiệm đã xóa khỏi LocalStorage nếu còn sót
+    // 0. Dọn dẹp phòng và tin đăng thử nghiệm đã xóa khỏi LocalStorage nếu còn sót
     try {
       const storageKey = 'troxinh_storage_v4';
       const raw = localStorage.getItem(storageKey);
-      if (raw && (raw.includes('kim anh') || raw.includes('h\u1ed3ng h\u00e0i') || raw.includes('h\u00e0i nhi'))) {
+      if (raw && (raw.includes('kim anh') || raw.includes('h\u1ed3ng h\u00e0i') || raw.includes('h\u00e0i nhi') || raw.includes('v\u00e0ng mi\u1ebfng') || raw.includes('f682d6ac'))) {
         const parsed = JSON.parse(raw);
         if (parsed?.state) {
-          const isTarget = (r: any) => {
+          const isTargetRoom = (r: any) => {
             const title = (r?.title || r?.name || '').toLowerCase();
             return (title.includes('kim anh') && title.includes('hài nhi')) || title.includes('hồng hài nhi');
           };
+          const isTargetItem = (item: any) => {
+            const id = String(item?.id || '');
+            const title = (item?.title || item?.name || '').toLowerCase();
+            return id === 'f682d6ac-8663-4aa6-b123-991bc283398c' || title.includes('vàng miếng 9999') || (title.includes('vàng miếng') && title.includes('nổi'));
+          };
+
           if (parsed.state.localCreatedRooms) {
-            parsed.state.localCreatedRooms = parsed.state.localCreatedRooms.filter((r: any) => !isTarget(r));
+            parsed.state.localCreatedRooms = parsed.state.localCreatedRooms.filter((r: any) => !isTargetRoom(r));
           }
           if (parsed.state.rooms) {
-            parsed.state.rooms = parsed.state.rooms.filter((r: any) => !isTarget(r));
+            parsed.state.rooms = parsed.state.rooms.filter((r: any) => !isTargetRoom(r));
+          }
+          if (parsed.state.marketplaceItems) {
+            parsed.state.marketplaceItems = parsed.state.marketplaceItems.filter((i: any) => !isTargetItem(i));
           }
           localStorage.setItem(storageKey, JSON.stringify(parsed));
         }

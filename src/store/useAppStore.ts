@@ -48,6 +48,7 @@ import {
 import { onAutoModerationTriggered } from '../lib/api/reports';
 import { isAdminIdentifier, isPermittedAdmin } from '../lib/security/sessionIntegrity';
 import { isTargetDeletedRoom } from '../lib/roomSearch';
+import { isTargetDeletedMarketplaceItem } from '../lib/marketplaceFilter';
 
 export type { BlockedUserRecord, HiddenItemRecord };
 
@@ -1266,9 +1267,10 @@ export const useAppStore = create<AppState>()(
       refreshMarketplaceItems: async () => {
         if (!isSupabaseConfigured) return;
         try {
-          const items = await fetchMarketplaceItemsFromSupabase();
+          const rawItems = await fetchMarketplaceItemsFromSupabase();
+          const items = rawItems.filter((i) => !isTargetDeletedMarketplaceItem(i));
           set((state) => ({
-            marketplaceItems: items.length > 0 ? items : (isDev ? state.marketplaceItems : []),
+            marketplaceItems: items.length > 0 ? items : (isDev ? state.marketplaceItems.filter((i) => !isTargetDeletedMarketplaceItem(i)) : []),
             marketplaceLoadError: null,
           }));
         } catch (err: any) {
@@ -1590,7 +1592,7 @@ export const useAppStore = create<AppState>()(
               buildings: mergedBuildings,
               roommates: mergedRoommates,
               ownerApplications: mergedOwnerApps,
-              marketplaceItems: cloudItems,
+              marketplaceItems: (cloudItems || []).filter((i) => !isTargetDeletedMarketplaceItem(i)),
               marketplaceLoadError: cloudItemsResult.error,
             };
           });
@@ -1638,6 +1640,15 @@ export const useAppStore = create<AppState>()(
           if (state.savedRoomIds && state.rooms) {
             const validIds = new Set(state.rooms.map((r) => r.id));
             state.savedRoomIds = state.savedRoomIds.filter((id) => validIds.has(id));
+          }
+
+          // Xóa dứt điểm tin chợ đồ cũ thử nghiệm khỏi state và danh sách đã lưu
+          if (state.marketplaceItems) {
+            state.marketplaceItems = state.marketplaceItems.filter((i) => !isTargetDeletedMarketplaceItem(i));
+          }
+          if (state.savedItemIds && state.marketplaceItems) {
+            const validIds = new Set(state.marketplaceItems.map((i) => i.id));
+            state.savedItemIds = state.savedItemIds.filter((id) => validIds.has(id));
           }
 
           if (state.currentUser) {
