@@ -19,14 +19,15 @@ export const AIRecommendationsSection: React.FC<AIRecommendationsSectionProps> =
   title,
   description,
 }) => {
-  const { rooms: storeRooms = [], currentUser } = useAppStore();
+  const { rooms: storeRooms = [] } = useAppStore();
   const location = useLocation();
   const sectionRef = useRef<HTMLElement>(null);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
 
   // Determine current active rooms pool
+  // Khi SearchPage truyền propRooms (đã lọc), dùng trực tiếp không lọc thêm
   const allRooms = useMemo(() => {
-    return propRooms && propRooms.length > 0 ? propRooms : storeRooms;
+    return propRooms && propRooms.length >= 0 ? propRooms : storeRooms;
   }, [propRooms, storeRooms]);
 
   // Is currently on search page (/tim-kiem or /tim-phong)
@@ -52,21 +53,29 @@ export const AIRecommendationsSection: React.FC<AIRecommendationsSectionProps> =
     if (!allRooms || !Array.isArray(allRooms) || allRooms.length === 0) return [];
 
     const nonDeleted = allRooms.filter((r) => r && !isTargetDeletedRoom(r));
-    const approved = nonDeleted.filter((r) => r.status === 'Còn trống' || !r.status);
-    const targetPool = approved.length > 0 ? approved : nonDeleted.filter((r) => r && r.id);
+    // Nếu propRooms được truyền vào (đã có bộ lọc), hiển thị tất cả không lọc thêm
+    // Nếu dùng storeRooms (trang chủ), chỉ hiện phòng còn trống
+    const targetPool = propRooms !== undefined
+      ? nonDeleted
+      : nonDeleted.filter((r) => r.status === 'Còn trống' || !r.status);
 
     return targetPool.map((room, idx) => {
+      // Tạo lý giải gắn với đặc điểm thực tế của từng phòng
+      const priceM = room.price >= 1000000 ? `${(room.price / 1000000).toFixed(1)} tr` : room.price?.toLocaleString('vi-VN');
+      const typeLabel = room.type || 'Phòng trọ';
+      const districtLabel = room.district || 'Hà Nội';
+      const schoolLabel = room.nearestSchool ? `gần ${room.nearestSchool}` : '';
+      const amenityHighlight = Array.isArray(room.amenities) && room.amenities.length > 0
+        ? `Đầy đủ tiện nghi: ${room.amenities.slice(0, 3).join(', ')}.`
+        : 'Đầy đủ tiện nghi cơ bản sẵn sàng dọn vào ở ngay.';
+
       const reasons = [
-        `Phù hợp với khu vực ${room.district || 'Hà Nội'} có giao thông thuận tiện và gần các trường đại học lớn.`,
-        `Mức giá ${
-          room.price >= 1000000
-            ? (room.price / 1000000).toFixed(1) + ' tr'
-            : room.price
-        } tối ưu theo ngân sách tìm kiếm phổ biến của sinh viên.`,
-        `Đầy đủ tiêu chuẩn an toàn PCCC & nội thất cơ bản sẵn sàng dọn vào ở ngay.`,
-        `Phòng trọ có ban công thoáng mát và chỉ số đánh giá tích cực từ khách thuê trước.`,
-        `Gần nhiều tuyến xe buýt và tiện ích ăn uống, chợ dân sinh thuận lợi cho sinh hoạt hằng ngày.`,
-        `Không gian yên tĩnh, an ninh đảm bảo với camera giám sát 24/7 và giờ giấc tự do.`,
+        `${typeLabel} ${schoolLabel ? schoolLabel + ', ' : ''}${districtLabel} — giá ${priceM}/tháng phù hợp ngân sách sinh viên. ${amenityHighlight}`,
+        `Phòng tại ${districtLabel} có giao thông thuận tiện${schoolLabel ? ', ' + schoolLabel : ''}. ${amenityHighlight}`,
+        `Mức giá ${priceM}/tháng tối ưu cho sinh viên. ${room.verified ? 'Đã xác minh chủ trọ & hình ảnh thực tế.' : amenityHighlight}`,
+        `${amenityHighlight} Vị trí ${districtLabel}${schoolLabel ? ', ' + schoolLabel : ''}, an ninh đảm bảo và giờ giấc tự do.`,
+        `Gần nhiều tuyến xe buýt và tiện ích ăn uống tại ${districtLabel}. ${amenityHighlight}`,
+        `Không gian yên tĩnh, an ninh đảm bảo với camera giám sát 24/7 và giờ giấc tự do. ${amenityHighlight}`,
       ];
 
       // Dynamic score from 9.9 down to 8.2
@@ -79,7 +88,7 @@ export const AIRecommendationsSection: React.FC<AIRecommendationsSectionProps> =
         score,
       };
     });
-  }, [allRooms, currentUser]);
+  }, [allRooms, propRooms]);
 
   if (recommendedRooms.length === 0) return null;
 

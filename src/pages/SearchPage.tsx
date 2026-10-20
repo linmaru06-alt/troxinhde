@@ -923,11 +923,28 @@ export const SearchPage: React.FC = () => {
             </>
           )}
 
-          {/* AI-Powered Recommendations */}
+          {/* AI-Powered Recommendations — hiển thị đúng theo bộ lọc hiện tại */}
           <div className="pt-8">
             <AIRecommendationsSection
-              rooms={activeRooms}
+              rooms={filteredRooms}
               onViewAllRooms={clearAllFiltersAndScrollTop}
+              title={
+                activeFilterCount > 0
+                  ? `Gợi Ý Phù Hợp Theo Bộ Lọc Của Bạn ✨`
+                  : `Gợi Ý Phòng Theo Khu Vực & Ngân Sách ✨`
+              }
+              description={
+                activeFilterCount > 0
+                  ? `Danh sách phòng trọ khớp với ${[
+                      selectedType && `loại "${matchedType || selectedType}"`,
+                      selectedPrice && !priceRangeInvalid && `mức giá ${formatPriceRangeDisplay(selectedPrice)}`,
+                      selectedDistrict && `khu vực ${matchedDistrict || selectedDistrict}`,
+                      selectedSchool && `gần ${matchedUniversityOption || selectedSchool}`,
+                      selectedAmenities.length > 0 && `tiện ích: ${selectedAmenities.join(', ')}`,
+                      verifiedOnly && `đã xác minh`,
+                    ].filter(Boolean).join(', ')}.`
+                  : `Danh sách phòng trọ nổi bật được tổng hợp theo vị trí gần trường đại học, tiện nghi và mức giá phù hợp với sinh viên.`
+              }
             />
           </div>
         </main>

@@ -1,5 +1,41 @@
 import { Room } from '../types';
 
+// Pool ảnh phòng trọ đẹp từ Unsplash dùng làm fallback khi DB chưa có ảnh
+const FALLBACK_ROOM_IMAGES: string[] = [
+  'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1512918728675-ed5a9ecdebfd?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1631049307264-da0ec9d70304?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1616594039964-ae9021a400a0?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1484154218962-a197022b5858?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1556909114-f6e7ad7d3136?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1505693314120-0d443867891c?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1598928506311-c55ded91a20c?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1502005229762-cf1b2da7c5d6?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1600210492493-0946911123ea?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1583847268964-b28dc8f51f92?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1618221118493-9cfa1a1193f8?w=800&auto=format&fit=crop&q=80',
+  'https://images.unsplash.com/photo-1550581190-9c1c48d21d6c?w=800&auto=format&fit=crop&q=80',
+];
+
+/** Trả về 2-3 ảnh fallback ngẫu nhiên theo ID phòng để mỗi card có ảnh khác nhau */
+function getFallbackImages(roomId: string): string[] {
+  // Tạo số seed từ ký tự cuối của ID để đảm bảo nhất quán
+  const seed = roomId.split('').reduce((acc, c) => acc + c.charCodeAt(0), 0);
+  const start = seed % FALLBACK_ROOM_IMAGES.length;
+  const imgs: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    imgs.push(FALLBACK_ROOM_IMAGES[(start + i) % FALLBACK_ROOM_IMAGES.length]);
+  }
+  return imgs;
+}
+
 export interface RoomSearchParams {
   searchQuery: string;
   selectedSchool: string;
@@ -209,11 +245,14 @@ export function normalizeRoom(r: any): Room {
   const verified = Boolean(r.verified || r.moderation_status === 'approved');
   const isBoosted = Boolean(r.isBoosted || r.is_boosted || r.boost_type);
   const amenities = Array.isArray(r.amenities) ? r.amenities : [];
-  const images = Array.isArray(r.images) && r.images.length > 0
+  const rawImages = Array.isArray(r.images) && r.images.length > 0
     ? r.images
-    : (Array.isArray(r.room_images) && r.room_images.length > 0
-        ? r.room_images.map((im: any) => im.url || im)
-        : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800']);
+    : Array.isArray(r.room_images) && r.room_images.length > 0
+      ? r.room_images.map((im: any) => im.url || im)
+      : [];
+  // Lọc bỏ ảnh rỗng/null; fallback về pool ảnh đẹp nếu không có ảnh thực
+  const validImages = rawImages.filter((img: any) => typeof img === 'string' && img.startsWith('http'));
+  const images = validImages.length > 0 ? validImages : getFallbackImages(String(r.id || Math.random()));
 
   return {
     ...r,

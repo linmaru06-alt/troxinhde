@@ -59,13 +59,15 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
     + 100000;
   const totalEstimatedMonthly = room.price + estimatedServices;
 
+  const hasMultipleImages = Array.isArray(room.images) && room.images.length > 1;
+
   return (
     <div className="group relative bg-white rounded-2xl overflow-hidden max-w-full w-full border border-gray-200/90 hover:border-[#00a854]/40 shadow-xs hover:shadow-card-hover transition-all duration-300 flex flex-col h-full hover:-translate-y-1">
       {/* Image & Badges */}
       <div className="relative aspect-4/3 w-full overflow-hidden bg-gray-100">
         <Link to={`/phong/${room.id}`} className="block w-full h-full">
           <ImageWithFallback
-            src={room.images?.[0] || '/images/hero-banner.webp'}
+            src={room.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80'}
             alt={room.title}
             preset="thumbnail"
             loading="lazy"
@@ -118,6 +120,14 @@ export const RoomCard: React.FC<{ room: Room }> = ({ room }) => {
             <Heart className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
           </button>
         </div>
+
+        {/* Badge số lượng ảnh - góc dưới phải */}
+        {hasMultipleImages && (
+          <span className="absolute bottom-3 right-3 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 shadow-sm border border-white/20 pointer-events-none">
+            <Camera className="w-3 h-3 text-amber-300" />
+            {room.images.length} ảnh
+          </span>
+        )}
 
         {/* Price Tag Overlay */}
         <div className="absolute bottom-3 left-3 bg-[#00a854]/95 backdrop-blur-md text-white font-black text-xs sm:text-sm px-3 py-1 rounded-xl shadow-md">
@@ -182,7 +192,7 @@ export const HorizontalRoomCard: React.FC<{ room: Room }> = ({ room }) => {
       {/* Left side: Image */}
       <div className="relative w-[110px] sm:w-[130px] shrink-0 rounded-2xl overflow-hidden bg-gray-100">
         <ImageWithFallback
-          src={room.images?.[0] || '/images/hero-banner.webp'}
+          src={room.images?.[0] || 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&auto=format&fit=crop&q=80'}
           alt={room.title}
           preset="thumbnail"
           loading="lazy"
