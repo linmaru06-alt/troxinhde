@@ -48,6 +48,14 @@ export default defineConfig({
             },
           },
           {
+            urlPattern: /^https:\/\/.*\.google\.com\/vt\//,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-maps-tiles-cache',
+              expiration: { maxEntries: 300, maxAgeSeconds: 86400 * 7 },
+            },
+          },
+          {
             urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
