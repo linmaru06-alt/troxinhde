@@ -120,79 +120,116 @@ export const SearchPage: React.FC = () => {
 
   useOutsideClick(mobileDrawerRef, handleMobileClose, isMobileFilterOpen);
 
+  // Auto-clean invalid URL params to prevent page errors on bad query strings
+  useEffect(() => {
+    const needsClean =
+      (searchParams.get('gia') !== null && parsePriceRange(searchParams.get('gia') || '') === null) ||
+      (searchParams.get('page') !== null && isNaN(parseInt(searchParams.get('page') || '', 10))) ||
+      (searchParams.get('sort') !== null && !['verified_first', 'newest', 'price_asc', 'price_desc', 'distance'].includes(searchParams.get('sort') || ''));
+
+    if (needsClean) {
+      setSearchParams(
+        (prev) => {
+          const next = new URLSearchParams(prev);
+          if (next.get('gia') && parsePriceRange(next.get('gia') || '') === null) next.delete('gia');
+          if (next.get('page') && isNaN(parseInt(next.get('page') || '', 10))) next.delete('page');
+          if (next.get('sort') && !['verified_first', 'newest', 'price_asc', 'price_desc', 'distance'].includes(next.get('sort') || '')) next.delete('sort');
+          return next;
+        },
+        { replace: true },
+      );
+    }
+  }, [searchParams, setSearchParams]);
+
   // Flush draft to URL
   const applyMobileFilters = () => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      mobileDraft.verified ? next.set('xacMinh', 'true') : next.delete('xacMinh');
-      mobileDraft.school ? next.set('truong', mobileDraft.school) : next.delete('truong');
-      mobileDraft.district ? next.set('khuVuc', mobileDraft.district) : next.delete('khuVuc');
-      mobileDraft.price ? next.set('gia', mobileDraft.price) : next.delete('gia');
-      mobileDraft.type ? next.set('loai', mobileDraft.type) : next.delete('loai');
-      mobileDraft.amenities.length > 0 ? next.set('tienIch', mobileDraft.amenities.join(',')) : next.delete('tienIch');
-      if (mobileDraft.sort && mobileDraft.sort !== 'verified_first') {
-        next.set('sort', mobileDraft.sort);
-      } else {
-        next.delete('sort');
-      }
-      // Requirement: Đổi bộ lọc quay về trang đầu
-      next.delete('page');
-      return next;
-    });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        mobileDraft.verified ? next.set('xacMinh', 'true') : next.delete('xacMinh');
+        mobileDraft.school ? next.set('truong', mobileDraft.school) : next.delete('truong');
+        mobileDraft.district ? next.set('khuVuc', mobileDraft.district) : next.delete('khuVuc');
+        mobileDraft.price ? next.set('gia', mobileDraft.price) : next.delete('gia');
+        mobileDraft.type ? next.set('loai', mobileDraft.type) : next.delete('loai');
+        mobileDraft.amenities.length > 0 ? next.set('tienIch', mobileDraft.amenities.join(',')) : next.delete('tienIch');
+        if (mobileDraft.sort && mobileDraft.sort !== 'verified_first') {
+          next.set('sort', mobileDraft.sort);
+        } else {
+          next.delete('sort');
+        }
+        // Requirement: Đổi bộ lọc quay về trang đầu
+        next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
     closeAllSheets();
   };
 
   const toggleAmenity = (amenity: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      let nextList: string[];
-      if (selectedAmenities.includes(amenity)) {
-        nextList = selectedAmenities.filter((a) => a !== amenity);
-      } else {
-        nextList = [...selectedAmenities, amenity];
-      }
-      if (nextList.length > 0) {
-        next.set('tienIch', nextList.join(','));
-      } else {
-        next.delete('tienIch');
-      }
-      next.delete('page');
-      return next;
-    });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        let nextList: string[];
+        if (selectedAmenities.includes(amenity)) {
+          nextList = selectedAmenities.filter((a) => a !== amenity);
+        } else {
+          nextList = [...selectedAmenities, amenity];
+        }
+        if (nextList.length > 0) {
+          next.set('tienIch', nextList.join(','));
+        } else {
+          next.delete('tienIch');
+        }
+        next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const clearAmenities = () => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      next.delete('tienIch');
-      next.delete('page');
-      return next;
-    });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('tienIch');
+        next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const updateParam = (key: string, value: string) => {
-    setSearchParams((prev) => {
-      const next = new URLSearchParams(prev);
-      if (value && value !== 'verified_first') {
-        next.set(key, value);
-      } else if (key === 'sort' && value === 'verified_first') {
-        // verified_first is default, omitting keeps URL cleaner
-        next.delete('sort');
-      } else {
-        next.delete(key);
-      }
-      // Requirement: Đổi bộ lọc quay về trang đầu
-      next.delete('page');
-      return next;
-    });
+    setSearchParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (key === 'sort') {
+          // verified_first is default — omit from URL to keep it clean
+          if (value && value !== 'verified_first') {
+            next.set(key, value);
+          } else {
+            next.delete(key);
+          }
+        } else if (value) {
+          next.set(key, value);
+        } else {
+          next.delete(key);
+        }
+        // Requirement: Đổi bộ lọc quay về trang đầu
+        next.delete('page');
+        return next;
+      },
+      { replace: true },
+    );
   };
 
   const clearAllFilters = () => {
-    setSearchParams(new URLSearchParams());
+    setSearchParams(new URLSearchParams(), { replace: true });
   };
 
   const clearAllFiltersAndScrollTop = () => {
-    setSearchParams(new URLSearchParams());
+    setSearchParams(new URLSearchParams(), { replace: true });
     const mainList = document.getElementById('danh-sach-phong-top');
     if (mainList) {
       mainList.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -203,11 +240,44 @@ export const SearchPage: React.FC = () => {
 
   const handleShare = () => {
     const currentUrl = window.location.href;
+    const onCopied = () => {
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    };
     if (navigator.clipboard) {
-      navigator.clipboard.writeText(currentUrl).then(() => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), 2000);
+      navigator.clipboard.writeText(currentUrl).then(onCopied).catch(() => {
+        // Fallback for non-HTTPS or permission denied
+        try {
+          const textarea = document.createElement('textarea');
+          textarea.value = currentUrl;
+          textarea.style.position = 'fixed';
+          textarea.style.opacity = '0';
+          document.body.appendChild(textarea);
+          textarea.focus();
+          textarea.select();
+          document.execCommand('copy');
+          document.body.removeChild(textarea);
+          onCopied();
+        } catch (_) {
+          // Silent fail — clipboard not available
+        }
       });
+    } else {
+      // Clipboard API not available (HTTP context)
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = currentUrl;
+        textarea.style.position = 'fixed';
+        textarea.style.opacity = '0';
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+        onCopied();
+      } catch (_) {
+        // Silent fail
+      }
     }
   };
 
