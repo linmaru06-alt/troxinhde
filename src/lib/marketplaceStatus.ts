@@ -157,6 +157,12 @@ export function mapMarketplaceRow(row: any): MarketplaceItem | null {
     isHidden: row.status === 'hidden',
     showPhone,
     closedAt: row.closed_at || undefined,
+    roomId: row.room_id || undefined,
+    room_id: row.room_id || undefined,
+    buildingId: row.building_id || undefined,
+    building_id: row.building_id || undefined,
+    isRoomTransfer: Boolean(row.is_room_transfer),
+    is_room_transfer: Boolean(row.is_room_transfer),
     sellerStudentVerified: seller.student_verified === true,
     sellerPhoneVerified: seller.phone_verified === true,
     createdAt: row.created_at || '',
@@ -176,6 +182,9 @@ export interface MarketplaceItemInput {
   images: string[];
   deliveryMethods: MarketplaceDeliveryMethodCode[];
   isNegotiable: boolean;
+  roomId?: string | null;
+  buildingId?: string | null;
+  isRoomTransfer?: boolean;
 }
 
 /**
@@ -211,5 +220,8 @@ export function toMarketplaceDbFields(input: MarketplaceItemInput) {
     images: input.images,
     delivery_methods: input.deliveryMethods,
     is_negotiable: input.isNegotiable,
+    room_id: input.roomId || null,
+    building_id: input.buildingId || null,
+    is_room_transfer: Boolean(input.isRoomTransfer),
   };
 }

@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ImageUploader } from '../components/ui/ImageUploader';
-import { MarketplaceCard, formatCurrency } from '../components/ui/Cards';
+import { MarketplaceCard, formatCurrency, formatPrice } from '../components/ui/Cards';
 import { ReportModal } from '../components/modals/ReportModal';
 import { AdminConfirmModal } from '../components/admin/AdminConfirmModal';
 import { SEOHead } from '../components/seo/SEOHead';
@@ -70,7 +71,7 @@ export const MarketplaceDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { marketplaceItems, currentUser, showToast } = useAppStore();
+  const { marketplaceItems, rooms = [], currentUser, showToast } = useAppStore();
 
   const [selectedImageIndex, setSelectedImageIndex] = useState<number>(0);
   const [isZoomOpen, setIsZoomOpen] = useState<boolean>(false);
@@ -83,6 +84,30 @@ export const MarketplaceDetailPage: React.FC = () => {
   const { item, isLoading: isItemLoading, error: itemError, refetch: refetchItem } = useMarketplaceItem(id);
   const { updateItem, setStatus } = useMarketplaceItemMutations();
   const sellerUserId = item?.userId ?? item?.seller_id ?? item?.sellerId ?? '';
+
+  // Liên kết phòng trọ (USP 2: Vòng đời chuyển trọ khép kín)
+  const linkedRoomId = item?.roomId || item?.room_id;
+  const linkedRoom = useMemo(() => {
+    if (!linkedRoomId) return null;
+    return (rooms || []).find((r) => r.id === linkedRoomId) || null;
+  }, [rooms, linkedRoomId]);
+
+  const [fetchedRoom, setFetchedRoom] = useState<any>(null);
+  useEffect(() => {
+    if (!linkedRoomId || linkedRoom) return;
+    if (!isSupabaseConfigured) return;
+    supabase
+      .from('rooms')
+      .select('id, title, price, district, address, images, area')
+      .eq('id', linkedRoomId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data) setFetchedRoom(data);
+      })
+      .catch((err) => console.warn('[MarketplaceDetail] fetch linked room error:', err));
+  }, [linkedRoomId, linkedRoom]);
+
+  const activeLinkedRoom = linkedRoom || fetchedRoom;
 
   // Phân quyền và trạng thái kiểm duyệt
   const isOwner = Boolean(currentUser && item && isSameUserId(currentUser.id, sellerUserId));
@@ -977,6 +1002,48 @@ export const MarketplaceDetailPage: React.FC = () => {
                 )}
               </div>
             </div>
+
+            {/* Linked Room Card (USP 2: Vòng đời chuyển trọ khép kín) */}
+            {activeLinkedRoom && (
+              <div className="p-4 bg-linear-to-r from-emerald-50/90 via-teal-50/60 to-white rounded-2xl border border-emerald-200/90 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] font-black uppercase text-[#006d37] bg-emerald-100/80 px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border border-emerald-300/60">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    Đồ pass dọn trọ tại phòng
+                  </span>
+                  <span className="text-[11px] font-bold text-emerald-800">0đ phí xe ba gác</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <img
+                    src={
+                      activeLinkedRoom.images?.[0] ||
+                      activeLinkedRoom.image_urls?.[0] ||
+                      '/images/hero-banner.webp'
+                    }
+                    alt={activeLinkedRoom.title}
+                    className="w-16 h-16 rounded-xl object-cover shrink-0 border border-emerald-200"
+                  />
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <p className="text-[11px] text-gray-500 font-medium">Món đồ đang nằm tại căn phòng:</p>
+                    <h4 className="text-xs sm:text-sm font-black text-gray-900 truncate" title={activeLinkedRoom.title}>
+                      {activeLinkedRoom.title}
+                    </h4>
+                    <p className="text-xs font-bold text-emerald-800">
+                      {formatPrice(activeLinkedRoom.price)} • {activeLinkedRoom.district}
+                    </p>
+                  </div>
+                </div>
+
+                <Link
+                  to={`/phong/${activeLinkedRoom.id}`}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl bg-white hover:bg-emerald-50 border border-emerald-300 text-[#006d37] text-xs font-bold transition shadow-2xs"
+                >
+                  <span>Xem chi tiết phòng trọ này</span>
+                  <ChevronRight className="w-3.5 h-3.5" />
+                </Link>
+              </div>
+            )}
 
             {/* Safety Tips Callout */}
             <div className="p-3.5 bg-amber-50/90 rounded-2xl border border-amber-200/80 text-xs text-amber-900 space-y-1">

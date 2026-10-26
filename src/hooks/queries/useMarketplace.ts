@@ -8,11 +8,59 @@ import {
   isMarketplaceItemId,
   setMarketplaceItemStatus,
   updateMarketplaceItemContent,
+  fetchMarketplaceItemsByRoomId,
+  fetchMarketplaceItemsByBuildingId,
 } from '../../lib/api/marketplace';
 import { resolveSessionProfileId } from '../../lib/authService';
 import { MarketplaceItemInput, MarketplaceSellerStatus } from '../../lib/marketplaceStatus';
 
 export const marketplaceItemKey = (id?: string) => ['marketplace-item', id] as const;
+export const marketplaceByRoomKey = (roomId?: string) => ['marketplace-by-room', roomId] as const;
+export const marketplaceByBuildingKey = (buildingId?: string) => ['marketplace-by-building', buildingId] as const;
+
+/**
+ * Danh sách đồ pass/thanh lý tại một phòng trọ (USP 2: Vòng đời chuyển trọ khép kín)
+ */
+export function useMarketplaceByRoom(roomId?: string) {
+  const query = useQuery({
+    queryKey: marketplaceByRoomKey(roomId),
+    queryFn: async () => {
+      if (!roomId) return [];
+      return fetchMarketplaceItemsByRoomId(roomId);
+    },
+    enabled: Boolean(roomId),
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    items: query.data || [],
+    isLoading: query.isLoading,
+    error: (query.error as Error | null) ?? null,
+    refetch: query.refetch,
+  };
+}
+
+/**
+ * Danh sách đồ pass/thanh lý thuộc cùng một tòa nhà
+ */
+export function useMarketplaceByBuilding(buildingId?: string) {
+  const query = useQuery({
+    queryKey: marketplaceByBuildingKey(buildingId),
+    queryFn: async () => {
+      if (!buildingId) return [];
+      return fetchMarketplaceItemsByBuildingId(buildingId);
+    },
+    enabled: Boolean(buildingId),
+    staleTime: 60 * 1000,
+  });
+
+  return {
+    items: query.data || [],
+    isLoading: query.isLoading,
+    error: (query.error as Error | null) ?? null,
+    refetch: query.refetch,
+  };
+}
 
 /**
  * Chi tiết một tin chợ đồ cũ. Dữ liệu máy chủ là nguồn chính;
@@ -57,6 +105,8 @@ export function useMarketplaceItemMutations() {
   const applyItem = (item: MarketplaceItem) => {
     upsertMarketplaceItem(item);
     queryClient.setQueryData(marketplaceItemKey(item.id), item);
+    queryClient.invalidateQueries({ queryKey: ['marketplace-by-room'] });
+    queryClient.invalidateQueries({ queryKey: ['marketplace-by-building'] });
   };
 
   const createItem = useMutation({
@@ -87,6 +137,8 @@ export function useMarketplaceItemMutations() {
     onSuccess: (_data, id) => {
       removeMarketplaceItem(id);
       queryClient.setQueryData(marketplaceItemKey(id), null);
+      queryClient.invalidateQueries({ queryKey: ['marketplace-by-room'] });
+      queryClient.invalidateQueries({ queryKey: ['marketplace-by-building'] });
     },
   });
 

@@ -201,6 +201,16 @@ export interface MarketplaceItem {
   isHidden?: boolean;
   showPhone?: boolean;
   closedAt?: string;
+  // Liên kết phòng trọ & tòa nhà (USP 2: Vòng đời chuyển trọ khép kín)
+  roomId?: string;
+  room_id?: string;
+  buildingId?: string;
+  building_id?: string;
+  isRoomTransfer?: boolean;
+  is_room_transfer?: boolean;
+  roomTitle?: string;
+  roomAddress?: string;
+  roomPrice?: number;
   // Trạng thái xác minh của người bán (lấy từ hồ sơ trên máy chủ)
   sellerStudentVerified?: boolean;
   sellerPhoneVerified?: boolean;

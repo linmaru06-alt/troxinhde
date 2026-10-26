@@ -15,6 +15,7 @@ import { ImageUploader } from "../components/ui/ImageUploader";
 import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 import { MiniRoomMap } from "../components/map/TroXinhMap";
 import { SEOHead } from "../components/seo/SEOHead";
+import { RoomTransferItemsSection } from "../components/room/RoomTransferItemsSection";
 import {
   ShieldCheck,
   Heart,
@@ -964,6 +965,9 @@ export const RoomDetailPage: React.FC = () => {
               </div>
             )}
           </div>
+
+          {/* 4.5. ROOM TRANSFER / PASS ITEMS SECTION (USP 2: Vòng đời chuyển trọ khép kín) */}
+          <RoomTransferItemsSection room={room} building={building} />
 
           {/* 5. Linked Building Overview Card */}
           {building && (

@@ -158,6 +158,7 @@ export const MarketplaceListPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const {
     marketplaceItems,
+    rooms = [],
     currentUser,
     showToast,
     hiddenItemIds,
@@ -274,6 +275,12 @@ export const MarketplaceListPage: React.FC = () => {
   const [deliveryError, setDeliveryError] = useState<string | null>(null);
   const [isNegotiable, setIsNegotiable] = useState<boolean>(
     Boolean(initialMarketDraft?.isNegotiable)
+  );
+  const [isRoomTransfer, setIsRoomTransfer] = useState<boolean>(
+    Boolean(initialMarketDraft?.isRoomTransfer)
+  );
+  const [selectedRoomId, setSelectedRoomId] = useState<string>(
+    initialMarketDraft?.roomId || ''
   );
 
   // Resubmit / Edit Modal State (Nhận lý do từ chối và sửa gửi lại)
@@ -570,12 +577,21 @@ export const MarketplaceListPage: React.FC = () => {
     };
   }, []);
 
-  const handlePostItem = () => {
+  const handlePostItem = (targetRoomId?: string) => {
     if (!currentUser) {
+      const returnParam = targetRoomId ? `/cho-do-cu?dangTin=1&roomId=${targetRoomId}` : '/cho-do-cu?dangTin=1';
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đăng tin thanh lý đồ cũ', 'warning');
-      // Đăng nhập xong quay lại và mở luôn form đăng tin
-      navigate('/dang-nhap?returnUrl=' + encodeURIComponent('/cho-do-cu?dangTin=1'));
+      navigate('/dang-nhap?returnUrl=' + encodeURIComponent(returnParam));
       return;
+    }
+    if (targetRoomId) {
+      setSelectedRoomId(targetRoomId);
+      setIsRoomTransfer(true);
+      const matchedRoom = (rooms || []).find((r) => r.id === targetRoomId);
+      if (matchedRoom) {
+        setLocation(matchedRoom.address || location);
+        setDistrict(matchedRoom.district || district);
+      }
     }
     setIsModalOpen(true);
   };
@@ -583,15 +599,17 @@ export const MarketplaceListPage: React.FC = () => {
   // Nút ĐĂNG TIN trên thanh menu (hoặc quay lại sau đăng nhập) mở form qua ?dangTin=1
   useEffect(() => {
     if (searchParams.get('dangTin') !== '1') return;
+    const urlRoomId = searchParams.get('roomId') || undefined;
     setSearchParams(
       (prev) => {
         const next = new URLSearchParams(prev);
         next.delete('dangTin');
+        next.delete('roomId');
         return next;
       },
       { replace: true }
     );
-    handlePostItem();
+    handlePostItem(urlRoomId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
@@ -630,6 +648,8 @@ export const MarketplaceListPage: React.FC = () => {
       description: description.trim() || 'Đồ thanh lý sinh viên chính chủ.',
       deliveryMethods,
       isNegotiable,
+      roomId: isRoomTransfer && selectedRoomId ? selectedRoomId : null,
+      isRoomTransfer: Boolean(isRoomTransfer),
     };
 
     try {
@@ -642,6 +662,8 @@ export const MarketplaceListPage: React.FC = () => {
       setTitle('');
       setDescription('');
       setImages([]);
+      setIsRoomTransfer(false);
+      setSelectedRoomId('');
       
       // Chuyển sang tab "Tin của tôi" để người dùng theo dõi trạng thái chờ duyệt
       setViewMode('my_items');
@@ -1620,6 +1642,79 @@ export const MarketplaceListPage: React.FC = () => {
               />
             </label>
           )}
+
+          {/* Vòng đời chuyển trọ khép kín: Gắn với phòng trọ */}
+          <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-3">
+            <label className="flex items-center justify-between cursor-pointer">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-gray-900">Pass đồ dọn trọ tại phòng (0đ phí ship)</p>
+                  <p className="text-[11px] text-gray-500">Món đồ sẽ xuất hiện trực tiếp tại trang chi tiết căn phòng bạn chọn</p>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={isRoomTransfer}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setIsRoomTransfer(checked);
+                  if (!checked) {
+                    setSelectedRoomId('');
+                  }
+                }}
+                className="w-4 h-4 accent-[#006d37] rounded cursor-pointer"
+              />
+            </label>
+
+            {isRoomTransfer && (
+              <div className="space-y-2 pt-2 border-t border-emerald-200/60 text-left">
+                <label className="block text-xs font-bold text-gray-700">
+                  Chọn căn phòng trọ bạn đang ở / pass lại:
+                </label>
+                <select
+                  value={selectedRoomId}
+                  onChange={(e) => {
+                    const rId = e.target.value;
+                    setSelectedRoomId(rId);
+                    const matched = (rooms || []).find((r) => r.id === rId);
+                    if (matched) {
+                      setLocation(matched.address || location);
+                      setDistrict(matched.district || district);
+                    }
+                  }}
+                  className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-xs font-medium focus:ring-2 focus:ring-[#006d37]"
+                >
+                  <option value="">-- Bấm để chọn phòng trọ trên hệ thống --</option>
+                  {(rooms || []).map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.title} ({r.district}) - {formatCurrency(r.price)}
+                    </option>
+                  ))}
+                </select>
+
+                {selectedRoomId ? (
+                  <div className="p-2 bg-white rounded-xl border border-emerald-200 flex items-center justify-between text-xs text-emerald-800">
+                    <span className="flex items-center gap-1 font-semibold truncate">
+                      <CheckCircle2 className="w-3.5 h-3.5 text-[#006d37] shrink-0" />
+                      {(rooms || []).find((r) => r.id === selectedRoomId)?.title || selectedRoomId}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setSelectedRoomId('')}
+                      className="text-gray-400 hover:text-rose-600 text-[11px] ml-2 shrink-0 cursor-pointer"
+                    >
+                      Bỏ chọn
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-[11px] text-gray-500">
+                    💡 Bạn cũng có thể mở trực tiếp trang phòng trọ của mình và bấm nút <em>"Pass đồ tại phòng này"</em>.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
 
           <div className="space-y-1.5 text-left">
             <label className="block text-sm font-medium text-gray-700">Mô tả thêm</label>

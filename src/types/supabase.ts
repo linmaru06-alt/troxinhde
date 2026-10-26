@@ -138,6 +138,9 @@ export interface Database {
           seller_phone?: string | null;
           show_phone?: boolean | null;
           contact_phone?: string | null;
+          room_id?: string | null;
+          building_id?: string | null;
+          is_room_transfer?: boolean | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -159,6 +162,9 @@ export interface Database {
           seller_phone?: string | null;
           show_phone?: boolean | null;
           contact_phone?: string | null;
+          room_id?: string | null;
+          building_id?: string | null;
+          is_room_transfer?: boolean | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -180,6 +186,9 @@ export interface Database {
           seller_phone?: string | null;
           show_phone?: boolean | null;
           contact_phone?: string | null;
+          room_id?: string | null;
+          building_id?: string | null;
+          is_room_transfer?: boolean | null;
           created_at?: string;
           updated_at?: string;
         };

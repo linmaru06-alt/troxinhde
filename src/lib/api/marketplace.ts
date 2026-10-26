@@ -190,3 +190,65 @@ export async function deleteMarketplaceItem(id: string): Promise<void> {
   const { error } = await supabase.rpc('marketplace_delete_item', { p_item_id: id });
   if (error) throw toMarketplaceError(error, 'Không thể xóa tin đăng');
 }
+
+/**
+ * Lấy danh sách các món đồ pass/thanh lý gắn với một phòng cụ thể (USP 2: Vòng đời chuyển trọ khép kín)
+ */
+export async function fetchMarketplaceItemsByRoomId(roomId: string): Promise<MarketplaceItem[]> {
+  if (!isSupabaseConfigured || !roomId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('marketplace_items')
+      .select(ITEM_SELECT)
+      .eq('room_id', roomId)
+      .eq('status', 'available')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (error.code === '42703' || /column .*room_id.* does not exist/i.test(error.message)) {
+        console.warn('[Marketplace] Cột room_id chưa được thêm vào bảng marketplace_items:', error.message);
+        return [];
+      }
+      throw toMarketplaceError(error, 'Không thể tải đồ thanh lý tại phòng');
+    }
+
+    if (!data || data.length === 0) return [];
+    const rows = await attachPublicProfiles(data, 'seller_id', 'profiles');
+    return rows.map(mapMarketplaceRow).filter((item): item is MarketplaceItem => item !== null);
+  } catch (err) {
+    console.warn('[fetchMarketplaceItemsByRoomId]', err);
+    return [];
+  }
+}
+
+/**
+ * Lấy danh sách các món đồ thanh lý thuộc cùng một tòa nhà
+ */
+export async function fetchMarketplaceItemsByBuildingId(buildingId: string): Promise<MarketplaceItem[]> {
+  if (!isSupabaseConfigured || !buildingId) return [];
+
+  try {
+    const { data, error } = await supabase
+      .from('marketplace_items')
+      .select(ITEM_SELECT)
+      .eq('building_id', buildingId)
+      .eq('status', 'available')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      if (error.code === '42703' || /column .*building_id.* does not exist/i.test(error.message)) {
+        return [];
+      }
+      throw toMarketplaceError(error, 'Không thể tải đồ thanh lý tại tòa nhà');
+    }
+
+    if (!data || data.length === 0) return [];
+    const rows = await attachPublicProfiles(data, 'seller_id', 'profiles');
+    return rows.map(mapMarketplaceRow).filter((item): item is MarketplaceItem => item !== null);
+  } catch (err) {
+    console.warn('[fetchMarketplaceItemsByBuildingId]', err);
+    return [];
+  }
+}
+
