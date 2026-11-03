@@ -5,3 +5,4 @@ export * from './useNotifications';
 export * from './useSavedRooms';
 export * from './useBuildings';
 export * from './useMarketplace';
+export * from './useK23';

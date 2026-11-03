@@ -69,6 +69,11 @@ const OwnerNotificationsPage = React.lazy(() => import('./pages/OwnerNotificatio
 const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
 const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
+// K23 Landlord PMS
+const OwnerServicesPage = React.lazy(() => import('./pages/OwnerServicesPage').then((m) => ({ default: m.OwnerServicesPage })));
+const OwnerMeterReadingPage = React.lazy(() => import('./pages/OwnerMeterReadingPage').then((m) => ({ default: m.OwnerMeterReadingPage })));
+const OwnerInvoiceListPage = React.lazy(() => import('./pages/OwnerInvoiceListPage').then((m) => ({ default: m.OwnerInvoiceListPage })));
+const OwnerInvoiceDetailPage = React.lazy(() => import('./pages/OwnerInvoiceDetailPage').then((m) => ({ default: m.OwnerInvoiceDetailPage })));
 
 // Admin Pages
 const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
@@ -646,6 +651,40 @@ const AppContent: React.FC = () => {
               element={
                 <OwnerRoute>
                   <OwnerProfilePage />
+
+            {/* K23 Landlord PMS Routes */}
+            <Route
+              path="/chu-tro/chot-so"
+              element={
+                <OwnerRoute>
+                  <OwnerMeterReadingPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/hoa-don"
+              element={
+                <OwnerRoute>
+                  <OwnerInvoiceListPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/hoa-don/:id"
+              element={
+                <OwnerRoute>
+                  <OwnerInvoiceDetailPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/dich-vu"
+              element={
+                <OwnerRoute>
+                  <OwnerServicesPage />
+                </OwnerRoute>
+              }
+            />
                 </OwnerRoute>
               }
             />

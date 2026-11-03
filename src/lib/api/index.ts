@@ -10,3 +10,6 @@ export * from './admin';
 export * from './payments';
 export * from './analytics';
 export * from './reports';
+export * from './k23Services';
+export * from './k23MeterReadings';
+export * from './k23Invoices';

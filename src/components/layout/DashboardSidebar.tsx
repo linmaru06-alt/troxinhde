@@ -19,6 +19,9 @@ import {
   CreditCard,
   Crown,
   ShieldAlert,
+  Zap,
+  Receipt,
+  Sliders,
 } from 'lucide-react';
 
 import { deduplicateChatNotifications } from '../../utils/formatters';
