@@ -113,3 +113,57 @@ export interface RoomReadingRow {
   waterPhoto?: string;
 }
 
+// -------------------------------------------------------------
+// K23 SUBSCRIPTION & PRICING TYPES
+// -------------------------------------------------------------
+export type K23PlanCode = 'starter' | 'pro' | 'enterprise';
+export type K23SubscriptionStatus = 'trialing' | 'active' | 'grace_period' | 'suspended' | 'cancelled';
+export type K23BillingCycle = 'monthly' | 'yearly';
+
+export interface K23Plan {
+  id: string;
+  code: K23PlanCode;
+  name: string;
+  description: string;
+  price_monthly: number;
+  price_yearly: number;
+  max_rooms: number;      // -1 means unlimited
+  max_buildings: number;  // -1 means unlimited
+  max_managers: number;
+  features: string[];
+  is_active: boolean;
+  display_order: number;
+}
+
+export interface K23Subscription {
+  id: string;
+  owner_id: string;
+  plan_code: K23PlanCode;
+  billing_cycle: K23BillingCycle;
+  status: K23SubscriptionStatus;
+  trial_start_at?: string;
+  trial_end_at?: string;
+  current_period_start: string;
+  current_period_end: string;
+  grace_period_end?: string;
+  auto_renew: boolean;
+  created_at: string;
+  updated_at: string;
+  plan?: K23Plan;
+}
+
+export interface K23SubscriptionOrder {
+  id: string;
+  order_code: string;
+  owner_id: string;
+  plan_code: K23PlanCode;
+  billing_cycle: K23BillingCycle;
+  amount: number;
+  status: 'pending' | 'paid' | 'cancelled' | 'expired';
+  payment_method?: string;
+  payment_time?: string;
+  transaction_ref?: string;
+  created_at: string;
+}
+
+

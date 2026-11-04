@@ -1,3 +1,4 @@
+import { SubscriptionBanner } from '../components/k23/subscription/SubscriptionBanner';
 import React, { useState, useEffect } from 'react';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { useAppStore } from '../store/useAppStore';
