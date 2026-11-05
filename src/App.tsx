@@ -654,6 +654,9 @@ const AppContent: React.FC = () => {
               element={
                 <OwnerRoute>
                   <OwnerProfilePage />
+                </OwnerRoute>
+              }
+            />
 
             {/* K23 Landlord PMS Routes */}
             <Route
@@ -685,6 +688,9 @@ const AppContent: React.FC = () => {
               element={
                 <OwnerRoute>
                   <OwnerServicesPage />
+                </OwnerRoute>
+              }
+            />
             <Route
               path="/chu-tro/goi-dich-vu"
               element={
@@ -706,12 +712,6 @@ const AppContent: React.FC = () => {
               element={
                 <OwnerRoute>
                   <OwnerK23SubscriptionPage />
-                </OwnerRoute>
-              }
-            />
-                </OwnerRoute>
-              }
-            />
                 </OwnerRoute>
               }
             />

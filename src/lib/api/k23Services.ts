@@ -11,18 +11,6 @@ export const DEFAULT_SERVICE_CATALOG: ServiceCatalogItem[] = [
   { id: 'srv_sec', name: 'Bảo vệ / An ninh', unit: 'phòng', charge_type: 'flat_monthly', default_price: 30000, icon: 'shield', sort_order: 7 },
 ];
 
-export function getFallbackBuildingServices(buildingId: string): BuildingService[] {
-  return DEFAULT_SERVICE_CATALOG.map((cat) => ({
-    id: `bs_${buildingId}_${cat.id}`,
-    building_id: buildingId,
-    service_id: cat.id,
-    custom_price: cat.default_price,
-    is_active: true,
-    owner_id: '00000000-0000-0000-0000-000000000002',
-    service: cat,
-  }));
-}
-
 export async function getServiceCatalog(): Promise<ServiceCatalogItem[]> {
   if (!isSupabaseConfigured) return DEFAULT_SERVICE_CATALOG;
 
@@ -42,34 +30,30 @@ export async function getServiceCatalog(): Promise<ServiceCatalogItem[]> {
 }
 
 export async function getBuildingServices(buildingId: string): Promise<BuildingService[]> {
-  if (!buildingId) return [];
-  if (!isSupabaseConfigured) return getFallbackBuildingServices(buildingId);
+  if (!isSupabaseConfigured || !buildingId) return [];
 
-  try {
-    const { data, error } = await supabase
-      .from('building_services')
-      .select(`
-        id,
-        building_id,
-        service_id,
-        custom_price,
-        is_active,
-        owner_id,
-        created_at,
-        service:service_catalog(*)
-      `)
-      .eq('building_id', buildingId);
+  const { data, error } = await supabase
+    .from('building_services')
+    .select(`
+      id,
+      building_id,
+      service_id,
+      custom_price,
+      is_active,
+      owner_id,
+      created_at,
+      service:service_catalog(*)
+    `)
+    .eq('building_id', buildingId);
 
-    if (error || !data || data.length === 0) {
-      return getFallbackBuildingServices(buildingId);
-    }
-    return (data || []).map((row: any) => ({
-      ...row,
-      service: Array.isArray(row.service) ? row.service[0] : row.service,
-    }));
-  } catch {
-    return getFallbackBuildingServices(buildingId);
+  if (error) {
+    console.warn('[k23Services] Error fetching building services:', error);
+    return [];
   }
+  return (data || []).map((row: any) => ({
+    ...row,
+    service: Array.isArray(row.service) ? row.service[0] : row.service,
+  }));
 }
 
 export async function saveBuildingServices(
@@ -93,3 +77,4 @@ export async function saveBuildingServices(
 
   if (error) throw error;
 }
+
