@@ -22,6 +22,7 @@ import {
   Zap,
   Receipt,
   Sliders,
+  Sparkles,
 } from 'lucide-react';
 
 import { deduplicateChatNotifications } from '../../utils/formatters';
@@ -31,6 +32,7 @@ interface NavLinkItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
+  badgeText?: string;
   isVip?: boolean;
 }
 
@@ -50,6 +52,8 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
     { to: '/chu-tro/toa-nha', label: 'Tòa nhà của tôi', icon: Building2 },
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
     { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
+    { to: '/demo-hoa-don', label: 'Demo 1 tháng trọ K23', icon: Sparkles, badgeText: 'MẪU' },
+
     { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap, isVip: true },
     { to: '/chu-tro/hoa-don', label: 'Hóa đơn tiền phòng', icon: Receipt, isVip: true },
     { to: '/chu-tro/dich-vu', label: 'Bảng giá dịch vụ', icon: Sliders, isVip: true },
@@ -115,6 +119,11 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
                   <span>{link.label}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
+                  {link.badgeText && (
+                    <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-emerald-600 text-white uppercase tracking-wider shadow-xs">
+                      {link.badgeText}
+                    </span>
+                  )}
                   {link.isVip && (
                     <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 uppercase tracking-wider shadow-xs">
                       VIP

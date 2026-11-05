@@ -77,6 +77,7 @@ const OwnerInvoiceDetailPage = React.lazy(() => import('./pages/OwnerInvoiceDeta
 const OwnerK23PricingPage = React.lazy(() => import('./pages/OwnerK23PricingPage').then((m) => ({ default: m.OwnerK23PricingPage })));
 const OwnerK23CheckoutPage = React.lazy(() => import('./pages/OwnerK23CheckoutPage').then((m) => ({ default: m.OwnerK23CheckoutPage })));
 const OwnerK23SubscriptionPage = React.lazy(() => import('./pages/OwnerK23SubscriptionPage').then((m) => ({ default: m.OwnerK23SubscriptionPage })));
+const K23MonthlyDemoPage = React.lazy(() => import('./pages/K23MonthlyDemoPage').then((m) => ({ default: m.K23MonthlyDemoPage })));
 
 // Admin Pages
 const AdminDashboardPage = React.lazy(() => import('./pages/AdminDashboardPage').then((m) => ({ default: m.AdminDashboardPage })));
@@ -831,6 +832,9 @@ const AppContent: React.FC = () => {
             />
 
             {/* Debug QA Tool */}
+            <Route path="/demo-hoa-don" element={<K23MonthlyDemoPage />} />
+            <Route path="/chu-tro/demo-thang-tro" element={<K23MonthlyDemoPage />} />
+            <Route path="/chu-tro/demo-k23" element={<K23MonthlyDemoPage />} />
             <Route path="/debug" element={<DebugPage />} />
 
             {/* 404 Not Found */}

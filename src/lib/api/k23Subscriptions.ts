@@ -91,14 +91,22 @@ export async function getK23Plans(): Promise<K23Plan[]> {
 }
 
 export async function getOwnerK23Subscription(ownerId: string): Promise<K23Subscription> {
-  const isLocallyActivated = typeof window !== 'undefined' && localStorage.getItem('k23_vip_activated_' + ownerId) === 'true';
+  const isDemo =
+    ownerId === '00000000-0000-0000-0000-000000000002' ||
+    ownerId === 'user_owner_1' ||
+    ownerId.toLowerCase().includes('demo') ||
+    ownerId.toLowerCase().includes('chutro');
+
+  const isLocallyActivated =
+    isDemo ||
+    (typeof window !== 'undefined' && localStorage.getItem('k23_vip_activated_' + ownerId) === 'true');
 
   const emptySubscription: K23Subscription = {
-    id: 'none_' + ownerId,
+    id: 'sub_' + ownerId,
     owner_id: ownerId,
     plan_code: 'pro',
     billing_cycle: 'monthly',
-    status: isLocallyActivated ? 'trialing' : 'unsubscribed',
+    status: isLocallyActivated ? 'active' : 'unsubscribed',
     trial_start_at: new Date().toISOString(),
     trial_end_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     current_period_start: new Date().toISOString(),
