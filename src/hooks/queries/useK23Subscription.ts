@@ -6,6 +6,7 @@ import {
   getOwnerRoomCount,
   createK23Order,
   confirmK23OrderMock,
+  activateK23Trial,
 } from '../../lib/api/k23Subscriptions';
 import { K23PlanCode, K23BillingCycle } from '../../types/k23';
 
@@ -53,10 +54,12 @@ export function useK23Subscription() {
   const diffTime = periodEnd - now;
   const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
+  const isUnsubscribed = subscription?.status === 'unsubscribed';
   const isTrial = subscription?.status === 'trialing';
   const isGracePeriod = now > periodEnd && now <= graceEnd;
   const isSuspended = now > graceEnd || subscription?.status === 'suspended';
-  const isActive = (subscription?.status === 'active' || isTrial) && !isSuspended;
+  const isActive = (subscription?.status === 'active' || isTrial) && !isSuspended && !isUnsubscribed;
+  const isVip = isActive;
 
   // Tính toán quota phòng
   const maxRooms = currentPlan?.max_rooms ?? 10;
@@ -67,6 +70,13 @@ export function useK23Subscription() {
     : Math.min(100, Math.round((roomCount / maxRooms) * 100));
 
   // Mutations
+  const activateTrialMutation = useMutation({
+    mutationFn: () => activateK23Trial(ownerId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['k23_subscription', ownerId] });
+    },
+  });
+
   const createOrderMutation = useMutation({
     mutationFn: ({
       planCode,
@@ -106,10 +116,14 @@ export function useK23Subscription() {
     canAddRoom,
     roomUsagePercent,
     daysLeft,
+    isUnsubscribed,
     isTrial,
     isActive,
+    isVip,
     isGracePeriod,
     isSuspended,
+    activateTrial: activateTrialMutation.mutateAsync,
+    isActivatingTrial: activateTrialMutation.isPending,
     createOrder: createOrderMutation.mutateAsync,
     confirmOrder: confirmOrderMutation.mutateAsync,
     isCreatingOrder: createOrderMutation.isPending,

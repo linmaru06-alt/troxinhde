@@ -31,6 +31,7 @@ interface NavLinkItem {
   label: string;
   icon: React.ElementType;
   badge?: number;
+  isVip?: boolean;
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
@@ -49,10 +50,10 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
     { to: '/chu-tro/toa-nha', label: 'Tòa nhà của tôi', icon: Building2 },
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
     { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
-    { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap },
-    { to: '/chu-tro/hoa-don', label: 'Hóa đơn tiền phòng', icon: Receipt },
-    { to: '/chu-tro/dich-vu', label: 'Bảng giá dịch vụ', icon: Sliders },
-    { to: '/chu-tro/quan-ly-goi-k23', label: 'Gói quản lý K23', icon: Crown },
+    { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap, isVip: true },
+    { to: '/chu-tro/hoa-don', label: 'Hóa đơn tiền phòng', icon: Receipt, isVip: true },
+    { to: '/chu-tro/dich-vu', label: 'Bảng giá dịch vụ', icon: Sliders, isVip: true },
+    { to: '/chu-tro/quan-ly-goi-k23', label: 'Gói quản lý K23', icon: Crown, isVip: true },
     { to: '/chu-tro/quan-ly-goi', label: 'Gói dịch vụ & Hóa đơn', icon: Crown },
     { to: '/chu-tro/tin-nhan', label: 'Tin nhắn khách thuê', icon: MessageSquare, badge: unreadMessages },
     { to: '/chu-tro/thong-bao', label: 'Trung tâm thông báo', icon: Bell, badge: unreadNotifs },
@@ -113,11 +114,18 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
                   <Icon className="w-4 h-4" />
                   <span>{link.label}</span>
                 </div>
-                {link.badge !== undefined && link.badge > 0 && (
-                  <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white">
-                    {link.badge}
-                  </span>
-                )}
+                <div className="flex items-center gap-1.5">
+                  {link.isVip && (
+                    <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 uppercase tracking-wider shadow-xs">
+                      VIP
+                    </span>
+                  )}
+                  {link.badge !== undefined && link.badge > 0 && (
+                    <span className="px-1.5 py-0.5 text-[10px] font-bold rounded-full bg-rose-500 text-white">
+                      {link.badge}
+                    </span>
+                  )}
+                </div>
               </NavLink>
             );
           })}

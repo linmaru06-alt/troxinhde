@@ -1,3 +1,4 @@
+import { K23VipGate } from '../components/k23/subscription/K23VipGate';
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
@@ -44,6 +45,7 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
     : 'Chưa kích hoạt';
 
   return (
+    <K23VipGate featureTitle="Gói Dịch Vụ Quản Lý Phòng K23">
     <div className="flex min-h-screen bg-slate-50">
       <SEOHead
         title="Quản Lý Gói Dịch Vụ K23 | Trọ Xinh"
@@ -228,6 +230,7 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
         </div>
       </main>
     </div>
+    </K23VipGate>
   );
 };
 

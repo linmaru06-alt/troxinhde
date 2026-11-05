@@ -117,7 +117,7 @@ export interface RoomReadingRow {
 // K23 SUBSCRIPTION & PRICING TYPES
 // -------------------------------------------------------------
 export type K23PlanCode = 'starter' | 'pro' | 'enterprise';
-export type K23SubscriptionStatus = 'trialing' | 'active' | 'grace_period' | 'suspended' | 'cancelled';
+export type K23SubscriptionStatus = 'unsubscribed' | 'trialing' | 'active' | 'grace_period' | 'suspended' | 'cancelled';
 export type K23BillingCycle = 'monthly' | 'yearly';
 
 export interface K23Plan {

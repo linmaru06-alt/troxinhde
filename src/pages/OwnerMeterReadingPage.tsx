@@ -1,3 +1,4 @@
+import { K23VipGate } from '../components/k23/subscription/K23VipGate';
 import { SubscriptionBanner } from '../components/k23/subscription/SubscriptionBanner';
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -227,6 +228,7 @@ export const OwnerMeterReadingPage: React.FC = () => {
   };
 
   return (
+    <K23VipGate featureTitle="Chốt Điện Nước Thông Minh K23">
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden font-sans">
       <DashboardSidebar role="owner" />
 
@@ -307,6 +309,7 @@ export const OwnerMeterReadingPage: React.FC = () => {
         </div>
       </main>
     </div>
+    </K23VipGate>
   );
 };
 

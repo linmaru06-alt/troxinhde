@@ -1,3 +1,4 @@
+import { K23VipGate } from '../components/k23/subscription/K23VipGate';
 import { SubscriptionBanner } from '../components/k23/subscription/SubscriptionBanner';
 import React, { useState, useEffect } from 'react';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
@@ -161,6 +162,7 @@ export const OwnerServicesPage: React.FC = () => {
   };
 
   return (
+    <K23VipGate featureTitle="Đơn Giá & Dịch Vụ Tòa Nhà K23">
     <div className="flex h-screen bg-slate-50 dark:bg-slate-950 overflow-hidden font-sans">
       <DashboardSidebar role="owner" />
 
@@ -344,6 +346,7 @@ export const OwnerServicesPage: React.FC = () => {
         </div>
       </main>
     </div>
+    </K23VipGate>
   );
 };
 

@@ -91,12 +91,14 @@ export async function getK23Plans(): Promise<K23Plan[]> {
 }
 
 export async function getOwnerK23Subscription(ownerId: string): Promise<K23Subscription> {
-  const defaultTrial: K23Subscription = {
-    id: 'trial_' + ownerId,
+  const isLocallyActivated = typeof window !== 'undefined' && localStorage.getItem('k23_vip_activated_' + ownerId) === 'true';
+
+  const emptySubscription: K23Subscription = {
+    id: 'none_' + ownerId,
     owner_id: ownerId,
     plan_code: 'pro',
     billing_cycle: 'monthly',
-    status: 'trialing',
+    status: isLocallyActivated ? 'trialing' : 'unsubscribed',
     trial_start_at: new Date().toISOString(),
     trial_end_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
     current_period_start: new Date().toISOString(),
@@ -108,7 +110,7 @@ export async function getOwnerK23Subscription(ownerId: string): Promise<K23Subsc
     plan: DEFAULT_K23_PLANS.find(p => p.code === 'pro'),
   };
 
-  if (!isSupabaseConfigured || !ownerId) return defaultTrial;
+  if (!isSupabaseConfigured || !ownerId) return emptySubscription;
 
   try {
     const { data, error } = await supabase
@@ -118,7 +120,7 @@ export async function getOwnerK23Subscription(ownerId: string): Promise<K23Subsc
       .maybeSingle();
 
     if (error || !data) {
-      return defaultTrial;
+      return emptySubscription;
     }
 
     const plans = await getK23Plans();
@@ -129,7 +131,63 @@ export async function getOwnerK23Subscription(ownerId: string): Promise<K23Subsc
       plan,
     };
   } catch {
-    return defaultTrial;
+    return emptySubscription;
+  }
+}
+
+export async function activateK23Trial(ownerId: string): Promise<K23Subscription> {
+  if (typeof window !== 'undefined') {
+    localStorage.setItem('k23_vip_activated_' + ownerId, 'true');
+  }
+
+  const now = new Date();
+  const trialEnd = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const graceEnd = new Date(trialEnd.getTime() + 7 * 24 * 60 * 60 * 1000);
+
+  const activatedSub: K23Subscription = {
+    id: 'trial_' + ownerId,
+    owner_id: ownerId,
+    plan_code: 'pro',
+    billing_cycle: 'monthly',
+    status: 'trialing',
+    trial_start_at: now.toISOString(),
+    trial_end_at: trialEnd.toISOString(),
+    current_period_start: now.toISOString(),
+    current_period_end: trialEnd.toISOString(),
+    grace_period_end: graceEnd.toISOString(),
+    auto_renew: false,
+    created_at: now.toISOString(),
+    updated_at: now.toISOString(),
+    plan: DEFAULT_K23_PLANS.find(p => p.code === 'pro'),
+  };
+
+  if (!isSupabaseConfigured) return activatedSub;
+
+  try {
+    const { data, error } = await supabase
+      .from('k23_subscriptions')
+      .upsert({
+        owner_id: ownerId,
+        plan_code: 'pro',
+        billing_cycle: 'monthly',
+        status: 'trialing',
+        trial_start_at: now.toISOString(),
+        trial_end_at: trialEnd.toISOString(),
+        current_period_start: now.toISOString(),
+        current_period_end: trialEnd.toISOString(),
+        grace_period_end: graceEnd.toISOString(),
+        updated_at: now.toISOString(),
+      }, { onConflict: 'owner_id' })
+      .select()
+      .single();
+
+    if (error || !data) return activatedSub;
+    return {
+      ...data,
+      plan: DEFAULT_K23_PLANS.find(p => p.code === 'pro'),
+    };
+  } catch {
+    return activatedSub;
   }
 }
 
