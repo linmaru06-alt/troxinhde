@@ -59,6 +59,7 @@ export const OwnerInvoiceDetailPage: React.FC = () => {
 
     // Try loading building bank settings
     const bId = invoice.room?.building_id;
+    let loadedBank = false;
     if (bId) {
       try {
         const saved = localStorage.getItem(`k23_bank_${bId}`);
@@ -67,10 +68,17 @@ export const OwnerInvoiceDetailPage: React.FC = () => {
           setBankId(parsed.bankId || 'MB');
           setAccountNo(parsed.accountNo || '');
           setAccountName(parsed.accountName || '');
+          if (parsed.accountNo) loadedBank = true;
         }
       } catch {
         // ignore
       }
+    }
+    // Fallback cho tài khoản demo chủ trọ
+    if (!loadedBank) {
+      setBankId('MB');
+      setAccountNo('0912345678');
+      setAccountName('TRAN QUOC TUAN');
     }
   }, [invoice]);
 

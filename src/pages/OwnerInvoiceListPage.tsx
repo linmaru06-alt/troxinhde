@@ -31,10 +31,11 @@ export const OwnerInvoiceListPage: React.FC = () => {
   const [selectedYear, setSelectedYear] = useState<number>(now.getFullYear());
   const [statusFilter, setStatusFilter] = useState<string>('all');
 
+  const isDemo = currentUser?.isDemoAccount || currentUser?.id === '00000000-0000-0000-0000-000000000002' || currentUser?.id === 'user_owner_1';
   const myBuildings = buildings.filter(
     (b) =>
       b.ownerId === currentUser?.id ||
-      (currentUser?.id === 'user_owner_1' && b.ownerId === 'user_owner_1') ||
+      (isDemo && (b.ownerId === 'user_owner_1' || b.ownerId === '00000000-0000-0000-0000-000000000002')) ||
       (currentUser?.firebaseUid && b.ownerId === currentUser.firebaseUid)
   );
 

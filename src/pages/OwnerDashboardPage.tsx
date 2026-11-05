@@ -112,10 +112,11 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
+  const isDemo = currentUser?.isDemoAccount || currentUser?.id === '00000000-0000-0000-0000-000000000002' || currentUser?.id === 'user_owner_1';
   const myRooms = rooms.filter(
     (r) =>
       r.ownerId === currentUser?.id ||
-      (currentUser?.id === 'user_owner_1' && r.ownerId === 'user_owner_1') ||
+      (isDemo && (r.ownerId === 'user_owner_1' || r.ownerId === '00000000-0000-0000-0000-000000000002')) ||
       (currentUser?.firebaseUid && r.ownerId === currentUser.firebaseUid)
   );
   const currentPlan =
