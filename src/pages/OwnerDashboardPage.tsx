@@ -33,6 +33,8 @@ import { TieredTariffConfigModal } from '../components/k23/tariffs/TieredTariffC
 import { TaxReportModal } from '../components/k23/tax/TaxReportModal';
 import { IotDeviceManagementModal } from '../components/k23/iot/IotDeviceManagementModal';
 import { ParkingManagementModal } from '../components/k23/parking/ParkingManagementModal';
+import { AiMeterScannerModal } from '../components/k23/ai/AiMeterScannerModal';
+import { ZnsNotificationModal } from '../components/k23/zns/ZnsNotificationModal';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
@@ -54,6 +56,8 @@ export const OwnerDashboardPage: React.FC = () => {
   const [isTaxModalOpen, setIsTaxModalOpen] = useState<boolean>(false);
   const [isIotModalOpen, setIsIotModalOpen] = useState<boolean>(false);
   const [isParkingModalOpen, setIsParkingModalOpen] = useState<boolean>(false);
+  const [isAiScannerOpen, setIsAiScannerOpen] = useState<boolean>(false);
+  const [isZnsOpen, setIsZnsOpen] = useState<boolean>(false);
 
   // Nạp danh sách lịch hẹn thật từ Supabase Cloud
   React.useEffect(() => {
@@ -310,6 +314,24 @@ export const OwnerDashboardPage: React.FC = () => {
             >
               <span className="font-bold text-violet-300 block">Cổng IoT Phần Cứng</span>
               <p className="text-[11px] text-slate-300">Đồng bộ công tơ Tuya & Khóa TTLock</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsAiScannerOpen(true)}
+              className="p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/40 text-left transition block space-y-1 cursor-pointer ring-1 ring-amber-400/30"
+            >
+              <span className="font-bold text-amber-300 block">AI Camera OCR</span>
+              <p className="text-[11px] text-slate-300">Quét số công tơ điện nước tự động</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsZnsOpen(true)}
+              className="p-3.5 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-left transition block space-y-1 cursor-pointer ring-1 ring-sky-400/30"
+            >
+              <span className="font-bold text-sky-300 block">Zalo ZNS Tích Xanh</span>
+              <p className="text-[11px] text-slate-300">Gửi tin tự động 250đ/tin qua SĐT</p>
             </button>
           </div>
         </div>
@@ -681,6 +703,32 @@ export const OwnerDashboardPage: React.FC = () => {
       <IotDeviceManagementModal
         isOpen={isIotModalOpen}
         onClose={() => setIsIotModalOpen(false)}
+      />
+
+      {/* 🌟 2 MODAL PHASE 4: AI SCANNER & ZNS TÍCH XANH */}
+      <AiMeterScannerModal
+        isOpen={isAiScannerOpen}
+        onClose={() => setIsAiScannerOpen(false)}
+        meterType="electricity"
+        roomNumber="P.101"
+        previousReading={1250}
+        onConfirmReading={(reading) => {
+          showToast('Đã quét AI thành công! 📸', `Chỉ số công tơ ${reading} kWh đã được ghi nhận.`, 'success');
+        }}
+      />
+
+      <ZnsNotificationModal
+        isOpen={isZnsOpen}
+        onClose={() => setIsZnsOpen(false)}
+        defaultPayload={{
+          tenantName: 'Lê Hoàng Nam',
+          tenantPhone: '0988123456',
+          roomNumber: 'P.101',
+          buildingName: 'Tòa Nhà Xanh Trọ Xinh',
+          totalAmount: 3620000,
+          billingMonth: '11/2026',
+          dueDate: '05/11/2026',
+        }}
       />
     </div>
   );

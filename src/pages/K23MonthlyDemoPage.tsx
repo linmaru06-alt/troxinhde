@@ -23,6 +23,8 @@ import { ESignatureModal } from '../components/k23/contracts/ESignatureModal';
 import { LateFeeConfigModal } from '../components/k23/settings/LateFeeConfigModal';
 import { TaxReportModal } from '../components/k23/tax/TaxReportModal';
 import { IotDeviceManagementModal } from '../components/k23/iot/IotDeviceManagementModal';
+import { AiMeterScannerModal } from '../components/k23/ai/AiMeterScannerModal';
+import { ZnsNotificationModal } from '../components/k23/zns/ZnsNotificationModal';
 import { K23Contract, K23Tenant } from '../types/k23Tenants';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
@@ -170,6 +172,10 @@ export const K23MonthlyDemoPage: React.FC = () => {
   const [isLateFeeOpen, setIsLateFeeOpen] = useState(false);
   const [isTaxOpen, setIsTaxOpen] = useState(false);
   const [isIotOpen, setIsIotOpen] = useState(false);
+  const [isAiScannerOpen, setIsAiScannerOpen] = useState(false);
+  const [aiScannerTargetRoom, setAiScannerTargetRoom] = useState<{ roomId: string; meterType: 'electricity' | 'water'; oldReading: number; roomNumber: string } | null>(null);
+  const [isZnsOpen, setIsZnsOpen] = useState(false);
+  const [znsPayload, setZnsPayload] = useState<any>(null);
 
   // 1. Dữ liệu chỉ số điện nước demo tương tác trực tiếp
   const [readings, setReadings] = useState<DemoRoomReading[]>([
@@ -747,6 +753,55 @@ export const K23MonthlyDemoPage: React.FC = () => {
                 <span className="text-[10px] text-violet-700">P2-08 • Công tơ & Khóa</span>
               </div>
             </button>
+
+            {/* P3-01 */}
+            <button
+              type="button"
+              onClick={() => {
+                setAiScannerTargetRoom({
+                  roomId: 'room_1',
+                  meterType: 'electricity',
+                  oldReading: 1250,
+                  roomNumber: 'P.302',
+                });
+                setIsAiScannerOpen(true);
+              }}
+              className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-300 text-left transition flex flex-col justify-between gap-2 cursor-pointer group ring-1 ring-amber-400/40"
+            >
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs">
+                <Camera className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black text-amber-950 block">AI Camera OCR</span>
+                <span className="text-[10px] text-amber-700 font-bold">P3-01 • Quét số công tơ</span>
+              </div>
+            </button>
+
+            {/* P3-02 */}
+            <button
+              type="button"
+              onClick={() => {
+                setZnsPayload({
+                  tenantName: 'Nguyễn Văn An',
+                  tenantPhone: '0988 123 456',
+                  roomNumber: 'P.302',
+                  buildingName: 'Tòa Nhà Xanh Trọ Xinh',
+                  totalAmount: 4890000,
+                  billingMonth: '11/2026',
+                  dueDate: '05/11/2026',
+                });
+                setIsZnsOpen(true);
+              }}
+              className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-300 text-left transition flex flex-col justify-between gap-2 cursor-pointer group ring-1 ring-blue-400/40"
+            >
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <MessageSquare className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black text-blue-950 block">Zalo ZNS Tích Xanh</span>
+                <span className="text-[10px] text-blue-700 font-bold">P3-02 • 250đ/tin tự động</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -969,12 +1024,30 @@ export const K23MonthlyDemoPage: React.FC = () => {
                           {r.elecOld}
                         </td>
                         <td className="py-3 px-3 text-center bg-amber-50/30">
-                          <input
-                            type="number"
-                            value={r.elecNew}
-                            onChange={(e) => handleUpdateReading(r.roomId, 'elecNew', Number(e.target.value))}
-                            className="w-20 px-2 py-1 bg-white border border-amber-300 rounded-lg text-center font-mono font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
-                          />
+                          <div className="flex items-center justify-center gap-1">
+                            <input
+                              type="number"
+                              value={r.elecNew}
+                              onChange={(e) => handleUpdateReading(r.roomId, 'elecNew', Number(e.target.value))}
+                              className="w-16 px-1.5 py-1 bg-white border border-amber-300 rounded-lg text-center font-mono font-bold text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                            />
+                            <button
+                              type="button"
+                              title="Dùng AI Camera quét số công tơ"
+                              onClick={() => {
+                                setAiScannerTargetRoom({
+                                  roomId: r.roomId,
+                                  meterType: 'electricity',
+                                  oldReading: r.elecOld,
+                                  roomNumber: r.roomNumber,
+                                });
+                                setIsAiScannerOpen(true);
+                              }}
+                              className="p-1 rounded-lg bg-amber-500 hover:bg-amber-600 text-white transition shadow-2xs cursor-pointer"
+                            >
+                              <Camera className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
                         </td>
                         <td className="py-3 px-3 text-right bg-amber-50/30 font-bold font-mono text-amber-700">
                           {elecUsage} kWh
@@ -1156,6 +1229,25 @@ export const K23MonthlyDemoPage: React.FC = () => {
       <IotDeviceManagementModal
         isOpen={isIotOpen}
         onClose={() => setIsIotOpen(false)}
+      />
+
+      <AiMeterScannerModal
+        isOpen={isAiScannerOpen}
+        onClose={() => setIsAiScannerOpen(false)}
+        meterType={aiScannerTargetRoom?.meterType || 'electricity'}
+        roomNumber={aiScannerTargetRoom?.roomNumber || 'P.302'}
+        previousReading={aiScannerTargetRoom?.oldReading || 1250}
+        onConfirmReading={(newReading) => {
+          if (aiScannerTargetRoom) {
+            handleUpdateReading(aiScannerTargetRoom.roomId, 'elecNew', newReading);
+          }
+        }}
+      />
+
+      <ZnsNotificationModal
+        isOpen={isZnsOpen}
+        onClose={() => setIsZnsOpen(false)}
+        defaultPayload={znsPayload}
       />
     </div>
   );
