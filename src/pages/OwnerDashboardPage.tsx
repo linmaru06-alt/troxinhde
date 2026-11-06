@@ -35,6 +35,8 @@ import { IotDeviceManagementModal } from '../components/k23/iot/IotDeviceManagem
 import { ParkingManagementModal } from '../components/k23/parking/ParkingManagementModal';
 import { AiMeterScannerModal } from '../components/k23/ai/AiMeterScannerModal';
 import { ZnsNotificationModal } from '../components/k23/zns/ZnsNotificationModal';
+import { VneidDeclarationModal } from '../components/k23/vneid/VneidDeclarationModal';
+import { OfflineSyncStatusBadge } from '../components/k23/mobile/OfflineSyncStatusBadge';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
@@ -58,6 +60,7 @@ export const OwnerDashboardPage: React.FC = () => {
   const [isParkingModalOpen, setIsParkingModalOpen] = useState<boolean>(false);
   const [isAiScannerOpen, setIsAiScannerOpen] = useState<boolean>(false);
   const [isZnsOpen, setIsZnsOpen] = useState<boolean>(false);
+  const [isVneidModalOpen, setIsVneidModalOpen] = useState<boolean>(false);
 
   // Nạp danh sách lịch hẹn thật từ Supabase Cloud
   React.useEffect(() => {
@@ -195,9 +198,12 @@ export const OwnerDashboardPage: React.FC = () => {
         {/* Top Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">
-              Bảng Điều Khiển Chủ Trọ
-            </h1>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">
+                Bảng Điều Khiển Chủ Trọ
+              </h1>
+              <OfflineSyncStatusBadge />
+            </div>
             <p className="text-xs text-gray-500 mt-1">
               Quản lý danh sách phòng, lịch hẹn xem phòng và lượt tiếp cận khách thuê
             </p>
@@ -332,6 +338,15 @@ export const OwnerDashboardPage: React.FC = () => {
             >
               <span className="font-bold text-sky-300 block">Zalo ZNS Tích Xanh</span>
               <p className="text-[11px] text-slate-300">Gửi tin tự động 250đ/tin qua SĐT</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsVneidModalOpen(true)}
+              className="p-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-400/40 text-left transition block space-y-1 cursor-pointer ring-1 ring-red-400/30"
+            >
+              <span className="font-bold text-red-300 block">Cổng Lưu Trú VNeID</span>
+              <p className="text-[11px] text-slate-300">Xuất XML Cổng DVC Bộ Công An</p>
             </button>
           </div>
         </div>
@@ -729,6 +744,13 @@ export const OwnerDashboardPage: React.FC = () => {
           billingMonth: '11/2026',
           dueDate: '05/11/2026',
         }}
+      />
+
+      <VneidDeclarationModal
+        isOpen={isVneidModalOpen}
+        onClose={() => setIsVneidModalOpen(false)}
+        buildingName="Tòa Nhà Xanh Trọ Xinh"
+        buildingAddress="Số 12 Ngõ 68 Triều Khúc, Thanh Xuân, Hà Nội"
       />
     </div>
   );

@@ -101,7 +101,6 @@ function calculateRentalTax(grossRentalRevenue, isTaxable = true) {
 
 // 8. Module AI Camera OCR Parse Số Công Tơ (P3-01)
 function parseAiMeterReading(ocrRawText, previousReading = 0) {
-  // 1. Ưu tiên tìm số sau các từ khóa định danh công tơ (chỉ số, chi so, kWh, m3)
   const keywordMatch = ocrRawText.match(/(?:chi\s*so|chỉ\s*số|số\s*điện|chỉ\s*số\s*mới)[:\s]*([0-9]+(?:[.,][0-9]+)?)/i);
   if (keywordMatch && keywordMatch[1]) {
     const val = parseFloat(keywordMatch[1].replace(/,/g, '.'));
@@ -111,7 +110,6 @@ function parseAiMeterReading(ocrRawText, previousReading = 0) {
     }
   }
 
-  // 2. Fallback bóc tách toàn bộ mảng số và sắp xếp theo khoảng cách tiệm cận số cũ
   const clean = ocrRawText.replace(/[^0-9\s.,]/g, ' ');
   const numbers = clean
     .split(/\s+/)
@@ -151,6 +149,50 @@ function buildZnsPayload(tenant, invoice, templateType = 'bill_notice') {
     isVerifiedOA,
     trackingId,
   };
+}
+
+// 10. Module Giải mã QR Căn cước công dân gắn chip (P3-05)
+function parseCccdQrString(qrRawString) {
+  if (!qrRawString || typeof qrRawString !== 'string') return null;
+  const parts = qrRawString.split('|');
+  if (parts.length < 5) return null;
+
+  const cccdNumber = parts[0]?.trim();
+  const oldCmndNumber = parts[1]?.trim() || undefined;
+  const fullName = parts[2]?.trim();
+  const rawDob = parts[3]?.trim();
+  const genderRaw = parts[4]?.trim().toLowerCase();
+  const permanentAddress = parts[5]?.trim() || '';
+
+  let dateOfBirth = rawDob;
+  if (rawDob && rawDob.length === 8 && !rawDob.includes('/')) {
+    dateOfBirth = `${rawDob.substring(0, 2)}/${rawDob.substring(2, 4)}/${rawDob.substring(4, 8)}`;
+  }
+
+  const gender = genderRaw === 'nam' ? 'Nam' : 'Nữ';
+  return { cccdNumber, oldCmndNumber, fullName, dateOfBirth, gender, permanentAddress };
+}
+
+// 11. Module Thẩm định 12 số CCCD & Xuất XML VNeID (P3-06)
+function validateCccd12Digits(cccd) {
+  if (!cccd) return { isValid: false, error: 'Thiếu CCCD' };
+  const clean = cccd.replace(/\D/g, '');
+  if (clean.length !== 12) return { isValid: false, error: 'CCCD phải đủ 12 số' };
+  const provinceCode = clean.substring(0, 3);
+  const centuryGender = clean.substring(3, 4);
+  const birthYear = parseInt(clean.substring(4, 6), 10);
+  return { isValid: true, provinceCode, centuryGender, birthYear };
+}
+
+function buildVneidXml(data) {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<HoSoKhaiBaoLuuTru phienBan="2.0">
+  <TenCoSo>${data.buildingName}</TenCoSo>
+  <TongSoNguoi>${data.records.length}</TongSoNguoi>
+  <DanhSachNguoiLuuTru>
+${data.records.map((r) => `    <NguoiLuuTru><SoDinhDanh>${r.cccdNumber}</SoDinhDanh><HoVaTen>${r.fullName}</HoVaTen><PhongO>${r.roomNumber}</PhongO></NguoiLuuTru>`).join('\n')}
+  </DanhSachNguoiLuuTru>
+</HoSoKhaiBaoLuuTru>`;
 }
 
 console.log('======================================================================');
@@ -260,6 +302,33 @@ assert.strictEqual(znsResult.recipientPhone, '0988123456', 'Số điện thoại
 assert.strictEqual(znsResult.trackingId, 'ZNS_TRK_23_001', 'Mã tracking ZNS phải tạo chuẩn');
 console.log('  ✅ [PASS] Payload Zalo ZNS tích xanh và đối soát 250đ/tin đạt chuẩn 100%\n');
 
+// Test 11: Kiểm tra giải mã chuỗi QR CCCD gắn chip (P3-05)
+console.log('Test 11: Kiểm tra giải mã chuỗi QR CCCD gắn chip Bộ Công An (P3-05)');
+const qrRaw = '001202018899|013665899|Lê Hoàng Nam|15082002|Nam|Số 12 Ngõ 68 Triều Khúc, Thanh Xuân, Hà Nội|10022021';
+const parsedCccd = parseCccdQrString(qrRaw);
+assert.strictEqual(parsedCccd.cccdNumber, '001202018899', 'Số CCCD bóc tách phải chuẩn 12 số');
+assert.strictEqual(parsedCccd.fullName, 'Lê Hoàng Nam', 'Họ tên bóc tách chính xác');
+assert.strictEqual(parsedCccd.dateOfBirth, '15/08/2002', 'Ngày sinh định dạng DD/MM/YYYY chuẩn');
+assert.strictEqual(parsedCccd.gender, 'Nam', 'Giới tính chuẩn');
+console.log('  ✅ [PASS] Bóc tách chuỗi QR Căn cước công dân gắn chip chính xác 100%\n');
+
+// Test 12: Kiểm tra thẩm định 12 số CCCD & Xuất XML VNeID (P3-06)
+console.log('Test 12: Kiểm tra thẩm định 12 số CCCD & Xuất hồ sơ lưu trú XML VNeID (P3-06)');
+const cccdCheck = validateCccd12Digits('001202018899');
+assert.strictEqual(cccdCheck.isValid, true, 'Số 001202018899 hợp lệ 12 số');
+assert.strictEqual(cccdCheck.provinceCode, '001', 'Mã tỉnh 001 là Hà Nội');
+
+const xmlOutput = buildVneidXml({
+  buildingName: 'Tòa Nhà Xanh Trọ Xinh',
+  records: [
+    { cccdNumber: '001202018899', fullName: 'LÊ HOÀNG NAM', roomNumber: 'P.101' },
+  ],
+});
+assert.ok(xmlOutput.includes('<HoSoKhaiBaoLuuTru'), 'File xuất phải có thẻ root chuẩn XML');
+assert.ok(xmlOutput.includes('<SoDinhDanh>001202018899</SoDinhDanh>'), 'Phải chứa số CCCD 12 số');
+assert.ok(xmlOutput.includes('<TongSoNguoi>1</TongSoNguoi>'), 'Tổng số người lưu trú khớp chính xác');
+console.log('  ✅ [PASS] Thẩm định CCCD 12 số và xuất hồ sơ XML Cổng Dịch vụ công Cư trú chuẩn 100%\n');
+
 console.log('======================================================================');
-console.log('🎉 TẤT CẢ 10/10 BÀI TEST LOGIC TÀI CHÍNH & AI K23 PMS ĐẠT CHUẨN 100%!');
+console.log('🎉 TẤT CẢ 12/12 BÀI TEST TOÀN DIỆN K23 PMS ĐẠT CHUẨN 100%!');
 console.log('======================================================================');

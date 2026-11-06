@@ -25,6 +25,8 @@ import { TaxReportModal } from '../components/k23/tax/TaxReportModal';
 import { IotDeviceManagementModal } from '../components/k23/iot/IotDeviceManagementModal';
 import { AiMeterScannerModal } from '../components/k23/ai/AiMeterScannerModal';
 import { ZnsNotificationModal } from '../components/k23/zns/ZnsNotificationModal';
+import { OfflineSyncStatusBadge } from '../components/k23/mobile/OfflineSyncStatusBadge';
+import { VneidDeclarationModal } from '../components/k23/vneid/VneidDeclarationModal';
 import { K23Contract, K23Tenant } from '../types/k23Tenants';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
@@ -176,6 +178,7 @@ export const K23MonthlyDemoPage: React.FC = () => {
   const [aiScannerTargetRoom, setAiScannerTargetRoom] = useState<{ roomId: string; meterType: 'electricity' | 'water'; oldReading: number; roomNumber: string } | null>(null);
   const [isZnsOpen, setIsZnsOpen] = useState(false);
   const [znsPayload, setZnsPayload] = useState<any>(null);
+  const [isVneidOpen, setIsVneidOpen] = useState(false);
 
   // 1. Dữ liệu chỉ số điện nước demo tương tác trực tiếp
   const [readings, setReadings] = useState<DemoRoomReading[]>([
@@ -448,15 +451,18 @@ export const K23MonthlyDemoPage: React.FC = () => {
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
-                Phòng Lab Thử Nghiệm K23 — Trọn Vẹn 17 Tính Năng Của Cả 3 Giai Đoạn (P0, P1, P2)
+                Phòng Lab Thử Nghiệm K23 — Trọn Vẹn Tính Năng Hệ Sinh Thái Thông Minh
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Bấm vào từng nút bên dưới để xem trực tiếp cách hệ thống vận hành thực tế
               </p>
             </div>
-            <span className="text-[11px] font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-              ✓ Hoàn tất 100% P0 + P1 + P2
-            </span>
+            <div className="flex items-center gap-2">
+              <OfflineSyncStatusBadge />
+              <span className="text-[11px] font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
+                ✓ P0 + P1 + P2 + P3
+              </span>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
@@ -800,6 +806,21 @@ export const K23MonthlyDemoPage: React.FC = () => {
               <div>
                 <span className="text-[11px] font-black text-blue-950 block">Zalo ZNS Tích Xanh</span>
                 <span className="text-[10px] text-blue-700 font-bold">P3-02 • 250đ/tin tự động</span>
+              </div>
+            </button>
+
+            {/* P3-06 */}
+            <button
+              type="button"
+              onClick={() => setIsVneidOpen(true)}
+              className="p-3 rounded-2xl bg-red-50 hover:bg-red-100 border border-red-300 text-left transition flex flex-col justify-between gap-2 cursor-pointer group ring-1 ring-red-400/40"
+            >
+              <div className="w-8 h-8 rounded-xl bg-red-700 text-white flex items-center justify-center font-bold shadow-xs">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black text-red-950 block">Cổng Lưu Trú VNeID</span>
+                <span className="text-[10px] text-red-700 font-bold">P3-06 • Xuất XML Bộ Công An</span>
               </div>
             </button>
           </div>
@@ -1248,6 +1269,13 @@ export const K23MonthlyDemoPage: React.FC = () => {
         isOpen={isZnsOpen}
         onClose={() => setIsZnsOpen(false)}
         defaultPayload={znsPayload}
+      />
+
+      <VneidDeclarationModal
+        isOpen={isVneidOpen}
+        onClose={() => setIsVneidOpen(false)}
+        buildingName="Tòa Nhà Xanh Trọ Xinh"
+        buildingAddress="Số 12 Ngõ 68 Triều Khúc, Thanh Xuân, Hà Nội"
       />
     </div>
   );
