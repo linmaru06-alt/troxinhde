@@ -64,7 +64,7 @@ export const OwnerContractsPage: React.FC = () => {
   // Modal states
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [selectedTenantForCabinet, setSelectedTenantForCabinet] = useState<K23Tenant | null>(null);
-  const [zaloTargetInvoice, setZaloTargetInvoice] = useState<K23Invoice | null>(null);
+  const [zaloTargetInvoice, setZaloTargetInvoice] = useState<Invoice | null>(null);
 
   // Thống kê nhanh
   const stats = useMemo(() => {
@@ -128,7 +128,7 @@ export const OwnerContractsPage: React.FC = () => {
 
   const handleOpenZaloForContract = (contract: K23Contract) => {
     // Tạo dummy invoice từ contract để dùng ZaloReminderModal
-    const dummyInvoice: K23Invoice = {
+    const dummyInvoice: Invoice = {
       id: contract.id,
       room_id: contract.room_id,
       room_number: contract.room?.room_number || 'Phòng',

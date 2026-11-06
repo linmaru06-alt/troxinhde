@@ -1044,6 +1044,7 @@ export const K23MonthlyDemoPage: React.FC = () => {
         owner={{
           id: 'user_owner_1',
           name: 'Chủ trọ Demo',
+          phone: '0999000002',
         }}
         onSuccess={async () => {
           alert('Khởi tạo phòng hàng loạt thành công!');

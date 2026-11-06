@@ -38,8 +38,8 @@ import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem
 
 export const OwnerDashboardPage: React.FC = () => {
   const {
-    rooms,
-    buildings,
+    rooms = [],
+    buildings = [],
     currentUser,
     ownerSubscription,
     updateRoomStatus,
@@ -63,7 +63,7 @@ export const OwnerDashboardPage: React.FC = () => {
     async function loadBookings() {
       try {
         const data = await getOwnerViewingRequests(currentUser!.id);
-        if (isMounted) setCloudBookings(data);
+        if (isMounted) setCloudBookings(data || []);
       } catch (err) {
         console.error('[OwnerDashboard] Lỗi tải lịch hẹn:', err);
       }
@@ -93,7 +93,7 @@ export const OwnerDashboardPage: React.FC = () => {
 
   const handleUpdateRoomStatus = (roomId: string, status: any) => {
     updateRoomStatus(roomId, status);
-    if (isSupabaseConfigured && roomId.length === 36) {
+    if (isSupabaseConfigured && roomId && roomId.length === 36) {
       supabase
         .from('rooms')
         .update({
@@ -110,7 +110,7 @@ export const OwnerDashboardPage: React.FC = () => {
     const res = await updateViewingRequestStatus(bookingId, status, note);
     if (res.success) {
       setCloudBookings((prev) =>
-        prev.map((b) => (b.id === bookingId ? { ...b, status } : b))
+        (prev || []).map((b) => (b.id === bookingId ? { ...b, status } : b))
       );
       showToast(
         status === 'Đã xác nhận' ? 'Đã xác nhận lịch hẹn! ✅' : 'Đã cập nhật trạng thái',
@@ -122,15 +122,17 @@ export const OwnerDashboardPage: React.FC = () => {
     }
   };
 
-  const isDemo = currentUser?.isDemoAccount || currentUser?.id === '00000000-0000-0000-0000-000000000002' || currentUser?.id === 'user_owner_1';
-  const myRooms = rooms.filter(
+  const isDemo = Boolean(currentUser?.isDemoAccount || currentUser?.id === '00000000-0000-0000-0000-000000000002' || currentUser?.id === 'user_owner_1');
+  const myRooms = (rooms || []).filter(
     (r) =>
-      r.ownerId === currentUser?.id ||
-      (isDemo && (r.ownerId === 'user_owner_1' || r.ownerId === '00000000-0000-0000-0000-000000000002')) ||
-      (currentUser?.firebaseUid && r.ownerId === currentUser.firebaseUid)
+      r &&
+      (r.ownerId === currentUser?.id ||
+        (isDemo && (r.ownerId === 'user_owner_1' || r.ownerId === '00000000-0000-0000-0000-000000000002')) ||
+        (currentUser?.firebaseUid && r.ownerId === currentUser.firebaseUid))
   );
+
   const currentPlan =
-    SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
+    SUBSCRIPTION_PLANS.find((p) => p.id === (ownerSubscription?.planId || 'free')) || SUBSCRIPTION_PLANS[0];
 
   // Tổng số phòng của tất cả các tòa nhà đã được admin duyệt
   const approvedRooms = myRooms.filter(
@@ -167,7 +169,7 @@ export const OwnerDashboardPage: React.FC = () => {
                 </span>
               </div>
               <p className="text-xs text-emerald-100/90 mt-0.5">
-                Hạn sử dụng đến: {new Date(ownerSubscription.expiresAt).toLocaleDateString('vi-VN')}
+                Hạn sử dụng đến: {ownerSubscription?.expiresAt ? new Date(ownerSubscription.expiresAt).toLocaleDateString('vi-VN') : 'Không giới hạn'}
               </p>
             </div>
           </div>
@@ -346,13 +348,13 @@ export const OwnerDashboardPage: React.FC = () => {
               <span>Lịch hẹn xem phòng</span>
               <Calendar className="w-4 h-4 text-amber-600" />
             </div>
-            <div className="text-2xl sm:text-3xl font-black text-amber-700">{cloudBookings.length}</div>
+            <div className="text-2xl sm:text-3xl font-black text-amber-700">{(cloudBookings || []).length}</div>
             <p className="text-[11px] text-amber-700 font-bold">→ Quản lý lịch hẹn</p>
           </Link>
         </div>
 
         {/* 🌟 2-WAY BOOKING APPOINTMENTS SECTION FOR LANDLORD */}
-        {cloudBookings.length > 0 && (
+        {(cloudBookings || []).length > 0 && (
           <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-gray-100">
               <div>
@@ -371,7 +373,7 @@ export const OwnerDashboardPage: React.FC = () => {
             </div>
 
             <div className="space-y-3">
-              {cloudBookings.map((b: ViewingRequestItem) => {
+              {(cloudBookings || []).map((b: ViewingRequestItem) => {
                 const currentStatus = b.status;
                 return (
                 <div
@@ -420,7 +422,7 @@ export const OwnerDashboardPage: React.FC = () => {
                       <>
                         <button
                           onClick={() => handleUpdateBookingStatus(b.id, 'Đã xác nhận')}
-                          className="px-3 py-1.5 bg-[#00a854] hover:bg-[#008f47] text-white rounded-xl text-xs font-black transition shadow-xs flex items-center gap-1"
+                          className="px-3 py-1.5 bg-[#00a854] hover:bg-[#008f47] text-white rounded-xl text-xs font-black transition shadow-xs flex items-center gap-1 cursor-pointer"
                         >
                           <CheckCircle2 className="w-3.5 h-3.5" /> Xác nhận đón
                         </button>
@@ -429,13 +431,13 @@ export const OwnerDashboardPage: React.FC = () => {
                             setRescheduleId(b.id);
                             setRescheduleTime(b.timeSlot);
                           }}
-                          className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition"
+                          className="px-3 py-1.5 bg-blue-50 text-blue-700 hover:bg-blue-100 rounded-xl text-xs font-bold transition cursor-pointer"
                         >
                           Đổi giờ
                         </button>
                         <button
                           onClick={() => handleUpdateBookingStatus(b.id, 'Đã hủy')}
-                          className="px-3 py-1.5 bg-gray-100 hover:bg-rose-50 hover:text-rose-600 text-gray-600 rounded-xl text-xs font-bold transition"
+                          className="px-3 py-1.5 bg-gray-100 hover:bg-rose-50 hover:text-rose-600 text-gray-600 rounded-xl text-xs font-bold transition cursor-pointer"
                         >
                           Từ chối
                         </button>
@@ -457,11 +459,11 @@ export const OwnerDashboardPage: React.FC = () => {
                           handleUpdateBookingStatus(b.id, 'Đổi giờ', rescheduleTime);
                           setRescheduleId(null);
                         }}
-                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shrink-0 transition"
+                        className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shrink-0 transition cursor-pointer"
                       >Gửi đề xuất</button>
                       <button 
                         onClick={() => setRescheduleId(null)} 
-                        className="px-3 py-2 bg-white text-gray-600 text-xs font-bold rounded-lg border border-gray-200 shrink-0 hover:bg-gray-50 transition"
+                        className="px-3 py-2 bg-white text-gray-600 text-xs font-bold rounded-lg border border-gray-200 shrink-0 hover:bg-gray-50 transition cursor-pointer"
                       >Hủy</button>
                     </div>
                   )}
@@ -486,7 +488,7 @@ export const OwnerDashboardPage: React.FC = () => {
                 <button
                   key={tab.key}
                   onClick={() => setSelectedStatusTab(tab.key as any)}
-                  className={`px-3.5 py-2 text-xs font-bold rounded-2xl transition ${
+                  className={`px-3.5 py-2 text-xs font-bold rounded-2xl transition cursor-pointer ${
                     selectedStatusTab === tab.key
                       ? 'bg-[#00a854] text-white shadow-xs'
                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -506,13 +508,13 @@ export const OwnerDashboardPage: React.FC = () => {
 
           {/* Rooms Table / Grid */}
           <div className="space-y-4">
-            {filteredRooms.map((room) => {
+            {(filteredRooms || []).map((room) => {
               const isApproved =
-                (room.status === 'Còn trống' || room.status === 'Đã cho thuê') &&
-                room.status !== 'Chờ duyệt' &&
-                room.status !== 'Bị từ chối';
-              const isNeedsInfo = room.status === 'Bị từ chối' || Boolean(room.rejectionReason);
-              const isPending = room.status === 'Chờ duyệt';
+                (room?.status === 'Còn trống' || room?.status === 'Đã cho thuê') &&
+                room?.status !== 'Chờ duyệt' &&
+                room?.status !== 'Bị từ chối';
+              const isNeedsInfo = room?.status === 'Bị từ chối' || Boolean(room?.rejectionReason);
+              const isPending = room?.status === 'Chờ duyệt';
 
               return (
                 <div
@@ -523,21 +525,21 @@ export const OwnerDashboardPage: React.FC = () => {
                   <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                       <img
-                        src={room.images?.[0] || '/images/hero-banner.webp'}
-                        alt={room.title}
+                        src={room?.images?.[0] || '/images/hero-banner.webp'}
+                        alt={room?.title || 'Phòng trọ'}
                         className="w-18 h-18 sm:w-20 sm:h-20 rounded-2xl object-cover shrink-0"
                       />
                       <div className="space-y-1">
                         <div className="flex items-center gap-2">
                           <span className="font-black text-sm text-gray-950">
-                            {room.roomNumber} - {room.title}
+                            {room?.roomNumber || 'P'} - {room?.title || 'Phòng trọ'}
                           </span>
                         </div>
                         <p className="text-xs text-gray-500">
-                          {room.buildingName} • {room.area} m²
+                          {room?.buildingName || 'Tòa nhà'} • {room?.area || 0} m²
                         </p>
                         <div className="text-xs font-black text-[#00a854]">
-                          {formatPrice(room.price)}
+                          {formatPrice(room?.price)}
                         </div>
                       </div>
                     </div>
@@ -577,6 +579,13 @@ export const OwnerDashboardPage: React.FC = () => {
                             <span>Đã cho thuê</span>
                           </span>
                         )}
+
+                        {/* Action Buttons */}
+                        <Link to={`/chu-tro/phong/chinh-sua/${room.id}`}>
+                          <Button variant="outline" size="sm">
+                            Sửa tin
+                          </Button>
+                        </Link>
 
                         <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
                           <Button
@@ -647,6 +656,32 @@ export const OwnerDashboardPage: React.FC = () => {
           </div>
         </div>
       </main>
+
+      {/* 🌟 5 MODAL VẬN HÀNH K23 PMS GIAI ĐOẠN 3 */}
+      <StaffManagementModal
+        isOpen={isStaffModalOpen}
+        onClose={() => setIsStaffModalOpen(false)}
+      />
+
+      <TieredTariffConfigModal
+        isOpen={isTariffModalOpen}
+        onClose={() => setIsTariffModalOpen(false)}
+      />
+
+      <ParkingManagementModal
+        isOpen={isParkingModalOpen}
+        onClose={() => setIsParkingModalOpen(false)}
+      />
+
+      <TaxReportModal
+        isOpen={isTaxModalOpen}
+        onClose={() => setIsTaxModalOpen(false)}
+      />
+
+      <IotDeviceManagementModal
+        isOpen={isIotModalOpen}
+        onClose={() => setIsIotModalOpen(false)}
+      />
     </div>
   );
 };

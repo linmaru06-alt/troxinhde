@@ -38,15 +38,15 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications, ownerApplications, bookings = [] } = useAppStore();
+  const { logout, currentUser, notifications = [], ownerApplications = [], bookings = [] } = useAppStore();
 
   const cleanNotifs = deduplicateChatNotifications(notifications || []);
-  const unreadNotifs = cleanNotifs.filter((n) => !n.read).length;
-  const unreadMessages = cleanNotifs.filter(
-    (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
+  const unreadNotifs = (cleanNotifs || []).filter((n) => !n?.read).length;
+  const unreadMessages = (cleanNotifs || []).filter(
+    (n) => !n?.read && (n?.type === 'chat_message' || n?.type === 'message')
   ).length;
-  const pendingOwnerApps = ownerApplications.filter((a) => a.status === 'pending').length;
-  const pendingBookings = (bookings || []).filter((b) => b.status === 'Chờ chủ trọ xác nhận').length;
+  const pendingOwnerApps = (ownerApplications || []).filter((a) => a?.status === 'pending').length;
+  const pendingBookings = (bookings || []).filter((b) => b?.status === 'Chờ chủ trọ xác nhận').length;
 
   const ownerLinks: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan & Phòng', icon: LayoutDashboard },
@@ -87,12 +87,12 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
         {/* User Badge */}
         <div className="flex items-center gap-3 p-3 bg-emerald-50/70 rounded-2xl mb-6">
           <img
-            src={currentUser?.avatarUrl}
-            alt={currentUser?.name}
+            src={currentUser?.avatarUrl || '/images/user-avatar.jpg'}
+            alt={currentUser?.name || 'Chủ trọ'}
             className="w-10 h-10 rounded-full object-cover ring-2 ring-[#006d37]/40"
           />
           <div className="overflow-hidden">
-            <h4 className="text-xs font-bold text-gray-900 truncate">{currentUser?.name}</h4>
+            <h4 className="text-xs font-bold text-gray-900 truncate">{currentUser?.name || 'Chủ Trọ'}</h4>
             <span className="text-[10px] font-bold text-[#006d37] uppercase">
               {role === 'owner' ? 'Chủ Trọ Đối Tác' : 'Quản Trị Viên'}
             </span>
@@ -154,7 +154,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
         </Link>
         <button
           onClick={logout}
-          className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 transition"
+          className="flex items-center gap-2.5 w-full text-left px-3.5 py-2 rounded-xl text-xs font-medium text-rose-600 hover:bg-rose-50 transition cursor-pointer"
         >
           <LogOut className="w-4 h-4" />
           <span>Đăng xuất</span>

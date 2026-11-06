@@ -85,7 +85,7 @@ Xin chào bạn ${data.tenantName} (${data.roomNumber}),
 Chủ nhà xin gửi thông tin hóa đơn tiền phòng kỳ này:
 
 💰 TỔNG CẦN THANH TOÁN: ${formatCurrency(data.remainingAmount ?? data.totalAmount)}
-${data.elecUsage > 0 ? `⚡ Điện tiêu thụ: ${data.elecUsage} kWh (${formatCurrency(data.elecAmount)})\n` : ''}${data.waterUsage > 0 ? `💧 Nước sinh hoạt: ${data.waterUsage} m³ (${formatCurrency(data.waterAmount)})\n` : ''}📅 Hạn thanh toán: Trước ${data.dueDate}
+${(data.elecUsage ?? 0) > 0 ? `⚡ Điện tiêu thụ: ${data.elecUsage} kWh (${formatCurrency(data.elecAmount)})\n` : ''}${(data.waterUsage ?? 0) > 0 ? `💧 Nước sinh hoạt: ${data.waterUsage} m³ (${formatCurrency(data.waterAmount)})\n` : ''}📅 Hạn thanh toán: Trước ${data.dueDate}
 
 💳 Quý khách vui lòng chuyển khoản quét mã VietQR tự động hoặc chuyển theo thông tin:
 - Ngân hàng: ${data.bankName}
