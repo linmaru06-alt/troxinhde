@@ -74,6 +74,23 @@ function validateMeterReading(oldReading, newReading, previousMonthUsage) {
   return { isValid: true, isSpike: false, usage };
 }
 
+// 6. Module Tính phạt chậm nộp tiền phòng (P2-06)
+function calculateLateFee(totalDue, dueDateStr, asOfDateStr, config) {
+  const dueDate = new Date(dueDateStr);
+  const asOfDate = new Date(asOfDateStr);
+  dueDate.setHours(0, 0, 0, 0);
+  asOfDate.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.max(0, Math.round((asOfDate.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24)));
+  if (diffDays <= config.grace_period_days) {
+    return { overdueDays: diffDays, chargeableDays: 0, lateFeeAmount: 0 };
+  }
+
+  const chargeableDays = diffDays - config.grace_period_days;
+  const lateFeeAmount = chargeableDays * config.daily_amount;
+  return { overdueDays: diffDays, chargeableDays, lateFeeAmount };
+}
+
 console.log('======================================================================');
 console.log('  BẮT ĐẦU CHẠY TEST SUITE LOGIC KẾ TOÁN VẬN HÀNH K23 PMS (P1 & P2)');
 console.log('======================================================================\n');
@@ -124,7 +141,6 @@ const tiersPreset = [
   { tier_number: 2, from_kwh: 81, to_kwh: 200, unit_price: 3800 },
   { tier_number: 3, from_kwh: 201, to_kwh: null, unit_price: 4300 },
 ];
-// Dùng 250 kWh: 80*3200 + 120*3800 + 50*4300 = 256.000 + 456.000 + 215.000 = 927.000đ
 const tieredRes = calculateTieredElectricity(250, tiersPreset);
 assert.strictEqual(tieredRes.totalCost, 927000, '250 kWh theo 3 bậc giá phải là 927.000đ');
 assert.strictEqual(tieredRes.breakdown.length, 3, 'Phải có đủ 3 bậc tiêu thụ');
@@ -135,11 +151,29 @@ console.log('Test 6: Kiểm tra validation công tơ điện nước (P2-02)');
 const invalidCheck = validateMeterReading(450, 420);
 assert.strictEqual(invalidCheck.isValid, false, 'Số mới 420 < 450 phải bị từ chối');
 
-const spikeCheck = validateMeterReading(400, 600, 100); // 200 kWh so với 100 kWh tháng trước = gấp 2 lần (200%)
+const spikeCheck = validateMeterReading(400, 600, 100);
 assert.strictEqual(spikeCheck.isValid, true, 'Số tăng vẫn hợp lệ');
 assert.strictEqual(spikeCheck.isSpike, true, 'Nhảy số trên 180% phải bật cảnh báo');
 console.log('  ✅ [PASS] Chặn nhập lùi và cảnh báo tăng vọt 200% hoạt động chính xác 100%\n');
 
+// Test 7: Kiểm tra tính phạt chậm nộp tiền phòng (P2-06)
+console.log('Test 7: Kiểm tra tính phạt chậm nộp tiền phòng tự động (P2-06)');
+const lateCheck1 = calculateLateFee(4000000, '2026-11-05', '2026-11-07', {
+  grace_period_days: 3,
+  daily_amount: 20000,
+});
+assert.strictEqual(lateCheck1.chargeableDays, 0, 'Quá hạn 2 ngày nhưng trong 3 ngày ân hạn thì chưa bị phạt');
+assert.strictEqual(lateCheck1.lateFeeAmount, 0, 'Số tiền phạt bằng 0 trong ngày ân hạn');
+
+const lateCheck2 = calculateLateFee(4000000, '2026-11-05', '2026-11-10', {
+  grace_period_days: 3,
+  daily_amount: 20000,
+});
+assert.strictEqual(lateCheck2.overdueDays, 5, 'Quá hạn 5 ngày');
+assert.strictEqual(lateCheck2.chargeableDays, 2, 'Sau khi trừ 3 ngày ân hạn phải tính phạt 2 ngày');
+assert.strictEqual(lateCheck2.lateFeeAmount, 40000, 'Phạt 2 ngày * 20.000đ = 40.000đ');
+console.log('  ✅ [PASS] Tính phạt chậm nộp trừ thời gian ân hạn chính xác 100% (Phạt 40.000đ)\n');
+
 console.log('======================================================================');
-console.log('🎉 TẤT CẢ 6/6 BÀI TEST LOGIC TÀI CHÍNH K23 PMS ĐẠT CHUẨN 100%!');
+console.log('🎉 TẤT CẢ 7/7 BÀI TEST LOGIC TÀI CHÍNH K23 PMS ĐẠT CHUẨN 100%!');
 console.log('======================================================================');

@@ -18,6 +18,9 @@ import { WebhookSimulatorModal } from '../components/k23/webhook/WebhookSimulato
 import { AuditLogModal } from '../components/k23/audit/AuditLogModal';
 import { StaffManagementModal } from '../components/k23/staff/StaffManagementModal';
 import { TieredTariffConfigModal } from '../components/k23/tariffs/TieredTariffConfigModal';
+import { ParkingManagementModal } from '../components/k23/parking/ParkingManagementModal';
+import { ESignatureModal } from '../components/k23/contracts/ESignatureModal';
+import { LateFeeConfigModal } from '../components/k23/settings/LateFeeConfigModal';
 import { K23Contract, K23Tenant } from '../types/k23Tenants';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
@@ -50,6 +53,8 @@ import {
   UserCheck,
   ExternalLink,
   Crown,
+  Bike,
+  PenTool,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -157,6 +162,9 @@ export const K23MonthlyDemoPage: React.FC = () => {
   const [isAuditOpen, setIsAuditOpen] = useState(false);
   const [isStaffOpen, setIsStaffOpen] = useState(false);
   const [isTieredTariffOpen, setIsTieredTariffOpen] = useState(false);
+  const [isParkingOpen, setIsParkingOpen] = useState(false);
+  const [isESignOpen, setIsESignOpen] = useState(false);
+  const [isLateFeeOpen, setIsLateFeeOpen] = useState(false);
 
   // 1. Dữ liệu chỉ số điện nước demo tương tác trực tiếp
   const [readings, setReadings] = useState<DemoRoomReading[]>([
@@ -429,14 +437,14 @@ export const K23MonthlyDemoPage: React.FC = () => {
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
-                Phòng Lab Thử Nghiệm K23 — 14 Tính Năng Trọng Yếu Của P0, P1 & P2
+                Phòng Lab Thử Nghiệm K23 — Đầy Đủ Tính Năng Vận Hành Chuỗi & Ký Số (P0, P1 & P2)
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Bấm vào từng nút bên dưới để xem trực tiếp cách hệ thống vận hành thực tế
               </p>
             </div>
             <span className="text-[11px] font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-              ✓ Đầy đủ P0 + P1 + P2 (Đợt 1)
+              ✓ Đầy đủ P0, P1 & P2 (Đợt 1 + 2)
             </span>
           </div>
 
@@ -657,6 +665,51 @@ export const K23MonthlyDemoPage: React.FC = () => {
               <div>
                 <span className="text-[11px] font-bold text-amber-950 block">Điện bậc thang</span>
                 <span className="text-[10px] text-amber-700">P2-02 • Lũy tiến EVN</span>
+              </div>
+            </button>
+
+            {/* P2-03 */}
+            <button
+              type="button"
+              onClick={() => setIsParkingOpen(true)}
+              className="p-3 rounded-2xl bg-sky-50 hover:bg-sky-100 border border-sky-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-sky-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <Bike className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-sky-950 block">Vé xe tháng</span>
+                <span className="text-[10px] text-sky-700">P2-03 • Quản lý biển số</span>
+              </div>
+            </button>
+
+            {/* P2-05 */}
+            <button
+              type="button"
+              onClick={() => setIsESignOpen(true)}
+              className="p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-800 text-white flex items-center justify-center font-bold shadow-xs">
+                <PenTool className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-emerald-950 block">Ký HĐ & Mẫu CT01</span>
+                <span className="text-[10px] text-emerald-700">P2-05 • Chữ ký số SHA-256</span>
+              </div>
+            </button>
+
+            {/* P2-06 */}
+            <button
+              type="button"
+              onClick={() => setIsLateFeeOpen(true)}
+              className="p-3 rounded-2xl bg-rose-50 hover:bg-rose-100 border border-rose-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-rose-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-rose-950 block">Phạt chậm nộp</span>
+                <span className="text-[10px] text-rose-700">P2-06 • Grace period</span>
               </div>
             </button>
           </div>
@@ -1040,6 +1093,22 @@ export const K23MonthlyDemoPage: React.FC = () => {
       <TieredTariffConfigModal
         isOpen={isTieredTariffOpen}
         onClose={() => setIsTieredTariffOpen(false)}
+      />
+
+      <ParkingManagementModal
+        isOpen={isParkingOpen}
+        onClose={() => setIsParkingOpen(false)}
+      />
+
+      <ESignatureModal
+        isOpen={isESignOpen}
+        onClose={() => setIsESignOpen(false)}
+        contract={demoContracts[0]}
+      />
+
+      <LateFeeConfigModal
+        isOpen={isLateFeeOpen}
+        onClose={() => setIsLateFeeOpen(false)}
       />
     </div>
   );

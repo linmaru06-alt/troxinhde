@@ -32,6 +32,8 @@ import { MoveOutSettlementModal } from '../components/k23/settlement/MoveOutSett
 import { IssueManagementModal } from '../components/k23/issues/IssueManagementModal';
 import { TenantDocumentCabinetModal } from '../components/k23/tenants/TenantDocumentCabinetModal';
 import { ZaloReminderModal } from '../components/k23/zalo/ZaloReminderModal';
+import { ESignatureModal } from '../components/k23/contracts/ESignatureModal';
+import { PenTool } from 'lucide-react';
 import { Invoice } from '../types/k23';
 import { extractZaloDataFromInvoice } from '../utils/zaloTemplateBuilder';
 
@@ -40,6 +42,7 @@ export const OwnerContractsPage: React.FC = () => {
   const navigate = useNavigate();
   const [selectedContractForSettlement, setSelectedContractForSettlement] = useState<K23Contract | null>(null);
   const [isIssuesModalOpen, setIsIssuesModalOpen] = useState<boolean>(false);
+  const [selectedContractForSign, setSelectedContractForSign] = useState<K23Contract | null>(null);
   const ownerId = currentUser?.id || 'user_owner_1';
 
   const {
@@ -512,6 +515,12 @@ export const OwnerContractsPage: React.FC = () => {
           onClose={() => setIsIssuesModalOpen(false)}
         />
       </div>
+
+      <ESignatureModal
+        isOpen={!!selectedContractForSign}
+        onClose={() => setSelectedContractForSign(null)}
+        contract={selectedContractForSign}
+      />
     </K23VipGate>
   );
 };
