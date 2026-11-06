@@ -25,13 +25,17 @@ import { K23VipGate } from '../components/k23/subscription/K23VipGate';
 import { useK23Tenants } from '../hooks/queries/useK23Tenants';
 import { useAppStore } from '../store/useAppStore';
 import { K23Contract, K23Tenant, CreateContractParams } from '../types/k23Tenants';
+import { useNavigate } from 'react-router-dom';
 import { CreateContractModal } from '../components/k23/contracts/CreateContractModal';
+import { MoveOutSettlementModal } from '../components/k23/settlement/MoveOutSettlementModal';
 import { TenantDocumentCabinetModal } from '../components/k23/tenants/TenantDocumentCabinetModal';
 import { ZaloReminderModal } from '../components/k23/zalo/ZaloReminderModal';
 import { K23Invoice } from '../types/k23';
 
 export const OwnerContractsPage: React.FC = () => {
   const { currentUser, rooms } = useAppStore();
+  const navigate = useNavigate();
+  const [selectedContractForSettlement, setSelectedContractForSettlement] = useState<K23Contract | null>(null);
   const ownerId = currentUser?.id || 'user_owner_1';
 
   const {
@@ -425,17 +429,9 @@ export const OwnerContractsPage: React.FC = () => {
                               <button
                                 type="button"
                                 disabled={isTerminating}
-                                onClick={async () => {
-                                  if (
-                                    window.confirm(
-                                      `Thanh lý hợp đồng ${c.contract_code}? Phòng ${c.room?.room_number || ''} sẽ trở về Còn trống!`
-                                    )
-                                  ) {
-                                    await terminateContract(c.id);
-                                  }
-                                }}
+                                onClick={() => setSelectedContractForSettlement(c)}
                                 className="p-2 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                                title="Thanh lý hợp đồng"
+                                title="Tất toán trả phòng & cấn trừ cọc"
                               >
                                 <Archive className="w-4 h-4" />
                               </button>
@@ -483,6 +479,18 @@ export const OwnerContractsPage: React.FC = () => {
           isOpen={!!zaloTargetInvoice}
           onClose={() => setZaloTargetInvoice(null)}
           invoice={zaloTargetInvoice}
+        />
+        {/* Modal Tất toán trả phòng & cấn trừ cọc (P1-01 & P1-10) */}
+        <MoveOutSettlementModal
+          isOpen={!!selectedContractForSettlement}
+          onClose={() => setSelectedContractForSettlement(null)}
+          contract={selectedContractForSettlement}
+          onConfirmSettlement={async ({ contractId }) => {
+            await terminateContract(contractId);
+          }}
+          onPostToMarketplace={(roomId) => {
+            navigate('/chu-tro/phong/tao-moi');
+          }}
         />
       </div>
     </K23VipGate>

@@ -10,11 +10,13 @@ import { ZaloReminderButton } from '../components/k23/zalo/ZaloReminderButton';
 import { InvoiceStatus, Invoice } from '../types/k23';
 import { RecordPaymentModal } from '../components/k23/billing/RecordPaymentModal';
 import { ProrationCalculatorModal } from '../components/k23/billing/ProrationCalculatorModal';
+import { exportK23FinanceToExcel } from '../utils/k23ExcelExporter';
 import {
   Receipt,
   Building2,
   Calendar,
   Calculator,
+  FileSpreadsheet,
   DollarSign,
   CheckCircle,
   Clock,
@@ -104,6 +106,19 @@ export const OwnerInvoiceListPage: React.FC = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    const bName = selectedBuildingId !== 'all' ? myBuildings.find((b) => b.id === selectedBuildingId)?.name : 'Tất cả cơ sở';
+    exportK23FinanceToExcel({
+      month: selectedMonth,
+      year: selectedYear,
+      buildingName: bName,
+      invoices,
+    });
+    if (showToast) {
+      showToast('Đã xuất báo cáo doanh thu & công nợ Excel (.xlsx) thành công!', 'success');
+    }
+  };
+
   const handleMarkAsPaid = async (invoiceId: string, total: number) => {
     try {
       await updateStatusMutation.mutateAsync({
@@ -171,6 +186,15 @@ export const OwnerInvoiceListPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 shadow-xs transition-all"
+                title="Xuất báo cáo tài chính ra file Excel (.xlsx)"
+              >
+                <FileSpreadsheet className="w-4 h-4 text-emerald-600" />
+                <span>Xuất Excel</span>
+              </button>
               <button
                 type="button"
                 onClick={() => setIsProrationOpen(true)}
