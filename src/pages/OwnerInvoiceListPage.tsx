@@ -13,6 +13,7 @@ import { ProrationCalculatorModal } from '../components/k23/billing/ProrationCal
 import { exportK23FinanceToExcel } from '../utils/k23ExcelExporter';
 import { ExpenseManagementModal } from '../components/k23/expenses/ExpenseManagementModal';
 import { WebhookSimulatorModal } from '../components/k23/webhook/WebhookSimulatorModal';
+import { AuditLogModal } from '../components/k23/audit/AuditLogModal';
 import {
   Receipt,
   Building2,
@@ -20,6 +21,8 @@ import {
   Calculator,
   FileSpreadsheet,
   TrendingUp,
+  History,
+  MessageSquare,
   DollarSign,
   CheckCircle,
   Clock,
@@ -54,6 +57,7 @@ export const OwnerInvoiceListPage: React.FC = () => {
   const [isProrationOpen, setIsProrationOpen] = useState<boolean>(false);
   const [isExpenseOpen, setIsExpenseOpen] = useState<boolean>(false);
   const [isWebhookModalOpen, setIsWebhookModalOpen] = useState<boolean>(false);
+  const [isAuditModalOpen, setIsAuditModalOpen] = useState<boolean>(false);
 
   const { data: invoices = [], isLoading } = useInvoices({
     ownerId: currentUser?.id || '',
@@ -199,6 +203,15 @@ export const OwnerInvoiceListPage: React.FC = () => {
               >
                 <TrendingUp className="w-4 h-4 text-teal-600" />
                 <span>Sổ quỹ & Lãi ròng</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsAuditModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-xs transition-all"
+                title="Nhật ký thao tác hệ thống"
+              >
+                <History className="w-4 h-4 text-indigo-600" />
+                <span>Audit Log</span>
               </button>
               <button
                 type="button"
@@ -485,6 +498,13 @@ export const OwnerInvoiceListPage: React.FC = () => {
                               </button>
                             )}
                             <Link
+                              to="/chu-tro/tin-nhan"
+                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 transition-all"
+                              title="Chat Realtime với khách thuê (P1-07)"
+                            >
+                              <MessageSquare className="w-4 h-4" />
+                            </Link>
+                            <Link
                               to={`/chu-tro/hoa-don/${inv.id}`}
                               className="p-1.5 rounded-lg text-slate-500 hover:text-emerald-600 hover:bg-slate-100 dark:hover:bg-slate-800 transition-all"
                               title="Xem chi tiết & gửi bill"
@@ -541,6 +561,11 @@ export const OwnerInvoiceListPage: React.FC = () => {
           showToast('Đã nhận diện tiền về và gạch nợ thành công qua Webhook SePay!', 'success');
         }
       }}
+    />
+    {/* Modal Nhật ký Audit Log P1-08 */}
+    <AuditLogModal
+      isOpen={isAuditModalOpen}
+      onClose={() => setIsAuditModalOpen(false)}
     />
     </K23VipGate>
   );
