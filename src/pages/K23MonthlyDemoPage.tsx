@@ -4,6 +4,7 @@ import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { SEOHead } from '../components/seo/SEOHead';
 import { InvoiceBillView } from '../components/k23/InvoiceBillView';
 import { ShareBillButton } from '../components/k23/ShareBillButton';
+import { ZaloReminderButton } from '../components/k23/zalo/ZaloReminderButton';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
@@ -398,20 +399,23 @@ export const K23MonthlyDemoPage: React.FC = () => {
                         </div>
 
                         <div className="mt-3 flex items-center justify-between pt-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleTogglePaid(inv.id);
-                            }}
+                          <div className="flex items-center gap-1.5">
+                            <ZaloReminderButton invoice={inv} size="sm" />
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTogglePaid(inv.id);
+                              }}
                             className={`px-3 py-1.5 rounded-xl font-bold transition-all text-[11px] ${
                               isPaid
                                 ? 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                                 : 'bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs'
                             }`}
                           >
-                            {isPaid ? 'Đổi sang: Chưa thanh toán' : 'Đánh dấu: Đã nhận tiền'}
-                          </button>
+                            {isPaid ? 'Đổi: Chưa thu' : 'Đã nhận tiền'}
+                            </button>
+                          </div>
 
                           <span className="text-emerald-700 font-bold flex items-center gap-1">
                             Xem bill A5 <ArrowRight className="w-3.5 h-3.5" />
@@ -439,6 +443,7 @@ export const K23MonthlyDemoPage: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-2">
+                    <ZaloReminderButton invoice={activeInvoice} variant="primary" />
                     <ShareBillButton
                       targetRef={billViewRef}
                       invoiceCode={activeInvoice.invoice_code}

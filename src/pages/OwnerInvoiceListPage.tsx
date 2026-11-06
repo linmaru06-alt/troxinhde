@@ -6,6 +6,7 @@ import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { useAppStore } from '../store/useAppStore';
 import { useInvoices, useUpdateInvoiceStatus, useDeleteInvoice } from '../hooks/queries/useK23';
 import { InvoiceStatusBadge } from '../components/k23/InvoiceStatusBadge';
+import { ZaloReminderButton } from '../components/k23/zalo/ZaloReminderButton';
 import { InvoiceStatus } from '../types/k23';
 import {
   Receipt,
@@ -357,6 +358,7 @@ export const OwnerInvoiceListPage: React.FC = () => {
                         </td>
                         <td className="py-3 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            <ZaloReminderButton invoice={inv} size="sm" variant="subtle" />
                             {inv.status !== 'paid' && (
                               <button
                                 type="button"

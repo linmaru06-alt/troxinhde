@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
 import { formatPrice } from '../components/ui/Cards';
+import { BatchCreateRoomsModal } from '../components/k23/rooms/BatchCreateRoomsModal';
+import { RoomMatrixGrid } from '../components/k23/rooms/RoomMatrixGrid';
 import {
   Building2,
   MapPin,
@@ -14,15 +16,36 @@ import {
   ShieldCheck,
   ExternalLink,
   Rocket,
+  Layers,
+  LayoutGrid,
+  List,
+  Sparkles,
 } from 'lucide-react';
 
 export const OwnerBuildingDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { buildings, rooms, updateRoomStatus, showToast } = useAppStore();
+  const { buildings, rooms, updateRoomStatus, showToast, currentUser } = useAppStore();
+
+  const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
   const building = buildings.find((b) => b.id === id) || buildings[0];
   const buildingRooms = rooms.filter((r) => r.buildingId === building?.id);
+
+  const ownerInfo = {
+    id: currentUser?.id || 'user_owner_1',
+    name: currentUser?.name || 'Chủ trọ',
+    phone: currentUser?.phone || '0988 888 888',
+    avatar: currentUser?.avatarUrl,
+  };
+
+  const handleBatchSuccess = (newRooms: any[]) => {
+    useAppStore.setState((state) => ({
+      rooms: [...newRooms, ...state.rooms],
+    }));
+    showToast('Khởi tạo thành công! 🎉', `Đã tạo ${newRooms.length} phòng vào tòa nhà!`, 'success');
+  };
 
   if (!building) {
     return (
@@ -93,25 +116,67 @@ export const OwnerBuildingDetailPage: React.FC = () => {
             </div>
           </div>
 
-          <Link to={`/chu-tro/phong/tao-moi/${building.id}`}>
-            <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
-              Đăng Phòng Vào Tòa Này
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => setIsBatchModalOpen(true)}
+              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition cursor-pointer"
+            >
+              <Sparkles className="w-4 h-4 fill-current text-slate-950" />
+              <span>Khởi tạo phòng hàng loạt</span>
+            </button>
+
+            <Link to={`/chu-tro/phong/tao-moi/${building.id}`}>
+              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                Đăng Phòng Lẻ
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Rooms in Building List */}
         <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-          <div className="flex items-center justify-between pb-3 border-b border-gray-100">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
             <div>
               <h2 className="text-lg font-black text-gray-950">
-                Danh Sách Phòng Trọ Thuộc Tòa Nhà ({buildingRooms.length})
+                Sơ Đồ & Danh Sách Phòng ({buildingRooms.length})
               </h2>
-              <p className="text-xs text-gray-500">Quản lý trạng thái và lượt hiển thị các phòng trong cơ sở này</p>
+              <p className="text-xs text-gray-500">Quản lý trạng thái phòng và theo dõi lấp đầy của tòa nhà</p>
+            </div>
+
+            {/* Toggle Grid vs List */}
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto text-xs">
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                  viewMode === 'grid'
+                    ? 'bg-white text-emerald-800 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <LayoutGrid className="w-3.5 h-3.5" />
+                <span>Sơ đồ tầng (Grid)</span>
+              </button>
+              <button
+                onClick={() => setViewMode('list')}
+                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                  viewMode === 'list'
+                    ? 'bg-white text-emerald-800 shadow-xs'
+                    : 'text-slate-500 hover:text-slate-900'
+                }`}
+              >
+                <List className="w-3.5 h-3.5" />
+                <span>Dạng danh sách</span>
+              </button>
             </div>
           </div>
 
-          {buildingRooms.length === 0 ? (
+          {viewMode === 'grid' ? (
+            <RoomMatrixGrid
+              rooms={buildingRooms}
+              onUpdateStatus={handleUpdateStatus}
+              onOpenBatchModal={() => setIsBatchModalOpen(true)}
+            />
+          ) : buildingRooms.length === 0 ? (
             <div className="text-center py-10 space-y-3">
               <Building2 className="w-10 h-10 text-gray-300 mx-auto" />
               <p className="text-xs text-gray-500">Chưa có phòng nào được tạo trong tòa nhà này.</p>
@@ -173,6 +238,15 @@ export const OwnerBuildingDetailPage: React.FC = () => {
             </div>
           )}
         </div>
+
+        {/* Modal Khởi tạo phòng hàng loạt */}
+        <BatchCreateRoomsModal
+          isOpen={isBatchModalOpen}
+          onClose={() => setIsBatchModalOpen(false)}
+          building={building}
+          owner={ownerInfo}
+          onSuccess={handleBatchSuccess}
+        />
       </main>
     </div>
   );
