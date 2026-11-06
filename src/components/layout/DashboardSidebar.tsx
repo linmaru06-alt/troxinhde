@@ -56,6 +56,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
 
     { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap, isVip: true },
     { to: '/chu-tro/hoa-don', label: 'Hóa đơn tiền phòng', icon: Receipt, isVip: true },
+    { to: '/chu-tro/hop-dong', label: 'Sổ khách & Hợp đồng', icon: FileText, isVip: true },
     { to: '/chu-tro/dich-vu', label: 'Bảng giá dịch vụ', icon: Sliders, isVip: true },
     { to: '/chu-tro/quan-ly-goi-k23', label: 'Gói quản lý K23', icon: Crown, isVip: true },
     { to: '/chu-tro/quan-ly-goi', label: 'Gói dịch vụ & Hóa đơn', icon: Crown },

@@ -73,6 +73,7 @@ const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').the
 const OwnerServicesPage = React.lazy(() => import('./pages/OwnerServicesPage').then((m) => ({ default: m.OwnerServicesPage })));
 const OwnerMeterReadingPage = React.lazy(() => import('./pages/OwnerMeterReadingPage').then((m) => ({ default: m.OwnerMeterReadingPage })));
 const OwnerInvoiceListPage = React.lazy(() => import('./pages/OwnerInvoiceListPage').then((m) => ({ default: m.OwnerInvoiceListPage })));
+const OwnerContractsPage = React.lazy(() => import('./pages/OwnerContractsPage').then((m) => ({ default: m.OwnerContractsPage })));
 const OwnerInvoiceDetailPage = React.lazy(() => import('./pages/OwnerInvoiceDetailPage').then((m) => ({ default: m.OwnerInvoiceDetailPage })));
 const OwnerK23PricingPage = React.lazy(() => import('./pages/OwnerK23PricingPage').then((m) => ({ default: m.OwnerK23PricingPage })));
 const OwnerK23CheckoutPage = React.lazy(() => import('./pages/OwnerK23CheckoutPage').then((m) => ({ default: m.OwnerK23CheckoutPage })));
@@ -673,6 +674,14 @@ const AppContent: React.FC = () => {
               element={
                 <OwnerRoute>
                   <OwnerInvoiceListPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/hop-dong"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
                 </OwnerRoute>
               }
             />

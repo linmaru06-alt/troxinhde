@@ -526,3 +526,4 @@ export const BatchCreateRoomsModal: React.FC<BatchCreateRoomsModalProps> = ({
     </div>
   );
 };
+
