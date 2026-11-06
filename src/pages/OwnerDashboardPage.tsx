@@ -201,6 +201,62 @@ export const OwnerDashboardPage: React.FC = () => {
           </div>
         </div>
 
+        {/* 🌟 TRUNG TÂM VẬN HÀNH K23 PMS — ĐẦY ĐỦ TÍNH NĂNG ĐÃ SẴN SÀNG */}
+        <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 rounded-3xl p-6 text-white shadow-lg space-y-4 border border-emerald-500/30">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
+            <div>
+              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-1.5">
+                <Sparkles className="w-3.5 h-3.5" /> PHÂN HỆ QUẢN LÝ VẬN HÀNH PHÒNG TRỌ K23
+              </div>
+              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                Hệ Thống Thu Tiền & Quản Lý Khách Thuê Thông Minh
+              </h2>
+            </div>
+            <Link to="/demo-hoa-don">
+              <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                <span>Mở Phòng Lab Demo K23</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <Link
+              to="/chu-tro/hop-dong"
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
+            >
+              <span className="font-bold text-white block">Sổ Khách & Hợp Đồng</span>
+              <p className="text-[11px] text-slate-300">Tủ hồ sơ CCCD, giữ cọc, chống trùng phòng</p>
+            </Link>
+
+            <Link
+              to="/chu-tro/hoa-don"
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
+            >
+              <span className="font-bold text-white block">Hóa Đơn & Thu Tiền</span>
+              <p className="text-[11px] text-slate-300">VietQR SePay 3s, thu từng phần, xuất Excel</p>
+            </Link>
+
+            <Link
+              to="/chu-tro/chot-so"
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
+            >
+              <span className="font-bold text-white block">Chốt Số Điện Nước</span>
+              <p className="text-[11px] text-slate-300">Nhập chỉ số tháng, tính tiền tự động</p>
+            </Link>
+
+            <a
+              href="/tra-cuu-phong"
+              target="_blank"
+              rel="noreferrer"
+              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
+            >
+              <span className="font-bold text-white block">Cổng Web Khách Thuê ↗</span>
+              <p className="text-[11px] text-slate-300">Khách tra cứu bill & báo hỏng đồ không cần app</p>
+            </a>
+          </div>
+        </div>
+
         {/* 4 Stat Cards Bar */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <Link to="/chu-tro/toa-nha" className="bg-white p-5 rounded-3xl border border-gray-200 shadow-xs space-y-2 hover:border-gray-300 transition block">

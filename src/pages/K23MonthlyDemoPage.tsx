@@ -5,6 +5,18 @@ import { SEOHead } from '../components/seo/SEOHead';
 import { InvoiceBillView } from '../components/k23/InvoiceBillView';
 import { ShareBillButton } from '../components/k23/ShareBillButton';
 import { ZaloReminderButton } from '../components/k23/zalo/ZaloReminderButton';
+import { ExportPdfButton } from '../components/k23/billing/ExportPdfButton';
+import { BatchCreateRoomsModal } from '../components/k23/rooms/BatchCreateRoomsModal';
+import { TenantDocumentCabinetModal } from '../components/k23/tenants/TenantDocumentCabinetModal';
+import { ProrationCalculatorModal } from '../components/k23/billing/ProrationCalculatorModal';
+import { RecordPaymentModal } from '../components/k23/billing/RecordPaymentModal';
+import { MoveOutSettlementModal } from '../components/k23/settlement/MoveOutSettlementModal';
+import { exportK23FinanceToExcel } from '../utils/k23ExcelExporter';
+import { IssueManagementModal } from '../components/k23/issues/IssueManagementModal';
+import { ExpenseManagementModal } from '../components/k23/expenses/ExpenseManagementModal';
+import { WebhookSimulatorModal } from '../components/k23/webhook/WebhookSimulatorModal';
+import { AuditLogModal } from '../components/k23/audit/AuditLogModal';
+import { K23Contract, K23Tenant } from '../types/k23Tenants';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
@@ -25,6 +37,16 @@ import {
   Eye,
   Camera,
   Layers,
+  Wrench,
+  TrendingUp,
+  FileSpreadsheet,
+  FileDown,
+  History,
+  Archive,
+  FolderOpen,
+  Calculator,
+  UserCheck,
+  ExternalLink,
   Crown,
 } from 'lucide-react';
 
@@ -47,6 +69,89 @@ export const K23MonthlyDemoPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'invoices' | 'readings' | 'bill'>('invoices');
   const [selectedInvoiceId, setSelectedInvoiceId] = useState<string>('inv_302');
   const billViewRef = useRef<HTMLDivElement>(null);
+
+  // Dữ liệu mock phục vụ demo Tủ hồ sơ & Tất toán
+  const demoTenants: K23Tenant[] = [
+    {
+      id: 't_302',
+      owner_id: 'user_owner_1',
+      full_name: 'Nguyễn Văn An',
+      phone: '0988 123 456',
+      id_card_number: '001201012345',
+      id_card_date: '2021-05-12',
+      id_card_place: 'Cục CS QLHC về TTXH',
+      hometown: 'Thái Bình',
+      vehicle_plate: '17B2-688.99',
+      id_card_front_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+      id_card_back_url: 'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&w=600&q=80',
+      notes: 'Sinh viên ĐH Bách Khoa, ngoan ngoãn, đóng tiền đúng hạn.',
+    },
+    {
+      id: 't_303',
+      owner_id: 'user_owner_1',
+      full_name: 'Lê Thị Thu Mai',
+      phone: '0977 654 321',
+      id_card_number: '034199008877',
+      hometown: 'Hải Dương',
+      vehicle_plate: '34C1-345.67',
+      notes: 'Nhân viên văn phòng, giữ gìn phòng sạch sẽ.',
+    },
+    {
+      id: 't_304',
+      owner_id: 'user_owner_1',
+      full_name: 'Trần Minh Đức',
+      phone: '0912 888 999',
+      id_card_number: '022203001122',
+      hometown: 'Quảng Ninh',
+      notes: 'Kinh doanh tự do.',
+    },
+  ];
+
+  const demoContracts: K23Contract[] = [
+    {
+      id: 'contract_302',
+      contract_code: 'HD-2026-P302',
+      owner_id: 'user_owner_1',
+      room_id: 'room_1',
+      tenant_id: 't_302',
+      start_date: '2026-08-01',
+      end_date: '2027-08-01',
+      rent_amount: 4200000,
+      deposit_amount: 4200000,
+      payment_cycle_months: 1,
+      payment_due_day: 5,
+      status: 'active',
+      room: { id: 'room_1', room_number: 'P.302', title: 'Phòng Studio', building_name: 'Tòa Nhà Xanh' },
+      tenant: demoTenants[0],
+    },
+    {
+      id: 'contract_304',
+      contract_code: 'HD-2026-P304',
+      owner_id: 'user_owner_1',
+      room_id: 'room_3',
+      tenant_id: 't_304',
+      start_date: '2026-05-01',
+      end_date: '2026-11-01',
+      rent_amount: 3500000,
+      deposit_amount: 3500000,
+      payment_cycle_months: 1,
+      payment_due_day: 5,
+      status: 'expired',
+      room: { id: 'room_3', room_number: 'P.304', title: 'Phòng Đơn', building_name: 'Tòa Nhà Xanh' },
+      tenant: demoTenants[2],
+    },
+  ];
+
+  // States các Modals trải nghiệm K23
+  const [isBatchRoomsOpen, setIsBatchRoomsOpen] = useState(false);
+  const [isCabinetOpen, setIsCabinetOpen] = useState(false);
+  const [isProrationOpen, setIsProrationOpen] = useState(false);
+  const [isRecordPaymentOpen, setIsRecordPaymentOpen] = useState(false);
+  const [isSettlementOpen, setIsSettlementOpen] = useState(false);
+  const [isIssuesOpen, setIsIssuesOpen] = useState(false);
+  const [isExpenseOpen, setIsExpenseOpen] = useState(false);
+  const [isWebhookOpen, setIsWebhookOpen] = useState(false);
+  const [isAuditOpen, setIsAuditOpen] = useState(false);
 
   // 1. Dữ liệu chỉ số điện nước demo tương tác trực tiếp
   const [readings, setReadings] = useState<DemoRoomReading[]>([
@@ -310,6 +415,215 @@ export const K23MonthlyDemoPage: React.FC = () => {
               <span className="text-lg sm:text-xl font-extrabold text-white">{collectionRate}%</span>
               <span className="text-[10px] text-emerald-300 block mt-0.5">Tiến độ tháng</span>
             </div>
+          </div>
+        </div>
+
+        {/* 🌟 SIÊU PHÒNG LAB TRẢI NGHIỆM ĐẦY ĐỦ TÍNH NĂNG K23 PMS (CẢ GIAI ĐOẠN 1 VÀ 2) */}
+        <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-md space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-amber-500" />
+                Phòng Lab Thử Nghiệm K23 — 12 Tính Năng Trọng Yếu Của Cả 2 Giai Đoạn
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Bấm vào từng nút bên dưới để xem trực tiếp cách hệ thống vận hành thực tế
+              </p>
+            </div>
+            <span className="text-[11px] font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
+              ✓ Đầy đủ P0 + P1
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {/* P0-01 */}
+            <button
+              type="button"
+              onClick={() => setIsBatchRoomsOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-emerald-700">Tạo phòng hàng loạt</span>
+                <span className="text-[10px] text-slate-400">P0-01 • Sinh tự động</span>
+              </div>
+            </button>
+
+            {/* P0-04 */}
+            <button
+              type="button"
+              onClick={() => setIsCabinetOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                <FolderOpen className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-teal-700">Tủ hồ sơ CCCD</span>
+                <span className="text-[10px] text-slate-400">P0-04 • Xem ảnh 2 mặt</span>
+              </div>
+            </button>
+
+            {/* P0-05 */}
+            <button
+              type="button"
+              onClick={() => setIsProrationOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-blue-100 text-blue-700 flex items-center justify-center font-bold">
+                <Calculator className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-blue-700">Tính tiền ngày lẻ</span>
+                <span className="text-[10px] text-slate-400">P0-05 • Vào/ra giữa kỳ</span>
+              </div>
+            </button>
+
+            {/* P0-06 */}
+            <button
+              type="button"
+              onClick={() => setIsRecordPaymentOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold">
+                <DollarSign className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-emerald-700">Thu từng phần</span>
+                <span className="text-[10px] text-slate-400">P0-06 • Ghi nhận nợ</span>
+              </div>
+            </button>
+
+            {/* P1-01 & P1-10 */}
+            <button
+              type="button"
+              onClick={() => setIsSettlementOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-rose-100 text-rose-700 flex items-center justify-center font-bold">
+                <Archive className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-rose-700">Tất toán trả phòng</span>
+                <span className="text-[10px] text-slate-400">P1-01 • Cấn trừ cọc</span>
+              </div>
+            </button>
+
+            {/* P1-02 */}
+            <button
+              type="button"
+              onClick={() => {
+                exportK23FinanceToExcel({
+                  month: 11,
+                  year: 2026,
+                  buildingName: 'Tòa Nhà Xanh Trọ Xinh',
+                  invoices,
+                  contracts: demoContracts,
+                  tenants: demoTenants,
+                });
+              }}
+              className="p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <FileSpreadsheet className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-emerald-900 block">Xuất Excel (.xlsx)</span>
+                <span className="text-[10px] text-emerald-700">P1-02 • Tải 4 sheets</span>
+              </div>
+            </button>
+
+            {/* P1-03 */}
+            <button
+              type="button"
+              onClick={() => setIsExpenseOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-teal-100 text-teal-700 flex items-center justify-center font-bold">
+                <TrendingUp className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-teal-700">Sổ quỹ & Lãi ròng</span>
+                <span className="text-[10px] text-slate-400">P1-03 • Thu trừ Chi</span>
+              </div>
+            </button>
+
+            {/* P1-04 */}
+            <button
+              type="button"
+              onClick={() => setIsIssuesOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
+                <Wrench className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-amber-700">Sự cố phòng</span>
+                <span className="text-[10px] text-slate-400">P1-04 • Giao việc thợ</span>
+              </div>
+            </button>
+
+            {/* P1-06 */}
+            <button
+              type="button"
+              onClick={() => setIsWebhookOpen(true)}
+              className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-blue-900 block">Test SePay 3s</span>
+                <span className="text-[10px] text-blue-700">P1-06 • Tự động gạch nợ</span>
+              </div>
+            </button>
+
+            {/* P1-05 */}
+            <a
+              href="/tra-cuu-phong"
+              target="_blank"
+              rel="noreferrer"
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center font-bold">
+                <ExternalLink className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-purple-700">Cổng Web khách</span>
+                <span className="text-[10px] text-slate-400">P1-05 • Xem bill VietQR</span>
+              </div>
+            </a>
+
+            {/* P1-08 */}
+            <button
+              type="button"
+              onClick={() => setIsAuditOpen(true)}
+              className="p-3 rounded-2xl bg-slate-50 hover:bg-slate-100 border border-slate-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                <History className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-slate-900 block group-hover:text-indigo-700">Nhật ký Audit Log</span>
+                <span className="text-[10px] text-slate-400">P1-08 • Lịch sử sửa số</span>
+              </div>
+            </button>
+
+            {/* P0-10 */}
+            <Link
+              to="/chu-tro/hop-dong"
+              className="p-3 rounded-2xl bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-700 text-white flex items-center justify-center font-bold shadow-xs">
+                <UserCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-emerald-950 block">Sổ khách & HĐ</span>
+                <span className="text-[10px] text-emerald-700">Trang quản lý đầy đủ →</span>
+              </div>
+            </Link>
           </div>
         </div>
 
@@ -592,6 +906,87 @@ export const K23MonthlyDemoPage: React.FC = () => {
           </div>
         )}
       </main>
+
+      {/* TOÀN BỘ CÁC MODAL TRẢI NGHIỆM K23 PMS */}
+      <BatchCreateRoomsModal
+        isOpen={isBatchRoomsOpen}
+        onClose={() => setIsBatchRoomsOpen(false)}
+        buildingId="bld_1"
+        buildingName="Tòa Nhà Xanh Trọ Xinh"
+        onSuccess={async () => {
+          alert('Khởi tạo phòng hàng loạt thành công!');
+        }}
+      />
+
+      <TenantDocumentCabinetModal
+        isOpen={isCabinetOpen}
+        onClose={() => setIsCabinetOpen(false)}
+        tenant={demoTenants[0]}
+        contracts={demoContracts}
+      />
+
+      <ProrationCalculatorModal
+        isOpen={isProrationOpen}
+        onClose={() => setIsProrationOpen(false)}
+        defaultMonthlyRent={4200000}
+      />
+
+      <RecordPaymentModal
+        isOpen={isRecordPaymentOpen}
+        onClose={() => setIsRecordPaymentOpen(false)}
+        invoice={activeInvoice}
+        onConfirm={async ({ paidNowAmount, paymentMethod }) => {
+          const newPaid = activeInvoice.paid_amount + paidNowAmount;
+          const newStatus = newPaid >= activeInvoice.total_amount ? 'paid' : 'partial';
+          setInvoices((prev) =>
+            prev.map((i) =>
+              i.id === activeInvoice.id
+                ? { ...i, paid_amount: newPaid, remaining: Math.max(0, i.total_amount - newPaid), status: newStatus as any, payment_method: paymentMethod }
+                : i
+            )
+          );
+        }}
+      />
+
+      <MoveOutSettlementModal
+        isOpen={isSettlementOpen}
+        onClose={() => setIsSettlementOpen(false)}
+        contract={demoContracts[1]}
+        onConfirmSettlement={async () => {
+          // done
+        }}
+      />
+
+      <IssueManagementModal
+        isOpen={isIssuesOpen}
+        onClose={() => setIsIssuesOpen(false)}
+      />
+
+      <ExpenseManagementModal
+        isOpen={isExpenseOpen}
+        onClose={() => setIsExpenseOpen(false)}
+        totalRevenueCollected={totalCollected}
+      />
+
+      <WebhookSimulatorModal
+        isOpen={isWebhookOpen}
+        onClose={() => setIsWebhookOpen(false)}
+        invoices={invoices}
+        onSuccess={(invId) => {
+          setInvoices((prev) =>
+            prev.map((i) =>
+              i.id === invId
+                ? { ...i, status: 'paid' as any, paid_amount: i.total_amount, remaining: 0 }
+                : i
+            )
+          );
+        }}
+      />
+
+      <AuditLogModal
+        isOpen={isAuditOpen}
+        onClose={() => setIsAuditOpen(false)}
+      />
     </div>
   );
 };
