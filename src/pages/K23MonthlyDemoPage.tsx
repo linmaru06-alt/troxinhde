@@ -16,6 +16,8 @@ import { IssueManagementModal } from '../components/k23/issues/IssueManagementMo
 import { ExpenseManagementModal } from '../components/k23/expenses/ExpenseManagementModal';
 import { WebhookSimulatorModal } from '../components/k23/webhook/WebhookSimulatorModal';
 import { AuditLogModal } from '../components/k23/audit/AuditLogModal';
+import { StaffManagementModal } from '../components/k23/staff/StaffManagementModal';
+import { TieredTariffConfigModal } from '../components/k23/tariffs/TieredTariffConfigModal';
 import { K23Contract, K23Tenant } from '../types/k23Tenants';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
@@ -48,6 +50,7 @@ import {
   UserCheck,
   ExternalLink,
   Crown,
+  ShieldCheck,
 } from 'lucide-react';
 
 interface DemoRoomReading {
@@ -152,6 +155,8 @@ export const K23MonthlyDemoPage: React.FC = () => {
   const [isExpenseOpen, setIsExpenseOpen] = useState(false);
   const [isWebhookOpen, setIsWebhookOpen] = useState(false);
   const [isAuditOpen, setIsAuditOpen] = useState(false);
+  const [isStaffOpen, setIsStaffOpen] = useState(false);
+  const [isTieredTariffOpen, setIsTieredTariffOpen] = useState(false);
 
   // 1. Dữ liệu chỉ số điện nước demo tương tác trực tiếp
   const [readings, setReadings] = useState<DemoRoomReading[]>([
@@ -424,14 +429,14 @@ export const K23MonthlyDemoPage: React.FC = () => {
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
-                Phòng Lab Thử Nghiệm K23 — 12 Tính Năng Trọng Yếu Của Cả 2 Giai Đoạn
+                Phòng Lab Thử Nghiệm K23 — 14 Tính Năng Trọng Yếu Của P0, P1 & P2
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Bấm vào từng nút bên dưới để xem trực tiếp cách hệ thống vận hành thực tế
               </p>
             </div>
             <span className="text-[11px] font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-              ✓ Đầy đủ P0 + P1
+              ✓ Đầy đủ P0 + P1 + P2 (Đợt 1)
             </span>
           </div>
 
@@ -624,6 +629,36 @@ export const K23MonthlyDemoPage: React.FC = () => {
                 <span className="text-[10px] text-emerald-700">Trang quản lý đầy đủ →</span>
               </div>
             </Link>
+
+            {/* P2-01 */}
+            <button
+              type="button"
+              onClick={() => setIsStaffOpen(true)}
+              className="p-3 rounded-2xl bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                <ShieldCheck className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-indigo-950 block">Phân quyền nhân sự</span>
+                <span className="text-[10px] text-indigo-700">P2-01 • RBAC đa cơ sở</span>
+              </div>
+            </button>
+
+            {/* P2-02 */}
+            <button
+              type="button"
+              onClick={() => setIsTieredTariffOpen(true)}
+              className="p-3 rounded-2xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-amber-500 text-white flex items-center justify-center font-bold shadow-xs">
+                <Zap className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-amber-950 block">Điện bậc thang</span>
+                <span className="text-[10px] text-amber-700">P2-02 • Lũy tiến EVN</span>
+              </div>
+            </button>
           </div>
         </div>
 
@@ -995,6 +1030,16 @@ export const K23MonthlyDemoPage: React.FC = () => {
       <AuditLogModal
         isOpen={isAuditOpen}
         onClose={() => setIsAuditOpen(false)}
+      />
+
+      <StaffManagementModal
+        isOpen={isStaffOpen}
+        onClose={() => setIsStaffOpen(false)}
+      />
+
+      <TieredTariffConfigModal
+        isOpen={isTieredTariffOpen}
+        onClose={() => setIsTieredTariffOpen(false)}
       />
     </div>
   );

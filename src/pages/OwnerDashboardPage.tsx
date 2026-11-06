@@ -28,6 +28,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 
+import { StaffManagementModal } from '../components/k23/staff/StaffManagementModal';
+import { TieredTariffConfigModal } from '../components/k23/tariffs/TieredTariffConfigModal';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
@@ -44,6 +46,8 @@ export const OwnerDashboardPage: React.FC = () => {
   const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleTime, setRescheduleTime] = useState<string>('');
+  const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
+  const [isTariffModalOpen, setIsTariffModalOpen] = useState<boolean>(false);
 
   // Nạp danh sách lịch hẹn thật từ Supabase Cloud
   React.useEffect(() => {
@@ -220,7 +224,7 @@ export const OwnerDashboardPage: React.FC = () => {
             </Link>
           </div>
 
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
             <Link
               to="/chu-tro/hop-dong"
               className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
@@ -254,6 +258,24 @@ export const OwnerDashboardPage: React.FC = () => {
               <span className="font-bold text-white block">Cổng Web Khách Thuê ↗</span>
               <p className="text-[11px] text-slate-300">Khách tra cứu bill & báo hỏng đồ không cần app</p>
             </a>
+
+            <button
+              type="button"
+              onClick={() => setIsStaffModalOpen(true)}
+              className="p-3.5 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-400/30 text-left transition block space-y-1 cursor-pointer"
+            >
+              <span className="font-bold text-indigo-300 block">Phân Quyền Nhân Sự</span>
+              <p className="text-[11px] text-slate-300">RBAC đa cơ sở, giấu doanh thu với bảo vệ</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsTariffModalOpen(true)}
+              className="p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 text-left transition block space-y-1 cursor-pointer"
+            >
+              <span className="font-bold text-amber-300 block">Điện Bậc Thang</span>
+              <p className="text-[11px] text-slate-300">Biểu giá lũy tiến EVN, ảnh công tơ</p>
+            </button>
           </div>
         </div>
 
