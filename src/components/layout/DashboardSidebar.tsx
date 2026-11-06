@@ -23,6 +23,7 @@ import {
   Receipt,
   Sliders,
   Sparkles,
+  FileText,
 } from 'lucide-react';
 
 import { deduplicateChatNotifications } from '../../utils/formatters';

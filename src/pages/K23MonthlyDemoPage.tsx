@@ -911,8 +911,17 @@ export const K23MonthlyDemoPage: React.FC = () => {
       <BatchCreateRoomsModal
         isOpen={isBatchRoomsOpen}
         onClose={() => setIsBatchRoomsOpen(false)}
-        buildingId="bld_1"
-        buildingName="Tòa Nhà Xanh Trọ Xinh"
+        building={{
+          id: 'bld_1',
+          name: 'Tòa Nhà Xanh Trọ Xinh',
+          address: 'Số 12 Ngõ 68 Triều Khúc',
+          district: 'Thanh Xuân',
+          city: 'Hà Nội',
+        }}
+        owner={{
+          id: 'user_owner_1',
+          name: 'Chủ trọ Demo',
+        }}
         onSuccess={async () => {
           alert('Khởi tạo phòng hàng loạt thành công!');
         }}

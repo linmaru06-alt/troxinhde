@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
   Search,
+  X,
   Building2,
   Calendar,
   DollarSign,

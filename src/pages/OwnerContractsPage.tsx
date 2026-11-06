@@ -32,7 +32,8 @@ import { MoveOutSettlementModal } from '../components/k23/settlement/MoveOutSett
 import { IssueManagementModal } from '../components/k23/issues/IssueManagementModal';
 import { TenantDocumentCabinetModal } from '../components/k23/tenants/TenantDocumentCabinetModal';
 import { ZaloReminderModal } from '../components/k23/zalo/ZaloReminderModal';
-import { K23Invoice } from '../types/k23';
+import { Invoice } from '../types/k23';
+import { extractZaloDataFromInvoice } from '../utils/zaloTemplateBuilder';
 
 export const OwnerContractsPage: React.FC = () => {
   const { currentUser, rooms } = useAppStore();
@@ -155,7 +156,7 @@ export const OwnerContractsPage: React.FC = () => {
   };
 
   return (
-    <K23VipGate featureName="Sổ Khách Thuê & Quản Lý Hợp Đồng">
+    <K23VipGate featureTitle="Sổ Khách Thuê & Quản Lý Hợp Đồng">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 space-y-8 animate-in fade-in duration-300">
         {/* Header trang */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
@@ -486,11 +487,13 @@ export const OwnerContractsPage: React.FC = () => {
         />
 
         {/* Modal Nhắc nợ Zalo */}
-        <ZaloReminderModal
-          isOpen={!!zaloTargetInvoice}
-          onClose={() => setZaloTargetInvoice(null)}
-          invoice={zaloTargetInvoice}
-        />
+        {zaloTargetInvoice && (
+          <ZaloReminderModal
+            isOpen={!!zaloTargetInvoice}
+            onClose={() => setZaloTargetInvoice(null)}
+            data={extractZaloDataFromInvoice(zaloTargetInvoice as any)}
+          />
+        )}
         {/* Modal Tất toán trả phòng & cấn trừ cọc (P1-01 & P1-10) */}
         <MoveOutSettlementModal
           isOpen={!!selectedContractForSettlement}
