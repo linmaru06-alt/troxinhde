@@ -18,6 +18,7 @@ import {
   Archive,
   RefreshCw,
   FolderOpen,
+  Wrench,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { formatPrice } from '../components/ui/Cards';
@@ -28,6 +29,7 @@ import { K23Contract, K23Tenant, CreateContractParams } from '../types/k23Tenant
 import { useNavigate } from 'react-router-dom';
 import { CreateContractModal } from '../components/k23/contracts/CreateContractModal';
 import { MoveOutSettlementModal } from '../components/k23/settlement/MoveOutSettlementModal';
+import { IssueManagementModal } from '../components/k23/issues/IssueManagementModal';
 import { TenantDocumentCabinetModal } from '../components/k23/tenants/TenantDocumentCabinetModal';
 import { ZaloReminderModal } from '../components/k23/zalo/ZaloReminderModal';
 import { K23Invoice } from '../types/k23';
@@ -36,6 +38,7 @@ export const OwnerContractsPage: React.FC = () => {
   const { currentUser, rooms } = useAppStore();
   const navigate = useNavigate();
   const [selectedContractForSettlement, setSelectedContractForSettlement] = useState<K23Contract | null>(null);
+  const [isIssuesModalOpen, setIsIssuesModalOpen] = useState<boolean>(false);
   const ownerId = currentUser?.id || 'user_owner_1';
 
   const {
@@ -173,6 +176,14 @@ export const OwnerContractsPage: React.FC = () => {
           </div>
 
           <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={() => setIsIssuesModalOpen(true)}
+              className="rounded-2xl border-amber-200 text-amber-800 bg-amber-50/60 hover:bg-amber-100"
+            >
+              <Wrench className="w-4 h-4 mr-2 text-amber-600" />
+              Sự cố phòng
+            </Button>
             <Button
               variant="outline"
               onClick={() => {
@@ -491,6 +502,11 @@ export const OwnerContractsPage: React.FC = () => {
           onPostToMarketplace={(roomId) => {
             navigate('/chu-tro/phong/tao-moi');
           }}
+        />
+        {/* Modal Quản lý Sự Cố Phòng P1-04 */}
+        <IssueManagementModal
+          isOpen={isIssuesModalOpen}
+          onClose={() => setIsIssuesModalOpen(false)}
         />
       </div>
     </K23VipGate>

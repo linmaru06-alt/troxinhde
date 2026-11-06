@@ -11,12 +11,14 @@ import { InvoiceStatus, Invoice } from '../types/k23';
 import { RecordPaymentModal } from '../components/k23/billing/RecordPaymentModal';
 import { ProrationCalculatorModal } from '../components/k23/billing/ProrationCalculatorModal';
 import { exportK23FinanceToExcel } from '../utils/k23ExcelExporter';
+import { ExpenseManagementModal } from '../components/k23/expenses/ExpenseManagementModal';
 import {
   Receipt,
   Building2,
   Calendar,
   Calculator,
   FileSpreadsheet,
+  TrendingUp,
   DollarSign,
   CheckCircle,
   Clock,
@@ -49,6 +51,7 @@ export const OwnerInvoiceListPage: React.FC = () => {
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('all');
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const [isProrationOpen, setIsProrationOpen] = useState<boolean>(false);
+  const [isExpenseOpen, setIsExpenseOpen] = useState<boolean>(false);
 
   const { data: invoices = [], isLoading } = useInvoices({
     ownerId: currentUser?.id || '',
@@ -186,6 +189,15 @@ export const OwnerInvoiceListPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsExpenseOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300 hover:bg-teal-100 shadow-xs transition-all"
+                title="Sổ quỹ chi phí vận hành & Tính lãi ròng"
+              >
+                <TrendingUp className="w-4 h-4 text-teal-600" />
+                <span>Sổ quỹ & Lãi ròng</span>
+              </button>
               <button
                 type="button"
                 onClick={handleExportExcel}
@@ -501,6 +513,12 @@ export const OwnerInvoiceListPage: React.FC = () => {
     <ProrationCalculatorModal
       isOpen={isProrationOpen}
       onClose={() => setIsProrationOpen(false)}
+    />
+    {/* Modal Sổ quỹ chi phí & Lãi ròng P1-03 */}
+    <ExpenseManagementModal
+      isOpen={isExpenseOpen}
+      onClose={() => setIsExpenseOpen(false)}
+      totalRevenueCollected={metrics.paidAmount}
     />
     </K23VipGate>
   );
