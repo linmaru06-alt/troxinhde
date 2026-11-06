@@ -7,11 +7,14 @@ import { useAppStore } from '../store/useAppStore';
 import { useInvoices, useUpdateInvoiceStatus, useDeleteInvoice } from '../hooks/queries/useK23';
 import { InvoiceStatusBadge } from '../components/k23/InvoiceStatusBadge';
 import { ZaloReminderButton } from '../components/k23/zalo/ZaloReminderButton';
-import { InvoiceStatus } from '../types/k23';
+import { InvoiceStatus, Invoice } from '../types/k23';
+import { RecordPaymentModal } from '../components/k23/billing/RecordPaymentModal';
+import { ProrationCalculatorModal } from '../components/k23/billing/ProrationCalculatorModal';
 import {
   Receipt,
   Building2,
   Calendar,
+  Calculator,
   DollarSign,
   CheckCircle,
   Clock,
@@ -42,6 +45,8 @@ export const OwnerInvoiceListPage: React.FC = () => {
   );
 
   const [selectedBuildingId, setSelectedBuildingId] = useState<string>('all');
+  const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
+  const [isProrationOpen, setIsProrationOpen] = useState<boolean>(false);
 
   const { data: invoices = [], isLoading } = useInvoices({
     ownerId: currentUser?.id || '',
@@ -64,6 +69,40 @@ export const OwnerInvoiceListPage: React.FC = () => {
 
     return { totalAmount, paidAmount, remainingAmount, paidCount, overdueCount };
   }, [invoices]);
+
+  const handleConfirmPayment = async ({
+    invoiceId,
+    paidNowAmount,
+    paymentMethod,
+    notes,
+  }: {
+    invoiceId: string;
+    paidNowAmount: number;
+    paymentMethod: string;
+    notes?: string;
+  }) => {
+    const inv = invoices.find((i) => i.id === invoiceId);
+    if (!inv) return;
+    const newPaid = (inv.paid_amount || 0) + paidNowAmount;
+    const newStatus: InvoiceStatus = newPaid >= inv.total_amount ? 'paid' : 'partial';
+
+    await updateStatusMutation.mutateAsync({
+      id: invoiceId,
+      status: newStatus,
+      paidAmount: newPaid,
+      paymentMethod,
+      notes: notes || inv.notes,
+    });
+
+    if (showToast) {
+      showToast(
+        newStatus === 'paid'
+          ? 'Đã thu đủ 100% tiền hóa đơn!'
+          : `Đã ghi nhận thu một phần (${paidNowAmount.toLocaleString('vi-VN')} đ). Còn nợ ${(inv.total_amount - newPaid).toLocaleString('vi-VN')} đ`,
+        'success'
+      );
+    }
+  };
 
   const handleMarkAsPaid = async (invoiceId: string, total: number) => {
     try {
@@ -132,6 +171,14 @@ export const OwnerInvoiceListPage: React.FC = () => {
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setIsProrationOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-50 shadow-xs transition-all"
+              >
+                <Calculator className="w-4 h-4 text-emerald-600" />
+                <span>Tính tiền ngày lẻ</span>
+              </button>
               <button
                 type="button"
                 onClick={() => navigate('/chu-tro/chot-so')}
@@ -254,6 +301,17 @@ export const OwnerInvoiceListPage: React.FC = () => {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setStatusFilter('partial')}
+                  className={`px-2.5 py-1 rounded-lg transition-all ${
+                    statusFilter === 'partial'
+                      ? 'bg-white dark:bg-slate-700 text-amber-600 shadow-sm'
+                      : 'text-slate-500'
+                  }`}
+                >
+                  Còn nợ
+                </button>
+                <button
+                  type="button"
                   onClick={() => setStatusFilter('paid')}
                   className={`px-2.5 py-1 rounded-lg transition-all ${
                     statusFilter === 'paid'
@@ -323,6 +381,7 @@ export const OwnerInvoiceListPage: React.FC = () => {
                     <th className="py-3 px-3">Khách thuê</th>
                     <th className="py-3 px-3 text-right">Tổng tiền</th>
                     <th className="py-3 px-3 text-right">Đã thu</th>
+                    <th className="py-3 px-3 text-right">Còn nợ</th>
                     <th className="py-3 px-3 text-center">Trạng thái</th>
                     <th className="py-3 px-4 text-right">Thao tác</th>
                   </tr>
@@ -353,6 +412,15 @@ export const OwnerInvoiceListPage: React.FC = () => {
                         <td className="py-3 px-3 text-right font-mono text-emerald-600 font-semibold">
                           {inv.paid_amount.toLocaleString('vi-VN')} đ
                         </td>
+                        <td className="py-3 px-3 text-right font-mono font-bold">
+                          {remaining > 0 ? (
+                            <span className="text-amber-600 dark:text-amber-400">
+                              {remaining.toLocaleString('vi-VN')} đ
+                            </span>
+                          ) : (
+                            <span className="text-slate-400 font-normal">0 đ</span>
+                          )}
+                        </td>
                         <td className="py-3 px-3 text-center">
                           <InvoiceStatusBadge status={inv.status} />
                         </td>
@@ -362,11 +430,11 @@ export const OwnerInvoiceListPage: React.FC = () => {
                             {inv.status !== 'paid' && (
                               <button
                                 type="button"
-                                onClick={() => handleMarkAsPaid(inv.id, inv.total_amount)}
-                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-50 hover:bg-emerald-100 text-emerald-700 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800 transition-all"
-                                title="Đánh dấu đã thu đủ tiền"
+                                onClick={() => setSelectedInvoiceForPayment(inv)}
+                                className="px-2.5 py-1 rounded-lg text-[11px] font-bold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all"
+                                title="Ghi nhận thu tiền (hỗ trợ thu từng phần)"
                               >
-                                Đã thu
+                                Thu tiền
                               </button>
                             )}
                             <Link
@@ -396,6 +464,20 @@ export const OwnerInvoiceListPage: React.FC = () => {
         </div>
       </main>
     </div>
+
+    {/* Modal Ghi nhận thu tiền từng phần / trả trước */}
+    <RecordPaymentModal
+      isOpen={!!selectedInvoiceForPayment}
+      onClose={() => setSelectedInvoiceForPayment(null)}
+      invoice={selectedInvoiceForPayment}
+      onConfirm={handleConfirmPayment}
+    />
+
+    {/* Modal Máy tính chia tiền ngày lẻ */}
+    <ProrationCalculatorModal
+      isOpen={isProrationOpen}
+      onClose={() => setIsProrationOpen(false)}
+    />
     </K23VipGate>
   );
 };

@@ -424,3 +424,4 @@ export const CreateContractModal: React.FC<CreateContractModalProps> = ({
     </div>
   );
 };
+
