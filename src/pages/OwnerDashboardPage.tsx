@@ -30,6 +30,9 @@ import {
 
 import { StaffManagementModal } from '../components/k23/staff/StaffManagementModal';
 import { TieredTariffConfigModal } from '../components/k23/tariffs/TieredTariffConfigModal';
+import { TaxReportModal } from '../components/k23/tax/TaxReportModal';
+import { IotDeviceManagementModal } from '../components/k23/iot/IotDeviceManagementModal';
+import { ParkingManagementModal } from '../components/k23/parking/ParkingManagementModal';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
@@ -48,6 +51,9 @@ export const OwnerDashboardPage: React.FC = () => {
   const [rescheduleTime, setRescheduleTime] = useState<string>('');
   const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
   const [isTariffModalOpen, setIsTariffModalOpen] = useState<boolean>(false);
+  const [isTaxModalOpen, setIsTaxModalOpen] = useState<boolean>(false);
+  const [isIotModalOpen, setIsIotModalOpen] = useState<boolean>(false);
+  const [isParkingModalOpen, setIsParkingModalOpen] = useState<boolean>(false);
 
   // Nạp danh sách lịch hẹn thật từ Supabase Cloud
   React.useEffect(() => {
@@ -275,6 +281,33 @@ export const OwnerDashboardPage: React.FC = () => {
             >
               <span className="font-bold text-amber-300 block">Điện Bậc Thang</span>
               <p className="text-[11px] text-slate-300">Biểu giá lũy tiến EVN, ảnh công tơ</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsParkingModalOpen(true)}
+              className="p-3.5 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/30 text-left transition block space-y-1 cursor-pointer"
+            >
+              <span className="font-bold text-sky-300 block">Vé Xe Tháng</span>
+              <p className="text-[11px] text-slate-300">Quản lý biển số, kiểm soát an ninh ra vào</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsTaxModalOpen(true)}
+              className="p-3.5 rounded-2xl bg-teal-500/10 hover:bg-teal-500/20 border border-teal-400/30 text-left transition block space-y-1 cursor-pointer"
+            >
+              <span className="font-bold text-teal-300 block">Sổ Kê Khai Thuế</span>
+              <p className="text-[11px] text-slate-300">Mẫu 01/TTS, thuế TNCN 5% & GTGT 5%</p>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsIotModalOpen(true)}
+              className="p-3.5 rounded-2xl bg-violet-500/10 hover:bg-violet-500/20 border border-violet-400/30 text-left transition block space-y-1 cursor-pointer"
+            >
+              <span className="font-bold text-violet-300 block">Cổng IoT Phần Cứng</span>
+              <p className="text-[11px] text-slate-300">Đồng bộ công tơ Tuya & Khóa TTLock</p>
             </button>
           </div>
         </div>

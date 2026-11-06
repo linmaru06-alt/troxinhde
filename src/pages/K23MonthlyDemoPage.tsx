@@ -21,6 +21,8 @@ import { TieredTariffConfigModal } from '../components/k23/tariffs/TieredTariffC
 import { ParkingManagementModal } from '../components/k23/parking/ParkingManagementModal';
 import { ESignatureModal } from '../components/k23/contracts/ESignatureModal';
 import { LateFeeConfigModal } from '../components/k23/settings/LateFeeConfigModal';
+import { TaxReportModal } from '../components/k23/tax/TaxReportModal';
+import { IotDeviceManagementModal } from '../components/k23/iot/IotDeviceManagementModal';
 import { K23Contract, K23Tenant } from '../types/k23Tenants';
 import { Invoice, InvoiceStatus } from '../types/k23';
 import { formatCurrency } from '../components/ui/Cards';
@@ -53,6 +55,7 @@ import {
   UserCheck,
   ExternalLink,
   Crown,
+  Cpu,
   Bike,
   PenTool,
   ShieldCheck,
@@ -165,6 +168,8 @@ export const K23MonthlyDemoPage: React.FC = () => {
   const [isParkingOpen, setIsParkingOpen] = useState(false);
   const [isESignOpen, setIsESignOpen] = useState(false);
   const [isLateFeeOpen, setIsLateFeeOpen] = useState(false);
+  const [isTaxOpen, setIsTaxOpen] = useState(false);
+  const [isIotOpen, setIsIotOpen] = useState(false);
 
   // 1. Dữ liệu chỉ số điện nước demo tương tác trực tiếp
   const [readings, setReadings] = useState<DemoRoomReading[]>([
@@ -437,14 +442,14 @@ export const K23MonthlyDemoPage: React.FC = () => {
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-amber-500" />
-                Phòng Lab Thử Nghiệm K23 — Đầy Đủ Tính Năng Vận Hành Chuỗi & Ký Số (P0, P1 & P2)
+                Phòng Lab Thử Nghiệm K23 — Trọn Vẹn 17 Tính Năng Của Cả 3 Giai Đoạn (P0, P1, P2)
               </h2>
               <p className="text-xs text-slate-500 mt-0.5">
                 Bấm vào từng nút bên dưới để xem trực tiếp cách hệ thống vận hành thực tế
               </p>
             </div>
             <span className="text-[11px] font-bold px-3 py-1 bg-emerald-100 text-emerald-800 rounded-full border border-emerald-200">
-              ✓ Đầy đủ P0, P1 & P2 (Đợt 1 + 2)
+              ✓ Hoàn tất 100% P0 + P1 + P2
             </span>
           </div>
 
@@ -710,6 +715,36 @@ export const K23MonthlyDemoPage: React.FC = () => {
               <div>
                 <span className="text-[11px] font-bold text-rose-950 block">Phạt chậm nộp</span>
                 <span className="text-[10px] text-rose-700">P2-06 • Grace period</span>
+              </div>
+            </button>
+
+            {/* P2-07 */}
+            <button
+              type="button"
+              onClick={() => setIsTaxOpen(true)}
+              className="p-3 rounded-2xl bg-teal-50 hover:bg-teal-100 border border-teal-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-teal-700 text-white flex items-center justify-center font-bold shadow-xs">
+                <Receipt className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-teal-950 block">Sổ thuế & VAT</span>
+                <span className="text-[10px] text-teal-700">P2-07 • Mẫu 01/TTS</span>
+              </div>
+            </button>
+
+            {/* P2-08 */}
+            <button
+              type="button"
+              onClick={() => setIsIotOpen(true)}
+              className="p-3 rounded-2xl bg-violet-50 hover:bg-violet-100 border border-violet-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+            >
+              <div className="w-8 h-8 rounded-xl bg-violet-700 text-white flex items-center justify-center font-bold shadow-xs">
+                <Cpu className="w-4 h-4" />
+              </div>
+              <div>
+                <span className="text-[11px] font-bold text-violet-950 block">Cổng IoT phần cứng</span>
+                <span className="text-[10px] text-violet-700">P2-08 • Công tơ & Khóa</span>
               </div>
             </button>
           </div>
@@ -1109,6 +1144,17 @@ export const K23MonthlyDemoPage: React.FC = () => {
       <LateFeeConfigModal
         isOpen={isLateFeeOpen}
         onClose={() => setIsLateFeeOpen(false)}
+      />
+
+      <TaxReportModal
+        isOpen={isTaxOpen}
+        onClose={() => setIsTaxOpen(false)}
+        invoices={invoices}
+      />
+
+      <IotDeviceManagementModal
+        isOpen={isIotOpen}
+        onClose={() => setIsIotOpen(false)}
       />
     </div>
   );

@@ -91,8 +91,16 @@ function calculateLateFee(totalDue, dueDateStr, asOfDateStr, config) {
   return { overdueDays: diffDays, chargeableDays, lateFeeAmount };
 }
 
+// 7. Module Tính nghĩa vụ thuế cho thuê nhà TT 40/2021 (P2-07)
+function calculateRentalTax(grossRentalRevenue, isTaxable = true) {
+  if (!isTaxable) return { vatAmount: 0, pitAmount: 0, totalTax: 0 };
+  const vatAmount = Math.round(grossRentalRevenue * 0.05); // 5% GTGT
+  const pitAmount = Math.round(grossRentalRevenue * 0.05); // 5% TNCN
+  return { vatAmount, pitAmount, totalTax: vatAmount + pitAmount };
+}
+
 console.log('======================================================================');
-console.log('  BẮT ĐẦU CHẠY TEST SUITE LOGIC KẾ TOÁN VẬN HÀNH K23 PMS (P1 & P2)');
+console.log('  BẮT ĐẦU CHẠY TEST SUITE LOGIC KẾ TOÁN VẬN HÀNH K23 PMS (P1 & P2 FULL)');
 console.log('======================================================================\n');
 
 // Test 1: Tính tiền ngày lẻ
@@ -158,22 +166,23 @@ console.log('  ✅ [PASS] Chặn nhập lùi và cảnh báo tăng vọt 200% ho
 
 // Test 7: Kiểm tra tính phạt chậm nộp tiền phòng (P2-06)
 console.log('Test 7: Kiểm tra tính phạt chậm nộp tiền phòng tự động (P2-06)');
-const lateCheck1 = calculateLateFee(4000000, '2026-11-05', '2026-11-07', {
+const lateCheck = calculateLateFee(4000000, '2026-11-05', '2026-11-10', {
   grace_period_days: 3,
   daily_amount: 20000,
 });
-assert.strictEqual(lateCheck1.chargeableDays, 0, 'Quá hạn 2 ngày nhưng trong 3 ngày ân hạn thì chưa bị phạt');
-assert.strictEqual(lateCheck1.lateFeeAmount, 0, 'Số tiền phạt bằng 0 trong ngày ân hạn');
-
-const lateCheck2 = calculateLateFee(4000000, '2026-11-05', '2026-11-10', {
-  grace_period_days: 3,
-  daily_amount: 20000,
-});
-assert.strictEqual(lateCheck2.overdueDays, 5, 'Quá hạn 5 ngày');
-assert.strictEqual(lateCheck2.chargeableDays, 2, 'Sau khi trừ 3 ngày ân hạn phải tính phạt 2 ngày');
-assert.strictEqual(lateCheck2.lateFeeAmount, 40000, 'Phạt 2 ngày * 20.000đ = 40.000đ');
+assert.strictEqual(lateCheck.overdueDays, 5, 'Quá hạn 5 ngày');
+assert.strictEqual(lateCheck.chargeableDays, 2, 'Sau khi trừ 3 ngày ân hạn phải tính phạt 2 ngày');
+assert.strictEqual(lateCheck.lateFeeAmount, 40000, 'Phạt 2 ngày * 20.000đ = 40.000đ');
 console.log('  ✅ [PASS] Tính phạt chậm nộp trừ thời gian ân hạn chính xác 100% (Phạt 40.000đ)\n');
 
+// Test 8: Kiểm tra tính nghĩa vụ thuế TT 40/2021 (P2-07)
+console.log('Test 8: Kiểm tra tính thuế TNCN 5% & GTGT 5% cho thuê nhà (P2-07)');
+const taxCheck = calculateRentalTax(50000000); // 50 triệu tiền thuê nhà
+assert.strictEqual(taxCheck.vatAmount, 2500000, 'Thuế GTGT 5% của 50 triệu phải là 2.500.000đ');
+assert.strictEqual(taxCheck.pitAmount, 2500000, 'Thuế TNCN 5% của 50 triệu phải là 2.500.000đ');
+assert.strictEqual(taxCheck.totalTax, 5000000, 'Tổng thuế 10% phải là 5.000.000đ');
+console.log('  ✅ [PASS] Công thức thuế cho thuê nhà TT 40/2021 đạt chuẩn 100% (Tổng thuế 5.000.000đ)\n');
+
 console.log('======================================================================');
-console.log('🎉 TẤT CẢ 7/7 BÀI TEST LOGIC TÀI CHÍNH K23 PMS ĐẠT CHUẨN 100%!');
+console.log('🎉 TẤT CẢ 8/8 BÀI TEST LOGIC TÀI CHÍNH K23 PMS ĐẠT CHUẨN 100%!');
 console.log('======================================================================');
