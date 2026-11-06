@@ -12,6 +12,7 @@ import { RecordPaymentModal } from '../components/k23/billing/RecordPaymentModal
 import { ProrationCalculatorModal } from '../components/k23/billing/ProrationCalculatorModal';
 import { exportK23FinanceToExcel } from '../utils/k23ExcelExporter';
 import { ExpenseManagementModal } from '../components/k23/expenses/ExpenseManagementModal';
+import { WebhookSimulatorModal } from '../components/k23/webhook/WebhookSimulatorModal';
 import {
   Receipt,
   Building2,
@@ -52,6 +53,7 @@ export const OwnerInvoiceListPage: React.FC = () => {
   const [selectedInvoiceForPayment, setSelectedInvoiceForPayment] = useState<Invoice | null>(null);
   const [isProrationOpen, setIsProrationOpen] = useState<boolean>(false);
   const [isExpenseOpen, setIsExpenseOpen] = useState<boolean>(false);
+  const [isWebhookModalOpen, setIsWebhookModalOpen] = useState<boolean>(false);
 
   const { data: invoices = [], isLoading } = useInvoices({
     ownerId: currentUser?.id || '',
@@ -197,6 +199,15 @@ export const OwnerInvoiceListPage: React.FC = () => {
               >
                 <TrendingUp className="w-4 h-4 text-teal-600" />
                 <span>Sổ quỹ & Lãi ròng</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsWebhookModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 shadow-xs transition-all"
+                title="Mô phỏng Webhook SePay gạch nợ tự động trong 3 giây"
+              >
+                <Zap className="w-4 h-4 text-blue-600" />
+                <span>Test Webhook SePay</span>
               </button>
               <button
                 type="button"
@@ -519,6 +530,17 @@ export const OwnerInvoiceListPage: React.FC = () => {
       isOpen={isExpenseOpen}
       onClose={() => setIsExpenseOpen(false)}
       totalRevenueCollected={metrics.paidAmount}
+    />
+    {/* Modal Mô phỏng Webhook SePay P1-06 */}
+    <WebhookSimulatorModal
+      isOpen={isWebhookModalOpen}
+      onClose={() => setIsWebhookModalOpen(false)}
+      invoices={invoices}
+      onSuccess={() => {
+        if (showToast) {
+          showToast('Đã nhận diện tiền về và gạch nợ thành công qua Webhook SePay!', 'success');
+        }
+      }}
     />
     </K23VipGate>
   );

@@ -74,6 +74,7 @@ const OwnerServicesPage = React.lazy(() => import('./pages/OwnerServicesPage').t
 const OwnerMeterReadingPage = React.lazy(() => import('./pages/OwnerMeterReadingPage').then((m) => ({ default: m.OwnerMeterReadingPage })));
 const OwnerInvoiceListPage = React.lazy(() => import('./pages/OwnerInvoiceListPage').then((m) => ({ default: m.OwnerInvoiceListPage })));
 const OwnerContractsPage = React.lazy(() => import('./pages/OwnerContractsPage').then((m) => ({ default: m.OwnerContractsPage })));
+const TenantWebPortalPage = React.lazy(() => import('./pages/TenantWebPortalPage').then((m) => ({ default: m.TenantWebPortalPage })));
 const OwnerInvoiceDetailPage = React.lazy(() => import('./pages/OwnerInvoiceDetailPage').then((m) => ({ default: m.OwnerInvoiceDetailPage })));
 const OwnerK23PricingPage = React.lazy(() => import('./pages/OwnerK23PricingPage').then((m) => ({ default: m.OwnerK23PricingPage })));
 const OwnerK23CheckoutPage = React.lazy(() => import('./pages/OwnerK23CheckoutPage').then((m) => ({ default: m.OwnerK23CheckoutPage })));
@@ -841,6 +842,8 @@ const AppContent: React.FC = () => {
             />
 
             {/* Debug QA Tool */}
+            <Route path="/tra-cuu-phong" element={<TenantWebPortalPage />} />
+            <Route path="/portal" element={<TenantWebPortalPage />} />
             <Route path="/demo-hoa-don" element={<K23MonthlyDemoPage />} />
             <Route path="/chu-tro/demo-thang-tro" element={<K23MonthlyDemoPage />} />
             <Route path="/chu-tro/demo-k23" element={<K23MonthlyDemoPage />} />
