@@ -22,6 +22,39 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('Uncaught error in application:', error, errorInfo);
+
+    // Tự động khôi phục nếu trình duyệt người dùng bị kẹt chunk cũ từ cache sau deploy
+    const errorMsg = String(error?.message || error || '');
+    const isStaleCacheError =
+      errorMsg.includes('ShieldCheck') ||
+      errorMsg.includes('Failed to fetch dynamically imported module') ||
+      errorMsg.includes('Importing a module script failed') ||
+      errorMsg.includes('Loading chunk') ||
+      errorMsg.includes('is not defined') ||
+      errorMsg.includes('Unexpected token');
+
+    if (isStaleCacheError && typeof window !== 'undefined') {
+      const reloadKey = 'troxinh_auto_cache_clear_' + errorMsg.slice(0, 15);
+      if (!sessionStorage.getItem(reloadKey)) {
+        sessionStorage.setItem(reloadKey, 'true');
+        try {
+          if ('caches' in window) {
+            caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n))));
+          }
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.getRegistrations().then((regs) => {
+              Promise.all(regs.map((r) => r.unregister())).then(() => {
+                window.location.reload();
+              });
+            });
+            return;
+          }
+        } catch {
+          // ignore
+        }
+        window.location.reload();
+      }
+    }
   }
 
   public resetError = () => {

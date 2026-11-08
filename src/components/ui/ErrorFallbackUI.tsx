@@ -89,16 +89,16 @@ export const ErrorFallbackUI: React.FC<ErrorFallbackProps> = ({ error, resetErro
 
         <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
           <Button
-            variant="outline"
+            variant="primary"
             size="md"
-            className="w-full"
+            className="w-full bg-[#00a854] hover:bg-[#008f47]"
             onClick={handleRetry}
             leftIcon={<RotateCcw className="w-4 h-4" />}
           >
-            Thử Lại
+            Thử Lại (Cập nhật bản mới)
           </Button>
           <Button
-            variant="primary"
+            variant="outline"
             size="md"
             className="w-full"
             onClick={() => (window.location.href = '/')}
@@ -107,6 +107,9 @@ export const ErrorFallbackUI: React.FC<ErrorFallbackProps> = ({ error, resetErro
             Về Trang Chủ
           </Button>
         </div>
+        <p className="text-[11px] text-gray-400">
+          * Nhấn <strong>Thử Lại</strong> để tự động xóa bộ nhớ đệm và tải phiên bản cập nhật mới nhất.
+        </p>
       </div>
     </div>
   );

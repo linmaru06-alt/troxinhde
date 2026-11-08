@@ -13,6 +13,26 @@ import { registerSW } from 'virtual:pwa-register';
 // người dùng không bị kẹt ở giao diện cũ trong bộ nhớ đệm
 registerSW({ immediate: true });
 
+// Tự động khôi phục và tải lại khi có bản deploy mới của Vite (tránh lỗi 404 chunk cũ hoặc stale script)
+window.addEventListener('vite:preloadError', () => {
+  const reloadKey = 'troxinh_vite_preload_error_reload';
+  if (!sessionStorage.getItem(reloadKey)) {
+    sessionStorage.setItem(reloadKey, Date.now().toString());
+    if ('caches' in window) {
+      caches.keys().then((names) => Promise.all(names.map((n) => caches.delete(n))));
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then((regs) => {
+        Promise.all(regs.map((r) => r.unregister())).then(() => {
+          window.location.reload();
+        });
+      });
+    } else {
+      window.location.reload();
+    }
+  }
+});
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
