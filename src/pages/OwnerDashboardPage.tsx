@@ -782,7 +782,7 @@ export const OwnerDashboardPage: React.FC = () => {
         meterType="electricity"
         roomNumber="P.101"
         previousReading={1250}
-        onConfirmReading={(reading) => {
+        onScanSuccess={(reading) => {
           showToast('Đã quét AI thành công! 📸', `Chỉ số công tơ ${reading} kWh đã được ghi nhận.`, 'success');
         }}
       />

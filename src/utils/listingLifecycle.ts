@@ -31,25 +31,39 @@ export interface ListingStatusDetail {
 }
 
 /**
- * Tính toán chi tiết trạng thái vòng đời tin đăng
+ * Tính toán chi tiết trạng thái vòng đời tin đăng (Bảo vệ an toàn 100% trước null/undefined/NaN)
  */
-export function calculateListingStatus(room: Room): ListingStatusDetail {
+export function calculateListingStatus(room?: Room | null): ListingStatusDetail {
+  if (!room) {
+    return {
+      isActive: false,
+      isExpired: false,
+      isNearExpiry: false,
+      daysRemaining: 30,
+      isInArchive: false,
+      canRepostFree: false,
+      canRepostPaid: false,
+      isDeleted: false,
+    };
+  }
+
   const now = new Date();
+  const rawPublished = room.publishedAt || room.createdAt || new Date().toISOString();
+  const publishedDate = new Date(rawPublished);
+  const validPublishedTime = isNaN(publishedDate.getTime()) ? now.getTime() : publishedDate.getTime();
 
-  // Khởi tạo ngày hết hạn mặc định nếu dữ liệu cũ chưa có (lấy createdAt + 30 ngày)
-  const publishedDate = room.publishedAt ? new Date(room.publishedAt) : new Date(room.createdAt);
-  const expirationDate = room.expiresAt
+  const expirationDate = room.expiresAt && !isNaN(new Date(room.expiresAt).getTime())
     ? new Date(room.expiresAt)
-    : new Date(publishedDate.getTime() + LISTING_CONSTANTS.DEFAULT_LIFESPAN_DAYS * 24 * 60 * 60 * 1000);
+    : new Date(validPublishedTime + LISTING_CONSTANTS.DEFAULT_LIFESPAN_DAYS * 24 * 60 * 60 * 1000);
 
-  const archiveExpirationDate = room.archivedUntil
+  const archiveExpirationDate = room.archivedUntil && !isNaN(new Date(room.archivedUntil).getTime())
     ? new Date(room.archivedUntil)
     : new Date(expirationDate.getTime() + LISTING_CONSTANTS.ARCHIVE_STORAGE_DAYS * 24 * 60 * 60 * 1000);
 
   const diffMs = expirationDate.getTime() - now.getTime();
-  const daysRemaining = Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  const daysRemaining = isNaN(diffMs) ? 0 : Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 
-  const isExpired = now >= expirationDate || room.status === 'Hết hạn';
+  const isExpired = room.status === 'Hết hạn' || now >= expirationDate;
   const isNearExpiry = !isExpired && daysRemaining <= LISTING_CONSTANTS.REMINDER_BEFORE_DAYS;
   const isDeleted = now >= archiveExpirationDate;
   const isInArchive = isExpired && !isDeleted;
@@ -74,10 +88,11 @@ export function calculateListingStatus(room: Room): ListingStatusDetail {
 /**
  * Tính toán số ngày còn lại của gói Đẩy tin VIP
  */
-export function calculateBoostRemainingDays(room: Room): number {
-  if (!room.isBoosted || !room.boostExpiresAt) return 0;
+export function calculateBoostRemainingDays(room?: Room | null): number {
+  if (!room || !room.isBoosted || !room.boostExpiresAt) return 0;
   const now = new Date();
   const boostEnd = new Date(room.boostExpiresAt);
+  if (isNaN(boostEnd.getTime())) return 0;
   const diffMs = boostEnd.getTime() - now.getTime();
   return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
 }

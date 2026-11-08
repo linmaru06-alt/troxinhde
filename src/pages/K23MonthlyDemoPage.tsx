@@ -63,6 +63,7 @@ import {
   Bike,
   PenTool,
   ShieldCheck,
+  MessageSquare,
 } from 'lucide-react';
 
 interface DemoRoomReading {
@@ -1258,7 +1259,7 @@ export const K23MonthlyDemoPage: React.FC = () => {
         meterType={aiScannerTargetRoom?.meterType || 'electricity'}
         roomNumber={aiScannerTargetRoom?.roomNumber || 'P.302'}
         previousReading={aiScannerTargetRoom?.oldReading || 1250}
-        onConfirmReading={(newReading) => {
+        onScanSuccess={(newReading) => {
           if (aiScannerTargetRoom) {
             handleUpdateReading(aiScannerTargetRoom.roomId, 'elecNew', newReading);
           }
