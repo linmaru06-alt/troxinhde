@@ -949,10 +949,10 @@ export const K23MonthlyDemoPage: React.FC = () => {
                   <div>
                     <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
                       <Receipt className="w-5 h-5 text-emerald-600" />
-                      TỜ HÓA ĐƠN A5 CHUẨN IN ẤN & GỬI ZALO
+                      PHIẾU THANH TOÁN THUÊ PHÒNG CHUẨN KẾ TOÁN (IN ẤN & VIETQR)
                     </h3>
                     <p className="text-xs text-slate-500 mt-0.5">
-                      Đang xem hóa đơn phòng: <strong>{activeInvoice.room?.room_number}</strong>
+                      Mẫu thực tế có bảng chỉ số điện nước, dịch vụ chung, viết bằng chữ và mã QR ngân hàng
                     </p>
                   </div>
 
@@ -966,18 +966,20 @@ export const K23MonthlyDemoPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Container Tờ Bill A5 */}
-                <div className="bg-slate-100 p-3 sm:p-5 rounded-2xl flex justify-center overflow-x-auto shadow-inner">
-                  <div ref={billViewRef} className="w-full max-w-[520px]">
+                {/* Container Tờ Bill Khổ Chuẩn In Ấn */}
+                <div className="bg-slate-100 p-2 sm:p-5 rounded-2xl flex justify-center overflow-x-auto shadow-inner">
+                  <div ref={billViewRef} className="w-full max-w-[760px]">
                     <InvoiceBillView
                       invoice={activeInvoice}
-                      buildingName="Tòa Nhà Xanh Trọ Xinh - Cầu Giấy"
-                      buildingAddress="Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng, Hà Nội"
-                      ownerName="Trần Quốc Tuấn"
-                      ownerPhone="0912345678"
-                      bankId="MB"
-                      bankAccountNo="0912345678"
-                      bankAccountName="TRAN QUOC TUAN"
+                      buildingName="GIAHUNG - 58TB"
+                      buildingAddress="1-55/58 ngõ 58 Thanh Bình, Hà Đông, Hà Nội"
+                      ownerName="NGUYỄN TÙNG LÂM"
+                      ownerPhone="0989368836 / 0985488834"
+                      bankId="VPB"
+                      bankAccountNo="813823888"
+                      bankAccountName="NGUYỄN TÙNG LÂM"
+                      bankName="Ngân hàng TMCP Việt Nam Thịnh Vượng - VPBank"
+                      creatorName="Phạm Vũ Hoàng Anh"
                     />
                   </div>
                 </div>
