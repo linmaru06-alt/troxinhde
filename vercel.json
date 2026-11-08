@@ -63,9 +63,15 @@
       ]
     }
   ],
+  "crons": [
+    {
+      "path": "/api/cron/check-listing-expiration",
+      "schedule": "0 0 * * *"
+    }
+  ],
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
   ]

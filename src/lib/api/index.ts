@@ -13,3 +13,5 @@ export * from './reports';
 export * from './k23Services';
 export * from './k23MeterReadings';
 export * from './k23Invoices';
+export * from './k23Subscriptions';
+export * from './k23Wallet';

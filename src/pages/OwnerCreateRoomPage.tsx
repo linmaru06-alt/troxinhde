@@ -365,8 +365,8 @@ export const OwnerCreateRoomPage: React.FC = () => {
           waterPrice: selectedBuilding?.waterPrice || 100000,
           area: Number(area),
           type,
-          status: 'Chờ duyệt',
-          verified: false,
+          status: 'Còn trống',
+          verified: true,
           amenities,
           images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'],
           distanceToSchoolKm: 0.5,
@@ -378,7 +378,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
         // Xóa bản nháp sau khi tạo thành công
         localStorage.removeItem(draftStorageKey);
-        showToast('Gửi tin đăng thành công!', 'Tin đăng đã được gửi và đang chờ ban quản trị kiểm duyệt (trong vòng 24h).', 'success');
+        showToast('Đăng tin thành công!', 'Tin đăng của bạn đã được xuất bản công khai ngay lập tức.', 'success');
         navigate('/chu-tro');
       }
     } catch (err: any) {

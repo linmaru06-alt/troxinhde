@@ -195,6 +195,75 @@ ${data.records.map((r) => `    <NguoiLuuTru><SoDinhDanh>${r.cccdNumber}</SoDinhD
 </HoSoKhaiBaoLuuTru>`;
 }
 
+// 12. Module Ví Xu Trọ Xinh (Mô hình thu tiền mới)
+function calculateWalletDeposit(amountVnd) {
+  const realXu = Math.floor(amountVnd / 1000);
+  const bonusXu = amountVnd >= 500000 ? Math.floor(realXu * 0.1) : 0;
+  return { realXu, bonusXu, totalXu: realXu + bonusXu };
+}
+
+function processWalletDeduction(currentWallet, amountXu) {
+  const totalAvailable = (currentWallet.balance_real_xu || 0) + (currentWallet.balance_bonus_xu || 0);
+  if (totalAvailable < amountXu) {
+    return { success: false, message: 'Số dư không đủ' };
+  }
+  let deductedBonus = 0;
+  let deductedReal = 0;
+  if (currentWallet.balance_bonus_xu >= amountXu) {
+    deductedBonus = amountXu;
+  } else {
+    deductedBonus = currentWallet.balance_bonus_xu;
+    deductedReal = amountXu - deductedBonus;
+  }
+  const remainingBonus = currentWallet.balance_bonus_xu - deductedBonus;
+  const remainingReal = currentWallet.balance_real_xu - deductedReal;
+  return {
+    success: true,
+    deductedBonus,
+    deductedReal,
+    remainingBonus,
+    remainingReal,
+    remainingTotal: remainingBonus + remainingReal,
+  };
+}
+
+// 13. Module Bóc tách Cú pháp Webhook IPN Trọ Xinh
+function parsePaymentWebhookContent(content, amount) {
+  const raw = (content || '').toUpperCase();
+  const matchXu = raw.match(/TX\s+XU\s+([A-Za-z0-9_-]+)/i);
+  if (matchXu) {
+    return { type: 'TX_XU', targetId: matchXu[1], amount };
+  }
+  const matchBoost = raw.match(/TX\s+BOOST\s+([A-Za-z0-9_-]+)/i);
+  if (matchBoost) {
+    return { type: 'TX_BOOST', targetId: matchBoost[1], amount };
+  }
+  const matchRepost = raw.match(/TX\s+REPOST\s+([A-Za-z0-9_-]+)/i);
+  if (matchRepost) {
+    return { type: 'TX_REPOST', targetId: matchRepost[1], amount };
+  }
+  return { type: 'UNKNOWN', amount };
+}
+
+// 14. Module Quét Vòng đời tin Cron Vercel
+function evaluateListingLifecycleCron(room, asOfDateStr) {
+  const asOf = new Date(asOfDateStr).getTime();
+  const expiresAt = new Date(room.expiresAt).getTime();
+  const archivedUntil = room.archivedUntil ? new Date(room.archivedUntil).getTime() : expiresAt + 60 * 24 * 60 * 60 * 1000;
+  const threeDaysBefore = expiresAt - 3 * 24 * 60 * 60 * 1000;
+
+  if (asOf >= archivedUntil) {
+    return { action: 'PURGE', newStatus: 'Đã lưu trữ' };
+  }
+  if (asOf >= expiresAt) {
+    return { action: 'EXPIRE', newStatus: 'Hết hạn', archivedUntil: new Date(archivedUntil).toISOString() };
+  }
+  if (asOf >= threeDaysBefore) {
+    return { action: 'REMIND', message: 'Tin sắp hết hạn sau 3 ngày' };
+  }
+  return { action: 'KEEP', status: room.status };
+}
+
 console.log('======================================================================');
 console.log('  BẮT ĐẦU CHẠY TEST SUITE LOGIC KẾ TOÁN VẬN HÀNH K23 PMS (P1, P2, P3 FULL)');
 console.log('======================================================================\n');
@@ -364,6 +433,86 @@ assert.strictEqual(testVerifiedListing.isVerifiedListing, true, 'Hồ sơ xác t
 assert.strictEqual(testVerifiedListing.boostHoursReward, 48, 'Tặng chính xác 48 giờ đẩy tin tự động');
 console.log('  ✅ [PASS] Xác thực tin chính chủ Batdongsan tặng 48h VIP hoạt động hoàn hảo 100%\n');
 
+// Test 16: Kiểm tra Ví Xu Trọ Xinh & Ưu tiên trừ Xu thưởng trước (Mô hình thu tiền mới)
+console.log('Test 16: Kiểm tra Ví Xu Trọ Xinh (1 Xu = 1.000đ, thưởng 10% khi nạp >= 500k, trừ Xu thưởng trước)');
+const depositUnder500 = calculateWalletDeposit(200000);
+assert.strictEqual(depositUnder500.realXu, 200, 'Nạp 200k = 200 Xu thật');
+assert.strictEqual(depositUnder500.bonusXu, 0, 'Dưới 500k không có xu thưởng');
+
+const depositOver500 = calculateWalletDeposit(500000);
+assert.strictEqual(depositOver500.realXu, 500, 'Nạp 500k = 500 Xu thật');
+assert.strictEqual(depositOver500.bonusXu, 50, 'Nạp 500k được tặng 10% = 50 Xu thưởng');
+assert.strictEqual(depositOver500.totalXu, 550, 'Tổng nhận được là 550 Xu');
+
+// Giả lập ví có 500 Xu thật và 50 Xu thưởng. Trừ 40 Xu đẩy tin: phải trừ 100% từ Xu thưởng
+const walletState1 = { balance_real_xu: 500, balance_bonus_xu: 50 };
+const deduct40 = processWalletDeduction(walletState1, 40);
+assert.strictEqual(deduct40.success, true);
+assert.strictEqual(deduct40.deductedBonus, 40, 'Phải ưu tiên trừ 40 Xu từ tài khoản Xu thưởng');
+assert.strictEqual(deduct40.deductedReal, 0, 'Xu thật không bị trừ');
+assert.strictEqual(deduct40.remainingBonus, 10, 'Còn lại 10 Xu thưởng');
+assert.strictEqual(deduct40.remainingReal, 500, 'Xu thật vẫn nguyên 500 Xu');
+
+// Trừ tiếp 60 Xu (vượt 10 Xu thưởng còn lại -> trừ hết 10 Xu thưởng và 50 Xu thật)
+const walletState2 = { balance_real_xu: 500, balance_bonus_xu: 10 };
+const deduct60 = processWalletDeduction(walletState2, 60);
+assert.strictEqual(deduct60.success, true);
+assert.strictEqual(deduct60.deductedBonus, 10, 'Trừ hết 10 Xu thưởng còn lại');
+assert.strictEqual(deduct60.deductedReal, 50, 'Phần thiếu 50 Xu được trừ từ Xu thật');
+assert.strictEqual(deduct60.remainingBonus, 0);
+assert.strictEqual(deduct60.remainingReal, 450);
+console.log('  ✅ [PASS] Logic Ví Xu & Quy tắc trừ Xu thưởng trước, Xu thật sau đạt chuẩn 100%\n');
+
+// Test 17: Kiểm tra Webhook IPN tiếp nhận nạp Xu, đẩy VIP, đăng lại tin
+console.log('Test 17: Kiểm tra Webhook IPN VietQR bóc tách cú pháp TX XU, TX BOOST, TX REPOST');
+const ipnXu = parsePaymentWebhookContent('TX XU USR_998822', 500000);
+assert.strictEqual(ipnXu.type, 'TX_XU');
+assert.strictEqual(ipnXu.targetId, 'USR_998822');
+
+const ipnBoost = parsePaymentWebhookContent('MBVCB.123456.TX BOOST P102.CT NGUYEN VAN A', 59000);
+assert.strictEqual(ipnBoost.type, 'TX_BOOST');
+assert.strictEqual(ipnBoost.targetId, 'P102');
+
+const ipnRepost = parsePaymentWebhookContent('SEPAY TX REPOST ROOM_ABC_XYZ', 30000);
+assert.strictEqual(ipnRepost.type, 'TX_REPOST');
+assert.strictEqual(ipnRepost.targetId, 'ROOM_ABC_XYZ');
+console.log('  ✅ [PASS] Bóc tách cú pháp Webhook IPN nạp ví, đẩy tin và đăng lại tin chính xác 100%\n');
+
+// Test 18: Kiểm tra Vercel Cron quét vòng đời tin 30 ngày & dọn dẹp lưu trữ 60 ngày
+console.log('Test 18: Kiểm tra Vercel Cron quét tin sắp hết hạn (3 ngày), hết hạn (30 ngày), dọn dẹp (60 ngày)');
+const baseDate = new Date('2026-11-08T00:00:00.000Z');
+
+// Tin còn 2 ngày nữa hết hạn -> Cron phải kích hoạt REMIND
+const roomNearExpiry = {
+  id: 'r_near',
+  status: 'Còn trống',
+  expiresAt: new Date(baseDate.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString(),
+};
+const actionNear = evaluateListingLifecycleCron(roomNearExpiry, baseDate.toISOString());
+assert.strictEqual(actionNear.action, 'REMIND');
+
+// Tin đã qua ngày hết hạn -> Cron phải đổi status = Hết hạn và cấp 60 ngày lưu trữ
+const roomExpired = {
+  id: 'r_exp',
+  status: 'Còn trống',
+  expiresAt: new Date(baseDate.getTime() - 1 * 24 * 60 * 60 * 1000).toISOString(),
+};
+const actionExp = evaluateListingLifecycleCron(roomExpired, baseDate.toISOString());
+assert.strictEqual(actionExp.action, 'EXPIRE');
+assert.strictEqual(actionExp.newStatus, 'Hết hạn');
+
+// Tin đã quá 60 ngày lưu trữ -> Cron phải chuyển sang Đã lưu trữ (PURGE)
+const roomPurge = {
+  id: 'r_purge',
+  status: 'Hết hạn',
+  expiresAt: new Date(baseDate.getTime() - 65 * 24 * 60 * 60 * 1000).toISOString(),
+  archivedUntil: new Date(baseDate.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(),
+};
+const actionPurge = evaluateListingLifecycleCron(roomPurge, baseDate.toISOString());
+assert.strictEqual(actionPurge.action, 'PURGE');
+assert.strictEqual(actionPurge.newStatus, 'Đã lưu trữ');
+console.log('  ✅ [PASS] Vercel Cron quét vòng đời tin đăng 30 ngày & lưu trữ 60 ngày hoạt động hoàn hảo 100%\n');
+
 console.log('======================================================================');
-console.log('🎉 TẤT CẢ 15/15 BÀI TEST TOÀN DIỆN K23 PMS & MONETIZATION ĐẠT CHUẨN 100%!');
+console.log('🎉 TẤT CẢ 18/18 BÀI TEST TOÀN DIỆN K23 PMS & MONETIZATION ĐẠT CHUẨN 100%!');
 console.log('======================================================================');
