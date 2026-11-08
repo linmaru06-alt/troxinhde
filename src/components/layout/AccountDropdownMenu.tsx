@@ -17,6 +17,7 @@ import {
   FileText,
   AlertTriangle,
   Edit3,
+  Sparkles,
 } from 'lucide-react';
 
 interface AccountDropdownMenuProps {
@@ -477,6 +478,20 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                     <span>Lịch sử giao dịch</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+
+                <Link
+                  to="/demo-hoa-don"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-emerald-800 bg-emerald-50/60 hover:bg-emerald-50 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <Sparkles className="w-4 h-4 text-[#00a854] stroke-[2.2]" />
+                    <span>Demo 1 tháng trọ K23</span>
+                  </div>
+                  <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-[#00a854] text-white uppercase tracking-wider">
+                    MẪU
+                  </span>
                 </Link>
               </div>
             </div>

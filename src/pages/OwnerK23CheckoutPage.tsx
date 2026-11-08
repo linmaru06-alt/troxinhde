@@ -123,7 +123,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
         title="Thanh Toán Gói Cước K23 | Trọ Xinh"
         description="Thanh toán kích hoạt gói quản lý phòng trọ K23 qua chuyển khoản ngân hàng VietQR."
       />
-      <DashboardSidebar />
+      <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 lg:p-8 max-w-4xl mx-auto">
         {/* Nút quay lại */}

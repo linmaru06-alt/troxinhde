@@ -274,16 +274,20 @@ export default async function handler(req: any, res: any) {
             .eq('id', inv.id);
 
           // Ghi nhận log ngân hàng
-          await supabase.from('k23_bank_transactions').insert({
-            invoice_code: invoiceCode,
-            owner_id: inv.owner_id,
-            bank_account_number: event.accountNumber || 'Chính chủ',
-            amount_in: amount,
-            transaction_content: event.content,
-            reference_code: event.referenceCode,
-            gateway_provider: event.gateway,
-            created_at: new Date().toISOString()
-          }).catch(() => null);
+          try {
+            await supabase.from('k23_bank_transactions').insert({
+              invoice_code: invoiceCode,
+              owner_id: inv.owner_id,
+              bank_account_number: event.accountNumber || 'Chính chủ',
+              amount_in: amount,
+              transaction_content: event.content,
+              reference_code: event.referenceCode,
+              gateway_provider: event.gateway,
+              created_at: new Date().toISOString()
+            });
+          } catch {
+            // ignore
+          }
 
           results.push({
             type: 'K23_INVOICE_PAID',

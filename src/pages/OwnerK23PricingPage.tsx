@@ -33,7 +33,7 @@ export const OwnerK23PricingPage: React.FC = () => {
         title="Bảng Giá Dịch Vụ Quản Lý Nhà Trọ K23 | Trọ Xinh"
         description="Bảng giá phần mềm quản lý phòng trọ K23: chốt điện nước, hóa đơn VietQR tự động, quản lý khách thuê."
       />
-      <DashboardSidebar />
+      <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 lg:p-8 max-w-7xl mx-auto">
         {/* Header */}

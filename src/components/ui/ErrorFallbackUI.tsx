@@ -21,6 +21,22 @@ export const ErrorFallbackUI: React.FC<ErrorFallbackProps> = ({ error, resetErro
     setTimeout(() => setIsCopied(false), 2000);
   };
 
+  const handleRetry = async () => {
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys();
+        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(registrations.map((r) => r.unregister()));
+      }
+    } catch {
+      // ignore
+    }
+    window.location.reload();
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4 sm:p-6">
       <div className="max-w-md w-full bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-xl text-center space-y-6 animate-fadeIn">
@@ -72,17 +88,15 @@ export const ErrorFallbackUI: React.FC<ErrorFallbackProps> = ({ error, resetErro
         </div>
 
         <div className="flex flex-col sm:flex-row items-center gap-3 pt-2">
-          {resetError && (
-            <Button
-              variant="outline"
-              size="md"
-              className="w-full"
-              onClick={resetError}
-              leftIcon={<RotateCcw className="w-4 h-4" />}
-            >
-              Thử Lại
-            </Button>
-          )}
+          <Button
+            variant="outline"
+            size="md"
+            className="w-full"
+            onClick={handleRetry}
+            leftIcon={<RotateCcw className="w-4 h-4" />}
+          >
+            Thử Lại
+          </Button>
           <Button
             variant="primary"
             size="md"

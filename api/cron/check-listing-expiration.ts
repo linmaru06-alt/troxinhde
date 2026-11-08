@@ -83,7 +83,11 @@ export default async function handler(req: any, res: any) {
           created_at: nowIso
         }));
 
-        await supabase.from('notifications').insert(notifications).catch(() => null);
+        try {
+          await supabase.from('notifications').insert(notifications);
+        } catch {
+          // ignore
+        }
       }
     }
 
@@ -109,7 +113,11 @@ export default async function handler(req: any, res: any) {
         created_at: nowIso
       }));
 
-      await supabase.from('notifications').insert(reminderNotifs).catch(() => null);
+      try {
+        await supabase.from('notifications').insert(reminderNotifs);
+      } catch {
+        // ignore
+      }
     }
 
     // C. Quét tin quá hạn lưu trữ 60 ngày (archived_until <= NOW() và status = 'Hết hạn')

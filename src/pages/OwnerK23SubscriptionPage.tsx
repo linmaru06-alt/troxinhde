@@ -51,7 +51,7 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
         title="Quản Lý Gói Dịch Vụ K23 | Trọ Xinh"
         description="Quản lý thời hạn gói cước K23, hạn mức số lượng phòng trọ và gia hạn dịch vụ."
       />
-      <DashboardSidebar />
+      <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 lg:p-8 max-w-6xl mx-auto">
         {/* Banner cảnh báo */}
