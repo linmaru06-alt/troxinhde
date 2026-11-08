@@ -15,6 +15,7 @@ import {
   HelpCircle,
   ArrowRight,
   Gift,
+  Coins,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 
@@ -124,21 +125,25 @@ export const OwnerK23PricingPage: React.FC = () => {
 
                 {/* Price Display */}
                 <div className="mb-6 pb-6 border-b border-slate-100">
-                  <div className="flex items-baseline gap-1">
+                  <div className="flex items-baseline gap-2 flex-wrap">
                     <span className="text-4xl font-extrabold text-slate-900 tracking-tight">
                       {formatCurrency(monthlyEquivalent)}
                     </span>
                     <span className="text-slate-500 text-sm font-medium">/ tháng</span>
+                    <span className="inline-flex items-center gap-1 text-xs font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      <Coins className="w-3.5 h-3.5 text-amber-600" />
+                      {Math.round(monthlyEquivalent / 1000)} Xu
+                    </span>
                   </div>
 
                   {billingCycle === 'yearly' ? (
-                    <div className="text-xs font-semibold text-emerald-600 mt-2 flex items-center gap-1.5">
-                      <Check className="w-3.5 h-3.5" />
-                      Thanh toán {formatCurrency(price)} / năm (Tiết kiệm 2 tháng)
+                    <div className="text-xs font-semibold text-emerald-600 mt-2 flex items-center gap-1.5 flex-wrap">
+                      <Check className="w-3.5 h-3.5 shrink-0" />
+                      <span>Thanh toán {formatCurrency(price)} ({Math.round(price / 1000)} Xu) / năm (Tiết kiệm 2 tháng)</span>
                     </div>
                   ) : (
                     <div className="text-xs text-slate-400 mt-2">
-                      Gia hạn từng tháng một
+                      Gia hạn từng tháng ({Math.round(price / 1000)} Xu / tháng)
                     </div>
                   )}
                 </div>

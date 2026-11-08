@@ -308,6 +308,8 @@ export async function deductWalletXu({
   };
 }
 
+export const spendWalletXu = deductWalletXu;
+
 /**
  * Lấy lịch sử biến động số dư ví Xu
  */

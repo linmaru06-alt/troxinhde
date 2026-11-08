@@ -5,7 +5,7 @@
 // =====================================================================
 
 import React, { useState } from 'react';
-import { RotateCcw, CheckCircle2, QrCode, Sparkles, Copy, Check, Clock } from 'lucide-react';
+import { RotateCcw, CheckCircle2, QrCode, Sparkles, Copy, Check, Clock, Coins } from 'lucide-react';
 import { Room } from '../../../types';
 import { LISTING_CONSTANTS, calculateListingStatus } from '../../../utils/listingLifecycle';
 import { formatCurrency } from '../../ui/Cards';
@@ -19,18 +19,20 @@ interface RepostRoomModalProps {
 }
 
 export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClose, room, onSuccess }) => {
-  const { updateRoomStatus, showToast } = useAppStore();
+  const { updateRoomStatus, wallet, spendXu, showToast } = useAppStore();
   const statusDetail = calculateListingStatus(room);
   const isFree = statusDetail.canRepostFree;
 
   const [selectedDuration, setSelectedDuration] = useState<15 | 30>(30);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [showBankQr, setShowBankQr] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
   const priceXu = selectedDuration === 15 ? LISTING_CONSTANTS.REPOST_15_DAYS_PRICE_XU : LISTING_CONSTANTS.REPOST_30_DAYS_PRICE_XU;
   const priceVnd = priceXu * LISTING_CONSTANTS.XU_TO_VND_RATE;
+  const hasEnoughXu = wallet.total_xu >= priceXu;
   const transferContent = `TX GIAHAN ${room.roomNumber || room.id.slice(0, 6)} ${selectedDuration}D`.toUpperCase();
 
   const vietQrUrl = `https://img.vietqr.io/image/970422-0888110789-compact2.png?amount=${priceVnd}&addInfo=${encodeURIComponent(
@@ -160,52 +162,107 @@ export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClos
               </div>
             </div>
 
-            {/* Quét mã VietQR chuyển khoản */}
-            <div className="p-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-2">
-              <img
-                src={vietQrUrl}
-                alt="VietQR Gia Hạn Tin"
-                className="w-48 h-48 mx-auto rounded-xl object-contain bg-white p-1"
-              />
-              <div className="flex items-center justify-between text-xs px-2 text-gray-700">
-                <span>Số tiền: <strong className="text-[#006d37]">{formatCurrency(priceVnd)}</strong></span>
-                <div className="flex items-center gap-1">
-                  <span className="font-mono font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-200">
-                    {transferContent}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(transferContent);
-                      setIsCopied(true);
-                      setTimeout(() => setIsCopied(false), 2000);
-                    }}
-                    className="p-1 text-gray-500 hover:text-gray-900 cursor-pointer"
-                  >
-                    {isCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
-                  </button>
-                </div>
+            {/* Phương Thức 1: Thanh Toán Bằng Ví Xu (Khuyên dùng) */}
+            <div className="p-4 rounded-2xl bg-emerald-50/80 border border-emerald-200 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black text-gray-900 flex items-center gap-1.5">
+                  <Coins className="w-4 h-4 text-[#00a854]" />
+                  <span>Thanh Toán Bằng Ví Xu Trọ Xinh:</span>
+                </span>
+                <span className="text-xs font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                  Số dư: {wallet.total_xu} Xu
+                </span>
               </div>
+
+              {hasEnoughXu ? (
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={async () => {
+                    setIsProcessing(true);
+                    const success = await spendXu(
+                      priceXu,
+                      `Gia hạn tin phòng ${room.roomNumber || room.id.slice(0, 6)} (${selectedDuration} ngày)`,
+                      `TX_GIAHAN_${room.roomNumber || room.id.slice(0, 6)}`
+                    );
+                    if (success) {
+                      handleExecuteRepost();
+                    } else {
+                      setIsProcessing(false);
+                    }
+                  }}
+                  className="w-full py-3 rounded-2xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-black transition flex items-center justify-center gap-2 shadow-md cursor-pointer active:scale-95 disabled:opacity-50"
+                >
+                  <Coins className="w-4 h-4 text-amber-300" />
+                  <span>{isProcessing ? 'Đang trừ Xu & gia hạn...' : `Trừ ${priceXu} Xu — Gia Hạn Ngay (1 Chạm)`}</span>
+                </button>
+              ) : (
+                <div className="space-y-2 pt-1">
+                  <p className="text-[11px] text-rose-700">
+                    Số dư ví hiện tại ({wallet.total_xu} Xu) chưa đủ {priceXu} Xu để gia hạn.
+                  </p>
+                  <a
+                    href="/chu-tro/vi-xu"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="block text-center py-2 px-3 bg-amber-400 hover:bg-amber-500 text-amber-950 font-black text-xs rounded-xl shadow-xs transition"
+                  >
+                    Nạp Thêm Xu Vào Ví Ngay ↗
+                  </a>
+                </div>
+              )}
             </div>
 
-            <div className="flex items-center gap-2 pt-1">
+            {/* Toggle hiển thị VietQR ngân hàng */}
+            <div className="text-center">
               <button
                 type="button"
-                onClick={onClose}
-                className="w-1/3 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-50 transition cursor-pointer"
+                onClick={() => setShowBankQr(!showBankQr)}
+                className="text-xs font-bold text-gray-500 hover:text-gray-800 underline cursor-pointer"
               >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={handleExecuteRepost}
-                className="w-2/3 py-2.5 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{isProcessing ? 'Đang kích hoạt...' : 'Tôi Đã Chuyển Khoản'}</span>
+                {showBankQr ? 'Ẩn mã VietQR ngân hàng' : 'Hoặc quét mã VietQR ngân hàng trực tiếp'}
               </button>
             </div>
+
+            {/* Quét mã VietQR chuyển khoản */}
+            {showBankQr && (
+              <div className="p-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-2 animate-fadeIn">
+                <img
+                  src={vietQrUrl}
+                  alt="VietQR Gia Hạn Tin"
+                  className="w-48 h-48 mx-auto rounded-xl object-contain bg-white p-1"
+                />
+                <div className="flex items-center justify-between text-xs px-2 text-gray-700">
+                  <span>Số tiền: <strong className="text-[#006d37]">{formatCurrency(priceVnd)}</strong></span>
+                  <div className="flex items-center gap-1">
+                    <span className="font-mono font-bold text-[11px] bg-white px-1.5 py-0.5 rounded border border-gray-200">
+                      {transferContent}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard.writeText(transferContent);
+                        setIsCopied(true);
+                        setTimeout(() => setIsCopied(false), 2000);
+                      }}
+                      className="p-1 text-gray-500 hover:text-gray-900 cursor-pointer"
+                    >
+                      {isCopied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3" />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={isProcessing}
+                  onClick={handleExecuteRepost}
+                  className="w-full mt-2 py-2.5 rounded-xl bg-gray-900 hover:bg-black text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-xs cursor-pointer disabled:opacity-50"
+                >
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                  <span>{isProcessing ? 'Đang kích hoạt...' : 'Tôi Đã Chuyển Khoản Qua App Ngân Hàng'}</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

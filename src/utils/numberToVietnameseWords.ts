@@ -78,3 +78,4 @@ export function convertNumberToVietnameseWords(amount: number): string {
 
   return isNegative ? `Âm ${text.charAt(0).toLowerCase() + text.slice(1)}` : text;
 }
+

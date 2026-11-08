@@ -24,6 +24,7 @@ import {
   Sliders,
   Sparkles,
   FileText,
+  Coins,
 } from 'lucide-react';
 
 import { deduplicateChatNotifications } from '../../utils/formatters';
@@ -38,7 +39,7 @@ interface NavLinkItem {
 }
 
 export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }) => {
-  const { logout, currentUser, notifications = [], ownerApplications = [], bookings = [] } = useAppStore();
+  const { logout, currentUser, wallet, notifications = [], ownerApplications = [], bookings = [] } = useAppStore();
 
   const cleanNotifs = deduplicateChatNotifications(notifications || []);
   const unreadNotifs = (cleanNotifs || []).filter((n) => !n?.read).length;
@@ -54,6 +55,13 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
     { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
     { to: '/demo-hoa-don', label: 'Demo 1 tháng trọ K23', icon: Sparkles, badgeText: 'MẪU' },
+    {
+      to: '/chu-tro/vi-xu',
+      label: 'Ví Xu Trọ Xinh',
+      icon: Coins,
+      badgeText: `${wallet?.total_xu ?? 5500} Xu`,
+      isVip: true,
+    },
 
     { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap, isVip: true },
     { to: '/chu-tro/hoa-don', label: 'Hóa đơn tiền phòng', icon: Receipt, isVip: true },

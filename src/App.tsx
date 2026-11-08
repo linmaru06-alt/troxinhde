@@ -68,6 +68,7 @@ const OwnerBookingsPage = React.lazy(() => import('./pages/OwnerBookingsPage').t
 const OwnerNotificationsPage = React.lazy(() => import('./pages/OwnerNotificationsPage').then((m) => ({ default: m.OwnerNotificationsPage })));
 const OwnerBoostRoomPage = React.lazy(() => import('./pages/OwnerBoostRoomPage').then((m) => ({ default: m.OwnerBoostRoomPage })));
 const OwnerSubscriptionManagePage = React.lazy(() => import('./pages/OwnerSubscriptionManagePage').then((m) => ({ default: m.OwnerSubscriptionManagePage })));
+const OwnerWalletPage = React.lazy(() => import('./pages/OwnerWalletPage').then((m) => ({ default: m.OwnerWalletPage })));
 const OwnerProfilePage = React.lazy(() => import('./pages/OwnerProfilePage').then((m) => ({ default: m.OwnerProfilePage })));
 // K23 Landlord PMS
 const OwnerServicesPage = React.lazy(() => import('./pages/OwnerServicesPage').then((m) => ({ default: m.OwnerServicesPage })));
@@ -646,6 +647,31 @@ const AppContent: React.FC = () => {
             />
             <Route
               path="/chu-tro/quan-ly-goi"
+              element={
+                <OwnerRoute>
+                  <OwnerSubscriptionManagePage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/vi-xu"
+              element={
+                <OwnerRoute>
+                  <OwnerWalletPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/tro-xinh-xu"
+              element={
+                <OwnerRoute>
+                  <OwnerWalletPage />
+                </OwnerRoute>
+              }
+            />
+            <Route path="/vi-xu" element={<OwnerWalletPage />} />
+            <Route
+              path="/chu-tro/quan-ly-goi-archive"
               element={
                 <OwnerRoute>
                   <OwnerSubscriptionManagePage />

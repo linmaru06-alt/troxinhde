@@ -17,7 +17,16 @@ import {
   PaymentMethod,
   PaymentTransaction,
   OwnerSubscription,
+  Toast,
 } from '../types';
+import {
+  K23Wallet,
+  K23WalletTransaction,
+  getWallet,
+  depositWalletXu,
+  spendWalletXu,
+  getWalletTransactions,
+} from '../lib/api/k23Wallet';
 import { initialUsers } from '../data/demoUsers';
 import { signOut } from '../lib/api/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
@@ -249,6 +258,14 @@ interface AppState {
   showToast: (title: string, description?: string, type?: Toast['type']) => void;
   removeToast: (id: string) => void;
 
+  // Trọ Xinh Xu & Ví Chủ Trọ
+  wallet: K23Wallet;
+  walletTransactions: K23WalletTransaction[];
+  fetchWallet: (ownerId?: string) => Promise<void>;
+  depositXu: (amountVnd: number, gateway?: string) => Promise<{ success: boolean; realXu: number; bonusXu: number }>;
+  spendXu: (amountXu: number, reason: string, referenceId?: string) => Promise<boolean>;
+  grantDemoXu: (amountXu?: number) => void;
+
   // Supabase Cloud Sync
   fetchInitialCloudData: () => Promise<void>;
 
@@ -319,6 +336,184 @@ export const useAppStore = create<AppState>()(
           createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
         },
       ],
+
+      // State Ví Xu Trọ Xinh (1 Xu = 1.000 VNĐ) - Cập nhật sẵn 5.500 Xu trải nghiệm
+      wallet: {
+        id: 'wallet_owner_k23',
+        owner_id: 'user_owner_1',
+        balance_real_xu: 5000,
+        balance_bonus_xu: 500,
+        total_xu: 5500,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      walletTransactions: [
+        {
+          id: 'wtx_welcome_1',
+          owner_id: 'user_owner_1',
+          amount_real_xu: 5000,
+          amount_bonus_xu: 500,
+          total_amount_xu: 5500,
+          transaction_type: 'deposit',
+          reason: 'Cập nhật ví Xu Trọ Xinh - Số dư ưu đãi đặc biệt (Tặng thêm Xu thưởng)',
+          reference_id: 'TX_XU_VIP',
+          created_at: new Date().toISOString(),
+        },
+      ],
+
+      fetchWallet: async (ownerIdParam?: string) => {
+        const { currentUser } = get();
+        const targetId = ownerIdParam || currentUser?.id || 'user_owner_1';
+        try {
+          const w = await getWallet(targetId);
+          const txs = await getWalletTransactions(targetId);
+          set({
+            wallet: {
+              ...w,
+              total_xu: (w.balance_real_xu || 0) + (w.balance_bonus_xu || 0),
+            },
+            walletTransactions: txs.length > 0 ? txs : get().walletTransactions,
+          });
+        } catch (err) {
+          console.warn('[useAppStore] fetchWallet fallback:', err);
+        }
+      },
+
+      depositXu: async (amountVnd: number, gateway = 'VietQR') => {
+        const { currentUser, wallet, showToast } = get();
+        const targetId = currentUser?.id || 'user_owner_1';
+        const res = await depositWalletXu({
+          ownerId: targetId,
+          amountVnd,
+          gateway,
+        });
+
+        const newReal = (wallet.balance_real_xu || 0) + res.realXu;
+        const newBonus = (wallet.balance_bonus_xu || 0) + res.bonusXu;
+        const newTotal = newReal + newBonus;
+
+        const newTx: K23WalletTransaction = {
+          id: `wtx_${Date.now()}`,
+          owner_id: targetId,
+          amount_real_xu: res.realXu,
+          amount_bonus_xu: res.bonusXu,
+          total_amount_xu: res.realXu + res.bonusXu,
+          transaction_type: 'deposit',
+          reason: `Nạp ${res.realXu} Xu qua ${gateway}${res.bonusXu > 0 ? ` (Tặng thêm ${res.bonusXu} Xu)` : ''}`,
+          reference_id: `TX_XU_${Date.now().toString().slice(-6)}`,
+          created_at: new Date().toISOString(),
+        };
+
+        set((state) => ({
+          wallet: {
+            ...state.wallet,
+            balance_real_xu: newReal,
+            balance_bonus_xu: newBonus,
+            total_xu: newTotal,
+            updated_at: new Date().toISOString(),
+          },
+          walletTransactions: [newTx, ...state.walletTransactions],
+        }));
+
+        showToast(
+          'Nạp Xu thành công! 🪙',
+          `Đã cộng +${res.realXu} Xu thật${res.bonusXu > 0 ? ` và +${res.bonusXu} Xu thưởng` : ''} vào ví.`,
+          'success'
+        );
+
+        return res;
+      },
+
+      spendXu: async (amountXu: number, reason: string, referenceId?: string) => {
+        const { currentUser, wallet, showToast } = get();
+        const targetId = currentUser?.id || 'user_owner_1';
+
+        if (wallet.total_xu < amountXu) {
+          showToast(
+            'Số dư Xu không đủ',
+            `Bạn có ${wallet.total_xu} Xu, cần ${amountXu} Xu. Vui lòng nạp thêm Xu.`,
+            'error'
+          );
+          return false;
+        }
+
+        // Trừ Xu thưởng trước, Xu thật sau theo quy tắc chuẩn
+        let bonusDeduct = Math.min(wallet.balance_bonus_xu || 0, amountXu);
+        let realDeduct = amountXu - bonusDeduct;
+
+        const newBonus = (wallet.balance_bonus_xu || 0) - bonusDeduct;
+        const newReal = (wallet.balance_real_xu || 0) - realDeduct;
+        const newTotal = newReal + newBonus;
+
+        const newTx: K23WalletTransaction = {
+          id: `wtx_${Date.now()}`,
+          owner_id: targetId,
+          amount_real_xu: -realDeduct,
+          amount_bonus_xu: -bonusDeduct,
+          total_amount_xu: -amountXu,
+          transaction_type: 'spend',
+          reason,
+          reference_id: referenceId || `TX_PAY_${Date.now().toString().slice(-6)}`,
+          created_at: new Date().toISOString(),
+        };
+
+        // Đồng bộ lên Supabase nếu có
+        spendWalletXu({
+          ownerId: targetId,
+          amountXu,
+          reason,
+          referenceId,
+        }).catch(() => {});
+
+        set((state) => ({
+          wallet: {
+            ...state.wallet,
+            balance_real_xu: newReal,
+            balance_bonus_xu: newBonus,
+            total_xu: newTotal,
+            updated_at: new Date().toISOString(),
+          },
+          walletTransactions: [newTx, ...state.walletTransactions],
+        }));
+
+        showToast(
+          'Thanh toán bằng Xu thành công! ✨',
+          `Đã trừ -${amountXu} Xu cho dịch vụ: ${reason}. Số dư còn lại: ${newTotal} Xu.`,
+          'success'
+        );
+
+        return true;
+      },
+
+      grantDemoXu: (amountXu = 500) => {
+        const { wallet, showToast } = get();
+        const newReal = (wallet.balance_real_xu || 0) + amountXu;
+        const newTotal = newReal + (wallet.balance_bonus_xu || 0);
+
+        set((state) => ({
+          wallet: {
+            ...state.wallet,
+            balance_real_xu: newReal,
+            total_xu: newTotal,
+            updated_at: new Date().toISOString(),
+          },
+          walletTransactions: [
+            {
+              id: `wtx_grant_${Date.now()}`,
+              owner_id: 'user_owner_1',
+              amount_real_xu: amountXu,
+              amount_bonus_xu: 0,
+              total_amount_xu: amountXu,
+              transaction_type: 'reward',
+              reason: `Cộng ${amountXu} Xu trải nghiệm hệ thống Trọ Xinh`,
+              created_at: new Date().toISOString(),
+            },
+            ...state.walletTransactions,
+          ],
+        }));
+
+        showToast('Cập nhật Xu thành công! 🎉', `Đã nạp thêm +${amountXu} Xu vào ví của bạn. Tổng số dư: ${newTotal} Xu.`, 'success');
+      },
 
       upgradeSubscription: (planId, method, amount) => {
         const { currentUser, showToast } = get();
@@ -1651,6 +1846,19 @@ export const useAppStore = create<AppState>()(
             state.savedItemIds = state.savedItemIds.filter((id) => validIds.has(id));
           }
 
+          // Đảm bảo ví Xu luôn được cập nhật đầy đủ số dư cao cho người dùng trải nghiệm
+          if (!state.wallet || (state.wallet.total_xu || 0) < 5500) {
+            state.wallet = {
+              id: state.wallet?.id || 'wallet_owner_k23',
+              owner_id: state.currentUser?.id || state.wallet?.owner_id || 'user_owner_1',
+              balance_real_xu: Math.max(state.wallet?.balance_real_xu || 0, 5000),
+              balance_bonus_xu: Math.max(state.wallet?.balance_bonus_xu || 0, 500),
+              total_xu: Math.max(state.wallet?.total_xu || 0, 5500),
+              created_at: state.wallet?.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+          }
+
           if (state.currentUser) {
             if (isPermittedAdmin(state.currentUser)) {
               state.currentUser.role = 'admin';
@@ -1681,6 +1889,8 @@ export const useAppStore = create<AppState>()(
         hiddenItemIds: state.hiddenItemIds,
         bookings: state.bookings,
         ownerSubscription: state.ownerSubscription,
+        wallet: state.wallet,
+        walletTransactions: state.walletTransactions,
         localCreatedRooms: state.localCreatedRooms,
         localCreatedBuildings: state.localCreatedBuildings,
         localCreatedRoommates: state.localCreatedRoommates,

@@ -18,6 +18,7 @@ import {
   AlertTriangle,
   Edit3,
   Sparkles,
+  Coins,
 } from 'lucide-react';
 
 interface AccountDropdownMenuProps {
@@ -80,7 +81,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
   logout,
 }) => {
   const navigate = useNavigate();
-  const { ownerApplications } = useAppStore();
+  const { ownerApplications, wallet } = useAppStore();
 
   const userApp = ownerApplications.find(
     (a) => a.userId === currentUser?.id || (currentUser?.id && a.id === `app_${currentUser.id}`)
@@ -178,21 +179,32 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       </p>
                     )}
                   </div>
-                  <span
-                    className={`inline-block mt-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
-                      currentUser.role === 'owner'
-                        ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                  <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                    <span
+                      className={`inline-block px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                        currentUser.role === 'owner'
+                          ? 'bg-emerald-100 text-emerald-800 ring-1 ring-emerald-300'
+                          : currentUser.role === 'admin'
+                          ? 'bg-purple-100 text-purple-800 ring-1 ring-purple-300'
+                          : 'bg-emerald-50 text-[#006d37] font-black ring-1 ring-emerald-200'
+                      }`}
+                    >
+                      {currentUser.role === 'owner'
+                        ? '🏢 Chủ trọ đối tác'
                         : currentUser.role === 'admin'
-                        ? 'bg-purple-100 text-purple-800 ring-1 ring-purple-300'
-                        : 'bg-emerald-50 text-[#006d37] font-black ring-1 ring-emerald-200'
-                    }`}
-                  >
-                    {currentUser.role === 'owner'
-                      ? '🏢 Chủ trọ đối tác'
-                      : currentUser.role === 'admin'
-                      ? '🛡️ Quản trị viên'
-                      : '👤 Khách thuê'}
-                  </span>
+                        ? '🛡️ Quản trị viên'
+                        : '👤 Khách thuê'}
+                    </span>
+                    <Link
+                      to="/chu-tro/vi-xu"
+                      onClick={onClose}
+                      className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition"
+                      title="Số dư Ví Xu Trọ Xinh"
+                    >
+                      <Coins className="w-3 h-3 text-amber-600" />
+                      <span>{wallet?.total_xu ?? 5500} Xu</span>
+                    </Link>
+                  </div>
                 </div>
               </div>
 
@@ -441,17 +453,22 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
               <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
                 <Link
-                  to="/chu-tro/quan-ly-goi"
+                  to="/chu-tro/vi-xu"
                   onClick={onClose}
                   className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-emerald-100 text-[#00a854] flex items-center justify-center font-black text-[10px]">
-                      XU
+                    <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center font-black text-[10px] border border-amber-300">
+                      🪙
                     </div>
                     <span>Trọ Xinh Xu</span>
                   </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-[11px] font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                      {wallet?.total_xu ?? 5500} Xu
+                    </span>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </div>
                 </Link>
 
                 <Link
