@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
-import { BookingRequest } from '../types';
+import { BookingRequest, Room } from '../types';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Badge } from '../components/ui/Badge';
@@ -26,6 +26,7 @@ import {
   MessageSquare,
   XCircle,
   AlertTriangle,
+  ShieldCheck,
 } from 'lucide-react';
 
 import { StaffManagementModal } from '../components/k23/staff/StaffManagementModal';
