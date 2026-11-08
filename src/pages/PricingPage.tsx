@@ -200,6 +200,48 @@ export const PricingPage: React.FC = () => {
         </div>
       </div>
 
+      {/* 🌟 GÓI TIN LẺ DÀNH CHO CHỦ TRỌ 3 - 5 PHÒNG (THEO MÔ HÌNH MỚI 1 XU = 1.000Đ) */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-4">
+        <div className="bg-gradient-to-r from-emerald-900 via-teal-900 to-slate-900 rounded-3xl p-6 sm:p-8 text-white shadow-lg border border-emerald-500/30">
+          <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-400/20 text-amber-300 text-xs font-black border border-amber-400/40">
+                <Sparkles className="w-3.5 h-3.5" /> TIN LẺ LINH HOẠT • 1 XU = 1.000Đ
+              </div>
+              <h3 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Bạn Chỉ Có 3 - 5 Phòng Và Không Cần Mua Gói Tháng?
+              </h3>
+              <p className="text-xs text-emerald-100/90 leading-relaxed">
+                Sau 2 phòng đầu tiên được <strong>miễn phí vĩnh viễn</strong>, bạn có thể mua từng tin lẻ theo nhu cầu phát sinh thực tế. Mỗi tin hiển thị <strong>30 ngày</strong>, đặc biệt <strong>được tặng 1 lần đăng lại hoàn toàn miễn phí (0 Xu)</strong>!
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full lg:w-auto shrink-0">
+              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/15 text-left space-y-1">
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-emerald-300">Tin Lẻ 15 Ngày</span>
+                  <span className="text-[10px] font-black bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded-full">Linh hoạt</span>
+                </div>
+                <div className="text-xl font-black text-white">30.000đ <span className="text-xs text-amber-300 font-bold">(30 Xu)</span></div>
+                <p className="text-[11px] text-slate-300">Phù hợp phòng trọ hot cần cho thuê gấp trong nửa tháng.</p>
+              </div>
+
+              <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-amber-400/40 text-left space-y-1 relative">
+                <span className="absolute -top-2.5 right-3 bg-amber-400 text-slate-950 text-[9px] font-black px-2 py-0.5 rounded-full">
+                  TIẾT KIỆM
+                </span>
+                <div className="flex justify-between items-center">
+                  <span className="text-xs font-bold text-amber-300">Tin Lẻ 30 Ngày</span>
+                  <span className="text-[10px] font-black bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded-full">Chuẩn 30d</span>
+                </div>
+                <div className="text-xl font-black text-white">50.000đ <span className="text-xs text-amber-300 font-bold">(50 Xu)</span></div>
+                <p className="text-[11px] text-slate-300">Hiển thị trọn vẹn 30 ngày + tặng 1 lần đăng lại 0 Xu.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Feature Comparison Table */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-3xl border border-gray-200 shadow-md p-6 sm:p-10">

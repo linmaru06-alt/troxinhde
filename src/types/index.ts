@@ -96,7 +96,7 @@ export interface Room {
   area: number;
   floor?: number;
   type: "Phòng đơn" | "Studio" | "Phòng ghép" | "Căn hộ mini";
-  status: "Còn trống" | "Đã cho thuê" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn";
+  status: "Còn trống" | "Đã cho thuê" | "Chờ duyệt" | "Bị từ chối" | "Đã ẩn" | "Hết hạn";
   verified: boolean;
   rejectionReason?: string;
   amenities: string[];
@@ -111,6 +111,13 @@ export interface Room {
   isBoosted?: boolean;
   boostExpiresAt?: string;
   boostBadge?: string;
+  isGoldenHourBoosted?: boolean; // Tự đẩy giờ vàng 11h-13h & 19h-22h
+  publishedAt?: string; // Ngày bắt đầu hiển thị 30 ngày
+  expiresAt?: string; // Hạn chót 30 ngày
+  archivedUntil?: string; // Hạn lưu trữ 60 ngày sau khi hết hạn
+  repostCount?: number; // Số lần đã đăng lại (0: lần 1 miễn phí, >=1: tính phí)
+  isVerifiedListing?: boolean; // Tick xanh chính chủ kiểu Batdongsan
+  verifiedAt?: string;
   createdAt: string;
 }
 

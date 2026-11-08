@@ -16,6 +16,9 @@ import { ImageWithFallback } from "../components/ui/ImageWithFallback";
 import { MiniRoomMap } from "../components/map/TroXinhMap";
 import { SEOHead } from "../components/seo/SEOHead";
 import { RoomTransferItemsSection } from "../components/room/RoomTransferItemsSection";
+import { ExpiredListingBanner } from "../components/room/ExpiredListingBanner";
+import { RepostRoomModal } from "../components/k23/rooms/RepostRoomModal";
+import { calculateListingStatus } from "../utils/listingLifecycle";
 import {
   ShieldCheck,
   Heart,
@@ -72,8 +75,10 @@ export const RoomDetailPage: React.FC = () => {
   const [newReviewText, setNewReviewText] = useState<string>("");
   const [newReviewStars, setNewReviewStars] = useState<number>(5);
   const [reviewImages, setReviewImages] = useState<string[]>([]);
+  const [isRepostModalOpen, setIsRepostModalOpen] = useState<boolean>(false);
 
   const room = (rooms || []).find((r) => r.id === id);
+  const listingStatus = room ? calculateListingStatus(room) : null;
   const building = (buildings || []).find(
     (b) => room && b.id === room.buildingId,
   );
@@ -359,6 +364,14 @@ export const RoomDetailPage: React.FC = () => {
         <span>/</span>
         <span className="text-gray-900 font-bold truncate">{room.title}</span>
       </div>
+
+      {/* Expired Notice Banner — SEO Friendly: Không 404, gợi ý phòng tương tự */}
+      {(room.status === 'Hết hạn' || listingStatus?.isExpired) && (
+        <ExpiredListingBanner
+          room={room}
+          onRepost={() => setIsRepostModalOpen(true)}
+        />
+      )}
 
       {/* Pending Notice Banner */}
       {room.status === 'Chờ duyệt' && (
@@ -1224,6 +1237,16 @@ export const RoomDetailPage: React.FC = () => {
           targetId={room.id}
           targetTitle={room.title}
           targetType="room"
+        />
+      )}
+
+      {/* Repost Room Modal khi tin hết hạn */}
+      {isRepostModalOpen && (
+        <RepostRoomModal
+          isOpen={isRepostModalOpen}
+          onClose={() => setIsRepostModalOpen(false)}
+          room={room}
+          onSuccess={() => setIsRepostModalOpen(false)}
         />
       )}
     </div>

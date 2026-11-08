@@ -37,6 +37,9 @@ import { AiMeterScannerModal } from '../components/k23/ai/AiMeterScannerModal';
 import { ZnsNotificationModal } from '../components/k23/zns/ZnsNotificationModal';
 import { VneidDeclarationModal } from '../components/k23/vneid/VneidDeclarationModal';
 import { OfflineSyncStatusBadge } from '../components/k23/mobile/OfflineSyncStatusBadge';
+import { RepostRoomModal } from '../components/k23/rooms/RepostRoomModal';
+import { ListingVerificationModal } from '../components/k23/trust/ListingVerificationModal';
+import { calculateListingStatus } from '../utils/listingLifecycle';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { getOwnerViewingRequests, updateViewingRequestStatus, ViewingRequestItem } from '../lib/api/bookings';
 
@@ -50,7 +53,7 @@ export const OwnerDashboardPage: React.FC = () => {
     showToast,
   } = useAppStore();
   const [cloudBookings, setCloudBookings] = useState<ViewingRequestItem[]>([]);
-  const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt'>('all');
+  const [selectedStatusTab, setSelectedStatusTab] = useState<'all' | 'Còn trống' | 'Đã cho thuê' | 'Chờ duyệt' | 'Hết hạn'>('all');
   const [rescheduleId, setRescheduleId] = useState<string | null>(null);
   const [rescheduleTime, setRescheduleTime] = useState<string>('');
   const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
@@ -61,6 +64,8 @@ export const OwnerDashboardPage: React.FC = () => {
   const [isAiScannerOpen, setIsAiScannerOpen] = useState<boolean>(false);
   const [isZnsOpen, setIsZnsOpen] = useState<boolean>(false);
   const [isVneidModalOpen, setIsVneidModalOpen] = useState<boolean>(false);
+  const [repostRoomTarget, setRepostRoomTarget] = useState<Room | null>(null);
+  const [verifyRoomTarget, setVerifyRoomTarget] = useState<Room | null>(null);
 
   // Nạp danh sách lịch hẹn thật từ Supabase Cloud
   React.useEffect(() => {
@@ -143,15 +148,17 @@ export const OwnerDashboardPage: React.FC = () => {
 
   // Tổng số phòng của tất cả các tòa nhà đã được admin duyệt
   const approvedRooms = myRooms.filter(
-    (r) => (r.status === 'Còn trống' || r.status === 'Đã cho thuê') && r.status !== 'Chờ duyệt' && r.status !== 'Bị từ chối'
+    (r) => (r.status === 'Còn trống' || r.status === 'Đã cho thuê') && r.status !== 'Chờ duyệt' && r.status !== 'Bị từ chối' && r.status !== 'Hết hạn'
   );
   const totalApprovedRooms = approvedRooms.length;
   const availableRooms = myRooms.filter((r) => r.status === 'Còn trống').length;
   const rentedRooms = myRooms.filter((r) => r.status === 'Đã cho thuê').length;
   const pendingRooms = myRooms.filter((r) => r.status === 'Chờ duyệt').length;
+  const expiredRooms = myRooms.filter((r) => r.status === 'Hết hạn' || calculateListingStatus(r).isExpired).length;
 
   const filteredRooms = myRooms.filter((r) => {
     if (selectedStatusTab === 'all') return true;
+    if (selectedStatusTab === 'Hết hạn') return r.status === 'Hết hạn' || calculateListingStatus(r).isExpired;
     return r.status === selectedStatusTab;
   });
 
@@ -455,6 +462,14 @@ export const OwnerDashboardPage: React.FC = () => {
                       <Phone className="w-3.5 h-3.5 text-emerald-600" /> Gọi khách
                     </a>
 
+                    <Link
+                      to={`/chu-tro/hop-dong?renterName=${encodeURIComponent(b.renterName)}&renterPhone=${encodeURIComponent(b.renterPhone)}&roomId=${b.roomId}`}
+                      className="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold transition flex items-center gap-1"
+                      title="Đưa khách quan tâm từ tin đăng vào Sổ khách K23 để lập Hợp đồng"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-indigo-600" /> Tạo HĐ từ Lead
+                    </Link>
+
                     {currentStatus === 'Chờ chủ trọ xác nhận' && (
                       <>
                         <button
@@ -521,6 +536,7 @@ export const OwnerDashboardPage: React.FC = () => {
                 { key: 'Còn trống', label: `Còn trống (${availableRooms})` },
                 { key: 'Đã cho thuê', label: `Đã cho thuê (${rentedRooms})` },
                 { key: 'Chờ duyệt', label: `Chờ duyệt (${pendingRooms})` },
+                { key: 'Hết hạn', label: `Hết hạn (${expiredRooms})` },
               ].map((tab) => (
                 <button
                   key={tab.key}
@@ -603,18 +619,56 @@ export const OwnerDashboardPage: React.FC = () => {
                           </Link>
                         )}
 
-                        {isApproved && room.status === 'Còn trống' && (
+                        {/* Badge Hết hạn chu kỳ 30 ngày */}
+                        {(room.status === 'Hết hạn' || calculateListingStatus(room).isExpired) && (
+                          <span className="px-3 py-1.5 rounded-xl bg-amber-100 text-amber-900 border border-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
+                            <Clock className="w-3.5 h-3.5 text-amber-700" />
+                            <span>Hết hạn (Lưu trữ 60d)</span>
+                          </span>
+                        )}
+
+                        {isApproved && room.status === 'Còn trống' && !calculateListingStatus(room).isExpired && (
                           <span className="px-3 py-1.5 rounded-xl bg-emerald-50 text-emerald-800 border border-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
                             <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Còn trống</span>
                           </span>
                         )}
 
-                        {isApproved && room.status === 'Đã cho thuê' && (
+                        {isApproved && room.status === 'Đã cho thuê' && !calculateListingStatus(room).isExpired && (
                           <span className="px-3 py-1.5 rounded-xl bg-gray-100 text-gray-700 border border-gray-200 text-xs font-bold flex items-center gap-1.5 shadow-2xs">
                             <Home className="w-3.5 h-3.5 text-gray-500" />
                             <span>Đã cho thuê</span>
                           </span>
+                        )}
+
+                        {/* Badge hoặc nút Xác thực tin Batdongsan (Tick xanh) */}
+                        {room.isVerifiedListing ? (
+                          <span className="px-2.5 py-1.5 rounded-xl bg-teal-50 text-teal-800 border border-teal-200 text-xs font-black flex items-center gap-1 shadow-2xs">
+                            <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Chính chủ ✓</span>
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => setVerifyRoomTarget(room)}
+                            className="px-2.5 py-1.5 rounded-xl bg-teal-50/70 hover:bg-teal-100 text-teal-800 border border-teal-200 text-xs font-bold flex items-center gap-1 transition cursor-pointer"
+                            title="Xác thực chính chủ miễn phí để nhận Tick Xanh và tặng 48h đẩy tin"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                            <span>Nhận Tick Xanh</span>
+                          </button>
+                        )}
+
+                        {/* Nếu hết hạn: Nút Đăng lại 1 chạm (0 Xu) */}
+                        {(room.status === 'Hết hạn' || calculateListingStatus(room).isExpired) && (
+                          <button
+                            type="button"
+                            onClick={() => setRepostRoomTarget(room)}
+                            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-black flex items-center gap-1.5 transition shadow-xs cursor-pointer active:scale-95"
+                          >
+                            <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+                            <span>Đăng lại (0 Xu)</span>
+                          </button>
                         )}
 
                         {/* Action Buttons */}
@@ -752,6 +806,25 @@ export const OwnerDashboardPage: React.FC = () => {
         buildingName="Tòa Nhà Xanh Trọ Xinh"
         buildingAddress="Số 12 Ngõ 68 Triều Khúc, Thanh Xuân, Hà Nội"
       />
+
+      {/* 🌟 MODAL ĐĂNG LẠI TIN 1 CHẠM (0 XU / CÓ PHÍ) */}
+      {repostRoomTarget && (
+        <RepostRoomModal
+          isOpen={Boolean(repostRoomTarget)}
+          onClose={() => setRepostRoomTarget(null)}
+          room={repostRoomTarget}
+          onSuccess={() => setRepostRoomTarget(null)}
+        />
+      )}
+
+      {/* 🌟 MODAL XÁC THỰC TIN BATDONGSAN (TICK XANH + TẶNG 48H VIP) */}
+      {verifyRoomTarget && (
+        <ListingVerificationModal
+          isOpen={Boolean(verifyRoomTarget)}
+          onClose={() => setVerifyRoomTarget(null)}
+          room={verifyRoomTarget}
+        />
+      )}
     </div>
   );
 };
