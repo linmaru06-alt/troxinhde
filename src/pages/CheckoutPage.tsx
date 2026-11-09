@@ -767,6 +767,8 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
         )}
+      </div>
+
       {/* MODAL KHO VOUCHER */}
       {isVoucherModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
