@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { Input } from '../components/ui/Input';
 import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { BuildingServicesConfig } from '../components/k23/tariffs/BuildingServicesConfig';
 import {
   Building2,
   PlusCircle,
@@ -19,12 +20,19 @@ import {
   Trash2,
   Settings,
   ShieldCheck,
+  Sliders,
+  CreditCard,
+  Layers,
 } from 'lucide-react';
 import { Building } from '../types';
 
 export const OwnerBuildingListPage: React.FC = () => {
   const { buildings, currentUser, ownerApplications, addBuilding, updateBuilding, removeBuilding, showToast } =
     useAppStore();
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const currentTab = searchParams.get('tab') === 'services' ? 'services' : 'buildings';
+  const targetBuildingId = searchParams.get('buildingId') || undefined;
 
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
   const [editingBuilding, setEditingBuilding] = useState<Building | null>(null);
@@ -109,6 +117,11 @@ export const OwnerBuildingListPage: React.FC = () => {
     setActiveMenuId(null);
   };
 
+  const handleOpenServicesForBuilding = (buildingId: string) => {
+    setActiveMenuId(null);
+    setSearchParams({ tab: 'services', buildingId });
+  };
+
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBuilding) return;
@@ -140,13 +153,15 @@ export const OwnerBuildingListPage: React.FC = () => {
       <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
+        {/* Top Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight">
-              Tòa Nhà Của Tôi
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
+              <Building2 className="w-7 h-7 sm:w-8 sm:h-8 text-[#006d37]" />
+              Quản Lý Tòa Nhà & Biểu Phí Dịch Vụ
             </h1>
             <p className="text-xs text-gray-500 mt-1">
-              Danh sách các cơ sở và cụm nhà trọ đang đăng ký trên Trọ Xinh
+              Quản lý danh sách cơ sở tòa nhà, đơn giá điện nước và thông tin nhận chuyển khoản VietQR
             </p>
           </div>
 
@@ -157,131 +172,203 @@ export const OwnerBuildingListPage: React.FC = () => {
           </Link>
         </div>
 
-        {myBuildings.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-gray-200 p-12 text-center space-y-4 shadow-xs">
-            <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto">
-              <Building2 className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-bold text-gray-900">Chưa Có Hồ Sơ Tòa Nhà Nào</h3>
-            <p className="text-xs text-gray-500 max-w-sm mx-auto">
-              Tạo hồ sơ tòa nhà để bắt đầu đăng và quản lý danh sách phòng trọ cho thuê trên Trọ Xinh.
-            </p>
-            <Link to="/chu-tro/toa-nha/tao-moi" className="inline-block pt-2">
-              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
-                Thêm Hồ Sơ Tòa Nhà
-              </Button>
-            </Link>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6" ref={menuRef}>
-            {myBuildings.map((bld, index) => (
-              <div
-                key={bld.id}
-                className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all space-y-4 relative"
-              >
-                <div className="relative aspect-16/9 w-full bg-gray-100">
-                  <img
-                    src={bld.images?.[0] || '/images/hero-banner.webp'}
-                    alt={bld.name}
-                    className="w-full h-full object-cover"
-                  />
-                  <div className="absolute top-3 left-3 flex items-center gap-2">
-                    <Badge variant="verified" size="sm">
-                      Đã kiểm duyệt PCCC
-                    </Badge>
-                    {index === 0 && (
-                      <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
-                        Tòa nhà chính
-                      </span>
-                    )}
-                  </div>
+        {/* Navigation Tabs: Tòa nhà vs Bảng giá dịch vụ */}
+        <div className="flex items-center gap-2 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => setSearchParams({ tab: 'buildings' })}
+            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition-all cursor-pointer ${
+              currentTab === 'buildings'
+                ? 'border-[#006d37] text-[#006d37] bg-white rounded-t-2xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Tòa Nhà Của Tôi</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                currentTab === 'buildings'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {myBuildings.length}
+            </span>
+          </button>
 
-                  {/* 3-Dots Actions Menu Button */}
-                  <div className="absolute top-3 right-3">
-                    <button
-                      type="button"
-                      onClick={() => setActiveMenuId(activeMenuId === bld.id ? null : bld.id)}
-                      className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md shadow-md flex items-center justify-center text-gray-700 hover:bg-white hover:text-gray-950 transition cursor-pointer"
-                      title="Tùy chọn quản lý tòa nhà"
-                    >
-                      <MoreVertical className="w-4 h-4" />
-                    </button>
+          <button
+            type="button"
+            onClick={() => setSearchParams({ tab: 'services' })}
+            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition-all cursor-pointer ${
+              currentTab === 'services'
+                ? 'border-[#006d37] text-[#006d37] bg-white rounded-t-2xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-emerald-600" />
+            <span>Bảng Giá Dịch Vụ & VietQR</span>
+            <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 uppercase tracking-wider shadow-2xs">
+              K23
+            </span>
+          </button>
+        </div>
 
-                    {activeMenuId === bld.id && (
-                      <div className="absolute right-0 mt-1 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-20 text-xs font-semibold animate-in fade-in zoom-in-95 duration-100">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenEdit(bld)}
-                          className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-800 transition cursor-pointer"
-                        >
-                          <Edit className="w-3.5 h-3.5 text-blue-600" />
-                          <span>Chỉnh sửa hồ sơ tòa</span>
-                        </button>
-                        <Link
-                          to={`/chu-tro/phong/tao-moi/${bld.id}`}
-                          className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-800 transition block cursor-pointer"
-                        >
-                          <PlusCircle className="w-3.5 h-3.5 text-[#00a854]" />
-                          <span>Đăng phòng vào tòa</span>
-                        </Link>
-                        <div className="my-1 border-t border-gray-100" />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setActiveMenuId(null);
-                            setDeletingBuildingId(bld.id);
-                          }}
-                          className="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-600 transition cursor-pointer"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                          <span>Xóa hồ sơ tòa nhà</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+        {/* Tab 1: Danh sách Tòa nhà */}
+        {currentTab === 'buildings' && (
+          <>
+            {myBuildings.length === 0 ? (
+              <div className="bg-white rounded-3xl border border-gray-200 p-12 text-center space-y-4 shadow-xs">
+                <div className="w-16 h-16 bg-emerald-50 text-[#00a854] rounded-full flex items-center justify-center mx-auto">
+                  <Building2 className="w-8 h-8" />
                 </div>
-
-                <div className="p-6 pt-0 space-y-3">
-                  <div>
-                    <h3 className="text-lg font-bold text-gray-900">{bld.name}</h3>
-                    <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                      {bld.address}, {bld.district}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl text-xs">
-                    <div>
-                      <span className="text-gray-400 block">Tổng quy mô:</span>
-                      <span className="font-bold text-gray-900">{bld.totalRooms} phòng</span>
-                    </div>
-                    <div>
-                      <span className="text-gray-400 block">Phòng còn trống:</span>
-                      <span className="font-bold text-[#006d37]">{bld.availableRooms} phòng</span>
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
-                    <span className="text-xs text-amber-500 font-bold">
-                      ★ {bld.rating} ({bld.reviewCount} đánh giá)
-                    </span>
-                    <div className="flex items-center gap-1.5">
-                      <Link to={`/chu-tro/phong/tao-moi/${bld.id}`}>
-                        <Button variant="outline" size="sm" leftIcon={<PlusCircle className="w-3.5 h-3.5" />}>
-                          Đăng phòng
-                        </Button>
-                      </Link>
-                      <Link to={`/chu-tro/toa-nha/${bld.id}`}>
-                        <Button variant="primary" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                          Quản lý tòa
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                </div>
+                <h3 className="text-lg font-bold text-gray-900">Chưa Có Hồ Sơ Tòa Nhà Nào</h3>
+                <p className="text-xs text-gray-500 max-w-sm mx-auto">
+                  Tạo hồ sơ tòa nhà để bắt đầu đăng và quản lý danh sách phòng trọ cho thuê trên Trọ Xinh.
+                </p>
+                <Link to="/chu-tro/toa-nha/tao-moi" className="inline-block pt-2">
+                  <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                    Thêm Hồ Sơ Tòa Nhà
+                  </Button>
+                </Link>
               </div>
-            ))}
-          </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6" ref={menuRef}>
+                {myBuildings.map((bld, index) => (
+                  <div
+                    key={bld.id}
+                    className="bg-white rounded-3xl overflow-hidden border border-gray-200 shadow-sm hover:shadow-md transition-all space-y-4 relative"
+                  >
+                    <div className="relative aspect-16/9 w-full bg-gray-100">
+                      <img
+                        src={bld.images?.[0] || '/images/hero-banner.webp'}
+                        alt={bld.name}
+                        className="w-full h-full object-cover"
+                      />
+                      <div className="absolute top-3 left-3 flex items-center gap-2">
+                        <Badge variant="verified" size="sm">
+                          Đã kiểm duyệt PCCC
+                        </Badge>
+                        {index === 0 && (
+                          <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
+                            Tòa nhà chính
+                          </span>
+                        )}
+                      </div>
+
+                      {/* 3-Dots Actions Menu Button */}
+                      <div className="absolute top-3 right-3">
+                        <button
+                          type="button"
+                          onClick={() => setActiveMenuId(activeMenuId === bld.id ? null : bld.id)}
+                          className="w-8 h-8 rounded-full bg-white/90 backdrop-blur-md shadow-md flex items-center justify-center text-gray-700 hover:bg-white hover:text-gray-950 transition cursor-pointer"
+                          title="Tùy chọn quản lý tòa nhà"
+                        >
+                          <MoreVertical className="w-4 h-4" />
+                        </button>
+
+                        {activeMenuId === bld.id && (
+                          <div className="absolute right-0 mt-1 w-52 bg-white rounded-2xl shadow-xl border border-gray-100 py-1.5 z-20 text-xs font-semibold animate-in fade-in zoom-in-95 duration-100">
+                            <button
+                              type="button"
+                              onClick={() => handleOpenEdit(bld)}
+                              className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-800 transition cursor-pointer"
+                            >
+                              <Edit className="w-3.5 h-3.5 text-blue-600" />
+                              <span>Chỉnh sửa hồ sơ tòa</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleOpenServicesForBuilding(bld.id)}
+                              className="w-full text-left px-3.5 py-2 hover:bg-emerald-50/70 flex items-center gap-2 text-emerald-800 transition cursor-pointer font-bold"
+                            >
+                              <Sliders className="w-3.5 h-3.5 text-[#006d37]" />
+                              <span>Cài đặt biểu phí & VietQR</span>
+                            </button>
+                            <Link
+                              to={`/chu-tro/phong/tao-moi/${bld.id}`}
+                              className="w-full text-left px-3.5 py-2 hover:bg-gray-50 flex items-center gap-2 text-gray-800 transition block cursor-pointer"
+                            >
+                              <PlusCircle className="w-3.5 h-3.5 text-[#00a854]" />
+                              <span>Đăng phòng vào tòa</span>
+                            </Link>
+                            <div className="my-1 border-t border-gray-100" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setActiveMenuId(null);
+                                setDeletingBuildingId(bld.id);
+                              }}
+                              className="w-full text-left px-3.5 py-2 hover:bg-rose-50 flex items-center gap-2 text-rose-600 transition cursor-pointer"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Xóa hồ sơ tòa nhà</span>
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="p-6 pt-0 space-y-3">
+                      <div>
+                        <h3 className="text-lg font-bold text-gray-900">{bld.name}</h3>
+                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5">
+                          <MapPin className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                          {bld.address}, {bld.district}
+                        </p>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 p-3 bg-gray-50 rounded-2xl text-xs">
+                        <div>
+                          <span className="text-gray-400 block">Tổng quy mô:</span>
+                          <span className="font-bold text-gray-900">{bld.totalRooms} phòng</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-400 block">Phòng còn trống:</span>
+                          <span className="font-bold text-[#006d37]">{bld.availableRooms} phòng</span>
+                        </div>
+                      </div>
+
+                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
+                        <span className="text-xs text-amber-500 font-bold">
+                          ★ {bld.rating} ({bld.reviewCount} đánh giá)
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenServicesForBuilding(bld.id)}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-[#006d37] text-xs font-bold transition cursor-pointer"
+                            title="Cài đặt bảng giá dịch vụ cho tòa nhà này"
+                          >
+                            <Sliders className="w-3.5 h-3.5" />
+                            <span>Biểu phí</span>
+                          </button>
+
+                          <Link to={`/chu-tro/phong/tao-moi/${bld.id}`}>
+                            <Button variant="outline" size="sm" leftIcon={<PlusCircle className="w-3.5 h-3.5" />}>
+                              Đăng phòng
+                            </Button>
+                          </Link>
+                          <Link to={`/chu-tro/toa-nha/${bld.id}`}>
+                            <Button variant="primary" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
+                              Quản lý tòa
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {/* Tab 2: Bảng giá dịch vụ & VietQR */}
+        {currentTab === 'services' && (
+          <BuildingServicesConfig
+            initialBuildingId={targetBuildingId}
+            hideBuildingSelector={false}
+          />
         )}
 
         {/* Modal Chỉnh Sửa Hồ Sơ Tòa Nhà */}

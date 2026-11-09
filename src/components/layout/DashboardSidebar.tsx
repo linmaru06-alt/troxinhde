@@ -51,7 +51,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
 
   const ownerLinks: NavLinkItem[] = [
     { to: '/chu-tro', label: 'Tổng quan & Phòng', icon: LayoutDashboard },
-    { to: '/chu-tro/toa-nha', label: 'Tòa nhà của tôi', icon: Building2 },
+    { to: '/chu-tro/toa-nha', label: 'Tòa nhà & Biểu phí', icon: Building2 },
     { to: '/chu-tro/phong/tao-moi', label: 'Đăng phòng mới', icon: PlusCircle },
     { to: '/chu-tro/lich-hen', label: 'Lịch hẹn xem phòng', icon: Calendar, badge: pendingBookings },
     { to: '/demo-hoa-don', label: 'Demo 1 tháng trọ K23', icon: Sparkles, badgeText: 'MẪU' },
@@ -65,7 +65,7 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
     { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap, isVip: true },
     { to: '/chu-tro/hoa-don', label: 'Hóa đơn tiền phòng', icon: Receipt, isVip: true },
     { to: '/chu-tro/hop-dong', label: 'Sổ khách & Hợp đồng', icon: FileText, isVip: true },
-    { to: '/chu-tro/dich-vu', label: 'Bảng giá dịch vụ', icon: Sliders, isVip: true },
+
     { to: '/chu-tro/quan-ly-goi-k23', label: 'Gói quản lý K23', icon: Crown, isVip: true },
     { to: '/chu-tro/quan-ly-goi', label: 'Gói dịch vụ & Hóa đơn', icon: Crown },
     { to: '/chu-tro/tin-nhan', label: 'Tin nhắn khách thuê', icon: MessageSquare, badge: unreadMessages },

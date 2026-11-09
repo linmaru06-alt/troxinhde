@@ -7,6 +7,7 @@ import { Badge } from '../components/ui/Badge';
 import { formatPrice } from '../components/ui/Cards';
 import { BatchCreateRoomsModal } from '../components/k23/rooms/BatchCreateRoomsModal';
 import { RoomMatrixGrid } from '../components/k23/rooms/RoomMatrixGrid';
+import { BuildingServicesConfig } from '../components/k23/tariffs/BuildingServicesConfig';
 import {
   Building2,
   MapPin,
@@ -20,6 +21,8 @@ import {
   LayoutGrid,
   List,
   Sparkles,
+  Sliders,
+  Receipt,
 } from 'lucide-react';
 
 export const OwnerBuildingDetailPage: React.FC = () => {
@@ -27,6 +30,7 @@ export const OwnerBuildingDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const { buildings, rooms, updateRoomStatus, showToast, currentUser } = useAppStore();
 
+  const [activeTab, setActiveTab] = useState<'rooms' | 'services'>('rooms');
   const [isBatchModalOpen, setIsBatchModalOpen] = useState<boolean>(false);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
 
@@ -133,111 +137,162 @@ export const OwnerBuildingDetailPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Rooms in Building List */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
-            <div>
-              <h2 className="text-lg font-black text-gray-950">
-                Sơ Đồ & Danh Sách Phòng ({buildingRooms.length})
-              </h2>
-              <p className="text-xs text-gray-500">Quản lý trạng thái phòng và theo dõi lấp đầy của tòa nhà</p>
-            </div>
+        {/* Tabs: Sơ đồ phòng vs Bảng giá dịch vụ của tòa */}
+        <div className="flex items-center gap-2 border-b border-gray-200">
+          <button
+            type="button"
+            onClick={() => setActiveTab('rooms')}
+            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'rooms'
+                ? 'border-[#006d37] text-[#006d37] bg-white rounded-t-2xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <LayoutGrid className="w-4 h-4" />
+            <span>Sơ Đồ & Danh Sách Phòng</span>
+            <span
+              className={`px-2 py-0.5 rounded-full text-[11px] font-bold ${
+                activeTab === 'rooms'
+                  ? 'bg-emerald-100 text-emerald-800'
+                  : 'bg-gray-200 text-gray-600'
+              }`}
+            >
+              {buildingRooms.length}
+            </span>
+          </button>
 
-            {/* Toggle Grid vs List */}
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto text-xs">
-              <button
-                onClick={() => setViewMode('grid')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                  viewMode === 'grid'
-                    ? 'bg-white text-emerald-800 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <LayoutGrid className="w-3.5 h-3.5" />
-                <span>Sơ đồ tầng (Grid)</span>
-              </button>
-              <button
-                onClick={() => setViewMode('list')}
-                className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
-                  viewMode === 'list'
-                    ? 'bg-white text-emerald-800 shadow-xs'
-                    : 'text-slate-500 hover:text-slate-900'
-                }`}
-              >
-                <List className="w-3.5 h-3.5" />
-                <span>Dạng danh sách</span>
-              </button>
-            </div>
-          </div>
+          <button
+            type="button"
+            onClick={() => setActiveTab('services')}
+            className={`flex items-center gap-2 px-4 py-3 text-xs sm:text-sm font-extrabold border-b-2 transition-all cursor-pointer ${
+              activeTab === 'services'
+                ? 'border-[#006d37] text-[#006d37] bg-white rounded-t-2xl shadow-2xs'
+                : 'border-transparent text-gray-500 hover:text-gray-900 hover:border-gray-300'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-emerald-600" />
+            <span>Bảng Giá Dịch Vụ & VietQR Tòa</span>
+            <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-gradient-to-r from-amber-500 to-yellow-400 text-slate-950 uppercase tracking-wider shadow-2xs">
+              K23
+            </span>
+          </button>
+        </div>
 
-          {viewMode === 'grid' ? (
-            <RoomMatrixGrid
-              rooms={buildingRooms}
-              onUpdateStatus={handleUpdateStatus}
-              onOpenBatchModal={() => setIsBatchModalOpen(true)}
-            />
-          ) : buildingRooms.length === 0 ? (
-            <div className="text-center py-10 space-y-3">
-              <Building2 className="w-10 h-10 text-gray-300 mx-auto" />
-              <p className="text-xs text-gray-500">Chưa có phòng nào được tạo trong tòa nhà này.</p>
-              <Link to={`/chu-tro/phong/tao-moi/${building.id}`}>
-                <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>
-                  Đăng Phòng Đầu Tiên
-                </Button>
-              </Link>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {buildingRooms.map((room) => (
-                <div
-                  key={room.id}
-                  className="p-4 rounded-2xl border border-gray-200 hover:border-[#00a854]/40 bg-white transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        {/* Tab 1: Rooms in Building List */}
+        {activeTab === 'rooms' && (
+          <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-gray-100">
+              <div>
+                <h2 className="text-lg font-black text-gray-950">
+                  Sơ Đồ & Danh Sách Phòng ({buildingRooms.length})
+                </h2>
+                <p className="text-xs text-gray-500">Quản lý trạng thái phòng và theo dõi lấp đầy của tòa nhà</p>
+              </div>
+
+              {/* Toggle Grid vs List */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl self-start sm:self-auto text-xs">
+                <button
+                  onClick={() => setViewMode('grid')}
+                  className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                    viewMode === 'grid'
+                      ? 'bg-white text-emerald-800 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
                 >
-                  <div className="flex items-center gap-4">
-                    <img
-                      src={room.images[0]}
-                      alt={room.title}
-                      className="w-16 h-16 rounded-xl object-cover shrink-0"
-                    />
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-sm text-gray-950">{room.roomNumber} - {room.title}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">{room.area} m² • Tầng {room.floor || 1}</p>
-                      <div className="text-xs font-black text-[#00a854]">
-                        {formatPrice(room.price)}
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>Sơ đồ tầng (Grid)</span>
+                </button>
+                <button
+                  onClick={() => setViewMode('list')}
+                  className={`px-3 py-1.5 rounded-lg font-bold flex items-center gap-1.5 transition cursor-pointer ${
+                    viewMode === 'list'
+                      ? 'bg-white text-emerald-800 shadow-xs'
+                      : 'text-slate-500 hover:text-slate-900'
+                  }`}
+                >
+                  <List className="w-3.5 h-3.5" />
+                  <span>Dạng danh sách</span>
+                </button>
+              </div>
+            </div>
+
+            {viewMode === 'grid' ? (
+              <RoomMatrixGrid
+                rooms={buildingRooms}
+                onUpdateStatus={handleUpdateStatus}
+                onOpenBatchModal={() => setIsBatchModalOpen(true)}
+              />
+            ) : buildingRooms.length === 0 ? (
+              <div className="text-center py-10 space-y-3">
+                <Building2 className="w-10 h-10 text-gray-300 mx-auto" />
+                <p className="text-xs text-gray-500">Chưa có phòng nào được tạo trong tòa nhà này.</p>
+                <Link to={`/chu-tro/phong/tao-moi/${building.id}`}>
+                  <Button variant="primary" size="sm" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                    Đăng Phòng Đầu Tiên
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {buildingRooms.map((room) => (
+                  <div
+                    key={room.id}
+                    className="p-4 rounded-2xl border border-gray-200 hover:border-[#00a854]/40 bg-white transition flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+                  >
+                    <div className="flex items-center gap-4">
+                      <img
+                        src={room.images[0]}
+                        alt={room.title}
+                        className="w-16 h-16 rounded-xl object-cover shrink-0"
+                      />
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-black text-sm text-gray-950">{room.roomNumber} - {room.title}</span>
+                        </div>
+                        <p className="text-xs text-gray-500">{room.area} m² • Tầng {room.floor || 1}</p>
+                        <div className="text-xs font-black text-[#00a854]">
+                          {formatPrice(room.price)}
+                        </div>
                       </div>
                     </div>
+
+                    <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
+                      <select
+                        value={room.status}
+                        onChange={(e) => handleUpdateStatus(room.id, e.target.value as any)}
+                        className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#00a854]"
+                      >
+                        <option value="Còn trống">Còn trống</option>
+                        <option value="Đã cho thuê">Đã cho thuê</option>
+                        <option value="Chờ duyệt">Chờ duyệt</option>
+                      </select>
+
+                      <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
+                        <Button variant="outline" size="sm" leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}>
+                          Đẩy Tin
+                        </Button>
+                      </Link>
+
+                      <Link to={`/chu-tro/phong/${room.id}`}>
+                        <Button variant="outline" size="sm">
+                          Chi tiết →
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
-                  <div className="flex flex-wrap items-center gap-2.5 w-full sm:w-auto justify-end">
-                    <select
-                      value={room.status}
-                      onChange={(e) => handleUpdateStatus(room.id, e.target.value as any)}
-                      className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#00a854]"
-                    >
-                      <option value="Còn trống">Còn trống</option>
-                      <option value="Đã cho thuê">Đã cho thuê</option>
-                      <option value="Chờ duyệt">Chờ duyệt</option>
-                    </select>
-
-                    <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
-                      <Button variant="outline" size="sm" leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}>
-                        Đẩy Tin
-                      </Button>
-                    </Link>
-
-                    <Link to={`/chu-tro/phong/${room.id}`}>
-                      <Button variant="outline" size="sm">
-                        Chi tiết →
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+        {/* Tab 2: Building Services Config */}
+        {activeTab === 'services' && (
+          <BuildingServicesConfig
+            initialBuildingId={building.id}
+            hideBuildingSelector={true}
+          />
+        )}
 
         {/* Modal Khởi tạo phòng hàng loạt */}
         <BatchCreateRoomsModal
