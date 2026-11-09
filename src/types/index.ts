@@ -411,6 +411,8 @@ export interface SubscriptionPlan {
   name: string;
   price: number;
   originalPrice?: number;
+  priceXu?: number;
+  originalPriceXu?: number;
   period: string;
   roomLimit: number;
   badge?: string;

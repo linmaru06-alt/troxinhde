@@ -171,7 +171,7 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
             <div className="text-left sm:text-right">
               <p className="text-xs text-gray-400">Chi phí gói</p>
               <p className="text-2xl font-black text-[#006d37]">
-                {currentPlan.price === 0 ? 'Miễn phí' : `${formatCurrency(currentPlan.price)}/tháng`}
+                {currentPlan.price === 0 ? 'Miễn phí (0 Xu)' : `${Math.round(currentPlan.price / 1000)} Xu/tháng (~${formatCurrency(currentPlan.price)})`}
               </p>
             </div>
           </div>

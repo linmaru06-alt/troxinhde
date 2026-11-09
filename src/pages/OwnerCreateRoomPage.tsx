@@ -415,7 +415,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
                   Bạn đã dùng hết {currentPlan.roomLimit}/{currentPlan.roomLimit} phòng của {currentPlan.name}
                 </p>
                 <p className="text-xs text-gray-600">
-                  Nâng cấp lên Gói Cơ Bản (99k) hoặc Gói Pro để mở rộng hạn mức đăng phòng.
+                  Nâng cấp lên Gói Cơ Bản (99 Xu) hoặc Gói Pro để mở rộng hạn mức đăng phòng.
                 </p>
               </div>
             </div>
@@ -1077,7 +1077,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
             <p className="leading-relaxed">
               Để quản lý nhiều phòng trọ hơn và nhận thêm các lượt Đẩy Tin Nổi Bật miễn phí, bạn vui lòng nâng cấp lên{' '}
-              <strong>Gói Cơ Bản (99.000đ/tháng)</strong> hoặc <strong>Gói Pro VIP</strong>.
+              <strong>Gói Cơ Bản (99 Xu/tháng)</strong> hoặc <strong>Gói Pro VIP (299 Xu)</strong>.
             </p>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">

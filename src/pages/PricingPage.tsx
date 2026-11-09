@@ -18,11 +18,12 @@ import {
   ArrowRight,
   Headphones,
   TrendingUp,
+  Coins,
 } from 'lucide-react';
 
 export const PricingPage: React.FC = () => {
   const navigate = useNavigate();
-  const { currentUser, ownerSubscription } = useAppStore();
+  const { currentUser, ownerSubscription, wallet } = useAppStore();
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>('monthly');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
 
@@ -32,8 +33,8 @@ export const PricingPage: React.FC = () => {
       a: 'Hoàn toàn được! Bạn có thể nâng cấp lên gói cao hơn bất kỳ lúc nào hoặc tắt tính năng tự động gia hạn ngay trong trang Quản lý gói. Các quyền lợi sẽ được bảo lưu đầy đủ cho đến hết chu kỳ đã thanh toán.',
     },
     {
-      q: 'Hệ thống thanh toán qua MoMo và VNPay có an toàn không?',
-      a: 'Trọ Xinh kết nối trực tiếp với cổng thanh toán chuẩn quốc gia MoMo và VNPay, bảo mật chuẩn PCI-DSS 256-bit. Mọi giao dịch đều được mã hóa bằng chữ ký số HMAC SHA-256/512.',
+      q: 'Hệ thống thanh toán qua MoMo, VNPay và Ví Xu có an toàn không?',
+      a: 'Trọ Xinh kết nối trực tiếp với cổng thanh toán chuẩn quốc gia MoMo, VNPay và hệ sinh thái Ví Xu Trọ Xinh chuẩn PCI-DSS 256-bit. Mọi giao dịch trừ Xu hoặc nạp tiền đều được bảo mật và lưu nhật ký giao dịch tức thì.',
     },
     {
       q: 'Lượt "Đẩy Tin Nổi Bật" hoạt động như thế nào?',
@@ -61,7 +62,7 @@ export const PricingPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-b from-emerald-50/40 via-gray-50 to-white pb-20">
       <SEOHead
         title="Bảng Giá Dịch Vụ Chủ Trọ | TroXinh Hà Nội"
-        description="Nâng cấp tài khoản chủ trọ TroXinh để đăng nhiều phòng hơn, đẩy tin nổi bật tiếp cận 100,000+ sinh viên Hà Nội."
+        description="Nâng cấp tài khoản chủ trọ TroXinh bằng Ví Xu để đăng nhiều phòng hơn, đẩy tin nổi bật tiếp cận 100,000+ sinh viên Hà Nội."
         url="/nang-cap"
       />
 
@@ -77,6 +78,25 @@ export const PricingPage: React.FC = () => {
         <p className="max-w-2xl mx-auto text-sm sm:text-base text-gray-600">
           Tiếp cận hơn 100,000+ sinh viên các trường ĐH lớn tại Hà Nội (Bách Khoa, ĐHQG, Ngoại Thương, Kinh Tế...). Minh bạch, an toàn, tối ưu chi phí.
         </p>
+
+        {/* Quy ước đổi tiền ra Xu: 1 Xu = 1.000đ */}
+        <div className="pt-2 flex flex-col sm:flex-row items-center justify-center gap-2.5">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-amber-50 border border-amber-300 text-amber-900 font-bold text-xs shadow-2xs">
+            <Coins className="w-4 h-4 text-amber-600" />
+            <span>Quy ước chuẩn: <strong>1 Xu = 1.000 VNĐ</strong> • Trừ trực tiếp vào Ví Xu Trọ Xinh</span>
+          </div>
+
+          {currentUser && (
+            <Link
+              to={currentUser.role === 'owner' ? '/chu-tro/vi-xu' : '/vi-xu'}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 text-[#006d37] text-xs font-black transition cursor-pointer"
+              title="Xem và nạp thêm số dư Ví Xu"
+            >
+              <span>Ví của bạn: {wallet?.total_xu ?? 5500} Xu</span>
+              <span className="text-emerald-800 underline">Nạp thêm →</span>
+            </Link>
+          )}
+        </div>
 
         {/* Billing Toggle */}
         <div className="pt-4 flex items-center justify-center gap-3">
@@ -118,6 +138,10 @@ export const PricingPage: React.FC = () => {
                 ? Math.round((plan.price * 12 * 0.8) / 12)
                 : plan.price;
 
+            const xuPrice = Math.round(price / 1000);
+            const originalXu = plan.originalPrice ? Math.round(plan.originalPrice / 1000) : 0;
+            const yearlyTotalXu = Math.round((price * 12) / 1000);
+
             return (
               <div
                 key={plan.id}
@@ -146,23 +170,56 @@ export const PricingPage: React.FC = () => {
                   </div>
                   <p className="text-xs text-gray-500 mt-2 min-h-8">{plan.description}</p>
 
-                  {/* Price display */}
+                  {/* Price display quy đổi ra Xu (1 Xu = 1.000đ) */}
                   <div className="mt-6 pb-6 border-b border-gray-100">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-4xl font-black text-gray-900">
-                        {price === 0 ? 'Miễn phí' : formatCurrency(price)}
-                      </span>
-                      {price > 0 && <span className="text-xs font-semibold text-gray-500">/tháng</span>}
-                    </div>
-                    {plan.originalPrice && billingCycle === 'monthly' && (
-                      <p className="text-xs text-gray-400 line-through mt-1">
-                        Giá gốc: {formatCurrency(plan.originalPrice)}/tháng
-                      </p>
-                    )}
-                    {billingCycle === 'yearly' && price > 0 && (
-                      <p className="text-xs text-emerald-700 font-medium mt-1">
-                        Thanh toán theo năm: {formatCurrency(price * 12)}/năm (Tiết kiệm 20%)
-                      </p>
+                    {price === 0 ? (
+                      <div>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-4xl font-black text-gray-900 tracking-tight">
+                            Miễn phí
+                          </span>
+                          <span className="text-xs font-bold text-emerald-800 bg-emerald-100/70 border border-emerald-300 px-2 py-0.5 rounded-full font-mono">
+                            0 Xu
+                          </span>
+                        </div>
+                        <p className="text-xs text-gray-400 mt-1">
+                          Trải nghiệm đầy đủ 02 phòng không tốn chi phí
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-1">
+                        <div className="flex items-baseline gap-1.5 flex-wrap">
+                          <span className="text-4xl font-black text-gray-900 tracking-tight flex items-baseline gap-1">
+                            <span>{xuPrice}</span>
+                            <span className="text-2xl font-black text-amber-500">Xu</span>
+                          </span>
+                          <span className="text-xs font-bold text-gray-500">/tháng</span>
+                          <span className="text-xs font-medium text-gray-400">
+                            (~{formatCurrency(price)})
+                          </span>
+                        </div>
+
+                        {plan.originalPrice && billingCycle === 'monthly' && (
+                          <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
+                            <span>Giá gốc:</span>
+                            <span className="line-through font-bold text-gray-500">
+                              {originalXu} Xu
+                            </span>
+                            <span className="line-through text-[11px] text-gray-400">
+                              ({formatCurrency(plan.originalPrice)})/tháng
+                            </span>
+                          </p>
+                        )}
+
+                        {billingCycle === 'yearly' && price > 0 && (
+                          <p className="text-xs text-emerald-700 font-bold mt-1.5 flex items-center gap-1 flex-wrap">
+                            <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                            <span>
+                              Thanh toán theo năm: <strong>{yearlyTotalXu} Xu</strong>/năm (~{formatCurrency(price * 12)} • Tiết kiệm 20%)
+                            </span>
+                          </p>
+                        )}
+                      </div>
                     )}
                   </div>
 
@@ -222,7 +279,7 @@ export const PricingPage: React.FC = () => {
                   <span className="text-xs font-bold text-emerald-300">Tin Lẻ 15 Ngày</span>
                   <span className="text-[10px] font-black bg-emerald-500/30 text-emerald-200 px-2 py-0.5 rounded-full">Linh hoạt</span>
                 </div>
-                <div className="text-xl font-black text-white">30.000đ <span className="text-xs text-amber-300 font-bold">(30 Xu)</span></div>
+                <div className="text-xl font-black text-white">30 Xu <span className="text-xs text-slate-300 font-normal">(~30.000đ)</span></div>
                 <p className="text-[11px] text-slate-300">Phù hợp phòng trọ hot cần cho thuê gấp trong nửa tháng.</p>
               </div>
 
@@ -234,7 +291,7 @@ export const PricingPage: React.FC = () => {
                   <span className="text-xs font-bold text-amber-300">Tin Lẻ 30 Ngày</span>
                   <span className="text-[10px] font-black bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded-full">Chuẩn 30d</span>
                 </div>
-                <div className="text-xl font-black text-white">50.000đ <span className="text-xs text-amber-300 font-bold">(50 Xu)</span></div>
+                <div className="text-xl font-black text-white">50 Xu <span className="text-xs text-slate-300 font-normal">(~50.000đ)</span></div>
                 <p className="text-[11px] text-slate-300">Hiển thị trọn vẹn 30 ngày + tặng 1 lần đăng lại 0 Xu.</p>
               </div>
             </div>
@@ -257,11 +314,11 @@ export const PricingPage: React.FC = () => {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="py-4 px-4 font-bold text-gray-900 w-1/3">Tính năng & Hạn mức</th>
-                  <th className="py-4 px-4 font-bold text-gray-700 text-center">Gói Miễn Phí</th>
+                  <th className="py-4 px-4 font-bold text-gray-700 text-center">Gói Miễn Phí (0 Xu)</th>
                   <th className="py-4 px-4 font-bold text-[#006d37] text-center bg-emerald-50/50 rounded-t-xl">
-                    Gói Cơ Bản (99k)
+                    Gói Cơ Bản (99 Xu)
                   </th>
-                  <th className="py-4 px-4 font-bold text-amber-700 text-center">Gói Pro VIP (299k)</th>
+                  <th className="py-4 px-4 font-bold text-amber-700 text-center">Gói Pro VIP (299 Xu)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
