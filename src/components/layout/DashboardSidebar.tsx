@@ -60,7 +60,6 @@ export const DashboardSidebar: React.FC<{ role: 'owner' | 'admin' }> = ({ role }
       label: 'Ví Xu Trọ Xinh',
       icon: Coins,
       badgeText: `${wallet?.total_xu ?? 5500} Xu`,
-      isVip: true,
     },
 
     { to: '/chu-tro/chot-so', label: 'Chốt điện nước K23', icon: Zap, isVip: true },

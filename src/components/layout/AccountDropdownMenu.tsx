@@ -196,7 +196,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                         : '👤 Khách thuê'}
                     </span>
                     <Link
-                      to="/chu-tro/vi-xu"
+                      to={isLandlord ? '/chu-tro/vi-xu' : '/vi-xu'}
                       onClick={onClose}
                       className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-900 border border-amber-300 hover:bg-amber-200 transition"
                       title="Số dư Ví Xu Trọ Xinh"
@@ -432,6 +432,25 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </Link>
 
               <Link
+                to={isLandlord ? '/chu-tro/vi-xu' : '/vi-xu'}
+                onClick={onClose}
+                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center font-black text-[10px] border border-amber-300">
+                    🪙
+                  </div>
+                  <span>Trọ Xinh Xu</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px] font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                    {wallet?.total_xu ?? 5500} Xu
+                  </span>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </div>
+              </Link>
+
+              <Link
                 to="/demo-hoa-don"
                 onClick={onClose}
                 className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100/80 transition"
@@ -452,25 +471,6 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
             <div className="space-y-1.5">
               <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
               <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-                <Link
-                  to="/chu-tro/vi-xu"
-                  onClick={onClose}
-                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-900 flex items-center justify-center font-black text-[10px] border border-amber-300">
-                      🪙
-                    </div>
-                    <span>Trọ Xinh Xu</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                      {wallet?.total_xu ?? 5500} Xu
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-gray-400" />
-                  </div>
-                </Link>
-
                 <Link
                   to="/chu-tro/quan-ly-goi"
                   onClick={onClose}

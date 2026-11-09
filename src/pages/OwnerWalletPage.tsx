@@ -90,9 +90,9 @@ export const OwnerWalletPage: React.FC = () => {
         url="/chu-tro/vi-xu"
       />
 
-      <DashboardSidebar role="owner" />
+      {currentUser?.role === 'owner' && <DashboardSidebar role="owner" />}
 
-      <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-8 overflow-y-auto">
+      <main className={`flex-1 p-4 sm:p-8 ${currentUser?.role === 'owner' ? 'max-w-6xl' : 'max-w-5xl mx-auto w-full'} space-y-8 overflow-y-auto`}>
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
           <div>
@@ -588,3 +588,4 @@ export const OwnerWalletPage: React.FC = () => {
     </div>
   );
 };
+
