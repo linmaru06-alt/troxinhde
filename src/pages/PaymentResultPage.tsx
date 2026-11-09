@@ -184,9 +184,14 @@ export const PaymentResultPage: React.FC = () => {
                 <span>Phương thức:</span>
                 <span className="font-semibold uppercase text-gray-800">{method}</span>
               </div>
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span>Tổng tiền:</span>
-                <span className="font-black text-base text-[#006d37]">{formatCurrency(amount)}</span>
+                <span className="font-black text-base text-[#006d37]">
+                  {formatCurrency(amount)}{' '}
+                  <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                    ({Math.round(amount / 1000)} Xu)
+                  </span>
+                </span>
               </div>
             </div>
           </div>

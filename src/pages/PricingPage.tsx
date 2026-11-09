@@ -179,7 +179,7 @@ export const PricingPage: React.FC = () => {
                             Miễn phí
                           </span>
                           <span className="text-xs font-bold text-emerald-800 bg-emerald-100/70 border border-emerald-300 px-2 py-0.5 rounded-full font-mono">
-                            0 Xu
+                            (0 Xu)
                           </span>
                         </div>
                         <p className="text-xs text-gray-400 mt-1">
@@ -187,37 +187,35 @@ export const PricingPage: React.FC = () => {
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-1">
+                      <div className="space-y-1.5">
                         <div className="flex items-baseline gap-1.5 flex-wrap">
-                          <span className="text-4xl font-black text-gray-900 tracking-tight flex items-baseline gap-1">
-                            <span>{xuPrice}</span>
-                            <span className="text-2xl font-black text-amber-500">Xu</span>
+                          <span className="text-3xl sm:text-4xl font-black text-gray-900 tracking-tight">
+                            {formatCurrency(price)}
                           </span>
-                          <span className="text-xs font-bold text-gray-500">/tháng</span>
-                          <span className="text-xs font-medium text-gray-400">
-                            (~{formatCurrency(price)})
+                          <span className="text-base font-extrabold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-xl font-mono">
+                            ({xuPrice.toLocaleString('vi-VN')} Xu)
+                          </span>
+                          <span className="text-xs font-bold text-gray-500">
+                            /{billingCycle === 'yearly' ? 'tháng (tính năm)' : 'tháng'}
                           </span>
                         </div>
 
                         {plan.originalPrice && billingCycle === 'monthly' && (
                           <p className="text-xs text-gray-400 mt-1 flex items-center gap-1.5 flex-wrap">
                             <span>Giá gốc:</span>
-                            <span className="line-through font-bold text-gray-500">
-                              {originalXu} Xu
-                            </span>
-                            <span className="line-through text-[11px] text-gray-400">
-                              ({formatCurrency(plan.originalPrice)})/tháng
+                            <span className="line-through font-semibold text-gray-500">
+                              {formatCurrency(plan.originalPrice)} ({originalXu} Xu)/tháng
                             </span>
                           </p>
                         )}
 
                         {billingCycle === 'yearly' && price > 0 && (
-                          <p className="text-xs text-emerald-700 font-bold mt-1.5 flex items-center gap-1 flex-wrap">
+                          <div className="text-xs text-emerald-700 font-bold mt-1.5 flex items-center gap-1.5 flex-wrap bg-emerald-50/70 border border-emerald-200/80 p-2 rounded-xl">
                             <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
                             <span>
-                              Thanh toán theo năm: <strong>{yearlyTotalXu} Xu</strong>/năm (~{formatCurrency(price * 12)} • Tiết kiệm 20%)
+                              Thanh toán theo năm: <strong>{formatCurrency(price * 12)}</strong> ({yearlyTotalXu.toLocaleString('vi-VN')} Xu)/năm (Giảm 20%)
                             </span>
-                          </p>
+                          </div>
                         )}
                       </div>
                     )}
@@ -314,11 +312,11 @@ export const PricingPage: React.FC = () => {
               <thead>
                 <tr className="border-b border-gray-200">
                   <th className="py-4 px-4 font-bold text-gray-900 w-1/3">Tính năng & Hạn mức</th>
-                  <th className="py-4 px-4 font-bold text-gray-700 text-center">Gói Miễn Phí (0 Xu)</th>
+                  <th className="py-4 px-4 font-bold text-gray-700 text-center">Gói Miễn Phí (0đ - 0 Xu)</th>
                   <th className="py-4 px-4 font-bold text-[#006d37] text-center bg-emerald-50/50 rounded-t-xl">
-                    Gói Cơ Bản (99 Xu)
+                    Gói Cơ Bản (99.000đ - 99 Xu)
                   </th>
-                  <th className="py-4 px-4 font-bold text-amber-700 text-center">Gói Pro VIP (299 Xu)</th>
+                  <th className="py-4 px-4 font-bold text-amber-700 text-center">Gói Pro VIP (299.000đ - 299 Xu)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">

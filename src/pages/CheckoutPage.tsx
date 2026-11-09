@@ -27,6 +27,9 @@ import {
   AlertCircle,
   Check,
   ExternalLink,
+  Gift,
+  X,
+  Coins,
 } from 'lucide-react';
 
 interface PaymentViewData {
@@ -43,6 +46,42 @@ interface PaymentViewData {
   deeplink?: string;
   payUrl?: string;
 }
+
+
+const AVAILABLE_VOUCHERS = [
+  {
+    code: 'TROXINH50',
+    discountPercent: 50,
+    title: 'Ưu Đãi Đặc Biệt 50%',
+    description: 'Giảm 50% tổng thanh toán gói dịch vụ Trọ Xinh',
+    badge: 'Hot nhất 🔥',
+    minSpend: 'Áp dụng mọi gói',
+  },
+  {
+    code: 'CHUTROVIP',
+    discountPercent: 25,
+    title: 'Đặc Quyền Chủ Trọ VIP',
+    description: 'Giảm 25% gói Đăng tin chuyên nghiệp và quản lý phòng',
+    badge: 'Dành cho chủ trọ ⭐',
+    minSpend: 'Từ gói Cơ bản',
+  },
+  {
+    code: 'SINHVIEN',
+    discountPercent: 20,
+    title: 'Đồng Hành Sinh Viên',
+    description: 'Giảm 20% hỗ trợ các bạn trẻ và sinh viên khởi nghiệp',
+    badge: 'Sinh viên 🎓',
+    minSpend: 'Áp dụng mọi gói',
+  },
+  {
+    code: 'BANMOI',
+    discountPercent: 10,
+    title: 'Chào Bạn Mới Gia Nhập',
+    description: 'Giảm 10% trải nghiệm hệ thống công nghệ Trọ Xinh',
+    badge: 'Mới 🎁',
+    minSpend: 'Áp dụng mọi gói',
+  },
+];
 
 // Cổng thanh toán trực tuyến chính thức: Đã hoàn thiện xác thực Webhook và RLS an toàn
 const IS_ONLINE_PAYMENT_ENABLED = true;
@@ -67,6 +106,7 @@ export const CheckoutPage: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [paymentData, setPaymentData] = useState<PaymentViewData | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
+  const [isVoucherModalOpen, setIsVoucherModalOpen] = useState<boolean>(false);
 
   // Pricing calculations
   const basePrice = selectedPlan.price;
@@ -93,6 +133,18 @@ export const CheckoutPage: React.FC = () => {
     setCopiedField(field);
     showToast('Đã sao chép vào bộ nhớ tạm', text, 'info');
     setTimeout(() => setCopiedField(null), 2000);
+  };
+
+  
+  const handleApplyVoucherFromList = (code: string) => {
+    setCouponCode(code);
+    const result = validateCoupon(code);
+    if (result.valid) {
+      setDiscountPercent(result.discountPercent);
+      setCouponMessage({ text: result.message, error: false });
+      showToast('Áp dụng mã giảm giá thành công!', result.message, 'success');
+    }
+    setIsVoucherModalOpen(false);
   };
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -571,18 +623,37 @@ export const CheckoutPage: React.FC = () => {
                   Mã Giảm Giá / Khuyến Mãi
                 </h2>
 
-                <form onSubmit={handleApplyCoupon} className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Nhập mã (vd: TROXINH50, SINHVIEN)"
-                    value={couponCode}
-                    onChange={(e) => setCouponCode(e.target.value)}
-                    className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold uppercase tracking-wider focus:outline-none focus:border-[#006d37] bg-gray-50/50"
-                  />
-                  <Button type="submit" variant="outline" size="sm">
-                    Áp Dụng
-                  </Button>
-                </form>
+                <div className="space-y-3">
+                  <form onSubmit={handleApplyCoupon} className="flex gap-2">
+                    <input
+                      type="text"
+                      placeholder="Nhập mã (vd: TROXINH50, SINHVIEN)"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                      className="flex-1 px-4 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold uppercase tracking-wider focus:outline-none focus:border-[#006d37] bg-gray-50/50"
+                    />
+                    <Button type="submit" variant="outline" size="sm">
+                      Áp Dụng
+                    </Button>
+                  </form>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setIsVoucherModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 text-xs font-bold text-[#006d37] hover:text-[#005229] transition bg-emerald-50 hover:bg-emerald-100/80 px-3 py-1.5 rounded-xl border border-emerald-200/80 cursor-pointer shadow-2xs"
+                    >
+                      <Gift className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Kho Voucher của bạn (4 mã sẵn có)</span>
+                      <span className="text-[10px] bg-[#006d37] text-white px-1.5 py-0.2 rounded-full font-black">Mở</span>
+                    </button>
+                    {discountPercent > 0 && (
+                      <span className="text-xs font-bold text-emerald-700">
+                        Đang giảm {discountPercent}%
+                      </span>
+                    )}
+                  </div>
+                </div>
 
                 {couponMessage && (
                   <p
@@ -623,28 +694,41 @@ export const CheckoutPage: React.FC = () => {
 
                 {/* Financial Breakdowns */}
                 <div className="space-y-2.5 text-xs text-gray-600">
-                  <div className="flex justify-between">
-                    <span>Giá gói</span>
-                    <span className="font-bold text-gray-900">{formatCurrency(basePrice)}</span>
+                  <div className="flex justify-between items-center">
+                    <span>Giá gói:</span>
+                    <span className="font-bold text-gray-900">
+                      {formatCurrency(basePrice)}{' '}
+                      <span className="text-[11px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                        ({Math.round(basePrice / 1000)} Xu)
+                      </span>
+                    </span>
                   </div>
 
                   {discountPercent > 0 && (
-                    <div className="flex justify-between text-emerald-700 font-semibold">
-                      <span>Mã giảm giá ({discountPercent}%)</span>
-                      <span>- {formatCurrency(discountAmount)}</span>
+                    <div className="flex justify-between items-center text-emerald-700 font-semibold">
+                      <span>Mã giảm giá ({discountPercent}%):</span>
+                      <span>
+                        - {formatCurrency(discountAmount)}{' '}
+                        <span className="text-[11px]">(-{Math.round(discountAmount / 1000)} Xu)</span>
+                      </span>
                     </div>
                   )}
 
                   <div className="flex justify-between">
-                    <span>Thuế GTGT (VAT)</span>
-                    <span className="font-medium text-gray-500">Chưa áp dụng (0đ)</span>
+                    <span>Thuế GTGT (VAT):</span>
+                    <span className="font-medium text-gray-500">Chưa áp dụng (0đ - 0 Xu)</span>
                   </div>
 
                   <div className="pt-3 border-t border-gray-200 flex justify-between items-baseline">
-                    <span className="text-sm font-extrabold text-gray-900">Tổng thanh toán</span>
-                    <span className="text-xl font-black text-[#006d37]">
-                      {formatCurrency(totalAmount)}
-                    </span>
+                    <span className="text-sm font-extrabold text-gray-900">Tổng thanh toán:</span>
+                    <div className="text-right">
+                      <span className="text-xl font-black text-[#006d37]">
+                        {formatCurrency(totalAmount)}
+                      </span>
+                      <span className="text-xs font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200 block mt-0.5">
+                        🪙 {Math.round(totalAmount / 1000).toLocaleString('vi-VN')} Xu
+                      </span>
+                    </div>
                   </div>
                 </div>
 
@@ -668,7 +752,7 @@ export const CheckoutPage: React.FC = () => {
                   rightIcon={<ArrowRight className="w-4 h-4" />}
                 >
                   {IS_ONLINE_PAYMENT_ENABLED
-                    ? `Tạo Mã Thanh Toán ${formatCurrency(totalAmount)}`
+                    ? `Tạo Mã Thanh Toán ${formatCurrency(totalAmount)} (${Math.round(totalAmount / 1000)} Xu)`
                     : 'Thanh toán trực tuyến tạm đóng'}
                 </Button>
 
@@ -683,7 +767,71 @@ export const CheckoutPage: React.FC = () => {
             </div>
           </div>
         )}
-      </div>
+      {/* MODAL KHO VOUCHER */}
+      {isVoucherModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-gray-200 space-y-5 animate-scaleUp">
+            <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-black">
+                  <Gift className="w-5 h-5 text-amber-600" />
+                </div>
+                <div>
+                  <h3 className="font-black text-base text-gray-900">Kho Voucher Ưu Đãi</h3>
+                  <p className="text-xs text-gray-500">Chọn voucher để tự động áp dụng giảm giá trực tiếp</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsVoucherModalOpen(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 text-gray-600 flex items-center justify-center text-sm transition cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+              {AVAILABLE_VOUCHERS.map((voucher) => (
+                <div
+                  key={voucher.code}
+                  className="p-4 rounded-2xl border-2 border-emerald-100 hover:border-[#006d37] bg-emerald-50/30 transition flex items-center justify-between gap-4"
+                >
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono font-black text-sm text-[#006d37] bg-white px-2.5 py-1 rounded-lg border border-emerald-200 shadow-2xs">
+                        {voucher.code}
+                      </span>
+                      <span className="text-[10px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                        {voucher.badge}
+                      </span>
+                    </div>
+                    <h4 className="text-xs font-bold text-gray-900">{voucher.title}</h4>
+                    <p className="text-[11px] text-gray-500 leading-tight">{voucher.description}</p>
+                    <span className="text-[10px] text-gray-400 block">{voucher.minSpend}</span>
+                  </div>
+
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={couponCode === voucher.code ? 'outline' : 'primary'}
+                    onClick={() => handleApplyVoucherFromList(voucher.code)}
+                    className="shrink-0 font-bold"
+                  >
+                    {couponCode === voucher.code ? 'Đang Dùng' : 'Áp Dụng'}
+                  </Button>
+                </div>
+              ))}
+            </div>
+
+            <div className="pt-2 border-t border-gray-100 flex items-center justify-between text-xs text-gray-500">
+              <span>* Mỗi đơn hàng chỉ áp dụng 01 mã giảm giá cao nhất</span>
+              <Button variant="ghost" size="sm" onClick={() => setIsVoucherModalOpen(false)}>
+                Đóng
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

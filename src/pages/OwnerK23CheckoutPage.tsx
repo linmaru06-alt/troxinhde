@@ -5,9 +5,10 @@ import { SEOHead } from '../components/seo/SEOHead';
 import { useAppStore } from '../store/useAppStore';
 import { useK23Subscription } from '../hooks/queries/useK23Subscription';
 import { K23PlanCode, K23BillingCycle, K23SubscriptionOrder } from '../types/k23';
-import { generateVietQrUrl, POPULAR_BANKS } from '../lib/vietqr';
+import { generateVietQrUrl } from '../lib/vietqr';
 import { formatCurrency } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
+import { generateInvoicePDF } from '../lib/generateInvoice';
 import {
   QrCode,
   ShieldCheck,
@@ -18,33 +19,58 @@ import {
   Building2,
   Sparkles,
   Loader2,
-  AlertCircle,
   Coins,
   Rocket,
+  Smartphone,
+  FileDown,
+  Receipt,
+  Check,
 } from 'lucide-react';
 
 export const OwnerK23CheckoutPage: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { plans, createOrder, confirmOrder, isCreatingOrder, isConfirmingOrder } = useK23Subscription();
-  const { wallet, spendXu, showToast } = useAppStore();
+  const {
+    plans,
+    createOrder,
+    confirmOrder,
+    activateTrial,
+    isCreatingOrder,
+    isConfirmingOrder,
+    isActivatingTrial,
+  } = useK23Subscription();
+  const { wallet, spendXu, showToast, currentUser } = useAppStore();
 
   const planCode = (searchParams.get('plan') as K23PlanCode) || 'pro';
   const billingCycle = (searchParams.get('cycle') as K23BillingCycle) || 'yearly';
 
   const selectedPlan = plans.find((p) => p.code === planCode) || plans[1];
-  const amount = billingCycle === 'yearly' ? selectedPlan?.price_yearly || 1290000 : selectedPlan?.price_monthly || 129000;
+  const isTrialStarter = selectedPlan.code === 'starter';
+
+  // Tính số tiền và số Xu chính xác theo chu kỳ (Tháng / Quý / Năm)
+  let amount = 0;
+  if (!isTrialStarter) {
+    if (billingCycle === 'quarterly') {
+      amount = selectedPlan?.price_quarterly ?? Math.round((selectedPlan?.price_monthly || 199000) * 3 * 0.9);
+    } else if (billingCycle === 'yearly') {
+      amount = selectedPlan?.price_yearly ?? Math.round((selectedPlan?.price_monthly || 199000) * 12 * 0.8);
+    } else {
+      amount = selectedPlan?.price_monthly || 199000;
+    }
+  }
+
   const amountXu = Math.round(amount / 1000);
   const hasEnoughXu = wallet.total_xu >= amountXu;
 
-  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'vietqr'>('wallet_xu');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'vietqr' | 'momo'>('wallet_xu');
   const [order, setOrder] = useState<K23SubscriptionOrder | null>(null);
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(15 * 60); // 15 mins
   const [isSuccess, setIsSuccess] = useState<boolean>(false);
   const [isProcessingXu, setIsProcessingXu] = useState<boolean>(false);
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState<boolean>(false);
 
-  // Tài khoản nhận thanh toán của Trọ Xinh (MBBank)
+  // Tài khoản ngân hàng nhận tiền của Trọ Xinh
   const troXinhBank = {
     bankId: 'MB',
     bankName: 'MBBank - Ngân hàng Quân Đội',
@@ -52,18 +78,25 @@ export const OwnerK23CheckoutPage: React.FC = () => {
     accountName: 'CONG TY TRO XINH VIET NAM',
   };
 
-  // 1. Tạo order khi vào trang
+  const momoReceiver = {
+    phone: '0888110789',
+    name: 'NGUYEN VU CHINH (TRO XINH)',
+  };
+
+  // 1. Tạo order khi vào trang (nếu không phải gói thử nghiệm 0đ)
   useEffect(() => {
     let isMounted = true;
-    createOrder({ planCode, billingCycle }).then((createdOrder) => {
-      if (isMounted) {
-        setOrder(createdOrder);
-      }
-    });
+    if (!isTrialStarter) {
+      createOrder({ planCode, billingCycle }).then((createdOrder) => {
+        if (isMounted) {
+          setOrder(createdOrder);
+        }
+      });
+    }
     return () => {
       isMounted = false;
     };
-  }, [planCode, billingCycle, createOrder]);
+  }, [planCode, billingCycle, createOrder, isTrialStarter]);
 
   // 2. Countdown timer 15:00
   useEffect(() => {
@@ -82,6 +115,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
   const copyToClipboard = (text: string, field: string) => {
     navigator.clipboard.writeText(text);
     setCopiedField(field);
+    showToast('Đã sao chép vào bộ nhớ tạm', text, 'info');
     setTimeout(() => setCopiedField(null), 2000);
   };
 
@@ -96,6 +130,26 @@ export const OwnerK23CheckoutPage: React.FC = () => {
     template: 'compact2',
   });
 
+  const momoQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(
+    `2|99|${momoReceiver.phone}|${momoReceiver.name}|${currentUser?.email || ''}|0|0|${amount}|${transferContent}|transfer_mycode`
+  )}`;
+
+  // Kích hoạt Dùng Thử 2 Tháng (0đ)
+  const handleActivateTrial = async () => {
+    try {
+      await activateTrial();
+      setIsSuccess(true);
+      showToast('Kích hoạt dùng thử thành công! 🎉', 'Bạn có 60 ngày trải nghiệm miễn phí 100% phần mềm K23.', 'success');
+      setTimeout(() => {
+        navigate('/chu-tro/quan-ly-goi-k23');
+      }, 3000);
+    } catch (err) {
+      console.error(err);
+      showToast('Có lỗi xảy ra', 'Không thể kích hoạt dùng thử. Vui lòng liên hệ CSKH.', 'error');
+    }
+  };
+
+  // Xác nhận chuyển khoản VietQR hoặc MoMo
   const handleConfirmPaid = async () => {
     if (!order) return;
     try {
@@ -106,14 +160,16 @@ export const OwnerK23CheckoutPage: React.FC = () => {
         billingCycle,
       });
       setIsSuccess(true);
+      showToast('Thanh toán thành công!', `Hệ thống đã kích hoạt ${selectedPlan.name}.`, 'success');
       setTimeout(() => {
         navigate('/chu-tro/quan-ly-goi-k23');
-      }, 2500);
+      }, 3000);
     } catch (err) {
       console.error(err);
     }
   };
 
+  // Thanh toán bằng Ví Xu 1 Chạm
   const handlePayWithXu = async () => {
     if (!order) return;
     if (!hasEnoughXu) {
@@ -127,9 +183,11 @@ export const OwnerK23CheckoutPage: React.FC = () => {
 
     try {
       setIsProcessingXu(true);
+      const cycleLabel =
+        billingCycle === 'yearly' ? '1 Năm' : billingCycle === 'quarterly' ? '3 Tháng' : '1 Tháng';
       const success = await spendXu(
         amountXu,
-        `Kích hoạt gói K23: ${selectedPlan.name} (${billingCycle === 'yearly' ? '1 Năm' : '1 Tháng'})`,
+        `Kích hoạt hệ thống K23: ${selectedPlan.name} (${cycleLabel})`,
         order.order_code
       );
       if (success) {
@@ -141,9 +199,10 @@ export const OwnerK23CheckoutPage: React.FC = () => {
         });
         setIsProcessingXu(false);
         setIsSuccess(true);
+        showToast('Thanh toán Ví Xu thành công! 🪙', `Đã trừ ${amountXu} Xu và kích hoạt gói cước.`, 'success');
         setTimeout(() => {
           navigate('/chu-tro/quan-ly-goi-k23');
-        }, 2500);
+        }, 3000);
       } else {
         setIsProcessingXu(false);
       }
@@ -153,12 +212,69 @@ export const OwnerK23CheckoutPage: React.FC = () => {
     }
   };
 
-  if (!selectedPlan || isCreatingOrder) {
+  // Xuất biên lai PDF
+  const handleDownloadInvoice = async () => {
+    setIsDownloadingPdf(true);
+    try {
+      const now = new Date();
+      let durationDays = 30;
+      if (billingCycle === 'quarterly') durationDays = 90;
+      else if (billingCycle === 'yearly') durationDays = 365;
+      else if (isTrialStarter) durationDays = 60;
+
+      const expiry = new Date(now.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+      await generateInvoicePDF({
+        orderCode: order?.order_code || `K23_TRIAL_${Date.now().toString().slice(-6)}`,
+        orderDate: now.toLocaleDateString('vi-VN'),
+        orderTime: now.toLocaleTimeString('vi-VN'),
+        paymentMethod:
+          paymentMethod === 'wallet_xu'
+            ? 'Ví Xu Trọ Xinh (1 Chạm)'
+            : paymentMethod === 'momo'
+            ? 'Ví Điện Tử MoMo'
+            : 'Chuyển khoản VietQR PayOS (MBBank)',
+        buyerName: currentUser?.name || 'Đối Tác Chủ Trọ K23',
+        buyerPhone: currentUser?.phone || '0912 345 678',
+        buyerEmail: currentUser?.email || 'chutro@troxinh.vn',
+        planName: `Hệ thống PMS K23: ${selectedPlan.name}`,
+        planDescription: selectedPlan.description,
+        planDuration: `${durationDays} ngày`,
+        startDate: now.toLocaleDateString('vi-VN'),
+        endDate: expiry.toLocaleDateString('vi-VN'),
+        unitPrice: amount,
+        vatRate: 0,
+        vatAmount: 0,
+        totalAmount: amount,
+        sellerName: 'Nguyễn Vũ Chính (Trọ Xinh PMS)',
+        sellerAddress: '18 Ngõ 167 Tây Sơn, Phường Quang Trung, Quận Đống Đa, TP. Hà Nội',
+        sellerPhone: '0888 110 789',
+        sellerEmail: 'chutro@troxinh.vn',
+        sellerBank: `${troXinhBank.bankName} — STK: ${troXinhBank.accountNo}`,
+      });
+
+      showToast('Tải biên lai PDF thành công!', 'Biên lai thanh toán điện tử đã được tải về máy của bạn.', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Có lỗi xảy ra', 'Không thể tạo file PDF biên lai. Vui lòng thử lại.', 'error');
+    } finally {
+      setIsDownloadingPdf(false);
+    }
+  };
+
+  const cycleText =
+    billingCycle === 'yearly'
+      ? 'Theo Năm (Giảm 20% • Đóng 10 tặng 2)'
+      : billingCycle === 'quarterly'
+      ? 'Theo Quý (Giảm 10%)'
+      : 'Theo Tháng';
+
+  if (!selectedPlan || (!isTrialStarter && isCreatingOrder)) {
     return (
       <div className="flex min-h-screen bg-slate-50 items-center justify-center">
         <div className="text-center">
           <Loader2 className="w-8 h-8 animate-spin text-primary-600 mx-auto mb-2" />
-          <p className="text-sm text-slate-600">Đang khởi tạo cổng thanh toán bảo mật...</p>
+          <p className="text-sm text-slate-600">Đang khởi tạo cổng thanh toán bảo mật K23...</p>
         </div>
       </div>
     );
@@ -167,8 +283,8 @@ export const OwnerK23CheckoutPage: React.FC = () => {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <SEOHead
-        title="Thanh Toán Gói Cước K23 | Trọ Xinh"
-        description="Thanh toán kích hoạt gói quản lý phòng trọ K23 qua chuyển khoản ngân hàng VietQR."
+        title="Thanh Toán Dịch Vụ Quản Lý K23 | Trọ Xinh"
+        description="Thanh toán kích hoạt hệ thống quản lý phòng trọ K23 qua VietQR, Ví MoMo hoặc Ví Xu Trọ Xinh."
       />
       <DashboardSidebar role="owner" />
 
@@ -182,69 +298,196 @@ export const OwnerK23CheckoutPage: React.FC = () => {
         </Link>
 
         {isSuccess ? (
-          <div className="bg-white rounded-3xl p-10 border border-emerald-200 shadow-xl text-center max-w-lg mx-auto my-12 animate-in zoom-in-95">
-            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto mb-4">
+          <div className="bg-white rounded-3xl p-8 sm:p-12 border border-emerald-200 shadow-xl text-center max-w-lg mx-auto my-10 animate-in zoom-in-95 space-y-6">
+            <div className="w-16 h-16 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-md">
               <CheckCircle2 className="w-10 h-10" />
             </div>
-            <h2 className="text-2xl font-bold text-slate-900 mb-2">Thanh toán thành công!</h2>
-            <p className="text-sm text-slate-600 mb-6">
-              Hệ thống đã tự động kích hoạt <strong>{selectedPlan.name} ({billingCycle === 'yearly' ? '1 Năm' : '1 Tháng'})</strong> cho tài khoản của bạn.
-            </p>
-            <div className="inline-flex items-center gap-2 text-xs text-slate-500 bg-slate-100 px-4 py-2 rounded-xl">
-              <Loader2 className="w-4 h-4 animate-spin text-primary-600" />
-              Đang chuyển hướng về trang Quản lý gói cước...
+
+            <div className="space-y-2">
+              <h2 className="text-2xl font-black text-slate-900">Kích Hoạt Thành Công!</h2>
+              <p className="text-sm text-slate-600">
+                Hệ thống đã kích hoạt <strong>{selectedPlan.name} ({isTrialStarter ? 'Dùng thử 2 tháng' : cycleText})</strong> cho tài khoản của bạn.
+              </p>
+            </div>
+
+            {/* Chi tiết đơn đã thanh toán */}
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200 text-left text-xs space-y-2.5">
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Gói dịch vụ:</span>
+                <span className="font-bold text-slate-900">{selectedPlan.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Tổng chi phí:</span>
+                <span className="font-black text-sm text-[#006d37]">
+                  {formatCurrency(amount)} ({amountXu} Xu)
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Trạng thái:</span>
+                <span className="font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                  ✓ Đã kích hoạt
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="space-y-2.5">
+              <Button
+                variant="outline"
+                size="md"
+                fullWidth
+                onClick={handleDownloadInvoice}
+                disabled={isDownloadingPdf}
+                leftIcon={
+                  isDownloadingPdf ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-[#006d37]" />
+                  ) : (
+                    <FileDown className="w-4 h-4 text-[#006d37]" />
+                  )
+                }
+                className="font-bold border-emerald-300 hover:bg-emerald-50"
+              >
+                {isDownloadingPdf ? 'Đang tạo biên lai PDF...' : 'Tải Biên Lai Thanh Toán (PDF)'}
+              </Button>
+
+              <Link to="/chu-tro/quan-ly-goi-k23">
+                <Button variant="primary" size="lg" fullWidth className="font-bold">
+                  Quản Lý Gói & Tòa Nhà Ngay
+                </Button>
+              </Link>
             </div>
           </div>
+        ) : isTrialStarter ? (
+          /* Khối đăng ký Dùng thử 2 tháng miễn phí (0đ) */
+          <div className="bg-white rounded-3xl p-8 border border-emerald-200 shadow-md max-w-xl mx-auto my-8 space-y-6 text-center">
+            <div className="w-16 h-16 bg-gradient-to-br from-emerald-100 to-amber-100 text-emerald-700 rounded-3xl flex items-center justify-center mx-auto shadow-inner">
+              <Sparkles className="w-8 h-8 text-emerald-600" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                Ưu đãi 100% cho chủ trọ mới
+              </span>
+              <h2 className="text-2xl font-black text-slate-900">
+                Trải Nghiệm Miễn Phí 2 Tháng Đầu (0đ)
+              </h2>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                Làm quen với toàn bộ tính năng quản lý phòng, chốt chỉ số điện nước thông minh và xuất hóa đơn VietQR tự động.
+              </p>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 text-left text-xs space-y-2.5">
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Gói đăng ký:</span>
+                <span className="font-bold text-slate-900">{selectedPlan.name}</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Thời hạn trải nghiệm:</span>
+                <span className="font-bold text-emerald-700">60 ngày (2 tháng)</span>
+              </div>
+              <div className="flex justify-between items-center text-slate-600">
+                <span>Số lượng phòng tối đa:</span>
+                <span className="font-bold text-slate-900">10 phòng trọ</span>
+              </div>
+              <div className="flex justify-between items-baseline pt-2 border-t border-slate-200">
+                <span className="font-bold text-slate-900">Tổng thanh toán:</span>
+                <div className="text-right">
+                  <span className="text-xl font-black text-[#006d37]">0 đ</span>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200 ml-2">
+                    (0 Xu)
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleActivateTrial}
+              disabled={isActivatingTrial}
+              className="w-full bg-[#00a854] hover:bg-[#008f47] text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 text-sm"
+            >
+              {isActivatingTrial ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" /> Đang kích hoạt 60 ngày miễn phí...
+                </>
+              ) : (
+                <>
+                  <Rocket className="w-5 h-5 text-amber-300" /> Kích Hoạt Dùng Thử 2 Tháng Miễn Phí (0đ)
+                </>
+              )}
+            </Button>
+            <p className="text-[11px] text-slate-400">
+              * Không yêu cầu thẻ ngân hàng, không tự động trừ tiền khi hết hạn.
+            </p>
+          </div>
         ) : (
+          /* Khối thanh toán các gói trả phí (Quản lý Cơ bản & Nâng cao) */
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-            {/* Cột trái: Chọn Phương thức thanh toán (Ví Xu / VietQR) */}
+            {/* Cột trái: Chọn Phương thức thanh toán (Ví Xu / VietQR / MoMo) */}
             <div className="md:col-span-6 space-y-4">
-              {/* Tabs chọn phương thức */}
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm space-y-4">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <h3 className="text-sm font-bold text-slate-900">Phương Thức Kích Hoạt Gói</h3>
+                  <h3 className="text-sm font-bold text-slate-900">Chọn Phương Thức Thanh Toán</h3>
                   <Link
                     to="/chu-tro/vi-xu"
                     className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1"
                   >
                     <Coins className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Ví của bạn: <strong>{wallet.total_xu} Xu</strong></span>
+                    <span>Ví: <strong>{wallet.total_xu} Xu</strong></span>
                   </Link>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                {/* 3 Phương thức: Ví Xu, VietQR, MoMo */}
+                <div className="grid grid-cols-3 gap-2">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('wallet_xu')}
-                    className={`p-3.5 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition cursor-pointer text-center ${
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition cursor-pointer text-center ${
                       paymentMethod === 'wallet_xu'
                         ? 'border-[#006d37] bg-emerald-50/80 text-[#006d37] shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
                     }`}
                   >
-                    <div className="w-8 h-8 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-black">
-                      <Coins className="w-4 h-4" />
+                    <div className="w-7 h-7 rounded-full bg-amber-400 text-amber-950 flex items-center justify-center font-black">
+                      <Coins className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-xs font-black">Ví Xu Trọ Xinh</span>
-                    <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
-                      Khuyên dùng ⭐ 1 Chạm
+                    <span className="text-[11px] font-black">Ví Xu</span>
+                    <span className="text-[9px] font-bold text-emerald-700 bg-emerald-100 px-1 py-0.2 rounded-full">
+                      1 Chạm ⭐
                     </span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('vietqr')}
-                    className={`p-3.5 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition cursor-pointer text-center ${
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition cursor-pointer text-center ${
                       paymentMethod === 'vietqr'
                         ? 'border-[#006d37] bg-emerald-50/80 text-[#006d37] shadow-xs'
                         : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
                     }`}
                   >
-                    <div className="w-8 h-8 rounded-full bg-primary-600 text-white flex items-center justify-center font-black">
-                      <QrCode className="w-4 h-4" />
+                    <div className="w-7 h-7 rounded-full bg-primary-600 text-white flex items-center justify-center font-black">
+                      <QrCode className="w-3.5 h-3.5" />
                     </div>
-                    <span className="text-xs font-black">VietQR Chuyển Khoản</span>
-                    <span className="text-[10px] font-bold text-slate-500">Mã QR ngân hàng</span>
+                    <span className="text-[11px] font-black">VietQR</span>
+                    <span className="text-[9px] font-bold text-slate-500">40+ Ngân hàng</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('momo')}
+                    className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1 transition cursor-pointer text-center ${
+                      paymentMethod === 'momo'
+                        ? 'border-[#a50064] bg-pink-50/80 text-[#a50064] shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 text-slate-700 bg-white'
+                    }`}
+                  >
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#A50064] to-[#D82D8B] text-white flex items-center justify-center font-black text-[10px]">
+                      MoMo
+                    </div>
+                    <span className="text-[11px] font-black">Ví MoMo</span>
+                    <span className="text-[9px] font-bold text-pink-700 bg-pink-100 px-1 py-0.2 rounded-full">
+                      Tức thì ⚡
+                    </span>
                   </button>
                 </div>
 
@@ -261,7 +504,12 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                       </div>
                       <div className="text-right">
                         <span className="text-xs text-slate-600 block">Cần thanh toán:</span>
-                        <span className="text-xl font-black text-[#006d37]">{amountXu.toLocaleString('vi-VN')} Xu</span>
+                        <span className="text-xl font-black text-[#006d37]">
+                          {amountXu.toLocaleString('vi-VN')} Xu
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          (~{formatCurrency(amount)})
+                        </span>
                       </div>
                     </div>
 
@@ -288,7 +536,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                     <Button
                       onClick={handlePayWithXu}
                       disabled={!hasEnoughXu || isProcessingXu}
-                      className="w-full bg-[#00a854] hover:bg-[#008f47] text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                      className="w-full bg-[#00a854] hover:bg-[#008f47] text-white font-black py-4 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 text-sm"
                     >
                       {isProcessingXu ? (
                         <>
@@ -304,7 +552,50 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                       )}
                     </Button>
                   </div>
+                ) : paymentMethod === 'momo' ? (
+                  /* Giao diện thanh toán MoMo */
+                  <div className="text-center pt-2 space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2 text-xs font-bold text-[#a50064]">
+                        <Smartphone className="w-4 h-4" />
+                        MÃ MOMO QR CHUYỂN TIỀN
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-pink-600 bg-pink-50 px-2.5 py-1 rounded-full border border-pink-200">
+                        <Clock className="w-3.5 h-3.5" />
+                        {formatTimer(timeLeft)}
+                      </div>
+                    </div>
+
+                    <div className="bg-pink-50/50 p-4 rounded-2xl border-2 border-[#a50064] inline-block shadow-inner">
+                      <img
+                        src={momoQrUrl}
+                        alt="MoMo QR K23"
+                        className="w-56 h-56 mx-auto object-contain rounded-xl"
+                      />
+                    </div>
+
+                    <p className="text-xs text-slate-500">
+                      Quét mã bằng ứng dụng <strong>Ví MoMo</strong> hoặc bất kỳ App Ngân hàng nào hỗ trợ VietQR.
+                    </p>
+
+                    <Button
+                      onClick={handleConfirmPaid}
+                      disabled={isConfirmingOrder}
+                      className="w-full bg-[#a50064] hover:bg-[#8c0054] text-white font-bold py-3.5 rounded-xl shadow-lg shadow-pink-600/20 flex items-center justify-center gap-2 text-sm"
+                    >
+                      {isConfirmingOrder ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" /> Đang kiểm tra giao dịch MoMo...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle2 className="w-4 h-4" /> Tôi đã chuyển khoản MoMo xong
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 ) : (
+                  /* Giao diện thanh toán VietQR */
                   <div className="text-center pt-2">
                     <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
                       <div className="flex items-center gap-2 text-xs font-bold text-slate-700">
@@ -322,10 +613,10 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                         <img
                           src={qrUrl}
                           alt="VietQR Thanh Toan K23"
-                          className="w-60 h-60 mx-auto object-contain rounded-xl"
+                          className="w-56 h-56 mx-auto object-contain rounded-xl"
                         />
                       ) : (
-                        <div className="w-60 h-60 flex items-center justify-center">
+                        <div className="w-56 h-56 flex items-center justify-center">
                           <Loader2 className="w-8 h-8 animate-spin text-slate-400" />
                         </div>
                       )}
@@ -338,7 +629,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                     <Button
                       onClick={handleConfirmPaid}
                       disabled={isConfirmingOrder}
-                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2"
+                      className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-emerald-600/20 flex items-center justify-center gap-2 text-sm"
                     >
                       {isConfirmingOrder ? (
                         <>
@@ -355,7 +646,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
               </div>
             </div>
 
-            {/* Cột phải: Thông tin đơn hàng & Chi tiết chuyển khoản thủ công */}
+            {/* Cột phải: Thông tin đơn hàng & Chi tiết chuyển khoản */}
             <div className="md:col-span-6 space-y-6">
               {/* Box Gói cước */}
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
@@ -364,16 +655,20 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                   THÔNG TIN ĐƠN HÀNG
                 </h3>
 
-                <div className="space-y-3 text-sm">
+                <div className="space-y-3 text-xs sm:text-sm">
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Gói cước:</span>
+                    <span className="text-slate-500">Gói dịch vụ:</span>
                     <span className="font-bold text-slate-900">{selectedPlan.name}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-slate-500">Chu kỳ sử dụng:</span>
-                    <span className="font-semibold text-slate-900">
-                      {billingCycle === 'yearly' ? '12 Tháng (Đóng 10 tặng 2)' : '1 Tháng'}
+                    <span className="text-slate-500">Hạn mức phòng:</span>
+                    <span className="font-bold text-slate-900">
+                      {selectedPlan.max_rooms === -1 ? 'Không giới hạn' : `Tối đa ${selectedPlan.max_rooms} phòng`}
                     </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Chu kỳ thanh toán:</span>
+                    <span className="font-semibold text-slate-900">{cycleText}</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Mã đơn hàng:</span>
@@ -399,52 +694,94 @@ export const OwnerK23CheckoutPage: React.FC = () => {
               <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-sm">
                 <h3 className="text-sm font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-slate-700" />
-                  HOẶC CHUYỂN KHOẢN THỦ CÔNG
+                  THÔNG TIN TÀI KHOẢN NHẬN
                 </h3>
 
-                <div className="space-y-3.5 text-xs">
-                  <div>
-                    <span className="text-slate-500 block mb-1">Ngân hàng thụ hưởng:</span>
-                    <div className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                      {troXinhBank.bankName}
-                    </div>
-                  </div>
+                <div className="space-y-3 text-xs">
+                  {paymentMethod === 'momo' ? (
+                    <>
+                      <div>
+                        <span className="text-slate-500 block mb-1">Ví điện tử:</span>
+                        <div className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          Ví Điện Tử MoMo (Napas 24/7)
+                        </div>
+                      </div>
 
-                  <div>
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="text-slate-500">Số tài khoản:</span>
-                      {copiedField === 'accountNo' && (
-                        <span className="text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Đã chép
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex items-center justify-between font-mono font-bold text-sm text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                      <span>{troXinhBank.accountNo}</span>
-                      <button
-                        type="button"
-                        onClick={() => copyToClipboard(troXinhBank.accountNo, 'accountNo')}
-                        className="text-primary-600 hover:text-primary-800 p-1"
-                        title="Sao chép"
-                      >
-                        <Copy className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-slate-500">Số điện thoại MoMo:</span>
+                          {copiedField === 'momoPhone' && (
+                            <span className="text-emerald-600 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Đã chép
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between font-mono font-bold text-sm text-[#a50064] bg-pink-50 p-2.5 rounded-xl border border-pink-200">
+                          <span>{momoReceiver.phone}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(momoReceiver.phone, 'momoPhone')}
+                            className="text-pink-600 hover:text-pink-800 p-1"
+                            title="Sao chép"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
 
-                  <div>
-                    <span className="text-slate-500 block mb-1">Chủ tài khoản:</span>
-                    <div className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-                      {troXinhBank.accountName}
-                    </div>
-                  </div>
+                      <div>
+                        <span className="text-slate-500 block mb-1">Tên người nhận:</span>
+                        <div className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          {momoReceiver.name}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-slate-500 block mb-1">Ngân hàng thụ hưởng:</span>
+                        <div className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          {troXinhBank.bankName}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-slate-500">Số tài khoản:</span>
+                          {copiedField === 'accountNo' && (
+                            <span className="text-emerald-600 font-bold flex items-center gap-1">
+                              <Check className="w-3 h-3" /> Đã chép
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center justify-between font-mono font-bold text-sm text-slate-900 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          <span>{troXinhBank.accountNo}</span>
+                          <button
+                            type="button"
+                            onClick={() => copyToClipboard(troXinhBank.accountNo, 'accountNo')}
+                            className="text-primary-600 hover:text-primary-800 p-1"
+                            title="Sao chép"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="text-slate-500 block mb-1">Chủ tài khoản:</span>
+                        <div className="font-bold text-slate-800 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+                          {troXinhBank.accountName}
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   <div>
                     <div className="flex justify-between items-center mb-1">
                       <span className="text-slate-500">Nội dung chuyển khoản (Bắt buộc):</span>
                       {copiedField === 'desc' && (
                         <span className="text-emerald-600 font-bold flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Đã chép
+                          <Check className="w-3 h-3" /> Đã chép
                         </span>
                       )}
                     </div>
@@ -465,7 +802,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                 <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2.5 text-xs text-blue-800">
                   <ShieldCheck className="w-4 h-4 shrink-0 mt-0.5 text-blue-600" />
                   <span>
-                    Chuyển đúng nội dung để hệ thống tự động nhận diện và kích hoạt trong vòng 10 giây.
+                    Chuyển đúng nội dung để hệ thống tự động nhận diện và kích hoạt trong vòng 10 giây. Xuất biên lai PDF ngay sau thanh toán.
                   </span>
                 </div>
               </div>

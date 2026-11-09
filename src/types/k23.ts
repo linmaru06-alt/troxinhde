@@ -118,7 +118,7 @@ export interface RoomReadingRow {
 // -------------------------------------------------------------
 export type K23PlanCode = 'starter' | 'pro' | 'enterprise';
 export type K23SubscriptionStatus = 'unsubscribed' | 'trialing' | 'active' | 'grace_period' | 'suspended' | 'cancelled';
-export type K23BillingCycle = 'monthly' | 'yearly';
+export type K23BillingCycle = 'monthly' | 'quarterly' | 'yearly';
 
 export interface K23Plan {
   id: string;
@@ -126,6 +126,7 @@ export interface K23Plan {
   name: string;
   description: string;
   price_monthly: number;
+  price_quarterly?: number;
   price_yearly: number;
   max_rooms: number;      // -1 means unlimited
   max_buildings: number;  // -1 means unlimited

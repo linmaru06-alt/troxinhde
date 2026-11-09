@@ -171,7 +171,9 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
             <div className="text-left sm:text-right">
               <p className="text-xs text-gray-400">Chi phí gói</p>
               <p className="text-2xl font-black text-[#006d37]">
-                {currentPlan.price === 0 ? 'Miễn phí (0 Xu)' : `${Math.round(currentPlan.price / 1000)} Xu/tháng (~${formatCurrency(currentPlan.price)})`}
+                {currentPlan.price === 0
+                  ? 'Miễn phí (0 Xu)'
+                  : `${formatCurrency(currentPlan.price)} (${Math.round(currentPlan.price / 1000)} Xu)/tháng`}
               </p>
             </div>
           </div>
@@ -264,7 +266,12 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
                     <tr key={tx.id} className="hover:bg-gray-50/60 transition">
                       <td className="py-3.5 px-3 font-mono font-bold text-gray-800">#{tx.orderId}</td>
                       <td className="py-3.5 px-3 font-medium text-gray-900">{tx.orderInfo}</td>
-                      <td className="py-3.5 px-3 font-black text-[#006d37]">{formatCurrency(tx.amount)}</td>
+                      <td className="py-3.5 px-3 font-black text-[#006d37]">
+                        {formatCurrency(tx.amount)}{' '}
+                        <span className="text-[10px] text-amber-700 bg-amber-50 px-1 py-0.2 rounded border border-amber-200 font-bold font-mono">
+                          ({Math.round(tx.amount / 1000)} Xu)
+                        </span>
+                      </td>
                       <td className="py-3.5 px-3 font-semibold uppercase text-gray-700">{tx.method}</td>
                       <td className="py-3.5 px-3 text-gray-500">
                         {new Date(tx.createdAt).toLocaleDateString('vi-VN')}

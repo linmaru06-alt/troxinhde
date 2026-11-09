@@ -263,11 +263,15 @@ export const OwnerBoostRoomPage: React.FC = () => {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <p className="text-base font-black text-[#006d37]">{formatCurrency(opt.price)}</p>
-                          <p className="text-[11px] font-bold text-amber-800">~{opt.xu} Xu</p>
+                          <p className="text-base font-black text-[#006d37]">
+                            {formatCurrency(opt.price)}{' '}
+                            <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200">
+                              ({opt.xu} Xu)
+                            </span>
+                          </p>
                           {opt.originalPrice && (
-                            <p className="text-[10px] text-gray-400 line-through">
-                              {formatCurrency(opt.originalPrice)}
+                            <p className="text-[11px] text-gray-400 line-through mt-0.5">
+                              {formatCurrency(opt.originalPrice)} ({Math.round(opt.originalPrice / 1000)} Xu)
                             </p>
                           )}
                           <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md mt-1 inline-block">
@@ -416,7 +420,7 @@ export const OwnerBoostRoomPage: React.FC = () => {
                 className="py-4 text-sm shadow-md"
                 leftIcon={<Rocket className="w-5 h-5" />}
               >
-                Mở Mã Thanh Toán ({formatCurrency(selectedOption.price)})
+                Mở Mã Thanh Toán ({formatCurrency(selectedOption.price)} - {selectedOption.xu} Xu)
               </Button>
             )}
           </div>
@@ -482,11 +486,12 @@ export const OwnerBoostRoomPage: React.FC = () => {
               <div className="space-y-1.5 text-xs text-left bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100">
                 <div className="flex justify-between items-center text-gray-600">
                   <span>Số tiền:</span>
-                  <span className="font-black text-[#006d37] text-sm">{formatCurrency(selectedOption.price)}</span>
-                </div>
-                <div className="flex justify-between items-center text-gray-600">
-                  <span>Tương đương:</span>
-                  <span className="font-bold text-amber-800">{selectedOption.xu} Xu</span>
+                  <span className="font-black text-[#006d37] text-sm">
+                    {formatCurrency(selectedOption.price)}{' '}
+                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                      ({selectedOption.xu} Xu)
+                    </span>
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-gray-600 pt-1 border-t border-emerald-200/50">
                   <span>Nội dung chuyển khoản:</span>

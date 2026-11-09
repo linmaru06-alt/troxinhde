@@ -632,8 +632,14 @@ export const useAppStore = create<AppState>()(
         if (cleaned === 'TROXINH50' || cleaned === 'TROXINH') {
           return { valid: true, discountPercent: 50, message: 'Áp dụng mã giảm giá 50% thành công! 🎉' };
         }
+        if (cleaned === 'CHUTROVIP') {
+          return { valid: true, discountPercent: 25, message: 'Áp dụng mã VIP Chủ Trọ 25% thành công! ⭐' };
+        }
         if (cleaned === 'SINHVIEN' || cleaned === 'CHUTRO') {
           return { valid: true, discountPercent: 20, message: 'Áp dụng mã ưu đãi 20% thành công! ✨' };
+        }
+        if (cleaned === 'BANMOI') {
+          return { valid: true, discountPercent: 10, message: 'Áp dụng mã Bạn Mới 10% thành công! 🎁' };
         }
         return { valid: false, discountPercent: 0, message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' };
       },
