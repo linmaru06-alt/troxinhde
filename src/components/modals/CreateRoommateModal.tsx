@@ -105,13 +105,13 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         if (d.userAge) setUserAge(d.userAge);
         if (d.userSchool) setUserSchool(d.userSchool);
         if (d.district) setDistrict(d.district);
-        if (d.desiredAddress) setDesiredAddress(d.desiredAddress);
+        if (d.desiredAddress && d.desiredAddress !== 'Không xác định được địa chỉ') setDesiredAddress(d.desiredAddress);
         if (d.budgetShare) setBudgetShare(d.budgetShare);
         if (d.genderPreference) setGenderPreference(d.genderPreference);
         if (d.selectedHabits) setSelectedHabits(d.selectedHabits);
         if (d.intro) setIntro(d.intro);
         if (typeof d.hasRoom === 'boolean') setHasRoom(d.hasRoom);
-        if (d.roomAddress) setRoomAddress(d.roomAddress);
+        if (d.roomAddress && d.roomAddress !== 'Không xác định được địa chỉ') setRoomAddress(d.roomAddress);
         if (d.roomPrice) setRoomPrice(d.roomPrice);
         if (d.roomArea) setRoomArea(d.roomArea);
         if (d.linkedRoomId) setLinkedRoomId(d.linkedRoomId);
@@ -363,13 +363,17 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       ? (uploadedImages.length > 0 ? uploadedImages : (selectedRoom?.images || []))
       : [];
 
-    const finalAddress = hasRoom
+    const rawFinalAddress = hasRoom
       ? (roomAddress.trim() || selectedRoom?.address || selectedRoomBuilding?.address || '')
       : (desiredAddress.trim() || '');
+    const finalAddress = rawFinalAddress === 'Không xác định được địa chỉ' ? '' : rawFinalAddress;
 
     setIsSubmitting(true);
     try {
       let finalCoords = roomGeo;
+      if (!finalCoords && showMapPicker) {
+        finalCoords = { lat: effectivePin.lat, lng: effectivePin.lng };
+      }
       if (!finalCoords) {
         if (finalAddress) {
           finalCoords = await geocodeAddressCached(finalAddress, district, userSchool.trim());
@@ -424,36 +428,45 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       };
       const finalPostId = created?.id || generateUUID();
 
-      addRoommatePost({
-        id: finalPostId,
-        userId: currentUser?.id || posterId,
-        userName: userName.trim(),
-        userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
-        userGender: validGender,
-        userAge: Number(userAge),
-        userSchool: userSchool.trim(),
-        district,
-        address: finalAddress || undefined,
-        lat: finalCoords.lat,
-        lng: finalCoords.lng,
-        budgetShare: Number(budgetShare),
-        genderPreference: validGenderPreference,
-        habits: selectedHabits,
-        lifestyleTags: selectedHabits.slice(0, 3),
-        intro: intro.trim(),
-        linkedRoomId: hasRoom ? (selectedRoom?.id || `room_custom_${Date.now()}`) : undefined,
-        linkedRoomTitle: finalLinkedTitle,
-        linkedRoomPrice: finalLinkedPrice,
-        linkedRoomArea: finalLinkedArea,
-        linkedRoomImage: finalImages[0],
-        images: finalImages,
-        status: 'Đang tìm',
-      });
+      addRoommatePost(
+        {
+          id: finalPostId,
+          userId: currentUser?.id || posterId,
+          userName: userName.trim(),
+          userAvatar: currentUser?.avatarUrl || '/images/user-avatar.jpg',
+          userGender: validGender,
+          userAge: Number(userAge),
+          userSchool: userSchool.trim(),
+          district,
+          address: finalAddress || undefined,
+          lat: finalCoords.lat,
+          lng: finalCoords.lng,
+          budgetShare: Number(budgetShare),
+          genderPreference: validGenderPreference,
+          habits: selectedHabits,
+          lifestyleTags: selectedHabits.slice(0, 3),
+          intro: intro.trim(),
+          linkedRoomId: hasRoom ? (selectedRoom?.id || `room_custom_${Date.now()}`) : undefined,
+          linkedRoomTitle: finalLinkedTitle,
+          linkedRoomPrice: finalLinkedPrice,
+          linkedRoomArea: finalLinkedArea,
+          linkedRoomImage: finalImages[0],
+          images: finalImages,
+          status: 'Đang tìm',
+        },
+        { skipRemoteSync: true }
+      );
 
-      // Xóa bản nháp khi đăng thành công
+      // Xóa bản nháp & làm mới tọa độ ghim khi đăng thành công
       localStorage.removeItem(DRAFT_KEY);
       setHasDraft(false);
       setSubmitError(null);
+      setRoomGeo(null);
+      setShowMapPicker(false);
+      setDesiredAddress('');
+      setRoomAddress('');
+      setIntro('');
+      setUploadedImages([]);
 
       showToast('Đăng tin tìm bạn thành công! 🎉', 'Hồ sơ của bạn đã được hiển thị trên cộng đồng Trọ Xinh.', 'success');
       onClose();
@@ -1013,10 +1026,16 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
                     initialLng={effectivePin.lng}
                     onLocationChange={(loc) => {
                       setRoomGeo({ lat: loc.lat, lng: loc.lng });
-                      if (hasRoom) {
-                        if (!roomAddress.trim() && loc.address) setRoomAddress(loc.address);
-                      } else {
-                        if (!desiredAddress.trim() && loc.address) setDesiredAddress(loc.address);
+                      const cleanAddr =
+                        loc.address && loc.address !== 'Không xác định được địa chỉ'
+                          ? loc.address.trim()
+                          : '';
+                      if (cleanAddr) {
+                        if (hasRoom) {
+                          if (!roomAddress.trim()) setRoomAddress(cleanAddr);
+                        } else {
+                          if (!desiredAddress.trim()) setDesiredAddress(cleanAddr);
+                        }
                       }
                     }}
                     className="h-44 rounded-xl overflow-hidden"

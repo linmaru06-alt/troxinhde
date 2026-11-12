@@ -100,18 +100,25 @@ const createUniIcon = (name: string) => {
 // Custom Price Pin Icon Creator (Phòng trọ)
 export const createPricePinIcon = (price: number, isActive: boolean, isRented = false) => {
   const statusClass = isRented ? 'rented' : isActive ? 'available active' : 'available';
+  const stateTone = isRented ? 'rented' : 'available';
   const priceText = formatPrice(price);
 
   return L.divIcon({
     className: 'custom-price-pin',
     html: `
-      <div class="pin-body ${statusClass}">
-        <span style="font-size: 11px;">🏠</span>
-        <span>${priceText}</span>
+      <div class="pin-anchor-wrap">
+        <div class="pin-anchor-content" style="transform: translate(-50%, calc(-100% - 3px));">
+          <div class="pin-body ${statusClass}">
+            <span style="font-size: 11px;">🏠</span>
+            <span>${priceText}</span>
+          </div>
+          <div class="pin-pointer ${stateTone}"></div>
+        </div>
+        <div class="pin-anchor-dot ${stateTone}"></div>
       </div>
     `,
-    iconSize: [96, 30],
-    iconAnchor: [48, 15],
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
   });
 };
 
@@ -123,13 +130,19 @@ export const createRoommatePinIcon = (budgetShare: number, isActive: boolean) =>
   return L.divIcon({
     className: 'custom-roommate-pin',
     html: `
-      <div class="pin-body ${statusClass}">
-        <span style="font-size: 11px;">👥</span>
-        <span>${priceText}</span>
+      <div class="pin-anchor-wrap">
+        <div class="pin-anchor-content" style="transform: translate(-50%, calc(-100% - 3px));">
+          <div class="pin-body ${statusClass}">
+            <span style="font-size: 11px;">👥</span>
+            <span>${priceText}</span>
+          </div>
+          <div class="pin-pointer roommate"></div>
+        </div>
+        <div class="pin-anchor-dot roommate"></div>
       </div>
     `,
-    iconSize: [100, 30],
-    iconAnchor: [50, 15],
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
   });
 };
 
@@ -142,10 +155,10 @@ const MapRecenter: React.FC<{ center: [number, number]; zoom?: number }> = ({ ce
     const prev = prevRef.current;
     const latDiff = prev ? Math.abs(prev.lat - center[0]) : 1;
     const lngDiff = prev ? Math.abs(prev.lng - center[1]) : 1;
-    const zoomChanged = prev ? prev.zoom !== zoom : true;
+    const zoomChanged = zoom !== undefined && (prev ? prev.zoom !== zoom : true);
 
-    if (latDiff > 0.0001 || lngDiff > 0.0001 || zoomChanged) {
-      map.setView(center, zoom || map.getZoom(), { animate: true });
+    if (latDiff > 0.00005 || lngDiff > 0.00005 || zoomChanged) {
+      map.setView(center, zoom ?? map.getZoom(), { animate: true });
       prevRef.current = { lat: center[0], lng: center[1], zoom };
     }
   }, [center, zoom, map]);
@@ -721,12 +734,18 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
   const singlePinIcon = L.divIcon({
     className: 'custom-single-pin',
     html: `
-      <div style="background: #006d37; color: white; padding: 6px 12px; border-radius: 9999px; font-weight: 800; font-size: 11px; box-shadow: 0 4px 10px rgba(0,109,55,0.4); display: flex; align-items: center; gap: 4px; border: 2px solid white; white-space: nowrap;">
-        <span>📍</span> ${buildingName || 'Vị trí trên bản đồ'}
+      <div class="pin-anchor-wrap">
+        <div class="pin-anchor-content" style="transform: translate(-50%, calc(-100% - 3px));">
+          <div style="background: #006d37; color: white; padding: 6px 12px; border-radius: 9999px; font-weight: 800; font-size: 11px; box-shadow: 0 4px 10px rgba(0,109,55,0.4); display: flex; align-items: center; gap: 4px; border: 2px solid white; white-space: nowrap;">
+            <span>📍</span> ${buildingName || 'Vị trí trên bản đồ'}
+          </div>
+          <div class="pin-pointer" style="border-top: 7px solid #006d37;"></div>
+        </div>
+        <div class="pin-anchor-dot" style="background: #006d37;"></div>
       </div>
     `,
-    iconSize: [150, 32],
-    iconAnchor: [75, 16],
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
   });
 
   return (
@@ -794,22 +813,27 @@ const LocationPickerMarker: React.FC<{
   position: [number, number];
   onPositionChange: (pos: [number, number]) => void;
 }> = ({ position, onPositionChange }) => {
-  const map = useMapEvents({
+  useMapEvents({
     click(e) {
       onPositionChange([e.latlng.lat, e.latlng.lng]);
-      map.flyTo(e.latlng, map.getZoom());
     },
   });
 
   const pickerIcon = L.divIcon({
     className: 'custom-picker-pin',
     html: `
-      <div style="background: #006d37; color: white; width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 3px solid white; cursor: grab;">
-        📍
+      <div class="pin-anchor-wrap">
+        <div class="pin-anchor-content" style="transform: translate(-50%, calc(-100% - 4px)); cursor: grab;">
+          <div style="background: #006d37; color: white; width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); border: 2.5px solid white;">
+            📍
+          </div>
+          <div class="pin-pointer" style="border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid #006d37; filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));"></div>
+        </div>
+        <div class="pin-anchor-dot" style="width: 8px; height: 8px; background: #006d37; border: 2px solid white;"></div>
       </div>
     `,
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
   });
 
   return (
@@ -837,6 +861,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
   const [position, setPosition] = useState<[number, number]>([initialLat, initialLng]);
   const [addressPreview, setAddressPreview] = useState<string>('');
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+  const geocodeSeqRef = useRef<number>(0);
 
   // Sync external coordinate changes (e.g. when user clicks "Định vị từ địa chỉ")
   useEffect(() => {
@@ -851,21 +876,38 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
 
   const handlePositionChange = async (newPos: [number, number]) => {
     setPosition(newPos);
+    // Báo tọa độ mới ngay lập tức cho form cha để tránh lệch/mất tọa độ nếu người dùng bấm Đăng ngay
+    onLocationChange({ lat: newPos[0], lng: newPos[1] });
+
+    const seq = ++geocodeSeqRef.current;
     setIsGeocoding(true);
 
     try {
       const address = await reverseGeocodeAddress(newPos[0], newPos[1]);
-      setAddressPreview(address);
-      onLocationChange({ lat: newPos[0], lng: newPos[1], address });
+      if (seq !== geocodeSeqRef.current) return;
+      if (address) {
+        setAddressPreview(address);
+        onLocationChange({ lat: newPos[0], lng: newPos[1], address });
+      } else {
+        setAddressPreview(`Tọa độ đã ghim: ${newPos[0].toFixed(5)}, ${newPos[1].toFixed(5)}`);
+      }
     } catch {
-      onLocationChange({ lat: newPos[0], lng: newPos[1] });
+      if (seq === geocodeSeqRef.current) {
+        setAddressPreview(`Tọa độ đã ghim: ${newPos[0].toFixed(5)}, ${newPos[1].toFixed(5)}`);
+      }
     } finally {
-      setIsGeocoding(false);
+      if (seq === geocodeSeqRef.current) {
+        setIsGeocoding(false);
+      }
     }
   };
 
   return (
-    <div className={`relative border border-gray-300 ${className}`}>
+    <div
+      className={`relative border border-gray-300 ${className}`}
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
       <MapContainer
         center={position}
         zoom={15}
@@ -874,7 +916,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
       >
         <ResilientTileLayer initialProviderId="google_roads" />
         <MapAutoResize />
-        <MapRecenter center={position} zoom={15} />
+        <MapRecenter center={position} />
 
         <LocationPickerMarker
           position={position}
@@ -883,7 +925,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
       </MapContainer>
 
       {/* Floating Coordinate & Address Helper */}
-      <div className="absolute bottom-3 left-3 right-3 bg-white/95 backdrop-blur-md p-2.5 rounded-xl border border-gray-200 text-xs shadow-md z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+      <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 bg-white/95 backdrop-blur-md p-2 rounded-xl border border-gray-200 text-xs shadow-md z-10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-1.5">
         <div className="flex items-center gap-1.5 text-gray-700 truncate">
           <MapPin className="w-4 h-4 text-[#006d37] shrink-0" />
           <span className="truncate">
