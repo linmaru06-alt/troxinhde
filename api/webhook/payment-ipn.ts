@@ -181,7 +181,7 @@ export default async function handler(req: any, res: any) {
     const amount = event.amount;
 
     try {
-      // 0. NHÁNH ƯU TIÊN: ĐƠN NẠP VÍ XU THEO MÃ ĐƠN DUY NHẤT (TXNAP...)
+      // 0. NHÁNH ƯU TIÊN 1: ĐƠN NẠP VÍ XU THEO MÃ ĐƠN DUY NHẤT (TXNAP...)
       const matchTopupOrder =
         rawContent.match(/\b(TXNAP[A-Z0-9]{6,16})\b/i) ||
         String(body?.orderCode || body?.orderId || '').match(/\b(TXNAP[A-Z0-9]{6,16})\b/i);
@@ -203,6 +203,32 @@ export default async function handler(req: any, res: any) {
           type: 'WALLET_TOPUP_ORDER',
           orderCode,
           ...rpcRes,
+        });
+        continue;
+      }
+
+      // 0B. NHÁNH ƯU TIÊN 2: ĐƠN DỊCH VỤ CHỦ TRỌ (TXGOI..., TXBST..., TXK23..., TXGHN...)
+      const matchServiceOrder =
+        rawContent.match(/\b(TX(?:GOI|BST|K23|GHN)[A-Z0-9]{6,16})\b/i) ||
+        String(body?.orderCode || body?.orderId || '').match(/\b(TX(?:GOI|BST|K23|GHN)[A-Z0-9]{6,16})\b/i);
+
+      if (matchServiceOrder && matchServiceOrder[1]) {
+        const orderCode = matchServiceOrder[1].toUpperCase();
+        const { data: svcRes, error: svcErr } = await supabase.rpc('fulfill_paid_service_order', {
+          p_order_code: orderCode,
+          p_paid_amount: Math.floor(amount),
+          p_reference_id: event.referenceCode,
+          p_gateway: event.gateway,
+        });
+
+        if (svcErr) {
+          throw svcErr;
+        }
+
+        results.push({
+          type: 'SERVICE_ORDER_FULFILLED',
+          orderCode,
+          ...svcRes,
         });
         continue;
       }

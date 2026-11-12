@@ -202,7 +202,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                       title="Số dư Ví Xu Trọ Xinh"
                     >
                       <Coins className="w-3 h-3 text-amber-600" />
-                      <span>{wallet?.total_xu ?? 5500} Xu</span>
+                      <span>{(wallet?.total_xu ?? 0).toLocaleString('vi-VN')} Xu</span>
                     </Link>
                   </div>
                 </div>
@@ -444,7 +444,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="text-[11px] font-black text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
-                    {wallet?.total_xu ?? 5500} Xu
+                    {(wallet?.total_xu ?? 0).toLocaleString('vi-VN')} Xu
                   </span>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </div>
@@ -478,9 +478,23 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                 >
                   <div className="flex items-center gap-3">
                     <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
-                      PRO
+                      TIN
                     </span>
-                    <span>Gói PRO</span>
+                    <span>Gói đăng phòng</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-gray-400" />
+                </Link>
+
+                <Link
+                  to="/chu-tro/goi-dich-vu"
+                  onClick={onClose}
+                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="px-1.5 py-0.5 bg-emerald-700 text-white rounded text-[9px] font-black tracking-wider">
+                      K23
+                    </span>
+                    <span>Gói quản lý phòng trọ K23</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </Link>

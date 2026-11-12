@@ -213,15 +213,17 @@ export const OwnerInvoiceListPage: React.FC = () => {
                 <History className="w-4 h-4 text-indigo-600" />
                 <span>Audit Log</span>
               </button>
-              <button
-                type="button"
-                onClick={() => setIsWebhookModalOpen(true)}
-                className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 shadow-xs transition-all"
-                title="Mô phỏng Webhook SePay gạch nợ tự động trong 3 giây"
-              >
-                <Zap className="w-4 h-4 text-blue-600" />
-                <span>Test Webhook SePay</span>
-              </button>
+              {import.meta.env.DEV && (
+                <button
+                  type="button"
+                  onClick={() => setIsWebhookModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 hover:bg-blue-100 shadow-xs transition-all"
+                  title="Mô phỏng Webhook SePay gạch nợ tự động trong 3 giây"
+                >
+                  <Zap className="w-4 h-4 text-blue-600" />
+                  <span>Test Webhook SePay</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleExportExcel}
@@ -551,17 +553,19 @@ export const OwnerInvoiceListPage: React.FC = () => {
       onClose={() => setIsExpenseOpen(false)}
       totalRevenueCollected={metrics.paidAmount}
     />
-    {/* Modal Mô phỏng Webhook SePay P1-06 */}
-    <WebhookSimulatorModal
-      isOpen={isWebhookModalOpen}
-      onClose={() => setIsWebhookModalOpen(false)}
-      invoices={invoices}
-      onSuccess={() => {
-        if (showToast) {
-          showToast('Đã nhận diện tiền về và gạch nợ thành công qua Webhook SePay!', 'success');
-        }
-      }}
-    />
+    {/* Modal Mô phỏng Webhook SePay P1-06 (Chỉ Dev) */}
+    {import.meta.env.DEV && (
+      <WebhookSimulatorModal
+        isOpen={isWebhookModalOpen}
+        onClose={() => setIsWebhookModalOpen(false)}
+        invoices={invoices}
+        onSuccess={() => {
+          if (showToast) {
+            showToast('Đã nhận diện tiền về và gạch nợ thành công qua Webhook SePay!', 'success');
+          }
+        }}
+      />
+    )}
     {/* Modal Nhật ký Audit Log P1-08 */}
     <AuditLogModal
       isOpen={isAuditModalOpen}

@@ -44,6 +44,7 @@ import {
   FileCheck,
   HelpCircle,
   Eye,
+  Rocket,
 } from "lucide-react";
 
 
@@ -1117,6 +1118,23 @@ export const RoomDetailPage: React.FC = () => {
               >
                 {isSaved ? "Đã Lưu Phòng" : "Lưu Phòng Trọ"}
               </Button>
+
+              {Boolean(
+                currentUser &&
+                  (isSameUserId(currentUser.id, room.ownerId) ||
+                    (currentUser.isDemoAccount && room.ownerId === "user_owner_1"))
+              ) && (
+                <Link to={`/chu-tro/nang-cap-tin/${room.id}`} className="block">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    className="w-full border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 font-bold"
+                    leftIcon={<Rocket className="w-4 h-4 text-amber-600" />}
+                  >
+                    Đẩy tin nổi bật (Từ 15 Xu)
+                  </Button>
+                </Link>
+              )}
             </div>
 
             {/* Trust Checklist */}

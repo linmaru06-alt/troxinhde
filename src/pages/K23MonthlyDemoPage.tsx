@@ -596,20 +596,22 @@ export const K23MonthlyDemoPage: React.FC = () => {
               </div>
             </button>
 
-            {/* P1-06 */}
-            <button
-              type="button"
-              onClick={() => setIsWebhookOpen(true)}
-              className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
-            >
-              <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
-                <Zap className="w-4 h-4" />
-              </div>
-              <div>
-                <span className="text-[11px] font-bold text-blue-900 block">Test SePay 3s</span>
-                <span className="text-[10px] text-blue-700">P1-06 • Tự động gạch nợ</span>
-              </div>
-            </button>
+            {/* P1-06 (Chỉ hiển thị trong môi trường dev) */}
+            {import.meta.env.DEV && (
+              <button
+                type="button"
+                onClick={() => setIsWebhookOpen(true)}
+                className="p-3 rounded-2xl bg-blue-50 hover:bg-blue-100 border border-blue-200 text-left transition flex flex-col justify-between gap-2 cursor-pointer group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center font-bold shadow-xs">
+                  <Zap className="w-4 h-4" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold text-blue-900 block">Test SePay 3s</span>
+                  <span className="text-[10px] text-blue-700">P1-06 • Tự động gạch nợ</span>
+                </div>
+              </button>
+            )}
 
             {/* P1-05 */}
             <a
@@ -1198,20 +1200,22 @@ export const K23MonthlyDemoPage: React.FC = () => {
         totalRevenueCollected={totalCollected}
       />
 
-      <WebhookSimulatorModal
-        isOpen={isWebhookOpen}
-        onClose={() => setIsWebhookOpen(false)}
-        invoices={invoices}
-        onSuccess={(invId) => {
-          setInvoices((prev) =>
-            prev.map((i) =>
-              i.id === invId
-                ? { ...i, status: 'paid' as any, paid_amount: i.total_amount, remaining: 0 }
-                : i
-            )
-          );
-        }}
-      />
+      {import.meta.env.DEV && (
+        <WebhookSimulatorModal
+          isOpen={isWebhookOpen}
+          onClose={() => setIsWebhookOpen(false)}
+          invoices={invoices}
+          onSuccess={(invId) => {
+            setInvoices((prev) =>
+              prev.map((i) =>
+                i.id === invId
+                  ? { ...i, status: 'paid' as any, paid_amount: i.total_amount, remaining: 0 }
+                  : i
+              )
+            );
+          }}
+        />
+      )}
 
       <AuditLogModal
         isOpen={isAuditOpen}

@@ -17,7 +17,6 @@ import {
   PaymentMethod,
   PaymentTransaction,
   OwnerSubscription,
-  Toast,
 } from '../types';
 import {
   K23Wallet,
@@ -58,6 +57,13 @@ import { onAutoModerationTriggered } from '../lib/api/reports';
 import { isAdminIdentifier, isPermittedAdmin } from '../lib/security/sessionIntegrity';
 import { isTargetDeletedRoom } from '../lib/roomSearch';
 import { isTargetDeletedMarketplaceItem } from '../lib/marketplaceFilter';
+import {
+  FREE_LISTING_QUOTA,
+  LISTING_PLANS,
+  normalizeListingPlanId,
+  validateMonetizationCoupon,
+  XU_TO_VND_RATE,
+} from '../lib/monetizationCatalog';
 
 export type { BlockedUserRecord, HiddenItemRecord };
 
@@ -67,57 +73,34 @@ export const SUBSCRIPTION_PLANS: SubscriptionPlan[] = [
     name: 'Gói Miễn Phí',
     price: 0,
     priceXu: 0,
+    billingType: 'free',
     period: 'Vĩnh viễn',
-    roomLimit: 2,
+    roomLimit: FREE_LISTING_QUOTA,
     badge: 'Khởi đầu',
     features: [
-      'Đăng tối đa 02 phòng trọ',
-      'Được kiểm duyệt 100% PCCC',
-      'Hộp thư tin nhắn với khách thuê',
+      `Đăng miễn phí tối đa 0${FREE_LISTING_QUOTA} phòng trọ đầu tiên`,
+      'Được kiểm duyệt 100% PCCC & an ninh',
+      'Hộp thư tin nhắn trực tiếp với khách thuê',
       'Quản lý trạng thái phòng cơ bản',
     ],
-    description: 'Dành cho chủ trọ cá nhân có 1-2 phòng lẻ cần cho thuê nhanh.',
+    description: `Mỗi tài khoản chủ trọ được đăng miễn phí ${FREE_LISTING_QUOTA} phòng đầu tiên trước khi cần chọn gói.`,
   },
-  {
-    id: 'basic',
-    name: 'Gói Cơ Bản',
-    price: 99000,
-    priceXu: 99,
-    originalPrice: 149000,
-    originalPriceXu: 149,
-    period: 'Tháng',
-    roomLimit: 10,
-    popular: true,
-    badge: 'Phổ biến nhất 🔥',
-    features: [
-      'Đăng tối đa 10 phòng trọ',
-      'Tặng 01 lượt Đẩy Tin Nổi Bật 3 ngày/tháng',
-      'Ưu tiên duyệt tin trong 2 giờ',
-      'Thống kê số lượt xem & lưu phòng',
-      'Hỗ trợ kỹ thuật 24/7',
-    ],
-    description: 'Lựa chọn lý tưởng cho các chủ nhà trọ quản lý 1-2 tòa nhà vừa và nhỏ.',
-  },
-  {
-    id: 'pro',
-    name: 'Gói Chuyên Nghiệp (Pro VIP)',
-    price: 299000,
-    priceXu: 299,
-    originalPrice: 450000,
-    originalPriceXu: 450,
-    period: 'Tháng',
-    roomLimit: 999,
-    badge: 'Dành cho chuỗi căn hộ ⭐',
-    features: [
-      'Không giới hạn số lượng phòng & tòa nhà',
-      'Tặng 05 lượt Đẩy Tin Nổi Bật VIP mỗi tháng',
-      'Huy hiệu "Đối Tác Vàng 5★" trên tất cả tin đăng',
-      'Tự động duyệt tin đăng ngay lập tức (AI Auto-Approve)',
-      'Phân tích chi tiết nguồn khách thuê & doanh thu',
-      'Chuyên viên CSKH riêng chăm sóc tài khoản',
-    ],
-    description: 'Dành cho chuỗi căn hộ dịch vụ, chung cư mini, nhà trọ quy mô lớn.',
-  },
+  ...LISTING_PLANS.map((plan) => ({
+    id: plan.id as SubscriptionPlanId,
+    name: plan.name,
+    price: plan.priceXu * XU_TO_VND_RATE,
+    priceXu: plan.priceXu,
+    yearlyPriceXu: plan.yearlyPriceXu,
+    billingType: plan.billingType,
+    durationDays: plan.durationDays,
+    freeRepostsGranted: plan.freeRepostsGranted,
+    period: plan.periodLabel,
+    roomLimit: plan.roomLimit === -1 ? 999 : plan.roomLimit,
+    badge: plan.badge,
+    popular: plan.popular,
+    features: plan.features,
+    description: plan.description,
+  })),
 ];
 
 export interface Toast {
@@ -330,44 +313,19 @@ export const useAppStore = create<AppState>()(
         autoRenew: true,
         startedAt: new Date().toISOString(),
       },
-      paymentTransactions: [
-        {
-          id: 'tx_demo_1',
-          userId: 'user_owner_1',
-          userName: 'Trần Quốc Tuấn',
-          orderId: 'TRX_889201',
-          orderInfo: 'Nâng cấp Gói Cơ Bản (1 Tháng)',
-          amount: 99000,
-          method: 'momo',
-          status: 'success',
-          planId: 'basic',
-          createdAt: new Date(Date.now() - 15 * 86400000).toISOString(),
-        },
-      ],
+      paymentTransactions: [],
 
-      // State Ví Xu Trọ Xinh (1 Xu = 1.000 VNĐ) - Cập nhật sẵn 5.500 Xu trải nghiệm
+      // State Ví Xu Trọ Xinh mặc định 0 Xu (Demo Sandbox được cấp 5.500 Xu riêng khi rehydrate)
       wallet: {
-        id: 'wallet_owner_k23',
-        owner_id: 'user_owner_1',
-        balance_real_xu: 5000,
-        balance_bonus_xu: 500,
-        total_xu: 5500,
+        id: 'wallet_default',
+        owner_id: '',
+        balance_real_xu: 0,
+        balance_bonus_xu: 0,
+        total_xu: 0,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       },
-      walletTransactions: [
-        {
-          id: 'wtx_welcome_1',
-          owner_id: 'user_owner_1',
-          amount_real_xu: 5000,
-          amount_bonus_xu: 500,
-          total_amount_xu: 5500,
-          transaction_type: 'deposit',
-          reason: 'Cập nhật ví Xu Trọ Xinh - Số dư ưu đãi đặc biệt (Tặng thêm Xu thưởng)',
-          reference_id: 'TX_XU_VIP',
-          created_at: new Date().toISOString(),
-        },
-      ],
+      walletTransactions: [],
 
       fetchWallet: async (ownerIdParam?: string) => {
         const { currentUser } = get();
@@ -538,8 +496,10 @@ export const useAppStore = create<AppState>()(
 
       upgradeSubscription: (planId, method, amount) => {
         const { currentUser, showToast } = get();
-        const plan = SUBSCRIPTION_PLANS.find((p) => p.id === planId) || SUBSCRIPTION_PLANS[1];
-        const newExpiry = new Date(Date.now() + 30 * 86400000).toISOString();
+        const canonicalId = planId === 'free' ? 'free' : normalizeListingPlanId(planId);
+        const plan = SUBSCRIPTION_PLANS.find((p) => p.id === canonicalId) || SUBSCRIPTION_PLANS[1];
+        const durationDays = plan.durationDays || 30;
+        const newExpiry = new Date(Date.now() + durationDays * 86400000).toISOString();
 
         const newTx: PaymentTransaction = {
           id: `tx_${Date.now()}`,
@@ -548,18 +508,19 @@ export const useAppStore = create<AppState>()(
           orderId: `TRX_${Date.now().toString().slice(-6)}`,
           orderInfo: `Nâng cấp ${plan.name}`,
           amount,
+          amountXu: plan.priceXu,
           method,
           status: 'success',
-          planId,
+          planId: canonicalId as SubscriptionPlanId,
           createdAt: new Date().toISOString(),
         };
 
         set((state) => ({
           ownerSubscription: {
-            planId,
+            planId: canonicalId as SubscriptionPlanId,
             status: 'active',
             expiresAt: newExpiry,
-            autoRenew: true,
+            autoRenew: plan.billingType !== 'one_time',
             startedAt: new Date().toISOString(),
           },
           paymentTransactions: [newTx, ...state.paymentTransactions],
@@ -567,8 +528,8 @@ export const useAppStore = create<AppState>()(
             {
               id: `notif_${Date.now()}`,
               userId: currentUser?.id || 'user_owner_1',
-              title: `Nâng cấp ${plan.name} thành công! 🎉`,
-              body: `Tài khoản của bạn đã được nâng cấp lên hạn mức ${plan.roomLimit === 999 ? 'không giới hạn' : plan.roomLimit} phòng trọ.`,
+              title: `Kích hoạt ${plan.name} thành công! 🎉`,
+              body: `Tài khoản của bạn đã sẵn sàng với hạn mức ${plan.roomLimit === 999 ? 'không giới hạn' : plan.roomLimit} phòng trọ.`,
               type: 'upgrade',
               read: false,
               ctaUrl: '/chu-tro/quan-ly-goi',
@@ -644,20 +605,7 @@ export const useAppStore = create<AppState>()(
       },
 
       validateCoupon: (code: string) => {
-        const cleaned = code.trim().toUpperCase();
-        if (cleaned === 'TROXINH50' || cleaned === 'TROXINH') {
-          return { valid: true, discountPercent: 50, message: 'Áp dụng mã giảm giá 50% thành công! 🎉' };
-        }
-        if (cleaned === 'CHUTROVIP') {
-          return { valid: true, discountPercent: 25, message: 'Áp dụng mã VIP Chủ Trọ 25% thành công! ⭐' };
-        }
-        if (cleaned === 'SINHVIEN' || cleaned === 'CHUTRO') {
-          return { valid: true, discountPercent: 20, message: 'Áp dụng mã ưu đãi 20% thành công! ✨' };
-        }
-        if (cleaned === 'BANMOI') {
-          return { valid: true, discountPercent: 10, message: 'Áp dụng mã Bạn Mới 10% thành công! 🎁' };
-        }
-        return { valid: false, discountPercent: 0, message: 'Mã giảm giá không hợp lệ hoặc đã hết hạn.' };
+        return validateMonetizationCoupon(code);
       },
 
       setCurrentUser: (user) => {
@@ -1906,6 +1854,17 @@ export const useAppStore = create<AppState>()(
               created_at: state.wallet?.created_at || new Date().toISOString(),
               updated_at: new Date().toISOString(),
             };
+          } else if (!state.currentUser?.isDemoAccount && state.wallet?.id === 'wallet_owner_k23') {
+            state.wallet = {
+              id: 'wallet_default',
+              owner_id: state.currentUser?.id || '',
+              balance_real_xu: 0,
+              balance_bonus_xu: 0,
+              total_xu: 0,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            };
+            state.walletTransactions = [];
           }
 
           if (state.currentUser) {

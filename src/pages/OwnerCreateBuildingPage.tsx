@@ -1,29 +1,39 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAppStore } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import {
   Building2,
-  CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  Upload,
   ShieldCheck,
   Check,
-  MapPin,
-  Plus,
   LocateFixed,
+  Crown,
 } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { MapPinPicker } from '../components/map/TroXinhMap';
 import { createBuilding } from '../lib/api/buildings';
 import { geocodeAddressCached } from '../lib/geocoding';
+import { useK23Subscription } from '../hooks/queries/useK23Subscription';
+import { UpgradeModal } from '../components/k23/subscription/UpgradeModal';
+import { resolveUserIdToUuid } from '../lib/api/messages';
 
 export const OwnerCreateBuildingPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { addBuilding, currentUser, showToast } = useAppStore();
+  const {
+    canAddBuilding,
+    isLoadingSubscription,
+    buildingCount,
+    maxBuildings,
+    currentPlan,
+  } = useK23Subscription();
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
 
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -87,13 +97,28 @@ export const OwnerCreateBuildingPage: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    const ownerId =
-      currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
-        ? currentUser.id
-        : '00000000-0000-0000-0000-000000000002';
+    if (!currentUser?.id) {
+      showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập tài khoản chủ trọ để tạo tòa nhà.', 'warning');
+      return;
+    }
+
+    if (!isLoadingSubscription && !canAddBuilding) {
+      setIsUpgradeModalOpen(true);
+      showToast(
+        'Đã đạt giới hạn tòa nhà của gói K23',
+        `Gói ${currentPlan?.name || 'hiện tại'} chỉ hỗ trợ tối đa ${maxBuildings} tòa nhà. Vui lòng nâng cấp để thêm tòa nhà mới.`,
+        'warning'
+      );
+      return;
+    }
 
     setIsSubmitting(true);
     try {
+      const ownerId =
+        currentUser.isDemoAccount || currentUser.id === '00000000-0000-0000-0000-000000000002'
+          ? '00000000-0000-0000-0000-000000000002'
+          : await resolveUserIdToUuid(currentUser.id);
+
       let finalGeo = geo;
       if (!hasPinnedManually && address.trim()) {
         const resolved = await geocodeAddressCached(address.trim(), district.trim());
@@ -114,10 +139,10 @@ export const OwnerCreateBuildingPage: React.FC = () => {
       });
 
       const id = addBuilding({
-        ownerId: currentUser?.id || ownerId,
-        ownerName: currentUser?.name || 'Chủ trọ',
-        ownerPhone: currentUser?.phone || '',
-        ownerAvatar: currentUser?.avatarUrl || '/images/user-avatar.webp',
+        ownerId: currentUser.id || ownerId,
+        ownerName: currentUser.name || 'Chủ trọ',
+        ownerPhone: currentUser.phone || '',
+        ownerAvatar: currentUser.avatarUrl || '/images/user-avatar.webp',
         name,
         address,
         district,
@@ -134,6 +159,7 @@ export const OwnerCreateBuildingPage: React.FC = () => {
         nearbyUniversities: [{ name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 }],
       });
 
+      queryClient.invalidateQueries({ queryKey: ['k23-building-count'] });
       showToast('Tạo hồ sơ tòa nhà thành công!', 'Hồ sơ đã được gửi để kiểm duyệt.', 'success');
       navigate(`/toa-nha/${id}`);
     } catch (err: any) {
@@ -148,11 +174,44 @@ export const OwnerCreateBuildingPage: React.FC = () => {
       <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 sm:p-8 max-w-4xl space-y-6 overflow-y-auto">
-        <div className="flex items-center gap-2 text-xs text-gray-500">
-          <Link to="/chu-tro" className="hover:text-[#006d37]">Bảng điều khiển</Link>
-          <span>/</span>
-          <span className="font-bold text-gray-900">Tạo hồ sơ tòa nhà mới</span>
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <Link to="/chu-tro" className="hover:text-[#006d37]">Bảng điều khiển</Link>
+            <span>/</span>
+            <span className="font-bold text-gray-900">Tạo hồ sơ tòa nhà mới</span>
+          </div>
+
+          <Link
+            to="/chu-tro/goi-dich-vu?returnUrl=%2Fchu-tro%2Ftoa-nha%2Ftao-moi"
+            className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold hover:bg-amber-100 transition"
+          >
+            <Crown className="w-3.5 h-3.5 text-amber-600" />
+            <span>
+              K23: {buildingCount}/{maxBuildings === -1 ? '∞' : maxBuildings} tòa nhà
+            </span>
+          </Link>
         </div>
+
+        {!isLoadingSubscription && !canAddBuilding && (
+          <div className="bg-orange-50 border border-orange-200 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-orange-900">
+                Bạn đã đạt giới hạn tòa nhà của {currentPlan?.name || 'gói K23 hiện tại'} ({buildingCount}/{maxBuildings} tòa nhà)
+              </p>
+              <p className="text-xs text-orange-700 mt-0.5">
+                Nâng cấp lên gói Tiêu Chuẩn (tối đa 3 tòa nhà) hoặc gói Chuỗi (không giới hạn) để tạo thêm cơ sở mới.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              onClick={() => setIsUpgradeModalOpen(true)}
+            >
+              Nâng cấp gói K23
+            </Button>
+          </div>
+        )}
 
         {/* Stepper Card */}
         <div className="bg-white rounded-3xl p-6 sm:p-8 border border-gray-200 shadow-md space-y-8 animate-fadeIn">
@@ -366,6 +425,14 @@ export const OwnerCreateBuildingPage: React.FC = () => {
           )}
         </div>
       </main>
+
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        title="Đã đạt giới hạn tòa nhà của gói K23"
+        message={`Gói ${currentPlan?.name || 'hiện tại'} hỗ trợ tối đa ${maxBuildings === -1 ? 'không giới hạn' : maxBuildings} tòa nhà. Vui lòng nâng cấp lên Tiêu Chuẩn hoặc Chuỗi để tiếp tục.`}
+        returnUrl="/chu-tro/toa-nha/tao-moi"
+      />
     </div>
   );
 };

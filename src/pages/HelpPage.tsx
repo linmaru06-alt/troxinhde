@@ -456,14 +456,14 @@ const FAQS: FAQItem[] = [
     id: 'paid-2',
     categoryId: 'paid-services',
     question: 'Những phương thức thanh toán nào được chấp nhận trên Trọ Xinh?',
-    tags: ['thanh toán', 'qr', 'momo', 'vnpay', 'chuyển khoản'],
+    tags: ['thanh toán', 'xu', 'qr', 'vietqr', 'momo', 'chuyển khoản'],
     answer: (
       <div className="space-y-2.5 text-gray-700 leading-relaxed text-sm">
-        <p>Trọ Xinh hỗ trợ cổng thanh toán tự động đa kênh tiện lợi và an toàn:</p>
+        <p>Trọ Xinh hỗ trợ thanh toán linh hoạt, đối soát tự động 24/7:</p>
         <ul className="list-disc pl-5 space-y-1.5">
-          <li><strong>Chuyển khoản VietQR:</strong> Quét mã QR chuyển khoản ngân hàng, nhận diện cú pháp tự động 24/7.</li>
-          <li><strong>Ví điện tử MoMo:</strong> Thanh toán tức thì qua App MoMo trên điện thoại.</li>
-          <li><strong>Cổng VNPAY / Thẻ ATM &amp; Visa/Mastercard:</strong> Đầy đủ chuẩn bảo mật ngân hàng Việt Nam.</li>
+          <li><strong>Số dư Xu nội bộ:</strong> Thanh toán 1 chạm trực tiếp cho tất cả dịch vụ đăng phòng, đẩy tin và K23.</li>
+          <li><strong>Chuyển khoản VietQR:</strong> Quét mã QR chuyển khoản Techcombank, nhận diện nội dung tự động 24/7.</li>
+          <li><strong>Ví điện tử MoMo:</strong> Thanh toán tức thì qua App MoMo hoặc mã QR đối soát tự động.</li>
         </ul>
       </div>
     ),

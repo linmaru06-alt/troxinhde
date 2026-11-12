@@ -1,22 +1,63 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { checkPaymentStatus } from '../lib/payos';
+import { getServicePaymentOrderStatus } from '../lib/api/monetization';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, SubscriptionPlanId } from '../types';
+import { XU_TO_VND_RATE, sanitizeReturnUrl } from '../lib/monetizationCatalog';
+
+interface PollingOptions {
+  billingCycle?: 'one_time' | 'monthly' | 'yearly';
+  amountXu?: number;
+  returnUrl?: string;
+}
 
 export function usePaymentPolling(
   orderCode: number | string | null,
   planId: string,
-  totalAmount: number,
+  totalAmountVnd: number,
   method: PaymentMethod = 'vietqr',
-  onSuccess?: () => void
+  onSuccess?: () => void,
+  options?: PollingOptions
 ) {
   const [status, setStatus] = useState<'idle' | 'waiting' | 'success' | 'failed' | 'expired'>('idle');
-  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(900); // 15 minutes = 900s
+  const [timeLeftSeconds, setTimeLeftSeconds] = useState<number>(900);
+  const [isChecking, setIsChecking] = useState<boolean>(false);
   const navigate = useNavigate();
-  const { upgradeSubscription, currentUser, showToast } = useAppStore();
+  const { upgradeSubscription, showToast } = useAppStore();
 
-  // Countdown 15 minutes timer
+  const billingCycle = options?.billingCycle || 'monthly';
+  const amountXu = options?.amountXu ?? Math.round(totalAmountVnd / XU_TO_VND_RATE);
+  const safeReturnUrl = sanitizeReturnUrl(options?.returnUrl, '');
+
+  const buildResultUrl = useCallback(() => {
+    const qs = new URLSearchParams({
+      service: 'listing_plan',
+      orderId: String(orderCode || ''),
+      amount: String(totalAmountVnd),
+      amountXu: String(amountXu),
+      plan: planId,
+      cycle: billingCycle,
+      method,
+      status: 'success',
+    });
+    if (safeReturnUrl) {
+      qs.set('returnUrl', safeReturnUrl);
+    }
+    return `/thanh-toan/ket-qua?${qs.toString()}`;
+  }, [orderCode, totalAmountVnd, amountXu, planId, billingCycle, method, safeReturnUrl]);
+
+  const completeOrder = useCallback(() => {
+    setStatus('success');
+    upgradeSubscription(planId as SubscriptionPlanId, method, totalAmountVnd);
+    showToast('Thanh toán thành công!', `Gói dịch vụ #${orderCode} đã được kích hoạt.`, 'success');
+    if (onSuccess) onSuccess();
+    setTimeout(() => {
+      navigate(buildResultUrl());
+    }, 1000);
+  }, [planId, method, totalAmountVnd, orderCode, upgradeSubscription, showToast, onSuccess, navigate, buildResultUrl]);
+
+  // Countdown 15 phút
   useEffect(() => {
     if (!orderCode || status === 'success' || status === 'failed' || status === 'expired') return;
 
@@ -35,79 +76,87 @@ export function usePaymentPolling(
     return () => clearInterval(timer);
   }, [orderCode, status]);
 
-  // Polling check every 3s
+  // Realtime listener trên bảng transactions
+  useEffect(() => {
+    if (!orderCode || status !== 'waiting' || !isSupabaseConfigured || !supabase) return;
+
+    const channel = supabase
+      .channel(`payment-order-${orderCode}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'transactions',
+          filter: `order_code=eq.${orderCode}`,
+        },
+        (payload: any) => {
+          if (payload?.new?.status === 'paid') {
+            completeOrder();
+          } else if (payload?.new?.status === 'failed') {
+            setStatus('failed');
+          } else if (payload?.new?.status === 'expired') {
+            setStatus('expired');
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [orderCode, status, completeOrder]);
+
+  // Fallback Polling mỗi 3s
   useEffect(() => {
     if (!orderCode || status !== 'waiting') return;
 
     let attempts = 0;
-    const MAX_ATTEMPTS = 200; // 200 * 3s = 10 minutes
+    const MAX_ATTEMPTS = 200;
 
     const pollInterval = setInterval(async () => {
       attempts++;
-      const result = await checkPaymentStatus(orderCode);
-
-      if (result.status === 'success') {
-        setStatus('success');
-        clearInterval(pollInterval);
-        // Cập nhật trạng thái UI sau khi Server Database xác nhận giao dịch đã thành công
-        upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
-        showToast('🎉 Thanh toán thành công!', `Gói dịch vụ #${orderCode} đã được kích hoạt.`, 'success');
-        if (onSuccess) onSuccess();
-        setTimeout(() => {
-          navigate(
-            `/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
-          );
-        }, 1500);
-      } else if (result.status === 'failed' || attempts >= MAX_ATTEMPTS) {
-        setStatus(attempts >= MAX_ATTEMPTS ? 'expired' : 'failed');
-        clearInterval(pollInterval);
+      try {
+        const result = await getServicePaymentOrderStatus(String(orderCode));
+        if (result.status === 'paid') {
+          clearInterval(pollInterval);
+          completeOrder();
+        } else if (result.status === 'failed' || result.status === 'expired' || attempts >= MAX_ATTEMPTS) {
+          setStatus(attempts >= MAX_ATTEMPTS || result.status === 'expired' ? 'expired' : 'failed');
+          clearInterval(pollInterval);
+        }
+      } catch (err) {
+        console.warn('[usePaymentPolling] Poll warning:', err);
       }
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [orderCode, status, planId, totalAmount, method, navigate, upgradeSubscription, currentUser, showToast, onSuccess]);
+  }, [orderCode, status, completeOrder]);
 
-  const triggerManualSuccess = async () => {
+  const recheckStatus = async () => {
     if (!orderCode) return;
-
-    // 1. Trường hợp Tài khoản Demo (Sandbox): kích hoạt mô phỏng an toàn
-    if (orderCode.toString().startsWith('DEMO_')) {
-      setStatus('success');
-      upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
-      showToast('🎉 Kích hoạt gói thử nghiệm Demo thành công!', 'Gói dịch vụ đã được kích hoạt trong phiên làm việc.', 'success');
-      if (onSuccess) onSuccess();
-      setTimeout(() => {
-        navigate(
-          `/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
+    setIsChecking(true);
+    try {
+      const paymentCheck = await getServicePaymentOrderStatus(String(orderCode));
+      if (paymentCheck.status === 'paid') {
+        completeOrder();
+      } else if (paymentCheck.status === 'failed') {
+        setStatus('failed');
+        showToast('Giao dịch thất bại', 'Vui lòng kiểm tra lại hoặc tạo mã QR mới.', 'error');
+      } else if (paymentCheck.status === 'expired') {
+        setStatus('expired');
+        showToast('Mã QR đã hết hạn', 'Vui lòng tạo mã thanh toán mới.', 'warning');
+      } else {
+        showToast(
+          'Đang chờ đối soát giao dịch',
+          'Hệ thống tự động kích hoạt ngay khi nhận được xác nhận từ ngân hàng/MoMo.',
+          'info'
         );
-      }, 1000);
-      return;
-    }
-
-    showToast('Đang kiểm tra giao dịch...', 'Hệ thống đang kiểm tra giao dịch với ngân hàng/MoMo...', 'info');
-
-    // Kiểm tra trực tiếp với Server Database đã nhận IPN từ Webhook chưa
-    const paymentCheck = await checkPaymentStatus(orderCode);
-    const isConfirmed = paymentCheck.status === 'success';
-
-    // Nếu đã nhận được tiền từ Webhook / IPN
-    if (isConfirmed) {
-      setStatus('success');
-      upgradeSubscription(planId as SubscriptionPlanId, method, totalAmount);
-      showToast('🎉 Thanh toán thành công!', `Gói dịch vụ đã được kích hoạt.`, 'success');
-      if (onSuccess) onSuccess();
-      setTimeout(() => {
-        navigate(
-          `/thanh-toan/ket-qua?orderId=${orderCode}&amount=${totalAmount}&plan=${planId}&method=${method}&status=success`
-        );
-      }, 1200);
-    } else {
-      // Đang đối soát
-      showToast(
-        '⏳ Đang chờ xác nhận từ MoMo/Ngân hàng',
-        'Giao dịch của bạn đang được hệ thống tự động đối soát (thường mất 5-30 giây). Trang sẽ tự động chuyển khi nhận được tiền!',
-        'info'
-      );
+      }
+    } catch (err: any) {
+      showToast('Không thể kiểm tra trạng thái', err?.message || 'Vui lòng thử lại sau.', 'error');
+    } finally {
+      setIsChecking(false);
     }
   };
 
@@ -121,7 +170,8 @@ export function usePaymentPolling(
     status,
     timeLeftSeconds,
     countdownText: formatCountdown(),
-    triggerManualSuccess,
+    isChecking,
+    recheckStatus,
     resetPayment: () => {
       setStatus('idle');
       setTimeLeftSeconds(900);

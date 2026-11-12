@@ -4,46 +4,50 @@ import {
   getK23Plans,
   getOwnerK23Subscription,
   getOwnerRoomCount,
-  createK23Order,
-  confirmK23OrderMock,
+  getOwnerBuildingCount,
   activateK23Trial,
+  DEFAULT_K23_PLANS,
 } from '../../lib/api/k23Subscriptions';
-import { K23PlanCode, K23BillingCycle } from '../../types/k23';
 
 export function useK23Subscription() {
   const queryClient = useQueryClient();
   const { currentUser } = useAppStore();
   const ownerId = currentUser?.id || '';
+  const isDemoUser = Boolean(currentUser?.isDemoAccount);
 
-  // 1. Fetch Plans
   const plansQuery = useQuery({
     queryKey: ['k23_plans'],
     queryFn: getK23Plans,
-    staleTime: 1000 * 60 * 30, // 30 mins
+    staleTime: 1000 * 60 * 30,
   });
 
-  // 2. Fetch Owner Subscription
   const subscriptionQuery = useQuery({
     queryKey: ['k23_subscription', ownerId],
-    queryFn: () => getOwnerK23Subscription(ownerId),
-    enabled: !!ownerId,
-    staleTime: 1000 * 60 * 5, // 5 mins
+    queryFn: () => getOwnerK23Subscription(ownerId, isDemoUser),
+    enabled: Boolean(ownerId),
+    staleTime: 1000 * 60 * 2,
   });
 
-  // 3. Fetch Owner Room Count
   const roomCountQuery = useQuery({
     queryKey: ['k23_owner_room_count', ownerId],
     queryFn: () => getOwnerRoomCount(ownerId),
-    enabled: !!ownerId,
+    enabled: Boolean(ownerId),
+    staleTime: 1000 * 60 * 2,
+  });
+
+  const buildingCountQuery = useQuery({
+    queryKey: ['k23_owner_building_count', ownerId],
+    queryFn: () => getOwnerBuildingCount(ownerId),
+    enabled: Boolean(ownerId),
     staleTime: 1000 * 60 * 2,
   });
 
   const subscription = subscriptionQuery.data;
-  const currentPlan = subscription?.plan;
+  const currentPlan = subscription?.plan || DEFAULT_K23_PLANS[1];
   const roomCount = roomCountQuery.data || 0;
+  const buildingCount = buildingCountQuery.data || 0;
 
-  // Tính toán thời gian & trạng thái
-  const now = new Date().getTime();
+  const now = Date.now();
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end).getTime()
     : now;
@@ -54,22 +58,35 @@ export function useK23Subscription() {
   const diffTime = periodEnd - now;
   const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
-  const isUnsubscribed = subscription?.status === 'unsubscribed';
+  const isUnsubscribed = !subscription || subscription.status === 'unsubscribed';
   const isTrial = subscription?.status === 'trialing';
-  const isGracePeriod = now > periodEnd && now <= graceEnd;
-  const isSuspended = now > graceEnd || subscription?.status === 'suspended';
-  const isActive = (subscription?.status === 'active' || isTrial) && !isSuspended && !isUnsubscribed;
+  const isGracePeriod = !isUnsubscribed && now > periodEnd && now <= graceEnd;
+  const isSuspended = !isUnsubscribed && (now > graceEnd || subscription?.status === 'suspended');
+  const isActive =
+    !isUnsubscribed &&
+    (subscription?.status === 'active' || isTrial || isGracePeriod) &&
+    !isSuspended;
   const isVip = isActive;
+  const hasUsedTrial = Boolean(subscription?.has_used_trial || isTrial);
 
-  // Tính toán quota phòng
-  const maxRooms = currentPlan?.max_rooms ?? 10;
+  // Quota phòng
+  const maxRooms = isActive ? (currentPlan?.max_rooms ?? 35) : 0;
   const isUnlimitedRooms = maxRooms === -1;
-  const canAddRoom = isUnlimitedRooms || roomCount < maxRooms;
-  const roomUsagePercent = isUnlimitedRooms
-    ? 0
-    : Math.min(100, Math.round((roomCount / maxRooms) * 100));
+  const canAddRoom = isActive && (isUnlimitedRooms || roomCount < maxRooms);
+  const roomUsagePercent =
+    isUnlimitedRooms || maxRooms <= 0
+      ? 0
+      : Math.min(100, Math.round((roomCount / maxRooms) * 100));
 
-  // Mutations
+  // Quota tòa nhà
+  const maxBuildings = isActive ? (currentPlan?.max_buildings ?? 3) : 0;
+  const isUnlimitedBuildings = maxBuildings === -1;
+  const canAddBuilding = isActive && (isUnlimitedBuildings || buildingCount < maxBuildings);
+  const buildingUsagePercent =
+    isUnlimitedBuildings || maxBuildings <= 0
+      ? 0
+      : Math.min(100, Math.round((buildingCount / maxBuildings) * 100));
+
   const activateTrialMutation = useMutation({
     mutationFn: () => activateK23Trial(ownerId),
     onSuccess: () => {
@@ -77,35 +94,12 @@ export function useK23Subscription() {
     },
   });
 
-  const createOrderMutation = useMutation({
-    mutationFn: ({
-      planCode,
-      billingCycle,
-    }: {
-      planCode: K23PlanCode;
-      billingCycle: K23BillingCycle;
-    }) => createK23Order(ownerId, planCode, billingCycle),
-  });
-
-  const confirmOrderMutation = useMutation({
-    mutationFn: ({
-      orderId,
-      orderCode,
-      planCode,
-      billingCycle,
-    }: {
-      orderId: string;
-      orderCode: string;
-      planCode: K23PlanCode;
-      billingCycle: K23BillingCycle;
-    }) => confirmK23OrderMock(orderId, orderCode, ownerId, planCode, billingCycle),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['k23_subscription', ownerId] });
-    },
-  });
+  const invalidateSubscription = () => {
+    return queryClient.invalidateQueries({ queryKey: ['k23_subscription', ownerId] });
+  };
 
   return {
-    plans: plansQuery.data || [],
+    plans: plansQuery.data && plansQuery.data.length > 0 ? plansQuery.data : DEFAULT_K23_PLANS,
     isLoadingPlans: plansQuery.isLoading,
     subscription,
     currentPlan,
@@ -115,19 +109,21 @@ export function useK23Subscription() {
     isUnlimitedRooms,
     canAddRoom,
     roomUsagePercent,
+    buildingCount,
+    maxBuildings,
+    isUnlimitedBuildings,
+    canAddBuilding,
+    buildingUsagePercent,
     daysLeft,
     isUnsubscribed,
     isTrial,
+    hasUsedTrial,
     isActive,
     isVip,
     isGracePeriod,
     isSuspended,
     activateTrial: activateTrialMutation.mutateAsync,
     isActivatingTrial: activateTrialMutation.isPending,
-    createOrder: createOrderMutation.mutateAsync,
-    confirmOrder: confirmOrderMutation.mutateAsync,
-    isCreatingOrder: createOrderMutation.isPending,
-    isConfirmingOrder: confirmOrderMutation.isPending,
+    invalidateSubscription,
   };
 }
-

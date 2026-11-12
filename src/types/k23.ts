@@ -116,7 +116,7 @@ export interface RoomReadingRow {
 // -------------------------------------------------------------
 // K23 SUBSCRIPTION & PRICING TYPES
 // -------------------------------------------------------------
-export type K23PlanCode = 'starter' | 'pro' | 'enterprise';
+export type K23PlanCode = 'basic' | 'standard' | 'chain' | 'starter' | 'pro' | 'enterprise';
 export type K23SubscriptionStatus = 'unsubscribed' | 'trialing' | 'active' | 'grace_period' | 'suspended' | 'cancelled';
 export type K23BillingCycle = 'monthly' | 'quarterly' | 'yearly';
 
@@ -134,6 +134,8 @@ export interface K23Plan {
   features: string[];
   is_active: boolean;
   display_order: number;
+  is_popular?: boolean;
+  badge_label?: string;
 }
 
 export interface K23Subscription {
@@ -144,6 +146,7 @@ export interface K23Subscription {
   status: K23SubscriptionStatus;
   trial_start_at?: string;
   trial_end_at?: string;
+  has_used_trial?: boolean;
   current_period_start: string;
   current_period_end: string;
   grace_period_end?: string;

@@ -12,27 +12,24 @@ import {
   Building2,
   PlusCircle,
   MapPin,
-  CheckCircle2,
-  Star,
   ChevronRight,
   MoreVertical,
   Edit,
   Trash2,
-  Settings,
-  ShieldCheck,
   Sliders,
-  CreditCard,
-  Layers,
   LocateFixed,
+  Crown,
 } from 'lucide-react';
 import { Building } from '../types';
 import { MapPinPicker } from '../components/map/TroXinhMap';
 import { geocodeAddressCached, resolveEntityCoordsSync } from '../lib/geocoding';
 import { updateBuilding as apiUpdateBuilding } from '../lib/api/buildings';
+import { useK23Subscription } from '../hooks/queries/useK23Subscription';
 
 export const OwnerBuildingListPage: React.FC = () => {
   const { buildings, currentUser, ownerApplications, addBuilding, updateBuilding, removeBuilding, showToast } =
     useAppStore();
+  const { currentPlan, buildingCount, maxBuildings, roomCount, maxRooms, isTrial } = useK23Subscription();
 
   const [searchParams, setSearchParams] = useSearchParams();
   const currentTab = searchParams.get('tab') === 'services' ? 'services' : 'buildings';
@@ -209,11 +206,30 @@ export const OwnerBuildingListPage: React.FC = () => {
             </p>
           </div>
 
-          <Link to="/chu-tro/toa-nha/tao-moi">
-            <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
-              Thêm Hồ Sơ Tòa Nhà
-            </Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2.5">
+            <Link
+              to="/chu-tro/quan-ly-goi-k23"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition"
+            >
+              <Crown className="w-3.5 h-3.5 text-amber-600" />
+              <span>
+                {currentPlan?.name || 'K23'}{isTrial ? ' (Dùng thử)' : ''}:{' '}
+                {buildingCount}/{maxBuildings === -1 ? '∞' : maxBuildings} tòa •{' '}
+                {roomCount}/{maxRooms === -1 ? '∞' : maxRooms} phòng
+              </span>
+            </Link>
+            <Link
+              to="/chu-tro/goi-dich-vu"
+              className="text-xs font-bold text-[#006d37] hover:underline px-2 py-1"
+            >
+              Bảng giá K23
+            </Link>
+            <Link to="/chu-tro/toa-nha/tao-moi">
+              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                Thêm Hồ Sơ Tòa Nhà
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Navigation Tabs: Tòa nhà vs Bảng giá dịch vụ */}

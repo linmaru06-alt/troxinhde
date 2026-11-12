@@ -1,8 +1,8 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
-import { Crown, Sparkles, Check, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Crown, Sparkles, ArrowRight, ShieldCheck } from 'lucide-react';
 import { useK23Subscription } from '../../../hooks/queries/useK23Subscription';
 
 interface UpgradeModalProps {
@@ -10,20 +10,24 @@ interface UpgradeModalProps {
   onClose: () => void;
   title?: string;
   message?: string;
+  returnUrl?: string;
 }
 
 export const UpgradeModal: React.FC<UpgradeModalProps> = ({
   isOpen,
   onClose,
-  title = 'Bạn đã đạt giới hạn số phòng của gói hiện tại',
-  message = 'Để tiếp tục mở rộng quy mô, thêm phòng trọ mới và sử dụng các tính năng nâng cao, vui lòng nâng cấp gói cước.',
+  title = 'Bạn đã đạt giới hạn của gói quản lý K23 hiện tại',
+  message = 'Để tiếp tục thêm phòng trọ, tòa nhà mới và sử dụng các tính năng vận hành nâng cao, vui lòng nâng cấp gói K23.',
+  returnUrl,
 }) => {
   const navigate = useNavigate();
-  const { currentPlan, roomCount, maxRooms } = useK23Subscription();
+  const location = useLocation();
+  const { currentPlan, roomCount, maxRooms, buildingCount, maxBuildings } = useK23Subscription();
 
   const handleUpgrade = () => {
     onClose();
-    navigate('/chu-tro/goi-dich-vu');
+    const targetReturn = returnUrl || `${location.pathname}${location.search}`;
+    navigate(`/chu-tro/goi-dich-vu?returnUrl=${encodeURIComponent(targetReturn)}`);
   };
 
   return (
@@ -37,21 +41,26 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
         <p className="text-sm text-slate-600 max-w-md mx-auto mb-6">{message}</p>
 
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-left mb-6">
-          <div className="flex justify-between items-center text-sm font-medium text-slate-700 mb-2">
+          <div className="flex flex-wrap justify-between items-center gap-2 text-sm font-medium text-slate-700 mb-2">
             <span>Gói đang dùng: <strong className="text-primary-700">{currentPlan?.name || 'Gói Cơ Bản'}</strong></span>
-            <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
-              {roomCount} / {maxRooms === -1 ? '∞' : maxRooms} phòng
-            </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                {roomCount} / {maxRooms === -1 ? '∞' : maxRooms} phòng
+              </span>
+              <span className="text-xs bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full font-bold">
+                {buildingCount} / {maxBuildings === -1 ? '∞' : maxBuildings} tòa nhà
+              </span>
+            </div>
           </div>
 
           <div className="space-y-1.5 text-xs text-slate-600 mt-3 pt-3 border-t border-slate-200">
             <div className="flex items-center gap-2 text-slate-800 font-medium">
               <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
-              <span>Nâng cấp lên <strong>Gói Tiêu Chuẩn (Pro)</strong>: Quản lý tới 35 phòng & 3 tòa nhà</span>
+              <span><strong>Gói Tiêu Chuẩn (129 Xu/tháng)</strong>: Tối đa 35 phòng & 3 tòa nhà</span>
             </div>
             <div className="flex items-center gap-2 text-slate-800 font-medium">
               <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-              <span>Nâng cấp lên <strong>Gói Chuỗi</strong>: Không giới hạn số phòng, hỗ trợ đa chi nhánh</span>
+              <span><strong>Gói Chuỗi (299 Xu/tháng)</strong>: Không giới hạn phòng & tòa nhà</span>
             </div>
           </div>
         </div>

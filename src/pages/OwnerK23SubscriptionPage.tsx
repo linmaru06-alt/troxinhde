@@ -1,38 +1,35 @@
 import { K23VipGate } from '../components/k23/subscription/K23VipGate';
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { SEOHead } from '../components/seo/SEOHead';
 import { useK23Subscription } from '../hooks/queries/useK23Subscription';
 import { SubscriptionBanner } from '../components/k23/subscription/SubscriptionBanner';
-import { formatCurrency } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import {
   Crown,
   Sparkles,
-  ShieldCheck,
   Calendar,
-  Building2,
   DoorOpen,
-  ArrowRight,
   RefreshCw,
-  Zap,
   CheckCircle2,
   Clock,
   Check,
+  Building2,
 } from 'lucide-react';
 
 export const OwnerK23SubscriptionPage: React.FC = () => {
-  const navigate = useNavigate();
   const {
     subscription,
     currentPlan,
     roomCount,
     maxRooms,
     roomUsagePercent,
+    buildingCount,
+    maxBuildings,
+    buildingUsagePercent,
     daysLeft,
     isTrial,
-    isGracePeriod,
     isSuspended,
   } = useK23Subscription();
 
@@ -88,11 +85,11 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
                 <div>
                   <div className="flex items-center gap-2">
                     <h3 className="text-lg font-bold text-slate-900">
-                      {currentPlan?.name || 'Gói Tiêu Chuẩn (Pro)'}
+                      {currentPlan?.name || 'Gói Tiêu Chuẩn'}
                     </h3>
                     {isTrial ? (
                       <span className="text-[11px] font-bold bg-amber-100 text-amber-800 px-2 py-0.5 rounded-full border border-amber-200">
-                        Dùng thử 30 ngày
+                        Dùng thử 30 ngày (0 Xu)
                       </span>
                     ) : isSuspended ? (
                       <span className="text-[11px] font-bold bg-red-100 text-red-800 px-2 py-0.5 rounded-full">
@@ -105,7 +102,7 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
                     )}
                   </div>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {subscription?.billing_cycle === 'yearly' ? 'Chu kỳ 1 năm (Tiết kiệm 2 tháng)' : 'Chu kỳ thanh toán hàng tháng'}
+                    {subscription?.billing_cycle === 'yearly' ? 'Chu kỳ 1 năm (Đóng 10 tặng 2)' : 'Chu kỳ thanh toán hàng tháng'}
                   </p>
                 </div>
               </div>
@@ -130,17 +127,17 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
 
             <div className="mt-6 pt-4 border-t border-slate-100 flex gap-2">
               <Link
-                to={`/chu-tro/thanh-toan-goi?plan=${currentPlan?.code || 'pro'}&cycle=yearly`}
+                to={`/chu-tro/thanh-toan-goi?plan=${currentPlan?.code || 'standard'}&cycle=yearly&returnUrl=${encodeURIComponent('/chu-tro/quan-ly-goi-k23')}`}
                 className="w-full"
               >
                 <Button variant="outline" className="w-full text-xs font-bold py-2 rounded-xl border-primary-200 text-primary-700 hover:bg-primary-50">
-                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Gia hạn thêm 1 năm (Tặng 2 tháng)
+                  <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Gia hạn thêm 1 năm (Đóng 10 tặng 2)
                 </Button>
               </Link>
             </div>
           </div>
 
-          {/* Thẻ 2: Hạn mức số phòng (Quota) */}
+          {/* Thẻ 2: Hạn mức số phòng & tòa nhà (Quota) */}
           <div className="bg-white rounded-3xl p-6 sm:p-7 border border-slate-200 shadow-sm flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between mb-4">
@@ -149,7 +146,7 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
                     <DoorOpen className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-bold text-slate-900">Hạn Mức Phòng Quản Lý</h3>
+                    <h3 className="text-lg font-bold text-slate-900">Hạn Mức Phòng &amp; Tòa Nhà</h3>
                     <p className="text-xs text-slate-500 mt-0.5">
                       Dung lượng tài nguyên thực tế bạn đang sử dụng
                     </p>
@@ -163,11 +160,11 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* Progress Bar */}
+              {/* Progress Bar Phòng */}
               {maxRooms !== -1 ? (
                 <div className="space-y-2 mt-4">
                   <div className="flex justify-between text-xs font-semibold">
-                    <span className="text-slate-500">Tỷ lệ sử dụng hạn mức</span>
+                    <span className="text-slate-500">Tỷ lệ sử dụng hạn mức phòng</span>
                     <span className={roomUsagePercent >= 90 ? 'text-red-600' : 'text-slate-700'}>
                       {roomUsagePercent}%
                     </span>
@@ -186,7 +183,7 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
                   </div>
                   <p className="text-[11px] text-slate-400">
                     {roomCount >= maxRooms
-                      ? '⚠️ Bạn đã dùng hết hạn mức phòng. Hãy nâng cấp gói để tiếp tục thêm phòng.'
+                      ? '⚠️ Bạn đã dùng hết hạn mức phòng. Hãy nâng cấp gói K23 để tiếp tục thêm phòng.'
                       : `Bạn còn có thể thêm ${maxRooms - roomCount} phòng nữa vào gói hiện tại.`}
                   </p>
                 </div>
@@ -196,13 +193,40 @@ export const OwnerK23SubscriptionPage: React.FC = () => {
                   <span>Gói Chuỗi cho phép bạn thêm không giới hạn số lượng phòng trọ và tòa nhà.</span>
                 </div>
               )}
-            </div>
 
-            <div className="mt-6 pt-4 border-t border-slate-100 flex justify-between items-center text-xs">
-              <span className="text-slate-500">Giới hạn số tòa nhà:</span>
-              <span className="font-bold text-slate-800">
-                {currentPlan?.max_buildings === -1 ? 'Không giới hạn' : `Tối đa ${currentPlan?.max_buildings || 1} tòa nhà`}
-              </span>
+              {/* Progress Bar Tòa Nhà */}
+              <div className="mt-5 pt-4 border-t border-slate-100 space-y-2">
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <span className="text-slate-600 flex items-center gap-1.5">
+                    <Building2 className="w-4 h-4 text-emerald-600" />
+                    Số lượng tòa nhà đang quản lý
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    {buildingCount} / {maxBuildings === -1 ? 'Không giới hạn' : `${maxBuildings} tòa nhà`}
+                  </span>
+                </div>
+                {maxBuildings !== -1 && (
+                  <>
+                    <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden p-0.5">
+                      <div
+                        className={`h-full rounded-full transition-all duration-500 ${
+                          buildingUsagePercent >= 100
+                            ? 'bg-red-500'
+                            : buildingUsagePercent >= 75
+                            ? 'bg-amber-500'
+                            : 'bg-emerald-500'
+                        }`}
+                        style={{ width: `${buildingUsagePercent}%` }}
+                      />
+                    </div>
+                    <p className="text-[11px] text-slate-400">
+                      {buildingCount >= maxBuildings
+                        ? '⚠️ Bạn đã đạt giới hạn tòa nhà của gói. Vui lòng nâng cấp để thêm cơ sở mới.'
+                        : `Còn lại ${maxBuildings - buildingCount} cơ sở tòa nhà có thể tạo thêm.`}
+                    </p>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

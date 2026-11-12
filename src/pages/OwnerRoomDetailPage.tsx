@@ -18,6 +18,7 @@ import {
   Edit,
   ExternalLink,
   ArrowLeft,
+  Rocket,
 } from 'lucide-react';
 
 export const OwnerRoomDetailPage: React.FC = () => {
@@ -96,6 +97,17 @@ export const OwnerRoomDetailPage: React.FC = () => {
                 <option value="Chờ duyệt">Trạng thái: Chờ duyệt</option>
               </select>
             )}
+
+            <Link to={`/chu-tro/nang-cap-tin/${room.id}`}>
+              <Button
+                variant="outline"
+                size="sm"
+                leftIcon={<Rocket className="w-3.5 h-3.5 text-amber-600" />}
+                className="border-amber-400 bg-amber-50/70 text-amber-900 hover:bg-amber-100 font-bold"
+              >
+                Đẩy tin nổi bật
+              </Button>
+            </Link>
 
             <Link to={`/chu-tro/phong/chinh-sua/${room.id}`}>
               <Button variant="primary" size="sm" leftIcon={<Edit className="w-3.5 h-3.5" />}>

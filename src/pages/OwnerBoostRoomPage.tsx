@@ -1,171 +1,272 @@
-import React, { useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation, Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
-import { PaymentMethod } from '../types';
 import { SEOHead } from '../components/seo/SEOHead';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
 import { RoomCard, formatPrice, formatCurrency } from '../components/ui/Cards';
 import {
   Rocket,
   Sparkles,
-  Zap,
-  Crown,
-  CheckCircle2,
   ArrowLeft,
-  ArrowRight,
-  TrendingUp,
   Eye,
-  ShieldCheck,
   Clock,
   AlertCircle,
   QrCode,
   Check,
   Copy,
   Coins,
+  RefreshCw,
+  FlaskConical,
+  Smartphone,
+  Building2,
 } from 'lucide-react';
 import { isCurrentlyGoldenHour } from '../utils/listingLifecycle';
+import { BOOST_PACKAGES, XU_TO_VND_RATE } from '../lib/monetizationCatalog';
+import {
+  purchaseRoomBoostWithXu,
+  createServicePaymentOrder,
+  getServicePaymentOrderStatus,
+  confirmDemoServiceOrder,
+  ServicePaymentOrderResponse,
+} from '../lib/api/monetization';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 export const OwnerBoostRoomPage: React.FC = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const navigate = useNavigate();
-  const { rooms, boostRoom, wallet, spendXu, showToast } = useAppStore();
+  const location = useLocation();
+  const { currentUser, rooms, boostRoom, wallet, spendXu, fetchWallet, showToast } = useAppStore();
 
   const room = rooms.find((r) => r.id === roomId) || rooms[0];
 
-  const boostOptions = [
-    {
-      id: 'single',
-      days: 1,
-      xu: 15,
-      title: 'Đẩy Lẻ 1 Lần',
-      price: 15000,
-      badge: 'Tiết kiệm',
-      description: 'Đẩy tin nổi lên đầu trang tìm kiếm ngay lập tức trong 24 giờ.',
-      multiplier: 'x1.5',
-    },
-    {
-      id: '3days',
-      days: 3,
-      xu: 29,
-      title: 'Gói Đẩy Top 3 Ngày',
-      price: 29000,
-      badge: 'Cuối tuần',
-      description: 'Lên đầu trang tìm kiếm trong 3 ngày cuối tuần cao điểm.',
-      multiplier: 'x2',
-    },
-    {
-      id: '7days',
-      days: 7,
-      xu: 59,
-      title: 'Đẩy Giờ Vàng 7 Ngày',
-      price: 59000,
-      originalPrice: 75000,
-      popular: true,
-      badge: 'Bán chạy nhất 🔥',
-      description: 'Tự động đẩy top vào 2 khung giờ vàng: 11h-13h & 19h-22h mỗi ngày.',
-      multiplier: 'x4',
-      isGoldenHour: true,
-    },
-    {
-      id: '30days',
-      days: 30,
-      xu: 199,
-      title: 'Gói VIP Toàn Diện 30 Ngày',
-      price: 199000,
-      originalPrice: 300000,
-      badge: 'Tiết kiệm 34% ⭐',
-      description: 'Vị trí ưu tiên số 1 liên tục 30 ngày, hiển thị gấp đôi, gắn huy hiệu VIP.',
-      multiplier: 'x8',
-    },
-  ];
-
   const [selectedOptionId, setSelectedOptionId] = useState<string>('7days');
-  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | PaymentMethod>('wallet_xu');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'vietqr' | 'momo'>('wallet_xu');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
+  const [qrOrder, setQrOrder] = useState<ServicePaymentOrderResponse | null>(null);
+  const [isCheckingQr, setIsCheckingQr] = useState<boolean>(false);
+  const [isConfirmingDemo, setIsConfirmingDemo] = useState<boolean>(false);
   const [isCopiedContent, setIsCopiedContent] = useState<boolean>(false);
 
-  const selectedOption = boostOptions.find((o) => o.id === selectedOptionId) || boostOptions[2];
+  const selectedOption =
+    BOOST_PACKAGES.find((o) => o.id === selectedOptionId) || BOOST_PACKAGES[2];
   const isGoldenNow = isCurrentlyGoldenHour();
-  const hasEnoughXu = wallet.total_xu >= selectedOption.xu;
+  const walletTotalXu = wallet?.total_xu ?? 0;
+  const hasEnoughXu = walletTotalXu >= selectedOption.priceXu;
+  const topupReturnUrl = `/chu-tro/vi-xu?buoc=chon-goi&returnUrl=${encodeURIComponent(location.pathname)}`;
 
-  // Preview mock of the boosted room
+  const completeBoostAndRedirect = (orderCode: string, methodUsed: string) => {
+    if (room) {
+      boostRoom(
+        room.id,
+        selectedOption.days,
+        selectedOption.name,
+        selectedOption.priceXu * XU_TO_VND_RATE,
+        methodUsed as any
+      );
+    }
+    if (currentUser?.id) {
+      fetchWallet(currentUser.id);
+    }
+    setShowQrModal(false);
+    const qs = new URLSearchParams({
+      service: 'boost',
+      orderId: orderCode,
+      plan: selectedOption.id,
+      amountXu: String(selectedOption.priceXu),
+      amount: String(selectedOption.priceXu * XU_TO_VND_RATE),
+      method: methodUsed,
+      status: 'success',
+      returnUrl: '/chu-tro',
+    });
+    navigate(`/thanh-toan/ket-qua?${qs.toString()}`);
+  };
+
+  // Realtime + Polling khi modal QR đang mở
+  useEffect(() => {
+    if (!showQrModal || !qrOrder?.orderCode) return;
+
+    const interval = setInterval(async () => {
+      try {
+        const res = await getServicePaymentOrderStatus(qrOrder.orderCode);
+        if (res.status === 'paid') {
+          clearInterval(interval);
+          completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
+        }
+      } catch (err) {
+        console.warn('[OwnerBoostRoomPage] Poll warning:', err);
+      }
+    }, 3000);
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel(`boost-order-${qrOrder.orderCode}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'transactions',
+            filter: `order_code=eq.${qrOrder.orderCode}`,
+          },
+          (payload: any) => {
+            if (payload?.new?.status === 'paid') {
+              clearInterval(interval);
+              completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
+            }
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel && supabase) supabase.removeChannel(channel);
+    };
+  }, [showQrModal, qrOrder?.orderCode, paymentMethod]);
+
+  if (!room) {
+    return (
+      <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
+        <DashboardSidebar role="owner" />
+        <main className="flex-1 p-8 flex flex-col items-center justify-center text-center space-y-4">
+          <div className="w-14 h-14 rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center">
+            <Building2 className="w-7 h-7" />
+          </div>
+          <h1 className="text-xl font-black text-gray-900">Chưa tìm thấy thông tin phòng để đẩy tin</h1>
+          <p className="text-xs text-gray-500 max-w-md">
+            Vui lòng chọn một phòng trọ đang hoạt động từ danh sách quản lý của bạn để sử dụng dịch vụ Đẩy tin.
+          </p>
+          <Link to="/chu-tro">
+            <Button variant="primary" size="md">
+              Quay lại Danh sách phòng
+            </Button>
+          </Link>
+        </main>
+      </div>
+    );
+  }
+
   const previewRoom = {
     ...room,
     isBoosted: true,
     boostBadge: selectedOption.id === '30days' ? 'VIP Nổi Bật' : 'Đẩy Giờ Vàng',
   };
 
-  const transferContent = `TX BOOST ${room.roomNumber || room.id.slice(0, 6)}`.toUpperCase();
-  const vietQrUrl = `https://img.vietqr.io/image/970422-0888110789-compact2.png?amount=${selectedOption.price}&addInfo=${encodeURIComponent(
-    transferContent
-  )}&accountName=${encodeURIComponent('CONG TY TRO XINH')}`;
-
-  const handleOpenPayment = () => {
-    if (paymentMethod === 'wallet_xu') {
-      handlePayWithXu();
+  const handleOpenPayment = async () => {
+    if (!currentUser) {
+      navigate(`/dang-nhap?returnUrl=${encodeURIComponent(location.pathname)}`);
       return;
     }
-    setShowQrModal(true);
+
+    if (paymentMethod === 'wallet_xu') {
+      await handlePayWithXu();
+      return;
+    }
+
+    setIsProcessing(true);
+    try {
+      const order = await createServicePaymentOrder({
+        serviceType: 'boost',
+        itemId: selectedOption.id,
+        roomId: room.id,
+        method: paymentMethod,
+      });
+      setQrOrder(order);
+      setShowQrModal(true);
+    } catch (err: any) {
+      showToast('Không thể tạo mã thanh toán', err?.message || 'Vui lòng thử lại.', 'error');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const handlePayWithXu = async () => {
     if (!hasEnoughXu) {
       showToast(
         'Số dư Xu không đủ',
-        `Gói này cần ${selectedOption.xu} Xu nhưng ví của bạn chỉ còn ${wallet.total_xu} Xu. Vui lòng nạp thêm Xu.`,
+        `Gói này cần ${selectedOption.priceXu} Xu nhưng bạn chỉ còn ${walletTotalXu} Xu. Vui lòng nạp thêm Xu.`,
         'error'
       );
       return;
     }
 
     setIsProcessing(true);
-    const success = await spendXu(
-      selectedOption.xu,
-      `Đẩy tin "${room.title || room.roomNumber}" (${selectedOption.title})`,
-      `BST_${room.roomNumber || room.id.slice(0, 6)}`
-    );
+    try {
+      if (isSupabaseConfigured) {
+        const res = await purchaseRoomBoostWithXu({
+          roomId: room.id,
+          boostId: selectedOption.id,
+        });
+        completeBoostAndRedirect(res.order_code || `TXBST_${Date.now().toString().slice(-6)}`, 'wallet_xu');
+        return;
+      }
 
-    if (success) {
-      const tx = boostRoom(room.id, selectedOption.days, selectedOption.title, selectedOption.price, 'vietqr');
-      setIsProcessing(false);
-      navigate(
-        `/thanh-toan/ket-qua?orderId=${tx.orderId}&amount=${selectedOption.price}&method=vietqr&status=success`
+      // Offline demo fallback
+      const spendOk = await spendXu(
+        selectedOption.priceXu,
+        `Đẩy tin "${room.title || room.roomNumber}" (${selectedOption.name})`,
+        `BST_${room.roomNumber || room.id.slice(0, 6)}`
       );
-    } else {
+      if (!spendOk) {
+        setIsProcessing(false);
+        return;
+      }
+      completeBoostAndRedirect(`TXBST_${Date.now().toString().slice(-6)}`, 'wallet_xu');
+    } catch (err: any) {
+      showToast('Không thể kích hoạt đẩy tin', err?.message || 'Vui lòng thử lại sau.', 'error');
+    } finally {
       setIsProcessing(false);
     }
   };
 
-  const handleConfirmPaid = () => {
-    setIsProcessing(true);
-    setTimeout(() => {
-      const tx = boostRoom(room.id, selectedOption.days, selectedOption.title, selectedOption.price, paymentMethod === 'wallet_xu' ? 'vietqr' : paymentMethod);
-      setIsProcessing(false);
-      setShowQrModal(false);
-      showToast(
-        'Đã kích hoạt đẩy tin thành công! 🚀',
-        `Phòng ${room.roomNumber} đã được đẩy lên vị trí nổi bật trong ${selectedOption.days} ngày.`,
-        'success'
-      );
-      navigate(`/thanh-toan/ket-qua?orderId=${tx.orderId}&amount=${selectedOption.price}&method=${paymentMethod}&status=success`);
-    }, 1000);
+  const handleRecheckQr = async () => {
+    if (!qrOrder?.orderCode) return;
+    setIsCheckingQr(true);
+    try {
+      const res = await getServicePaymentOrderStatus(qrOrder.orderCode);
+      if (res.status === 'paid') {
+        completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
+      } else {
+        showToast(
+          'Đang chờ đối soát giao dịch',
+          'Hệ thống sẽ tự động kích hoạt đẩy tin ngay khi nhận được thanh toán.',
+          'info'
+        );
+      }
+    } catch (err: any) {
+      showToast('Lỗi kiểm tra giao dịch', err?.message || 'Vui lòng thử lại.', 'error');
+    } finally {
+      setIsCheckingQr(false);
+    }
+  };
+
+  const handleConfirmDemoSandbox = async () => {
+    if (!qrOrder?.orderCode || !currentUser?.isDemoAccount) return;
+    setIsConfirmingDemo(true);
+    try {
+      await confirmDemoServiceOrder(qrOrder.orderCode);
+      completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
+    } catch (err: any) {
+      showToast('Lỗi xác nhận Demo Sandbox', err?.message || 'Vui lòng thử lại.', 'error');
+    } finally {
+      setIsConfirmingDemo(false);
+    }
   };
 
   return (
     <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
       <SEOHead
-        title={`Đẩy Tin Nổi Bật - ${room.title} | TroXinh`}
-        description="Đưa tin đăng phòng trọ lên vị trí đầu tiên trang tìm kiếm và bản đồ để tiếp cận khách thuê nhanh chóng."
-        url={`/chu-tro/nang-cap-tin/${roomId}`}
+        title={`Đẩy Tin Nổi Bật - ${room.title} | Trọ Xinh`}
+        description="Đưa tin đăng phòng trọ lên vị trí đầu trang tìm kiếm để tiếp cận khách thuê nhanh hơn."
+        url={`/chu-tro/nang-cap-tin/${roomId || room.id}`}
       />
 
       <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-8 overflow-y-auto">
-        {/* Breadcrumb Back */}
         <Link
           to="/chu-tro"
           className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 hover:text-[#006d37] transition"
@@ -179,13 +280,14 @@ export const OwnerBoostRoomPage: React.FC = () => {
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-800 text-xs font-bold mb-2">
               <Rocket className="w-3.5 h-3.5 text-amber-600" />
-              <span>Công Cụ Đẩy Tin Tiếp Cận Nhanh</span>
+              <span>Dịch vụ 2 • Gói Đẩy Tin Nổi Bật</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-black text-gray-900 tracking-tight">
               Đẩy Tin Nổi Bật: {room.title}
             </h1>
             <p className="text-xs text-gray-500 mt-1">
-              Phòng: <strong className="text-gray-800">{room.roomNumber}</strong> • Giá: <strong className="text-[#006d37]">{formatPrice(room.price)}</strong> • Địa chỉ: {room.address}, {room.district}
+              Phòng: <strong className="text-gray-800">{room.roomNumber}</strong> • Giá thuê:{' '}
+              <strong className="text-[#006d37]">{formatPrice(room.price)}</strong> • {room.address}, {room.district}
             </p>
           </div>
         </div>
@@ -196,28 +298,31 @@ export const OwnerBoostRoomPage: React.FC = () => {
             <div className="bg-white rounded-3xl border border-gray-200 shadow-xs p-6 space-y-4">
               <h2 className="text-base font-extrabold text-gray-900 flex items-center gap-2">
                 <Sparkles className="w-5 h-5 text-[#006d37]" />
-                Chọn Gói Đẩy Tin
+                Chọn Gói Đẩy Tin (Giá theo Xu nội bộ)
               </h2>
 
-              {/* Thông báo tỷ giá cố định & quy tắc đẩy tin */}
               <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200/80 text-xs text-amber-900 space-y-1">
                 <div className="flex items-center gap-1.5 font-bold text-amber-950">
                   <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                  <span>Quy định đẩy tin Trọ Xinh (1 Xu = 1.000đ)</span>
+                  <span>Chính sách sử dụng Xu cho Gói đẩy tin</span>
                 </div>
-                <p className="text-[11px] text-amber-800 leading-relaxed">
-                  Đẩy tin giúp phòng của bạn nổi bật trên đầu kết quả tìm kiếm và bản đồ. <strong>Đẩy tin không tự động kéo dài hạn 30 ngày</strong> của tin đăng.
+                <p className="text-[11px] text-amber-900 leading-relaxed">
+                  Xu sẽ được trừ ngay khi xác nhận thanh toán. Xem thêm tại{' '}
+                  <Link to="/terms" className="font-bold text-[#006d37] underline">
+                    Điều khoản dịch vụ
+                  </Link>
+                  . Đẩy tin không kéo dài thời hạn hiển thị 30 ngày của tin gốc.
                 </p>
                 {isGoldenNow && (
                   <p className="text-[11px] font-bold text-emerald-700 flex items-center gap-1 pt-0.5">
                     <Clock className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>Đang trong Khung Giờ Vàng! Gói 7 ngày đang tự động kích hoạt đẩy top.</span>
+                    <span>Đang trong Khung Giờ Vàng (11h-13h &amp; 19h-22h)!</span>
                   </p>
                 )}
               </div>
 
               <div className="space-y-3">
-                {boostOptions.map((opt) => {
+                {BOOST_PACKAGES.map((opt) => {
                   const isSelected = selectedOptionId === opt.id;
                   return (
                     <label
@@ -230,8 +335,8 @@ export const OwnerBoostRoomPage: React.FC = () => {
                       }`}
                     >
                       {opt.popular && (
-                        <span className="absolute -top-2.5 right-4 bg-[#006d37] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs">
-                          {opt.badge}
+                        <span className="absolute -top-2.5 right-4 bg-[#006d37] text-white text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-xs whitespace-nowrap">
+                          {opt.badgeText}
                         </span>
                       )}
 
@@ -245,16 +350,16 @@ export const OwnerBoostRoomPage: React.FC = () => {
                             className="w-4 h-4 text-[#006d37] focus:ring-[#006d37]"
                           />
                           <div>
-                            <div className="flex items-center gap-2">
-                              <span className="text-sm font-extrabold text-gray-900">{opt.title}</span>
-                              {!opt.popular && opt.badge && (
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-sm font-extrabold text-gray-900">{opt.name}</span>
+                              {!opt.popular && opt.badgeText && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
-                                  {opt.badge}
+                                  {opt.badgeText}
                                 </span>
                               )}
                               {opt.isGoldenHour && (
                                 <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-                                  Giờ vàng: 11h-13h & 19h-22h
+                                  Giờ vàng: 11h-13h &amp; 19h-22h
                                 </span>
                               )}
                             </div>
@@ -263,19 +368,12 @@ export const OwnerBoostRoomPage: React.FC = () => {
                         </div>
 
                         <div className="text-right shrink-0">
-                          <p className="text-base font-black text-[#006d37]">
-                            {formatCurrency(opt.price)}{' '}
-                            <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded-lg border border-amber-200">
-                              ({opt.xu} Xu)
-                            </span>
+                          <p className="text-lg font-black text-[#006d37] font-mono">
+                            {opt.priceXu} Xu
                           </p>
-                          {opt.originalPrice && (
-                            <p className="text-[11px] text-gray-400 line-through mt-0.5">
-                              {formatCurrency(opt.originalPrice)} ({Math.round(opt.originalPrice / 1000)} Xu)
-                            </p>
-                          )}
+                          <p className="text-[11px] text-gray-500 font-medium">{opt.days} ngày</p>
                           <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-md mt-1 inline-block">
-                            Lượt xem {opt.multiplier}
+                            {opt.isGoldenHour ? 'Giờ vàng 11h–13h & 19h–22h' : 'Ưu tiên top'}
                           </span>
                         </div>
                       </div>
@@ -290,15 +388,17 @@ export const OwnerBoostRoomPage: React.FC = () => {
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-gray-900">Phương Thức Thanh Toán</h3>
                 <Link
-                  to="/chu-tro/vi-xu"
+                  to={topupReturnUrl}
                   className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1"
                 >
                   <Coins className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Ví của bạn: <strong>{wallet.total_xu} Xu</strong></span>
+                  <span>
+                    Số dư Xu: <strong>{walletTotalXu.toLocaleString('vi-VN')} Xu</strong>
+                  </span>
                 </Link>
               </div>
 
-              {/* Tùy chọn Thanh toán ưu tiên: Ví Xu Trọ Xinh */}
+              {/* Thanh toán bằng Xu nội bộ */}
               <div
                 onClick={() => setPaymentMethod('wallet_xu')}
                 className={`p-4 rounded-2xl border-2 transition cursor-pointer relative ${
@@ -313,35 +413,41 @@ export const OwnerBoostRoomPage: React.FC = () => {
                       <Coins className="w-5 h-5" />
                     </div>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-sm text-gray-950">Ví Xu Trọ Xinh (Khuyên dùng ⭐)</span>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-black text-sm text-gray-950">Xu nội bộ (1 Chạm)</span>
                         <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black px-2 py-0.5 rounded-full">
-                          1 Chạm • Tức thì
+                          Khuyên dùng
                         </span>
                       </div>
                       <p className="text-xs text-gray-600 mt-0.5">
-                        Số dư khả dụng: <strong className="text-amber-800 font-mono">{wallet.total_xu} Xu</strong>
+                        Số dư khả dụng:{' '}
+                        <strong className="text-amber-800 font-mono">
+                          {walletTotalXu.toLocaleString('vi-VN')} Xu
+                        </strong>
                         {hasEnoughXu ? (
                           <span className="text-emerald-700 font-bold ml-1.5">✓ Đủ Xu thanh toán</span>
                         ) : (
-                          <span className="text-rose-600 font-bold ml-1.5">⚠️ Thiếu {selectedOption.xu - wallet.total_xu} Xu</span>
+                          <span className="text-rose-600 font-bold ml-1.5">
+                            • Thiếu {selectedOption.priceXu - walletTotalXu} Xu
+                          </span>
                         )}
                       </p>
                     </div>
                   </div>
 
                   <div className="text-right">
-                    <span className="text-base font-black text-[#006d37] font-mono">{selectedOption.xu} Xu</span>
-                    <span className="text-[11px] text-gray-400 block">≈ {formatCurrency(selectedOption.price)}</span>
+                    <span className="text-base font-black text-[#006d37] font-mono">
+                      {selectedOption.priceXu} Xu
+                    </span>
                   </div>
                 </div>
 
                 {!hasEnoughXu && (
-                  <div className="mt-3 pt-3 border-t border-amber-200/60 flex items-center justify-between text-xs">
-                    <span className="text-rose-700">Ví chưa đủ Xu để kích hoạt gói này</span>
+                  <div className="mt-3 pt-3 border-t border-amber-200/60 flex items-center justify-between gap-2 text-xs">
+                    <span className="text-rose-700">Số dư Xu hiện tại chưa đủ để kích hoạt gói này</span>
                     <Link
-                      to="/chu-tro/vi-xu"
-                      className="px-3 py-1 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-xl font-black text-[11px] transition shadow-xs"
+                      to={topupReturnUrl}
+                      className="px-3 py-1.5 bg-amber-400 hover:bg-amber-500 text-amber-950 rounded-xl font-black text-[11px] transition shadow-xs shrink-0"
                     >
                       Nạp thêm Xu ngay →
                     </Link>
@@ -349,67 +455,67 @@ export const OwnerBoostRoomPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Các phương thức thanh toán trực tiếp qua ngân hàng / ví điện tử */}
+              {/* Thanh toán trực tiếp VietQR / MoMo */}
               <div className="pt-2">
-                <span className="text-xs font-semibold text-gray-500 block mb-2">Hoặc Thanh Toán Trực Tiếp (VNĐ):</span>
-                <div className="grid grid-cols-3 gap-3">
+                <span className="text-xs font-semibold text-gray-500 block mb-2">
+                  Hoặc thanh toán trực tiếp qua mã QR:
+                </span>
+                <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('vietqr')}
-                    className={`p-3 rounded-2xl border-2 flex items-center gap-2 text-xs font-bold transition cursor-pointer ${
+                    className={`p-3 rounded-2xl border-2 flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
                       paymentMethod === 'vietqr'
                         ? 'border-[#006d37] bg-emerald-50 text-[#006d37]'
                         : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span className="w-3 h-3 rounded-full bg-[#006d37]" />
-                    VietQR
+                    <QrCode className="w-4 h-4 text-[#006d37]" />
+                    <span>VietQR ({formatCurrency(selectedOption.priceXu * XU_TO_VND_RATE)})</span>
                   </button>
 
                   <button
                     type="button"
                     onClick={() => setPaymentMethod('momo')}
-                    className={`p-3 rounded-2xl border-2 flex items-center gap-2 text-xs font-bold transition cursor-pointer ${
+                    className={`p-3 rounded-2xl border-2 flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
                       paymentMethod === 'momo'
                         ? 'border-[#a50064] bg-pink-50 text-[#a50064]'
                         : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <span className="w-3 h-3 rounded-full bg-[#a50064]" />
-                    Ví MoMo
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('vnpay')}
-                    className={`p-3 rounded-2xl border-2 flex items-center gap-2 text-xs font-bold transition cursor-pointer ${
-                      paymentMethod === 'vnpay'
-                        ? 'border-[#005ba9] bg-blue-50 text-[#005ba9]'
-                        : 'border-gray-200 text-gray-700 hover:border-gray-300'
-                    }`}
-                  >
-                    <span className="w-3 h-3 rounded-full bg-[#005ba9]" />
-                    VNPay
+                    <Smartphone className="w-4 h-4 text-[#a50064]" />
+                    <span>Ví MoMo ({formatCurrency(selectedOption.priceXu * XU_TO_VND_RATE)})</span>
                   </button>
                 </div>
               </div>
             </div>
 
             {paymentMethod === 'wallet_xu' ? (
-              <Button
-                variant="primary"
-                size="lg"
-                fullWidth
-                disabled={!hasEnoughXu}
-                isLoading={isProcessing}
-                onClick={handleOpenPayment}
-                className="bg-[#00a854] hover:bg-[#008f47] text-white font-black py-4 text-sm shadow-md"
-                leftIcon={<Rocket className="w-5 h-5 text-amber-300" />}
-              >
-                {hasEnoughXu
-                  ? `Thanh Toán Bằng Ví Xu (Trừ ${selectedOption.xu} Xu - Kích Hoạt Ngay)`
-                  : `Số Dư Không Đủ (${wallet.total_xu}/${selectedOption.xu} Xu) — Nạp Thêm Xu`}
-              </Button>
+              hasEnoughXu ? (
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  isLoading={isProcessing}
+                  onClick={handleOpenPayment}
+                  className="bg-[#00a854] hover:bg-[#008f47] text-white font-black py-4 text-sm shadow-md cursor-pointer"
+                  leftIcon={<Rocket className="w-5 h-5 text-amber-300" />}
+                >
+                  Thanh Toán {selectedOption.priceXu} Xu — Đẩy Tin Ngay
+                </Button>
+              ) : (
+                <Link to={topupReturnUrl} className="block">
+                  <Button
+                    variant="primary"
+                    size="lg"
+                    fullWidth
+                    className="bg-amber-500 hover:bg-amber-600 text-white font-black py-4 text-sm shadow-md cursor-pointer"
+                    leftIcon={<Coins className="w-5 h-5" />}
+                  >
+                    Nạp Thêm Xu ({walletTotalXu}/{selectedOption.priceXu} Xu) →
+                  </Button>
+                </Link>
+              )
             ) : (
               <Button
                 variant="primary"
@@ -417,10 +523,10 @@ export const OwnerBoostRoomPage: React.FC = () => {
                 fullWidth
                 isLoading={isProcessing}
                 onClick={handleOpenPayment}
-                className="py-4 text-sm shadow-md"
+                className="py-4 text-sm shadow-md font-black cursor-pointer"
                 leftIcon={<Rocket className="w-5 h-5" />}
               >
-                Mở Mã Thanh Toán ({formatCurrency(selectedOption.price)} - {selectedOption.xu} Xu)
+                Tạo Mã QR Thanh Toán ({formatCurrency(selectedOption.priceXu * XU_TO_VND_RATE)})
               </Button>
             )}
           </div>
@@ -439,10 +545,9 @@ export const OwnerBoostRoomPage: React.FC = () => {
               </div>
 
               <p className="text-xs text-gray-500 leading-relaxed">
-                Sau khi kích hoạt, thẻ phòng của bạn sẽ được gắn huy hiệu vàng ánh kim và ưu tiên hiển thị ở các vị trí hàng đầu trên trang tìm kiếm.
+                Sau khi kích hoạt, thẻ phòng của bạn sẽ được gắn huy hiệu nổi bật và ưu tiên hiển thị ở các vị trí hàng đầu trên trang tìm kiếm.
               </p>
 
-              {/* Render RoomCard Preview */}
               <div className="pointer-events-none transform scale-95 origin-top">
                 <RoomCard room={previewRoom} />
               </div>
@@ -451,8 +556,8 @@ export const OwnerBoostRoomPage: React.FC = () => {
         </div>
       </main>
 
-      {/* MODAL QUÉT MÃ VIETQR SEPAY ĐỘNG THANH TOÁN ĐẨY TIN */}
-      {showQrModal && (
+      {/* MODAL QUÉT MÃ VIETQR / MOMO ĐỐI SOÁT TỰ ĐỘNG */}
+      {showQrModal && qrOrder && (
         <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-5 animate-scaleUp">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
@@ -461,8 +566,10 @@ export const OwnerBoostRoomPage: React.FC = () => {
                   <QrCode className="w-4 h-4" />
                 </div>
                 <div>
-                  <h3 className="font-extrabold text-sm text-gray-900">Quét Mã VietQR Đẩy Tin</h3>
-                  <p className="text-[11px] text-gray-500">{selectedOption.title}</p>
+                  <h3 className="font-extrabold text-sm text-gray-900">
+                    {paymentMethod === 'momo' ? 'Quét Mã MoMo Đẩy Tin' : 'Quét Mã VietQR Đẩy Tin'}
+                  </h3>
+                  <p className="text-[11px] text-gray-500">{selectedOption.name}</p>
                 </div>
               </div>
               <button
@@ -477,32 +584,33 @@ export const OwnerBoostRoomPage: React.FC = () => {
             <div className="text-center space-y-3">
               <div className="p-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 inline-block shadow-inner">
                 <img
-                  src={vietQrUrl}
-                  alt="VietQR Đẩy Tin Trọ Xinh"
+                  src={qrOrder.qrCode}
+                  alt="QR Đẩy Tin Trọ Xinh"
                   className="w-56 h-56 mx-auto rounded-xl object-contain"
                 />
               </div>
 
+              <div className="text-[11px] text-gray-600">
+                {qrOrder.receiverInfo.bankName} • STK:{' '}
+                <strong className="font-mono text-gray-900">{qrOrder.receiverInfo.accountNumber}</strong> •{' '}
+                {qrOrder.receiverInfo.accountName}
+              </div>
+
               <div className="space-y-1.5 text-xs text-left bg-emerald-50/70 p-3.5 rounded-2xl border border-emerald-100">
                 <div className="flex justify-between items-center text-gray-600">
-                  <span>Số tiền:</span>
-                  <span className="font-black text-[#006d37] text-sm">
-                    {formatCurrency(selectedOption.price)}{' '}
-                    <span className="text-xs font-bold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
-                      ({selectedOption.xu} Xu)
-                    </span>
-                  </span>
+                  <span>Số tiền ({qrOrder.amountXu} Xu):</span>
+                  <span className="font-black text-[#006d37] text-sm">{formatCurrency(qrOrder.amountVnd)}</span>
                 </div>
                 <div className="flex justify-between items-center text-gray-600 pt-1 border-t border-emerald-200/50">
                   <span>Nội dung chuyển khoản:</span>
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono font-black text-gray-900 bg-white px-2 py-0.5 rounded-md border border-gray-200">
-                      {transferContent}
+                      {qrOrder.transferContent}
                     </span>
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(transferContent);
+                        navigator.clipboard.writeText(qrOrder.transferContent);
                         setIsCopiedContent(true);
                         setTimeout(() => setIsCopiedContent(false), 2000);
                       }}
@@ -520,22 +628,35 @@ export const OwnerBoostRoomPage: React.FC = () => {
               </div>
             </div>
 
-            <div className="flex items-center gap-2 pt-2">
+            <div className="space-y-2 pt-1">
+              <button
+                type="button"
+                disabled={isCheckingQr}
+                onClick={handleRecheckQr}
+                className="w-full py-2.5 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
+              >
+                <RefreshCw className={`w-4 h-4 ${isCheckingQr ? 'animate-spin' : ''}`} />
+                <span>{isCheckingQr ? 'Đang kiểm tra...' : 'Kiểm tra trạng thái thanh toán'}</span>
+              </button>
+
+              {currentUser?.isDemoAccount && (
+                <button
+                  type="button"
+                  disabled={isConfirmingDemo}
+                  onClick={handleConfirmDemoSandbox}
+                  className="w-full py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  <span>{isConfirmingDemo ? 'Đang xác nhận Demo...' : 'Xác nhận Demo Sandbox'}</span>
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setShowQrModal(false)}
-                className="w-1/3 py-2.5 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-50 transition cursor-pointer"
+                className="w-full py-2 rounded-xl border border-gray-200 text-gray-600 text-xs font-bold hover:bg-gray-50 transition cursor-pointer"
               >
-                Hủy
-              </button>
-              <button
-                type="button"
-                disabled={isProcessing}
-                onClick={handleConfirmPaid}
-                className="w-2/3 py-2.5 rounded-xl bg-[#00a854] hover:bg-[#008f47] text-white text-xs font-black transition flex items-center justify-center gap-1.5 shadow-md cursor-pointer disabled:opacity-50"
-              >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>{isProcessing ? 'Đang kích hoạt...' : 'Tôi Đã Chuyển Khoản'}</span>
+                Đóng
               </button>
             </div>
           </div>

@@ -6,6 +6,7 @@ import {
   WalletTopupOrder,
 } from '../../lib/api/k23Wallet';
 import { TopupWizardStep } from '../../hooks/useWalletTopup';
+import { sanitizeReturnUrl } from '../../lib/monetizationCatalog';
 import { User } from '../../types';
 import { Button } from '../ui/Button';
 import { formatCurrency } from '../ui/Cards';
@@ -99,6 +100,8 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
   const [isDownloadingQr, setIsDownloadingQr] = useState<boolean>(false);
 
   const isLandlord = currentUser?.role === 'owner';
+  const rawReturnUrl = new URLSearchParams(location.search).get('returnUrl');
+  const safeReturnUrl = sanitizeReturnUrl(rawReturnUrl, '');
 
   const handleCopy = (text: string, fieldKey: string, label: string) => {
     navigator.clipboard.writeText(text);
@@ -939,39 +942,53 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3">
-            <Button
-              variant="primary"
-              size="md"
-              fullWidth
-              onClick={onBackToOverview}
-              leftIcon={<Wallet className="w-4 h-4" />}
-              className="font-bold cursor-pointer"
-            >
-              Về Ví Xu
-            </Button>
-            <Button
-              variant="outline"
-              size="md"
-              fullWidth
-              onClick={resetWizard}
-              className="font-bold cursor-pointer"
-            >
-              Nạp thêm Xu
-            </Button>
-            {isLandlord && (
-              <Link to="/chu-tro" className="w-full">
-                <Button
-                  variant="outline"
-                  size="md"
-                  fullWidth
-                  leftIcon={<Building2 className="w-4 h-4" />}
-                  className="font-bold cursor-pointer"
-                >
-                  Về trang Chủ trọ
-                </Button>
-              </Link>
+          <div className="space-y-3">
+            {safeReturnUrl && (
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                onClick={() => navigate(safeReturnUrl)}
+                rightIcon={<ArrowRight className="w-4 h-4" />}
+                className="font-black cursor-pointer shadow-md"
+              >
+                Quay lại hoàn tất thanh toán
+              </Button>
             )}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Button
+                variant={safeReturnUrl ? 'outline' : 'primary'}
+                size="md"
+                fullWidth
+                onClick={onBackToOverview}
+                leftIcon={<Wallet className="w-4 h-4" />}
+                className="font-bold cursor-pointer"
+              >
+                Về Ví Xu
+              </Button>
+              <Button
+                variant="outline"
+                size="md"
+                fullWidth
+                onClick={resetWizard}
+                className="font-bold cursor-pointer"
+              >
+                Nạp thêm Xu
+              </Button>
+              {isLandlord && (
+                <Link to="/chu-tro" className="w-full">
+                  <Button
+                    variant="outline"
+                    size="md"
+                    fullWidth
+                    leftIcon={<Building2 className="w-4 h-4" />}
+                    className="font-bold cursor-pointer"
+                  >
+                    Về trang Chủ trọ
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
         </div>
       )}

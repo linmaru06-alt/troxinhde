@@ -415,7 +415,7 @@ export interface Review {
 }
 
 // Payment & Subscription Models
-export type SubscriptionPlanId = "free" | "basic" | "pro";
+export type SubscriptionPlanId = "free" | "single_15d" | "single_30d" | "featured" | "pro" | "basic";
 
 export interface SubscriptionPlan {
   id: SubscriptionPlanId;
@@ -424,6 +424,10 @@ export interface SubscriptionPlan {
   originalPrice?: number;
   priceXu?: number;
   originalPriceXu?: number;
+  yearlyPriceXu?: number;
+  billingType?: "free" | "one_time" | "subscription";
+  durationDays?: number;
+  freeRepostsGranted?: number;
   period: string;
   roomLimit: number;
   badge?: string;
@@ -432,7 +436,7 @@ export interface SubscriptionPlan {
   description: string;
 }
 
-export type PaymentMethod = "momo" | "vnpay" | "banking" | "vietqr";
+export type PaymentMethod = "wallet_xu" | "momo" | "vnpay" | "banking" | "vietqr";
 
 export interface PaymentTransaction {
   id: string;
@@ -441,10 +445,11 @@ export interface PaymentTransaction {
   orderId: string;
   orderInfo: string;
   amount: number;
+  amountXu?: number;
   method: PaymentMethod;
   status: "success" | "failed" | "pending";
   planId?: SubscriptionPlanId;
-  boostType?: "3days" | "7days" | "30days";
+  boostType?: "single" | "3days" | "7days" | "30days";
   roomId?: string;
   createdAt: string;
 }
@@ -455,4 +460,9 @@ export interface OwnerSubscription {
   expiresAt: string;
   autoRenew: boolean;
   startedAt: string;
+  billingCycle?: "one_time" | "monthly" | "yearly";
+  freeUsedRooms?: number;
+  freeQuotaTotal?: number;
+  singleCreditsRemaining?: number;
+  freeRepostsRemaining?: number;
 }

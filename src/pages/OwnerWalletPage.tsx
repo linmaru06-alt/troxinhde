@@ -132,7 +132,7 @@ export const OwnerWalletPage: React.FC = () => {
               </button>
             </div>
 
-            {/* KHỐI 2: BẢNG QUY ĐỔI GIÁ DỊCH VỤ BẰNG XU */}
+            {/* KHỐI 2: BẢNG GIÁ DỊCH VỤ BẰNG XU */}
             <div
               className={`${
                 mobileOverviewTab === 'pricing' ? 'block' : 'hidden sm:block'
@@ -142,22 +142,40 @@ export const OwnerWalletPage: React.FC = () => {
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-gray-950 flex items-center gap-2">
                     <Rocket className="w-5 h-5 text-amber-500" />
-                    Bảng Quy Đổi Giá Dịch Vụ Bằng Xu
+                    Bảng Giá Dịch Vụ Bằng Xu (3 Nhóm Độc Lập)
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Toàn bộ các gói đẩy tin & gia hạn trên Trọ Xinh đều thanh toán trực tiếp bằng số dư Xu
+                    Toàn bộ Gói đăng phòng, Gói đẩy tin và Hệ thống quản lý K23 đều thanh toán 1 chạm bằng Xu nội bộ
                   </p>
                 </div>
 
-                {topup.currentUser?.role === 'owner' && (
+                <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
                   <Link
-                    to="/chu-tro"
-                    className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1 self-start sm:self-auto"
+                    to="/bang-gia"
+                    className="text-xs font-bold text-[#006d37] hover:underline flex items-center gap-1"
                   >
-                    <span>Đến trang Đẩy Tin</span>
+                    <span>Gói đăng phòng</span>
                     <ArrowRight className="w-3.5 h-3.5" />
                   </Link>
-                )}
+                  {topup.currentUser?.role === 'owner' && (
+                    <>
+                      <Link
+                        to="/chu-tro/goi-dich-vu"
+                        className="text-xs font-bold text-indigo-700 hover:underline flex items-center gap-1"
+                      >
+                        <span>Gói quản lý K23</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                      <Link
+                        to="/chu-tro"
+                        className="text-xs font-bold text-amber-700 hover:underline flex items-center gap-1"
+                      >
+                        <span>Đến trang Đẩy Tin</span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </Link>
+                    </>
+                  )}
+                </div>
               </div>
 
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
@@ -169,7 +187,7 @@ export const OwnerWalletPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-gray-500 text-[11px] leading-relaxed">
-                    Đẩy tin nổi lên đầu trang tìm kiếm ngay lập tức trong 24 giờ (~15.000đ).
+                    Đẩy tin nổi lên đầu trang tìm kiếm ngay lập tức trong 24 giờ.
                   </p>
                 </div>
 
@@ -181,7 +199,7 @@ export const OwnerWalletPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-gray-500 text-[11px] leading-relaxed">
-                    Lên đầu trang tìm kiếm trong 3 ngày cuối tuần cao điểm (~29.000đ).
+                    Lên đầu trang tìm kiếm liên tục trong 3 ngày cao điểm.
                   </p>
                 </div>
 
@@ -193,7 +211,7 @@ export const OwnerWalletPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-amber-900 text-[11px] leading-relaxed">
-                    Tự động đẩy top 2 khung giờ vàng: 11h-13h & 19h-22h mỗi ngày (~59.000đ).
+                    Tự động đẩy top 2 khung giờ vàng: 11h-13h &amp; 19h-22h mỗi ngày.
                   </p>
                 </div>
 
@@ -205,55 +223,55 @@ export const OwnerWalletPage: React.FC = () => {
                     </span>
                   </div>
                   <p className="text-emerald-900 text-[11px] leading-relaxed">
-                    Ưu tiên vị trí số 1 liên tục 30 ngày, gắn huy hiệu VIP nổi bật (~199.000đ).
+                    Ưu tiên vị trí số 1 liên tục 30 ngày, gắn huy hiệu VIP nổi bật.
                   </p>
                 </div>
 
                 <div className="p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-1.5 sm:space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span className="font-black text-gray-900 text-xs sm:text-sm">Gia Hạn 15 Ngày</span>
+                    <span className="font-black text-gray-900 text-xs sm:text-sm">Đăng Lẻ / Gia Hạn 15N</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px]">
                       30 Xu
                     </span>
                   </div>
                   <p className="text-gray-500 text-[11px] leading-relaxed">
-                    Gia hạn tin hết hạn chu kỳ 30 ngày thêm 15 ngày hiển thị (~30.000đ).
+                    Đăng 1 phòng hoặc gia hạn thêm 15 ngày hiển thị sau khi hết 2 phòng miễn phí.
                   </p>
                 </div>
 
                 <div className="p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-1.5 sm:space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span className="font-black text-gray-900 text-xs sm:text-sm">Gia Hạn 30 Ngày</span>
+                    <span className="font-black text-gray-900 text-xs sm:text-sm">Đăng Lẻ / Gia Hạn 30N</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px]">
                       50 Xu
                     </span>
                   </div>
                   <p className="text-gray-500 text-[11px] leading-relaxed">
-                    Gia hạn tin hết hạn thêm 30 ngày đầy đủ với chi phí tiết kiệm nhất (~50.000đ).
+                    Đăng 1 tin 30 ngày + tặng thêm 1 lần đăng lại miễn phí.
+                  </p>
+                </div>
+
+                <div className="p-3 sm:p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-indigo-950 text-xs sm:text-sm">Gói Đăng Phòng Tháng</span>
+                    <span className="px-2 py-0.5 rounded-full bg-indigo-600 text-white font-black text-[10px]">
+                      Từ 149 Xu
+                    </span>
+                  </div>
+                  <p className="text-indigo-900 text-[11px] leading-relaxed">
+                    Tin nổi bật 149 Xu/tháng (tối đa 10 tin) • Gói Pro 450 Xu/tháng (không giới hạn).
                   </p>
                 </div>
 
                 <div className="p-3 sm:p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1.5 sm:space-y-2">
                   <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span className="font-black text-teal-950 text-xs sm:text-sm">Đăng Lại Lần 1</span>
+                    <span className="font-black text-teal-950 text-xs sm:text-sm">Quản Lý Trọ K23</span>
                     <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px]">
-                      0 Xu (FREE)
+                      Từ 49 Xu
                     </span>
                   </div>
                   <p className="text-teal-900 text-[11px] leading-relaxed">
-                    Trọ Xinh tặng miễn phí lần đăng lại đầu tiên cho mọi phòng trọ (0 Xu).
-                  </p>
-                </div>
-
-                <div className="p-3 sm:p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1.5 sm:space-y-2">
-                  <div className="flex flex-wrap items-center justify-between gap-1">
-                    <span className="font-black text-teal-950 text-xs sm:text-sm">Xác Thực Chính Chủ</span>
-                    <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px]">
-                      TẶNG 48H VIP
-                    </span>
-                  </div>
-                  <p className="text-teal-900 text-[11px] leading-relaxed">
-                    Cấp Tick Xanh và tặng miễn phí 48 giờ đẩy tin tự động.
+                    Cơ Bản 49 Xu • Tiêu Chuẩn 129 Xu • Chuỗi 299 Xu/tháng (dùng thử 30 ngày 0 Xu).
                   </p>
                 </div>
               </div>

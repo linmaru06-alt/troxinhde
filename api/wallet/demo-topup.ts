@@ -59,15 +59,19 @@ export default async function handler(req: any, res: any) {
 
     try {
       await supabase.from('audit_logs').insert({
-        actor_id: profile.id,
+        admin_id: profile.id,
+        admin_email: claims.email || null,
+        admin_role: profile.app_role || 'owner',
         action: 'demo_wallet_topup',
-        entity_type: 'transactions',
-        entity_id: tx.id,
-        details: {
+        entity_type: 'system',
+        entity_id: String(tx.id),
+        data_after: {
           order_code: orderCode,
           amount_vnd: tx.amount,
           is_sandbox: true,
         },
+        reason: 'Nạp Xu giả lập trên tài khoản Demo Sandbox',
+        is_demo_admin: true,
         created_at: new Date().toISOString(),
       });
     } catch {

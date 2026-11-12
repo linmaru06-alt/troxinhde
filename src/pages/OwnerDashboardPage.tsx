@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { useRealtimeRoomStatus } from '../hooks/useRealtimeRoomStatus';
-import { BookingRequest, Room } from '../types';
+import { Room } from '../types';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
-import { Badge } from '../components/ui/Badge';
 import { formatPrice } from '../components/ui/Cards';
+import { getOwnerListingQuota } from '../lib/api/monetization';
 import {
   Home,
   PlusCircle,
@@ -144,8 +145,19 @@ export const OwnerDashboardPage: React.FC = () => {
         (currentUser?.firebaseUid && r.ownerId === currentUser.firebaseUid))
   );
 
+  const { data: listingQuota } = useQuery({
+    queryKey: ['owner-listing-quota', currentUser?.id],
+    queryFn: () => getOwnerListingQuota(),
+    enabled: Boolean(currentUser?.id),
+    staleTime: 60_000,
+  });
+
+  const activeListingPlanId = listingQuota?.activePlanId || ownerSubscription?.planId || 'free';
   const currentPlan =
-    SUBSCRIPTION_PLANS.find((p) => p.id === (ownerSubscription?.planId || 'free')) || SUBSCRIPTION_PLANS[0];
+    SUBSCRIPTION_PLANS.find((p) => p.id === activeListingPlanId) || SUBSCRIPTION_PLANS[0];
+  const freeRemaining = listingQuota?.freeRemaining ?? Math.max(0, 2 - myRooms.length);
+  const singleCredits = listingQuota?.availableSingleCredits ?? 0;
+  const activeListingExpiresAt = listingQuota?.activePlanExpiresAt || ownerSubscription?.expiresAt || null;
 
   // Tổng số phòng của tất cả các tòa nhà đã được admin duyệt
   const approvedRooms = myRooms.filter(
@@ -170,21 +182,34 @@ export const OwnerDashboardPage: React.FC = () => {
 
       {/* Main Dashboard Content */}
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
-        {/* Subscription Plan Active Strip Banner */}
+        {/* Subscription Plan Active Strip Banner (Dịch vụ 1: Gói đăng phòng) */}
         <div className="bg-gradient-to-r from-emerald-900 to-[#00a854] text-white rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0">
               <Crown className="w-5 h-5" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <span className="font-black text-sm sm:text-base">{currentPlan.name}</span>
-                <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
-                  {totalApprovedRooms}/{currentPlan.roomLimit === 999 ? '∞' : currentPlan.roomLimit} phòng
-                </span>
+                {activeListingPlanId === 'free' ? (
+                  <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
+                    Còn {freeRemaining}/2 phòng miễn phí
+                  </span>
+                ) : (
+                  <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
+                    {totalApprovedRooms}/{currentPlan.roomLimit === -1 || currentPlan.roomLimit >= 999 ? '∞' : currentPlan.roomLimit} phòng
+                  </span>
+                )}
+                {singleCredits > 0 && (
+                  <span className="text-[10px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full">
+                    +{singleCredits} lượt đăng tin lẻ
+                  </span>
+                )}
               </div>
               <p className="text-xs text-emerald-100/90 mt-0.5">
-                Hạn sử dụng đến: {ownerSubscription?.expiresAt ? new Date(ownerSubscription.expiresAt).toLocaleDateString('vi-VN') : 'Không giới hạn'}
+                {activeListingPlanId === 'free'
+                  ? 'Đăng tối đa 2 phòng đầu miễn phí. Hết quota có thể mua tin lẻ từ 30 Xu hoặc gói tháng từ 149 Xu.'
+                  : `Hạn sử dụng gói đăng phòng đến: ${activeListingExpiresAt ? new Date(activeListingExpiresAt).toLocaleDateString('vi-VN') : 'Đang hoạt động'}`}
               </p>
             </div>
           </div>
@@ -192,12 +217,12 @@ export const OwnerDashboardPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Link to="/chu-tro/quan-ly-goi">
               <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer">
-                Quản lý gói & Hóa đơn
+                Quản lý gói đăng phòng
               </button>
             </Link>
-            <Link to="/chu-tro/quan-ly-goi">
+            <Link to="/bang-gia?returnUrl=%2Fchu-tro">
               <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs cursor-pointer">
-                Nâng cấp gói ⭐
+                Bảng giá đăng phòng ⭐
               </button>
             </Link>
           </div>
@@ -242,12 +267,20 @@ export const OwnerDashboardPage: React.FC = () => {
                 Hệ Thống Thu Tiền & Quản Lý Khách Thuê Thông Minh
               </h2>
             </div>
-            <Link to="/demo-hoa-don">
-              <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
-                <span>Mở Phòng Lab Demo K23</span>
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </Link>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link to="/chu-tro/goi-dich-vu">
+                <button className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
+                  <Crown className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Gói Quản Lý K23 (Dùng thử 30 ngày)</span>
+                </button>
+              </Link>
+              <Link to="/demo-hoa-don">
+                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
+                  <span>Mở Phòng Lab Demo K23</span>
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </Link>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">

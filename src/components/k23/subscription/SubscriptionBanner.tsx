@@ -9,10 +9,12 @@ export const SubscriptionBanner: React.FC = () => {
     isGracePeriod,
     isSuspended,
     daysLeft,
-    currentPlan,
     canAddRoom,
     roomCount,
     maxRooms,
+    canAddBuilding,
+    buildingCount,
+    maxBuildings,
   } = useK23Subscription();
 
   // 1. Quá hạn ân hạn -> Bị tạm ngừng
@@ -75,13 +77,13 @@ export const SubscriptionBanner: React.FC = () => {
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm">Dùng thử Miễn phí Gói Tiêu Chuẩn (Pro)</span>
+              <span className="font-semibold text-sm">Dùng thử Miễn phí Gói Tiêu Chuẩn (0 Xu)</span>
               <span className="text-[11px] font-bold bg-amber-400 text-slate-950 px-2 py-0.5 rounded-full">
                 Còn {daysLeft} ngày
               </span>
             </div>
             <p className="text-xs text-indigo-200 mt-0.5">
-              Bạn đang trải nghiệm đầy đủ tính năng tối đa 35 phòng. Đóng theo năm để nhận ưu đãi tặng thêm 2 tháng.
+              Gói Tiêu Chuẩn • tối đa 35 phòng &amp; 3 tòa nhà • Trả năm đóng 10 tặng 2.
             </p>
           </div>
         </div>
@@ -97,7 +99,7 @@ export const SubscriptionBanner: React.FC = () => {
     );
   }
 
-  // 4. Sắp chạm giới hạn phòng (>= 90%)
+  // 4. Đạt giới hạn phòng
   if (!canAddRoom && maxRooms !== -1) {
     return (
       <div className="bg-orange-50 border border-orange-200 text-orange-900 px-4 py-3 rounded-xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">
@@ -108,7 +110,32 @@ export const SubscriptionBanner: React.FC = () => {
           <div>
             <p className="font-semibold text-sm">Đã đạt tối đa hạn mức phòng ({roomCount}/{maxRooms} phòng)</p>
             <p className="text-xs text-orange-700">
-              Bạn cần nâng cấp gói để tiếp tục thêm phòng mới vào hệ thống quản lý.
+              Bạn cần nâng cấp gói K23 để tiếp tục thêm phòng mới vào hệ thống quản lý.
+            </p>
+          </div>
+        </div>
+        <Link
+          to="/chu-tro/goi-dich-vu"
+          className="inline-flex items-center gap-1.5 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold rounded-lg transition-colors shrink-0"
+        >
+          Nâng cấp gói ngay <ArrowRight className="w-3.5 h-3.5" />
+        </Link>
+      </div>
+    );
+  }
+
+  // 5. Đạt giới hạn tòa nhà
+  if (!canAddBuilding && maxBuildings !== -1) {
+    return (
+      <div className="bg-orange-50 border border-orange-200 text-orange-900 px-4 py-3 rounded-xl mb-6 flex flex-col sm:flex-row items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-orange-100 text-orange-600 rounded-lg">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="font-semibold text-sm">Đã đạt tối đa hạn mức tòa nhà ({buildingCount}/{maxBuildings} tòa nhà)</p>
+            <p className="text-xs text-orange-700">
+              Nâng cấp lên gói Tiêu Chuẩn (3 tòa nhà) hoặc gói Chuỗi (không giới hạn) để thêm cơ sở mới.
             </p>
           </div>
         </div>

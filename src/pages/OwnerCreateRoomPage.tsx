@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAppStore, SUBSCRIPTION_PLANS } from '../store/useAppStore';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { Button } from '../components/ui/Button';
@@ -8,6 +9,9 @@ import { Badge } from '../components/ui/Badge';
 import { Modal } from '../components/ui/Modal';
 import { RoomCard, formatPrice, formatCurrency } from '../components/ui/Cards';
 import { Room } from '../types';
+import { FREE_LISTING_QUOTA, LISTING_PLANS } from '../lib/monetizationCatalog';
+import { getOwnerListingQuota, consumeListingCreditForRoom } from '../lib/api/monetization';
+import { isSupabaseConfigured } from '../lib/supabase';
 import {
   Eye,
   ShieldCheck,
@@ -55,6 +59,7 @@ const COMMON_AMENITIES = [
 
 export const OwnerCreateRoomPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { id, buildingId: routeBuildingId } = useParams<{ id?: string; buildingId?: string }>();
   const { buildings, addRoom, updateRoom, currentUser, rooms, ownerSubscription, showToast } = useAppStore();
 
@@ -62,12 +67,33 @@ export const OwnerCreateRoomPage: React.FC = () => {
   const editingRoom = id ? rooms.find((r) => r.id === id) : undefined;
   const isEditMode = Boolean(editingRoom);
 
-  const myRooms = rooms.filter((r) => r.ownerId === currentUser?.id || r.ownerId === 'user_owner_1');
+  const myRooms = rooms.filter(
+    (r) =>
+      r.ownerId === currentUser?.id ||
+      (Boolean(currentUser?.isDemoAccount) && r.ownerId === 'user_owner_1')
+  );
   const currentPlan =
     SUBSCRIPTION_PLANS.find((p) => p.id === ownerSubscription.planId) || SUBSCRIPTION_PLANS[0];
-  const isLimitReached = !isEditMode && currentPlan.roomLimit !== 999 && myRooms.length >= currentPlan.roomLimit;
 
-  const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(isLimitReached);
+  const quotaQuery = useQuery({
+    queryKey: ['owner-listing-quota', currentUser?.id],
+    queryFn: () => getOwnerListingQuota(currentUser?.id),
+    enabled: !isEditMode && Boolean(currentUser?.id) && isSupabaseConfigured,
+    staleTime: 15_000,
+  });
+
+  const quotaData = quotaQuery.data;
+  const fallbackLimitReached =
+    !isEditMode && currentPlan.roomLimit !== 999 && myRooms.length >= currentPlan.roomLimit;
+  const isLimitReached = !isEditMode && (quotaData ? !quotaData.canCreateRoom : fallbackLimitReached);
+
+  const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isLimitReached) {
+      setShowUpgradeModal(true);
+    }
+  }, [isLimitReached]);
   const [showFullPreview, setShowFullPreview] = useState<boolean>(false);
   const [previewTab, setPreviewTab] = useState<'costs' | 'amenities' | 'description' | 'location' | 'reviews'>('costs');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
@@ -355,8 +381,8 @@ export const OwnerCreateRoomPage: React.FC = () => {
     if (!isEditMode && isLimitReached) {
       setShowUpgradeModal(true);
       showToast(
-        'Đã đạt hạn mức gói!',
-        `Gói ${currentPlan.name} chỉ cho phép tối đa ${currentPlan.roomLimit} phòng. Vui lòng nâng cấp để tiếp tục.`,
+        'Đã hết 2 phòng miễn phí!',
+        'Vui lòng chọn Tin lẻ (30–50 Xu) hoặc nâng cấp Tin nổi bật (149 Xu) / Gói Pro (450 Xu) để đăng thêm phòng.',
         'warning'
       );
       return;
@@ -455,6 +481,15 @@ export const OwnerCreateRoomPage: React.FC = () => {
           lng: finalCoords.lng,
         });
 
+        if (isSupabaseConfigured && createdRoom?.id) {
+          try {
+            await consumeListingCreditForRoom(createdRoom.id);
+          } catch (creditErr) {
+            console.warn('[OwnerCreateRoomPage] consumeListingCreditForRoom warning:', creditErr);
+          }
+          await queryClient.invalidateQueries({ queryKey: ['owner-listing-quota', currentUser?.id] });
+        }
+
         addRoom({
           buildingId: bldId,
           buildingName: selectedBuilding?.name || 'Tòa nhà Trọ Xinh',
@@ -510,6 +545,42 @@ export const OwnerCreateRoomPage: React.FC = () => {
       <DashboardSidebar role="owner" />
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
+        {/* Free / Plan Quota Banner */}
+        {!isEditMode && !isLimitReached && (
+          <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-950 shadow-2xs">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[#006d37] shrink-0" />
+              <span>
+                {quotaData ? (
+                  quotaData.freeRemaining > 0 ? (
+                    <>
+                      Bạn còn <strong>{quotaData.freeRemaining}/{FREE_LISTING_QUOTA} phòng đầu miễn phí</strong> (0 Xu).
+                    </>
+                  ) : quotaData.activePlanId !== 'free' ? (
+                    <>
+                      Đang sử dụng gói <strong>{quotaData.activePlanId === 'pro' ? 'Gói Pro' : 'Tin nổi bật'}</strong> •{' '}
+                      {quotaData.activePlanLimit === -1
+                        ? `Đã đăng ${quotaData.roomCount} phòng (Không giới hạn)`
+                        : `Còn ${Math.max(0, quotaData.activePlanLimit - quotaData.roomCount)}/${quotaData.activePlanLimit} lượt phòng`}
+                    </>
+                  ) : (
+                    <>
+                      Bạn còn <strong>{quotaData.availableSingleCredits} tin lẻ khả dụng</strong>.
+                    </>
+                  )
+                ) : (
+                  <>
+                    Mỗi tài khoản chủ trọ được đăng miễn phí <strong>{FREE_LISTING_QUOTA} phòng đầu tiên</strong>.
+                  </>
+                )}
+              </span>
+            </div>
+            <Link to="/bang-gia" className="text-[#006d37] font-bold hover:underline shrink-0">
+              Xem bảng giá gói đăng phòng →
+            </Link>
+          </div>
+        )}
+
         {/* Limit Reached Warning Banner */}
         {isLimitReached && (
           <div className="p-4 bg-amber-50 rounded-2xl border border-amber-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-xs">
@@ -519,19 +590,23 @@ export const OwnerCreateRoomPage: React.FC = () => {
               </div>
               <div>
                 <p className="text-sm font-bold text-gray-900">
-                  Bạn đã dùng hết {currentPlan.roomLimit}/{currentPlan.roomLimit} phòng của {currentPlan.name}
+                  Bạn đã dùng hết {FREE_LISTING_QUOTA} phòng miễn phí hoặc hạn mức gói hiện tại
                 </p>
                 <p className="text-xs text-gray-600">
-                  Nâng cấp lên Gói Cơ Bản (99 Xu) hoặc Gói Pro để mở rộng hạn mức đăng phòng.
+                  Chọn Tin lẻ (30–50 Xu) hoặc nâng cấp gói Tin nổi bật (149 Xu) / Gói Pro (450 Xu) để tiếp tục đăng thêm phòng.
                 </p>
               </div>
             </div>
 
-            <Link to="/nang-cap">
-              <Button variant="primary" size="sm" leftIcon={<Crown className="w-4 h-4" />}>
-                Nâng Cấp Ngay
-              </Button>
-            </Link>
+            <Button
+              type="button"
+              variant="primary"
+              size="sm"
+              leftIcon={<Crown className="w-4 h-4" />}
+              onClick={() => setShowUpgradeModal(true)}
+            >
+              Chọn Gói Đăng Phòng
+            </Button>
           </div>
         )}
 
@@ -1268,11 +1343,11 @@ export const OwnerCreateRoomPage: React.FC = () => {
           </div>
         </Modal>
 
-        {/* Upgrade Plan Modal */}
+        {/* Upgrade Plan Modal — Service 1 (4 options in Xu) */}
         <Modal
           isOpen={showUpgradeModal}
           onClose={() => setShowUpgradeModal(false)}
-          title="Nâng Cấp Gói Để Tiếp Tục Đăng Phòng"
+          title="Đã Hết Hạn Mức Miễn Phí — Chọn Gói Đăng Phòng"
         >
           <div className="space-y-4 text-xs text-gray-600 text-left">
             <div className="p-4 bg-emerald-50 rounded-2xl border border-emerald-100 flex items-center gap-3">
@@ -1281,26 +1356,60 @@ export const OwnerCreateRoomPage: React.FC = () => {
               </div>
               <div>
                 <p className="font-extrabold text-gray-900 text-sm">
-                  Hạn mức hiện tại: {currentPlan.roomLimit} phòng
+                  Bạn đã sử dụng hết {FREE_LISTING_QUOTA} phòng đầu miễn phí
                 </p>
-                <p className="text-gray-500">
-                  Bạn đã đăng đủ {myRooms.length}/{currentPlan.roomLimit} phòng của {currentPlan.name}.
+                <p className="text-gray-600">
+                  Chọn 1 trong 4 gói đăng phòng dưới đây để mở rộng lượt đăng (thanh toán bằng Xu nội bộ, VietQR hoặc MoMo):
                 </p>
               </div>
             </div>
 
-            <p className="leading-relaxed">
-              Để quản lý nhiều phòng trọ hơn và nhận thêm các lượt Đẩy Tin Nổi Bật miễn phí, bạn vui lòng nâng cấp lên{' '}
-              <strong>Gói Cơ Bản (99 Xu/tháng)</strong> hoặc <strong>Gói Pro VIP (299 Xu)</strong>.
-            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              {LISTING_PLANS.map((plan) => (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() =>
+                    navigate(
+                      `/thanh-toan/${plan.id}?returnUrl=${encodeURIComponent('/chu-tro/phong/tao-moi')}`
+                    )
+                  }
+                  className={`p-3.5 rounded-2xl border-2 text-left transition cursor-pointer flex flex-col justify-between gap-1.5 hover:border-[#006d37] ${
+                    plan.popular ? 'border-[#006d37] bg-emerald-50/50' : 'border-gray-200 bg-white'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-1">
+                    <span className="font-extrabold text-gray-900 text-xs">{plan.name}</span>
+                    {plan.popular && (
+                      <span className="text-[9px] font-black bg-[#006d37] text-white px-2 py-0.5 rounded-full whitespace-nowrap">
+                        PHỔ BIẾN NHẤT
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-base font-black text-[#006d37] font-mono">
+                    {plan.priceXu} Xu
+                    <span className="text-[11px] font-semibold text-gray-500">/{plan.periodLabel}</span>
+                  </div>
+                  <p className="text-[11px] text-gray-500 leading-snug">
+                    {plan.roomLimit === -1
+                      ? 'Không giới hạn phòng hoạt động'
+                      : plan.billingType === 'subscription'
+                      ? `Tối đa ${plan.roomLimit} phòng hoạt động`
+                      : plan.freeRepostsGranted > 0
+                      ? `1 tin 30 ngày + tặng 1 lần đăng lại 0 Xu`
+                      : `1 tin đăng lẻ ${plan.durationDays} ngày`}
+                  </p>
+                </button>
+              ))}
+            </div>
 
             <div className="flex justify-end gap-2 pt-2 border-t border-gray-200">
               <Button variant="outline" size="sm" onClick={() => setShowUpgradeModal(false)}>
                 Đóng
               </Button>
-              <Link to="/nang-cap">
+              <Link to={`/bang-gia?returnUrl=${encodeURIComponent('/chu-tro/phong/tao-moi')}`}>
                 <Button variant="primary" size="sm" rightIcon={<ArrowRight className="w-4 h-4" />}>
-                  Xem Bảng Giá Nâng Cấp
+                  Xem So Sánh Chi Tiết
                 </Button>
               </Link>
             </div>

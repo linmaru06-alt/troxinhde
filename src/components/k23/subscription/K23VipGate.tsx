@@ -1,6 +1,7 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useK23Subscription } from '../../../hooks/queries/useK23Subscription';
+import { useAppStore } from '../../../store/useAppStore';
 import { DashboardSidebar } from '../../layout/DashboardSidebar';
 import { SEOHead } from '../../seo/SEOHead';
 import { Button } from '../../ui/Button';
@@ -11,30 +12,35 @@ import {
   Receipt,
   QrCode,
   ShieldCheck,
-  CheckCircle2,
   ArrowRight,
   Loader2,
   Lock,
+  AlertCircle,
 } from 'lucide-react';
 
 interface K23VipGateProps {
   children: React.ReactNode;
   featureTitle?: string;
-  featureDescription?: string;
 }
 
 export const K23VipGate: React.FC<K23VipGateProps> = ({
   children,
   featureTitle = 'Hệ Thống Quản Lý Phòng Trọ K23',
-  featureDescription = 'Tự động hóa hoàn toàn chốt số điện nước, phát hành hóa đơn A5 và thu tiền qua VietQR.',
 }) => {
-  const { isVip, isLoadingSubscription, activateTrial, isActivatingTrial } = useK23Subscription();
+  const location = useLocation();
+  const { showToast } = useAppStore();
+  const { isVip, isLoadingSubscription, activateTrial, isActivatingTrial, hasUsedTrial } = useK23Subscription();
+  const [trialError, setTrialError] = useState<string | null>(null);
 
   const handleActivateTrial = async () => {
+    setTrialError(null);
     try {
       await activateTrial();
-    } catch (err) {
-      console.error(err);
+      showToast('Đã kích hoạt dùng thử 30 ngày!', 'Bạn đang sử dụng gói Tiêu Chuẩn (0 Xu).', 'success');
+    } catch (err: any) {
+      const msg = err?.message || 'Không thể kích hoạt dùng thử K23. Vui lòng thử lại.';
+      setTrialError(msg);
+      showToast('Không thể kích hoạt dùng thử', msg, 'error');
     }
   };
 
@@ -85,7 +91,7 @@ export const K23VipGate: React.FC<K23VipGateProps> = ({
               Mở Khóa {featureTitle}
             </h1>
             <p className="text-sm text-slate-300 leading-relaxed">
-              Tính năng này chỉ dành cho chủ trọ đã đăng ký **Gói VIP Quản Lý K23**. Bạn cần kích hoạt gói để bắt đầu sử dụng.
+              Tính năng này dành cho chủ trọ đang kích hoạt <strong className="text-white">Gói Quản Lý Phòng Trọ K23</strong>. Bạn có thể dùng thử 30 ngày miễn phí (0 Xu) hoặc chọn gói phù hợp quy mô tòa nhà.
             </p>
           </div>
 
@@ -142,37 +148,65 @@ export const K23VipGate: React.FC<K23VipGateProps> = ({
 
           {/* CTA Actions */}
           <div className="bg-slate-900/80 border border-slate-700 rounded-2xl p-6 text-center space-y-4">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <Button
-                onClick={handleActivateTrial}
-                disabled={isActivatingTrial}
-                className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-600 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
-              >
-                {isActivatingTrial ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Đang kích hoạt VIP...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4 fill-current" />
-                    KÍCH HOẠT DÙNG THỬ VIP 30 NGÀY (MIỄN PHÍ)
-                  </>
-                )}
-              </Button>
+            {trialError && (
+              <div className="p-3 rounded-xl bg-rose-500/15 border border-rose-400/40 text-rose-200 text-xs flex items-center justify-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                <span>{trialError}</span>
+              </div>
+            )}
 
-              <Link to="/chu-tro/goi-dich-vu" className="w-full sm:w-auto">
+            {hasUsedTrial && !isVip ? (
+              <div className="space-y-3">
+                <p className="text-xs font-semibold text-amber-300">
+                  Tài khoản đã hết lượt dùng thử 30 ngày miễn phí. Vui lòng chọn gói K23 để tiếp tục.
+                </p>
+                <div className="flex justify-center">
+                  <Link
+                    to={`/chu-tro/goi-dich-vu?returnUrl=${encodeURIComponent(location.pathname + location.search)}`}
+                    className="w-full sm:w-auto"
+                  >
+                    <Button className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-600 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2">
+                      Chọn gói quản lý K23 ngay <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
                 <Button
-                  variant="outline"
-                  className="w-full sm:w-auto px-5 py-3.5 bg-transparent border-slate-600 text-slate-200 hover:bg-slate-700 hover:text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5"
+                  onClick={handleActivateTrial}
+                  disabled={isActivatingTrial}
+                  className="w-full sm:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 via-amber-400 to-yellow-300 hover:from-amber-600 hover:to-yellow-400 text-slate-950 font-black text-sm rounded-xl shadow-lg shadow-amber-500/25 flex items-center justify-center gap-2"
                 >
-                  Xem các gói cước VIP <ArrowRight className="w-3.5 h-3.5" />
+                  {isActivatingTrial ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Đang kích hoạt dùng thử...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="w-4 h-4 fill-current" />
+                      DÙNG THỬ 30 NGÀY GÓI TIÊU CHUẨN (0 XU)
+                    </>
+                  )}
                 </Button>
-              </Link>
-            </div>
+
+                <Link
+                  to={`/chu-tro/goi-dich-vu?returnUrl=${encodeURIComponent(location.pathname + location.search)}`}
+                  className="w-full sm:w-auto"
+                >
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto px-5 py-3.5 bg-transparent border-slate-600 text-slate-200 hover:bg-slate-700 hover:text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5"
+                  >
+                    Xem bảng giá K23 <ArrowRight className="w-3.5 h-3.5" />
+                  </Button>
+                </Link>
+              </div>
+            )}
 
             <p className="text-[11px] text-slate-400">
-              ⚡ Không yêu cầu thẻ tín dụng. Trải nghiệm trọn vẹn toàn bộ tính năng Gói Pro (tối đa 35 phòng) ngay tức thì.
+              ⚡ Dùng thử 30 ngày gói Tiêu Chuẩn (0 Xu) — tối đa 35 phòng &amp; 3 tòa nhà. Mỗi chủ trọ được kích hoạt dùng thử 1 lần.
             </p>
           </div>
         </div>

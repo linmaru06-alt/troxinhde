@@ -220,12 +220,30 @@ export const Footer: React.FC = () => {
                   <span>Tư vấn trực tiếp qua Zalo</span>
                 </a>
               </li>
-              <li className="pt-1 border-t border-gray-100">
+              <li className="pt-1 border-t border-gray-100 flex flex-wrap items-center gap-x-4 gap-y-1">
                 <Link to="/bang-gia" className="hover:text-[#006d37] transition text-gray-500">
-                  Bảng giá dịch vụ chủ trọ
+                  Bảng giá gói đăng phòng
+                </Link>
+                <Link to="/chu-tro/goi-dich-vu" className="hover:text-[#006d37] transition text-gray-500">
+                  Gói quản lý K23
                 </Link>
               </li>
             </ul>
+          </div>
+        </div>
+
+        <div className="mt-8 pt-6 border-t border-gray-200/80 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-gray-500">
+          <span>© {new Date().getFullYear()} Trọ Xinh. Mọi quyền được bảo lưu.</span>
+          <div className="flex items-center gap-4">
+            <Link to="/terms" className="hover:text-[#006d37] transition">
+              Điều khoản
+            </Link>
+            <Link to="/privacy" className="hover:text-[#006d37] transition">
+              Bảo mật
+            </Link>
+            <a href="mailto:support@troxinh.vn" className="hover:text-[#006d37] transition">
+              Hỗ trợ: support@troxinh.vn
+            </a>
           </div>
         </div>
       </div>

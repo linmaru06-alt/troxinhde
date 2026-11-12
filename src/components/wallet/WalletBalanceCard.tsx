@@ -57,7 +57,7 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
           </div>
 
           <div className="pt-1 sm:pt-2">
-            <p className="text-xs text-emerald-100 font-medium">Tổng số dư khả dụng:</p>
+            <p className="text-xs text-emerald-100 font-medium">Số dư Xu khả dụng:</p>
             {isLoading ? (
               <div className="h-10 sm:h-12 w-44 sm:w-48 bg-white/10 rounded-2xl animate-pulse mt-1" />
             ) : (
@@ -66,9 +66,6 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
                   {(wallet?.total_xu || 0).toLocaleString('vi-VN')}
                 </span>
                 <span className="text-base sm:text-2xl font-black text-white">XU</span>
-                <span className="text-[11px] sm:text-xs text-emerald-200 font-medium bg-white/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg">
-                  ≈ {((wallet?.total_xu || 0) * 1000).toLocaleString('vi-VN')} VNĐ
-                </span>
               </div>
             )}
           </div>
@@ -156,8 +153,8 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
             <div className="flex items-start gap-2.5 p-2.5 rounded-2xl bg-slate-50 border border-slate-200/80">
               <Info className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
               <div>
-                <strong className="text-gray-900 block">Ví dịch vụ khép kín an toàn:</strong>
-                <span>Xu dùng thanh toán dịch vụ nội bộ trên Trọ Xinh (không quy đổi tiền mặt); hỗ trợ tra soát hoàn tiền qua CSKH nếu chuyển nhầm.</span>
+                <strong className="text-gray-900 block">Hệ thống Xu nội bộ khép kín:</strong>
+                <span>Xu nội bộ dùng thanh toán mọi dịch vụ trên Trọ Xinh (không quy đổi tiền mặt); hỗ trợ tra soát hoàn tiền qua CSKH nếu chuyển nhầm.</span>
               </div>
             </div>
           </div>
