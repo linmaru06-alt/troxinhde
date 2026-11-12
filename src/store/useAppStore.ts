@@ -218,7 +218,10 @@ interface AppState {
   rejectRoom: (roomId: string, reason: string) => void;
 
   // Community & Marketplace
-  addRoommatePost: (post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string }) => string;
+  addRoommatePost: (
+    post: Omit<RoommatePost, 'id' | 'createdAt'> & { id?: string },
+    options?: { skipRemoteSync?: boolean }
+  ) => string;
   removeRoommatePost: (id: string) => void;
   // Bộ nhớ đệm hiển thị: chỉ cập nhật bằng dữ liệu máy chủ đã xác nhận
   upsertMarketplaceItem: (item: MarketplaceItem) => void;
@@ -1401,7 +1404,7 @@ export const useAppStore = create<AppState>()(
         get().showToast('Đã từ chối tin đăng', `Lý do: ${reason}`, 'warning');
       },
 
-      addRoommatePost: (data) => {
+      addRoommatePost: (data, options) => {
         const generateUUID = () => {
           if (typeof crypto !== 'undefined' && crypto.randomUUID) {
             return crypto.randomUUID();
@@ -1421,8 +1424,10 @@ export const useAppStore = create<AppState>()(
           roommates: [newPost, ...state.roommates.filter((r) => r.id !== newId)],
           localCreatedRoommates: [newPost, ...state.localCreatedRoommates.filter((r) => r.id !== newId)],
         }));
-        // Sync lên Supabase Cloud
-        syncRoommatePostToSupabase(newPost).catch(console.warn);
+        // Sync lên Supabase Cloud (bỏ qua nếu caller vừa gọi createRoommatePost trực tiếp)
+        if (!options?.skipRemoteSync) {
+          syncRoommatePostToSupabase(newPost).catch(console.warn);
+        }
         return newId;
       },
 

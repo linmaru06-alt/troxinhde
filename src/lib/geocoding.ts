@@ -476,19 +476,25 @@ export async function geocodeAddressCached(
 }
 
 export async function reverseGeocodeAddress(lat: number, lng: number): Promise<string> {
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), 4500) : null;
   try {
     const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=vi`;
     const response = await fetch(url, {
       headers: { 'User-Agent': 'TroXinhMap/2.0 (troxinh.vn)' },
+      signal: controller?.signal,
     });
+    if (!response.ok) return '';
     const data = await response.json();
-    if (data && data.display_name) {
-      return data.display_name;
+    if (data && typeof data.display_name === 'string' && data.display_name.trim()) {
+      return data.display_name.trim();
     }
   } catch (err) {
     console.error('Reverse geocoding error:', err);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
   }
-  return 'Không xác định được địa chỉ';
+  return '';
 }
 
 export function resolveEntityCoordsSync(input: {
@@ -500,9 +506,11 @@ export function resolveEntityCoordsSync(input: {
   buildingGeo?: GeoCoords | null;
   buildingAddress?: string;
 }): ResolvedGeoCoords {
-  // 1. Tọa độ gắn trực tiếp trên phòng / tin ở ghép
-  if (isValidHanoiCoord(input.lat, input.lng)) {
-    return { lat: input.lat as number, lng: input.lng as number, source: 'explicit' };
+  // 1. Tọa độ gắn trực tiếp trên phòng / tin ở ghép (hỗ trợ cả number và numeric string từ DB/JSON)
+  const explicitLat = input.lat !== null && input.lat !== undefined && input.lat !== ('' as any) ? Number(input.lat) : NaN;
+  const explicitLng = input.lng !== null && input.lng !== undefined && input.lng !== ('' as any) ? Number(input.lng) : NaN;
+  if (isValidHanoiCoord(explicitLat, explicitLng)) {
+    return { lat: explicitLat, lng: explicitLng, source: 'explicit' };
   }
 
   // 2. Chỉ kế thừa tọa độ tòa nhà khi địa chỉ phòng trùng/không ghi đè tòa nhà

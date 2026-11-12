@@ -157,12 +157,22 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
     any: 'Tất cả',
   };
 
+  const pickCoords = (latVal: any, lngVal: any) => {
+    const la = latVal !== null && latVal !== undefined && latVal !== '' ? Number(latVal) : NaN;
+    const ln = lngVal !== null && lngVal !== undefined && lngVal !== '' ? Number(lngVal) : NaN;
+    return Number.isFinite(la) && Number.isFinite(ln) && la !== 0 && ln !== 0
+      ? { lat: la, lng: ln }
+      : null;
+  };
+
   const mapRecord = (r: any): RoommatePost => {
     const poster = r.profiles || {};
     const room = r.room || {};
     const roomBld = room.buildings || {};
-    const rawLat = Number(r.lat) || Number(room.lat) || Number(roomBld.lat);
-    const rawLng = Number(r.lng) || Number(room.lng) || Number(roomBld.lng);
+    const resolvedPair =
+      pickCoords(r.lat, r.lng) ||
+      pickCoords(room.lat, room.lng) ||
+      pickCoords(roomBld.lat, roomBld.lng);
     return {
       id: r.id,
       userId: r.original_user_id || r.poster_id || poster.id || r.userId || '',
@@ -174,8 +184,8 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       genderPreference: (targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : (r.genderPreference || 'Tất cả'))) as any,
       district: r.district || room.district || roomBld.district || 'Hà Nội',
       address: r.address || room.address || roomBld.address || undefined,
-      lat: Number.isFinite(rawLat) && rawLat !== 0 ? rawLat : undefined,
-      lng: Number.isFinite(rawLng) && rawLng !== 0 ? rawLng : undefined,
+      lat: resolvedPair?.lat,
+      lng: resolvedPair?.lng,
       budgetShare: Number(r.budget_per_person || r.budget || r.budgetShare) || 2000000,
       habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
       lifestyleTags: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags.slice(0, 3) : (Array.isArray(r.habits) ? r.habits.slice(0, 3) : []),
@@ -248,13 +258,25 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
     console.warn('[Supabase] Lỗi khi tải audit_logs roommate posts:', err);
   }
 
-  // 3. Khử trùng lặp và sắp xếp mới nhất
+  // 3. Khử trùng lặp (giữ lại lat/lng/address từ audit_logs nếu bản roommate_posts chưa có) và sắp xếp mới nhất
   const postMap = new Map<string, RoommatePost>();
   cloudAuditPosts.forEach((p) => {
     if (p.id) postMap.set(p.id, p);
   });
   directPosts.forEach((p) => {
-    if (p.id) postMap.set(p.id, p);
+    if (!p.id) return;
+    const prev = postMap.get(p.id);
+    if (prev) {
+      postMap.set(p.id, {
+        ...prev,
+        ...p,
+        address: p.address || prev.address,
+        lat: p.lat ?? prev.lat,
+        lng: p.lng ?? prev.lng,
+      });
+    } else {
+      postMap.set(p.id, p);
+    }
   });
 
   return Array.from(postMap.values()).sort(

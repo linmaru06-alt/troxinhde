@@ -158,6 +158,27 @@ test('Khoảng cách trường Đại học dùng tọa độ Haversine chính x
   assert.ok(d < 1.0, `Lê Thanh Nghị cách ĐH Bách Khoa < 1km, thực tế: ${d.toFixed(2)}km`);
 });
 
+test('resolveEntityCoordsSync giữ nguyên tọa độ ghim dạng string số và không làm lệch vị trí', () => {
+  const res = resolveEntityCoordsSync({
+    lat: '21.03125',
+    lng: '105.78891',
+    address: 'Quận Cầu Giấy',
+    district: 'Quận Cầu Giấy',
+  });
+  assert.equal(res.source, 'explicit');
+  assert.equal(res.lat, 21.03125);
+  assert.equal(res.lng, 105.78891);
+});
+
+test('MapPinPicker cập nhật tọa độ đồng bộ trước reverse-geocode và đồng nhất anchor [0, 0] với bản đồ xem', () => {
+  const mapCode = readFileSync(join(process.cwd(), 'src', 'components', 'map', 'TroXinhMap.tsx'), 'utf8');
+  const syncCallIdx = mapCode.indexOf('onLocationChange({ lat: newPos[0], lng: newPos[1] });');
+  const reverseCallIdx = mapCode.indexOf('await reverseGeocodeAddress(newPos[0], newPos[1]);');
+  assert.ok(syncCallIdx > 0 && reverseCallIdx > syncCallIdx, 'Phải gọi onLocationChange trước reverseGeocodeAddress');
+  assert.equal(mapCode.includes('iconAnchor: [50, 15]'), false, 'Không dùng anchor [50, 15] gây lệch ngang theo độ rộng chữ');
+  assert.equal(mapCode.includes('iconAnchor: [18, 36]'), false, 'Không dùng anchor [18, 36] không có mũi nhọn tâm ghim');
+});
+
 console.log(`\nKẾT QUẢ KIỂM THỬ BẢN ĐỒ & ĐỊNH VỊ: ${passed} Passed, ${failed} Failed\n`);
 if (failed > 0) {
   process.exit(1);

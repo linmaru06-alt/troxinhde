@@ -21,8 +21,17 @@ export function formatRoommatePost(r: any): RoommatePost {
     any: 'Tất cả',
   };
 
-  const rawLat = Number(r.lat) || Number(room.lat) || Number(roomBld.lat);
-  const rawLng = Number(r.lng) || Number(room.lng) || Number(roomBld.lng);
+  const pickCoords = (latVal: any, lngVal: any) => {
+    const la = latVal !== null && latVal !== undefined && latVal !== '' ? Number(latVal) : NaN;
+    const ln = lngVal !== null && lngVal !== undefined && lngVal !== '' ? Number(lngVal) : NaN;
+    return Number.isFinite(la) && Number.isFinite(ln) && la !== 0 && ln !== 0
+      ? { lat: la, lng: ln }
+      : null;
+  };
+  const resolvedPair =
+    pickCoords(r.lat, r.lng) ||
+    pickCoords(room.lat, room.lng) ||
+    pickCoords(roomBld.lat, roomBld.lng);
 
   return {
     id: r.id,
@@ -34,8 +43,8 @@ export function formatRoommatePost(r: any): RoommatePost {
     userSchool: r.school || '',
     district: r.district || room.district || roomBld.district || 'Hà Nội',
     address: r.address || room.address || roomBld.address || undefined,
-    lat: Number.isFinite(rawLat) && rawLat !== 0 ? rawLat : undefined,
-    lng: Number.isFinite(rawLng) && rawLng !== 0 ? rawLng : undefined,
+    lat: resolvedPair?.lat,
+    lng: resolvedPair?.lng,
     budgetShare: Number(r.budget_per_person || r.budget) || 2000000,
     genderPreference: targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : 'Tất cả'),
     habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
@@ -127,13 +136,25 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
     console.warn('[Roommates API] Lỗi truy vấn audit_logs roommate posts:', auditErr);
   }
 
-  // 3. Hợp nhất hai nguồn Cloud, khử trùng lặp và sắp xếp mới nhất lên đầu
+  // 3. Hợp nhất hai nguồn Cloud, khử trùng lặp và giữ lại tọa độ/địa chỉ nếu bản direct chưa có
   const postMap = new Map<string, RoommatePost>();
   cloudAuditPosts.map(formatRoommatePost).forEach((p) => {
     if (p.id) postMap.set(p.id, p);
   });
   directPosts.forEach((p) => {
-    if (p.id) postMap.set(p.id, p);
+    if (!p.id) return;
+    const prev = postMap.get(p.id);
+    if (prev) {
+      postMap.set(p.id, {
+        ...prev,
+        ...p,
+        address: p.address || prev.address,
+        lat: p.lat ?? prev.lat,
+        lng: p.lng ?? prev.lng,
+      });
+    } else {
+      postMap.set(p.id, p);
+    }
   });
 
   return Array.from(postMap.values()).sort(
