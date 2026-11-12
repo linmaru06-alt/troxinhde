@@ -7,7 +7,7 @@ export interface ModalProps {
   onClose: () => void;
   title?: string;
   children: React.ReactNode;
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -31,6 +31,9 @@ export const Modal: React.FC<ModalProps> = ({
     lg: 'max-w-lg',
     xl: 'max-w-xl',
     '2xl': 'max-w-2xl',
+    '3xl': 'max-w-3xl',
+    '4xl': 'max-w-4xl',
+    '5xl': 'max-w-5xl',
   }[maxWidth];
 
   return (
@@ -56,7 +59,7 @@ export const Modal: React.FC<ModalProps> = ({
             onDragEnd={(_, info) => {
               if (info.offset.y > 120) onClose();
             }}
-            className={`relative w-full ${maxWClass} bg-white rounded-t-[2rem] sm:rounded-2xl shadow-2xl p-5 sm:p-7 overflow-hidden z-10 max-h-[90dvh] sm:max-h-none overflow-y-auto`}
+            className={`relative w-full ${maxWClass} bg-white rounded-t-[2rem] sm:rounded-2xl shadow-2xl p-5 sm:p-6 overflow-hidden z-10 max-h-[90dvh] sm:max-h-[92dvh] overflow-y-auto`}
             style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1rem))' }}
           >
             {/* Mobile Drag Down Bar Handle */}

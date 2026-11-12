@@ -555,27 +555,41 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Đăng Tin Tìm Bạn Cùng Phòng" maxWidth="lg">
-      <form onSubmit={handleSubmit} className="space-y-5">
-        {/* Banner Khôi phục Nháp nếu có */}
-        {hasDraft && (
-          <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between text-xs text-amber-800">
-            <div className="flex items-center gap-2">
-              <Save className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>
-                Đang dùng bản nháp {lastSavedTime ? `(lưu lúc ${lastSavedTime})` : ''} - Dữ liệu được bảo toàn tự động.
-              </span>
+    <Modal isOpen={isOpen} onClose={onClose} title="Đăng Tin Tìm Bạn Cùng Phòng" maxWidth="5xl">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Dải thông tin & Bản nháp nằm ngang gọn gàng */}
+        <div className={`grid grid-cols-1 ${hasDraft ? 'lg:grid-cols-2' : ''} gap-3`}>
+          <div className="px-3.5 py-2.5 bg-emerald-50/80 rounded-xl border border-emerald-200/80 flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#006d37] text-white flex items-center justify-center font-bold shrink-0">
+              <Users className="w-4 h-4" />
             </div>
-            <button
-              type="button"
-              onClick={handleClearDraft}
-              className="text-xs font-semibold text-rose-600 hover:text-rose-700 underline cursor-pointer ml-3 shrink-0 flex items-center gap-1"
-            >
-              <RotateCcw className="w-3.5 h-3.5" />
-              Xóa nháp
-            </button>
+            <div className="min-w-0">
+              <h4 className="text-xs font-black text-gray-900">Kết nối bạn ở ghép văn minh & an toàn</h4>
+              <p className="text-[11px] text-gray-600 leading-snug">
+                Bài đăng của bạn sẽ hiển thị công khai trên bảng tin cộng đồng sinh viên Trọ Xinh.
+              </p>
+            </div>
           </div>
-        )}
+
+          {hasDraft && (
+            <div className="px-3.5 py-2.5 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between gap-3 text-xs text-amber-800">
+              <div className="flex items-center gap-2 min-w-0">
+                <Save className="w-4 h-4 text-amber-600 shrink-0" />
+                <span className="leading-snug">
+                  Đang dùng bản nháp {lastSavedTime ? `(lưu lúc ${lastSavedTime})` : ''} — Dữ liệu tự động lưu.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleClearDraft}
+                className="text-xs font-semibold text-rose-600 hover:text-rose-700 underline cursor-pointer shrink-0 flex items-center gap-1"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Xóa nháp
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Banner Lỗi Submit nếu có */}
         {submitError && (
@@ -590,432 +604,449 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
           </div>
         )}
 
-        {/* Header Info */}
-        <div className="p-3.5 bg-emerald-50/80 rounded-2xl border border-emerald-200/80 flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-[#006d37] text-white flex items-center justify-center font-bold shrink-0">
-            <Users className="w-5 h-5" />
-          </div>
-          <div>
-            <h4 className="text-xs font-black text-gray-900">Kết nối bạn ở ghép văn minh & an toàn</h4>
-            <p className="text-[11px] text-gray-600">
-              Bài đăng của bạn sẽ hiển thị công khai trên bảng tin cộng đồng sinh viên Trọ Xinh.
-            </p>
-          </div>
-        </div>
+        {/* BỐ CỤC NẰM NGANG 2 CỘT TRÊN DESKTOP */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
+          {/* CỘT TRÁI: Thông tin cá nhân, ngân sách & thói quen */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="p-4 bg-gray-50/70 rounded-2xl border border-gray-200/80 space-y-3.5">
+              <h5 className="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-[#006d37] text-white text-[10px] flex items-center justify-center">
+                  1
+                </span>
+                Thông tin cơ bản & Nhu cầu
+              </h5>
 
-        {/* User Info Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Họ và tên của bạn *</label>
-            <input
-              type="text"
-              required
-              value={userName}
-              onChange={(e) => setUserName(e.target.value)}
-              placeholder="Nhập họ và tên của bạn"
-              className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-            />
-          </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Họ và tên của bạn *</label>
+                  <input
+                    type="text"
+                    required
+                    value={userName}
+                    onChange={(e) => setUserName(e.target.value)}
+                    placeholder="Nhập họ và tên của bạn"
+                    className="w-full px-3 py-2 bg-white rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                  />
+                </div>
 
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Trường ĐH / Nơi làm việc *</label>
-            <input
-              type="text"
-              required
-              value={userSchool}
-              onChange={(e) => setUserSchool(e.target.value)}
-              placeholder="VD: ĐH Bách Khoa, ĐH Kinh Tế Quốc Dân..."
-              className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-            />
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Giới tính & Tuổi *</label>
-            <div className="grid grid-cols-2 gap-2">
-              <select
-                required
-                value={userGender}
-                onChange={(e) => setUserGender(e.target.value as any)}
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none bg-white"
-              >
-                <option value="">-- Giới tính --</option>
-                <option value="Nam">Nam</option>
-                <option value="Nữ">Nữ</option>
-                <option value="Khác">Khác</option>
-              </select>
-              <input
-                type="number"
-                min={16}
-                max={60}
-                required
-                value={userAge}
-                onChange={(e) => setUserAge(e.target.value ? Number(e.target.value) : '')}
-                className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-                placeholder="Nhập tuổi"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Khu vực mong muốn (Quận/Huyện) *</label>
-            <select
-              required
-              value={district}
-              onChange={(e) => setDistrict(e.target.value)}
-              className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none bg-white"
-            >
-              <option value="">-- Chọn Quận / Huyện --</option>
-              {DISTRICTS.map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Budget & Target Preferences */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-gray-100">
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">
-              Ngân sách dự kiến share (VNĐ / người / tháng) *
-            </label>
-            <div className="relative">
-              <input
-                type="number"
-                step={100000}
-                min={300000}
-                max={30000000}
-                required
-                value={budgetShare}
-                onChange={(e) => setBudgetShare(e.target.value ? Number(e.target.value) : '')}
-                placeholder="VD: 2000000"
-                className="w-full px-3.5 py-2 pr-12 rounded-xl border border-gray-300 text-xs font-bold text-[#006d37] focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-              />
-              <span className="absolute right-3 top-2 text-xs text-gray-400 font-medium">VNĐ</span>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-gray-700 mb-1">Đối tượng bạn cùng phòng mong muốn *</label>
-            <select
-              required
-              value={genderPreference}
-              onChange={(e) => setGenderPreference(e.target.value as any)}
-              className="w-full px-3.5 py-2 rounded-xl border border-gray-300 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#006d37] focus:outline-none bg-white"
-            >
-              <option value="">-- Chọn đối tượng tìm kiếm --</option>
-              <option value="Tất cả">Tất cả (Nam hoặc Nữ đều được)</option>
-              <option value="Chỉ tìm Nữ">Chỉ tìm bạn Nữ</option>
-              <option value="Chỉ tìm Nam">Chỉ tìm bạn Nam</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Habits Checklist */}
-        <div className="space-y-2 pt-2 border-t border-gray-100">
-          <label className="block text-xs font-bold text-gray-700">
-            Thói quen & Lối sống của bạn (Chọn các mục phù hợp)
-          </label>
-          <div className="flex flex-wrap gap-1.5">
-            {COMMON_HABITS.map((habit) => {
-              const isSelected = selectedHabits.includes(habit);
-              return (
-                <button
-                  type="button"
-                  key={habit}
-                  onClick={() => toggleHabit(habit)}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
-                    isSelected
-                      ? 'bg-[#006d37] border-[#006d37] text-white shadow-xs font-bold'
-                      : 'bg-white border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/40'
-                  }`}
-                >
-                  {isSelected ? <Check className="w-3.5 h-3.5" /> : <PlusCircle className="w-3.5 h-3.5 text-gray-400" />}
-                  {habit}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Option: Đã có phòng hay chưa */}
-        <div className="pt-2 border-t border-gray-100 space-y-3">
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={hasRoom}
-              onChange={(e) => setHasRoom(e.target.checked)}
-              className="w-4 h-4 rounded text-[#006d37] focus:ring-[#006d37] border-gray-300"
-            />
-            <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
-              <Home className="w-4 h-4 text-[#006d37]" />
-              Tôi hiện đã thuê được phòng và đang tìm người dọn vào ở chung
-            </span>
-          </label>
-
-          {/* Địa chỉ chi tiết khi chưa có phòng (hiển thị trên bản đồ ở ghép) */}
-          {!hasRoom && (
-            <div className="p-3.5 bg-indigo-50/50 rounded-2xl border border-indigo-200/70 space-y-2.5">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
-                  <MapPin className="w-3.5 h-3.5 text-indigo-600" />
-                  Đường / Phố hoặc khu vực muốn ở ghép (hiển thị đúng ghim trên bản đồ)
-                </label>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={handleLocateRoommatePin}
-                    disabled={isLocatingPin}
-                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
-                  >
-                    <LocateFixed className={`w-3.5 h-3.5 ${isLocatingPin ? 'animate-spin' : ''}`} />
-                    {isLocatingPin ? 'Đang định vị...' : 'Định vị'}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowMapPicker((prev) => !prev)}
-                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-gray-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
-                  >
-                    {showMapPicker ? 'Ẩn bản đồ' : 'Ghim bản đồ'}
-                  </button>
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Trường ĐH / Nơi làm việc *</label>
+                  <input
+                    type="text"
+                    required
+                    value={userSchool}
+                    onChange={(e) => setUserSchool(e.target.value)}
+                    placeholder="VD: ĐH Bách Khoa, ĐH Kinh Tế..."
+                    className="w-full px-3 py-2 bg-white rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                  />
                 </div>
               </div>
-              <input
-                type="text"
-                value={desiredAddress}
-                onChange={(e) => setDesiredAddress(e.target.value)}
-                placeholder="VD: Ngõ 165 Xuân Thủy, Phố Chùa Láng, KĐT Văn Quán..."
-                className="w-full px-3 py-2 rounded-xl border border-indigo-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
-              />
-            </div>
-          )}
-        </div>
 
-        {/* Thông tin phòng đã có (chỉ hiện khi hasRoom = true) */}
-        {hasRoom && (
-          <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/60 space-y-3">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h5 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-                <Home className="w-3.5 h-3.5 text-[#006d37]" />
-                Thông tin chi tiết căn phòng bạn đang ở
-              </h5>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={handleLocateRoommatePin}
-                  disabled={isLocatingPin}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-[#006d37] border border-emerald-200 text-[11px] font-bold cursor-pointer"
-                >
-                  <LocateFixed className={`w-3.5 h-3.5 ${isLocatingPin ? 'animate-spin' : ''}`} />
-                  {isLocatingPin ? 'Đang định vị...' : 'Định vị địa chỉ'}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowMapPicker((prev) => !prev)}
-                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-gray-700 border border-emerald-200 text-[11px] font-bold cursor-pointer"
-                >
-                  {showMapPicker ? 'Ẩn bản đồ' : 'Ghim bản đồ'}
-                </button>
+              <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
+                <div className="sm:col-span-4">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Giới tính *</label>
+                  <select
+                    required
+                    value={userGender}
+                    onChange={(e) => setUserGender(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none bg-white"
+                  >
+                    <option value="">-- Chọn --</option>
+                    <option value="Nam">Nam</option>
+                    <option value="Nữ">Nữ</option>
+                    <option value="Khác">Khác</option>
+                  </select>
+                </div>
+
+                <div className="sm:col-span-3">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Tuổi *</label>
+                  <input
+                    type="number"
+                    min={16}
+                    max={60}
+                    required
+                    value={userAge}
+                    onChange={(e) => setUserAge(e.target.value ? Number(e.target.value) : '')}
+                    className="w-full px-3 py-2 bg-white rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                    placeholder="VD: 20"
+                  />
+                </div>
+
+                <div className="sm:col-span-5">
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Khu vực mong muốn *</label>
+                  <select
+                    required
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-medium focus:ring-2 focus:ring-[#006d37] focus:outline-none bg-white"
+                  >
+                    <option value="">-- Chọn Quận / Huyện --</option>
+                    {DISTRICTS.map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">
+                    Ngân sách share / tháng *
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      step={100000}
+                      min={300000}
+                      max={30000000}
+                      required
+                      value={budgetShare}
+                      onChange={(e) => setBudgetShare(e.target.value ? Number(e.target.value) : '')}
+                      placeholder="VD: 2000000"
+                      className="w-full px-3 py-2 pr-11 bg-white rounded-xl border border-gray-300 text-xs font-bold text-[#006d37] focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                    />
+                    <span className="absolute right-3 top-2 text-[11px] text-gray-400 font-semibold">VNĐ</span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-gray-700 mb-1">Đối tượng mong muốn *</label>
+                  <select
+                    required
+                    value={genderPreference}
+                    onChange={(e) => setGenderPreference(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs font-bold text-gray-800 focus:ring-2 focus:ring-[#006d37] focus:outline-none bg-white"
+                  >
+                    <option value="">-- Chọn đối tượng tìm kiếm --</option>
+                    <option value="Tất cả">Tất cả (Nam hoặc Nữ đều được)</option>
+                    <option value="Chỉ tìm Nữ">Chỉ tìm bạn Nữ</option>
+                    <option value="Chỉ tìm Nam">Chỉ tìm bạn Nam</option>
+                  </select>
+                </div>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <div className="sm:col-span-2">
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Địa chỉ phòng trọ / Tên tòa nhà
-                </label>
-                <input
-                  type="text"
-                  value={roomAddress}
-                  onChange={(e) => setRoomAddress(e.target.value)}
-                  placeholder="VD: Số 25 ngõ 165 Cầu Giấy, Tòa Mini Star"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-                />
+            {/* Habits Checklist */}
+            <div className="p-4 bg-white rounded-2xl border border-gray-200/90 space-y-2.5">
+              <div className="flex items-center justify-between gap-2">
+                <h5 className="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-[#006d37] text-white text-[10px] flex items-center justify-center">
+                    2
+                  </span>
+                  Thói quen & Lối sống
+                </h5>
+                <span className="text-[11px] text-gray-500 font-medium">
+                  Đã chọn {selectedHabits.length} mục
+                </span>
               </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Diện tích phòng (m²)</label>
-                <input
-                  type="number"
-                  min={10}
-                  max={200}
-                  value={roomArea}
-                  onChange={(e) => setRoomArea(e.target.value ? Number(e.target.value) : '')}
-                  placeholder="VD: 25"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Giá thuê nguyên phòng (VNĐ / tháng)
-                </label>
-                <input
-                  type="number"
-                  step={100000}
-                  value={roomPrice}
-                  onChange={(e) => setRoomPrice(e.target.value ? Number(e.target.value) : '')}
-                  placeholder="VD: 4000000"
-                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">
-                  Hoặc liên kết phòng có sẵn trên Trọ Xinh
-                </label>
-                <select
-                  value={linkedRoomId}
-                  onChange={(e) => handleSelectLinkedRoom(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-                >
-                  <option value="">-- Tự nhập thông tin ở trên --</option>
-                  {rooms.slice(0, 15).map((r) => (
-                    <option key={r.id} value={r.id}>
-                      {r.title} ({r.district})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* UPLOAD & SẮP XẾP ẢNH PHÒNG TRỰC TIẾP */}
-            <div className="space-y-2 pt-2 border-t border-emerald-200/60">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
-                  <ImageIcon className="w-4 h-4 text-[#006d37]" />
-                  Ảnh chụp thực tế phòng trọ ({uploadedImages.length}/5)
-                </label>
-                <span className="text-[10px] text-gray-500 font-medium">Bấm mũi tên hoặc 'Bìa' để sắp xếp</span>
-              </div>
-
-              {/* Grid Preview ảnh đã chọn kèm công cụ sắp xếp */}
-              <div className="grid grid-cols-2 sm:grid-cols-5 gap-2.5">
-                {uploadedImages.map((imgUrl, idx) => (
-                  <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-emerald-200 bg-gray-100 shadow-xs">
-                    <img src={imgUrl} alt={`Ảnh phòng ${idx + 1}`} className="w-full h-full object-cover" />
-                    
-                    {/* Badge số thứ tự / Ảnh bìa */}
-                    <span className={`absolute top-1.5 left-1.5 text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs ${
-                      idx === 0 ? 'bg-[#006d37] text-white' : 'bg-black/60 text-white'
-                    }`}>
-                      {idx === 0 ? '★ Bìa' : `#${idx + 1}`}
-                    </span>
-
-                    {/* Nút xóa */}
+              <div className="flex flex-wrap gap-1.5">
+                {COMMON_HABITS.map((habit) => {
+                  const isSelected = selectedHabits.includes(habit);
+                  return (
                     <button
                       type="button"
-                      onClick={() => handleRemoveImage(idx)}
-                      className="absolute top-1.5 right-1.5 w-6 h-6 rounded-full bg-black/75 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
-                      title="Xóa ảnh"
+                      key={habit}
+                      onClick={() => toggleHabit(habit)}
+                      className={`px-2.5 py-1.5 rounded-xl text-xs font-medium border transition-all flex items-center gap-1.5 cursor-pointer ${
+                        isSelected
+                          ? 'bg-[#006d37] border-[#006d37] text-white shadow-xs font-bold'
+                          : 'bg-gray-50/70 border-gray-200 text-gray-700 hover:border-emerald-300 hover:bg-emerald-50/50'
+                      }`}
                     >
-                      <X className="w-3.5 h-3.5" />
+                      {isSelected ? <Check className="w-3.5 h-3.5" /> : <PlusCircle className="w-3.5 h-3.5 text-gray-400" />}
+                      {habit}
                     </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-                    {/* Thanh điều khiển sắp xếp ảnh */}
-                    <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-between">
-                      <div className="flex items-center gap-1">
-                        <button
-                          type="button"
-                          disabled={idx === 0}
-                          onClick={() => handleMoveImage(idx, idx - 1)}
-                          className="w-5 h-5 rounded bg-white/80 hover:bg-white text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-[10px]"
-                          title="Chuyển sang trước"
-                        >
-                          <ChevronLeft className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          disabled={idx === uploadedImages.length - 1}
-                          onClick={() => handleMoveImage(idx, idx + 1)}
-                          className="w-5 h-5 rounded bg-white/80 hover:bg-white text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center text-[10px]"
-                          title="Chuyển sang sau"
-                        >
-                          <ChevronRight className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
+          {/* CỘT PHẢI: Vị trí bản đồ, Tình trạng phòng & Lời giới thiệu */}
+          <div className="lg:col-span-6 space-y-4">
+            <div className="p-4 bg-white rounded-2xl border border-gray-200/90 space-y-3">
+              <h5 className="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-[#006d37] text-white text-[10px] flex items-center justify-center">
+                  3
+                </span>
+                Vị trí trên bản đồ & Tình trạng phòng
+              </h5>
 
-                      {idx !== 0 && (
-                        <button
-                          type="button"
-                          onClick={() => handleSetMainImage(idx)}
-                          className="px-1.5 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[9px] font-bold"
-                          title="Đặt ảnh này làm ảnh bìa"
-                        >
-                          Làm bìa
-                        </button>
+              <label className="flex items-center gap-2 p-2.5 rounded-xl bg-gray-50 hover:bg-emerald-50/50 border border-gray-200/80 cursor-pointer select-none transition">
+                <input
+                  type="checkbox"
+                  checked={hasRoom}
+                  onChange={(e) => setHasRoom(e.target.checked)}
+                  className="w-4 h-4 rounded text-[#006d37] focus:ring-[#006d37] border-gray-300 shrink-0"
+                />
+                <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                  <Home className="w-4 h-4 text-[#006d37] shrink-0" />
+                  Tôi hiện đã thuê được phòng và đang tìm người dọn vào ở chung
+                </span>
+              </label>
+
+              {/* Địa chỉ chi tiết khi chưa có phòng */}
+              {!hasRoom && (
+                <div className="p-3.5 bg-indigo-50/50 rounded-xl border border-indigo-200/70 space-y-2.5">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+                      Đường / Phố hoặc khu vực muốn ở ghép
+                    </label>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleLocateRoommatePin}
+                        disabled={isLocatingPin}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                      >
+                        <LocateFixed className={`w-3.5 h-3.5 ${isLocatingPin ? 'animate-spin' : ''}`} />
+                        {isLocatingPin ? 'Đang định vị...' : 'Định vị'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowMapPicker((prev) => !prev)}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-gray-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                      >
+                        {showMapPicker ? 'Ẩn bản đồ' : 'Ghim bản đồ'}
+                      </button>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={desiredAddress}
+                    onChange={(e) => setDesiredAddress(e.target.value)}
+                    placeholder="VD: Ngõ 165 Xuân Thủy, Phố Chùa Láng, KĐT Văn Quán..."
+                    className="w-full px-3 py-2 rounded-xl border border-indigo-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+                  />
+                </div>
+              )}
+
+              {/* Thông tin phòng đã có (chỉ hiện khi hasRoom = true) */}
+              {hasRoom && (
+                <div className="p-3.5 bg-emerald-50/40 rounded-xl border border-emerald-200/60 space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <h6 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                      <Home className="w-3.5 h-3.5 text-[#006d37]" />
+                      Thông tin căn phòng đang ở
+                    </h6>
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={handleLocateRoommatePin}
+                        disabled={isLocatingPin}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-[#006d37] border border-emerald-200 text-[11px] font-bold cursor-pointer"
+                      >
+                        <LocateFixed className={`w-3.5 h-3.5 ${isLocatingPin ? 'animate-spin' : ''}`} />
+                        {isLocatingPin ? 'Đang định vị...' : 'Định vị địa chỉ'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowMapPicker((prev) => !prev)}
+                        className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-gray-700 border border-emerald-200 text-[11px] font-bold cursor-pointer"
+                      >
+                        {showMapPicker ? 'Ẩn bản đồ' : 'Ghim bản đồ'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                    <div className="sm:col-span-2">
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        Địa chỉ phòng trọ / Tên tòa nhà
+                      </label>
+                      <input
+                        type="text"
+                        value={roomAddress}
+                        onChange={(e) => setRoomAddress(e.target.value)}
+                        placeholder="VD: Số 25 ngõ 165 Cầu Giấy"
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">Diện tích (m²)</label>
+                      <input
+                        type="number"
+                        min={10}
+                        max={200}
+                        value={roomArea}
+                        onChange={(e) => setRoomArea(e.target.value ? Number(e.target.value) : '')}
+                        placeholder="VD: 25"
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        Giá thuê nguyên phòng (VNĐ)
+                      </label>
+                      <input
+                        type="number"
+                        step={100000}
+                        value={roomPrice}
+                        onChange={(e) => setRoomPrice(e.target.value ? Number(e.target.value) : '')}
+                        placeholder="VD: 4000000"
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-700 mb-1">
+                        Hoặc liên kết phòng trên Trọ Xinh
+                      </label>
+                      <select
+                        value={linkedRoomId}
+                        onChange={(e) => handleSelectLinkedRoom(e.target.value)}
+                        className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+                      >
+                        <option value="">-- Tự nhập ở trên --</option>
+                        {rooms.slice(0, 15).map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.title} ({r.district})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* UPLOAD & SẮP XẾP ẢNH PHÒNG TRỰC TIẾP */}
+                  <div className="space-y-2 pt-2 border-t border-emerald-200/60">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
+                        <ImageIcon className="w-4 h-4 text-[#006d37]" />
+                        Ảnh thực tế phòng ({uploadedImages.length}/5)
+                      </label>
+                      <span className="text-[10px] text-gray-500 font-medium">Bấm mũi tên để sắp xếp</span>
+                    </div>
+
+                    <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                      {uploadedImages.map((imgUrl, idx) => (
+                        <div key={idx} className="relative group aspect-square rounded-xl overflow-hidden border border-emerald-200 bg-gray-100 shadow-xs">
+                          <img src={imgUrl} alt={`Ảnh phòng ${idx + 1}`} className="w-full h-full object-cover" />
+
+                          <span className={`absolute top-1 left-1 text-[9px] font-black px-1.5 py-0.5 rounded shadow-xs ${
+                            idx === 0 ? 'bg-[#006d37] text-white' : 'bg-black/60 text-white'
+                          }`}>
+                            {idx === 0 ? '★ Bìa' : `#${idx + 1}`}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveImage(idx)}
+                            className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/75 hover:bg-rose-600 text-white flex items-center justify-center transition cursor-pointer"
+                            title="Xóa ảnh"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+
+                          <div className="absolute inset-x-0 bottom-0 p-1 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex items-center justify-between">
+                            <div className="flex items-center gap-0.5">
+                              <button
+                                type="button"
+                                disabled={idx === 0}
+                                onClick={() => handleMoveImage(idx, idx - 1)}
+                                className="w-4 h-4 rounded bg-white/80 hover:bg-white text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+                                title="Chuyển sang trước"
+                              >
+                                <ChevronLeft className="w-3 h-3" />
+                              </button>
+                              <button
+                                type="button"
+                                disabled={idx === uploadedImages.length - 1}
+                                onClick={() => handleMoveImage(idx, idx + 1)}
+                                className="w-4 h-4 rounded bg-white/80 hover:bg-white text-gray-800 disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center"
+                                title="Chuyển sang sau"
+                              >
+                                <ChevronRight className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            {idx !== 0 && (
+                              <button
+                                type="button"
+                                onClick={() => handleSetMainImage(idx)}
+                                className="px-1 py-0.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-[8px] font-bold"
+                                title="Đặt ảnh này làm ảnh bìa"
+                              >
+                                Bìa
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+
+                      {uploadedImages.length < 5 && (
+                        <label className="border-2 border-dashed border-emerald-300 hover:border-[#006d37] bg-white hover:bg-emerald-50/50 aspect-square rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer transition p-1.5 text-center">
+                          <Upload className="w-4 h-4 text-[#006d37]" />
+                          <span className="text-[10px] font-bold text-emerald-800 leading-tight">
+                            {isUploadingImg ? 'Đang tải...' : '+ Thêm ảnh'}
+                          </span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            multiple
+                            disabled={isUploadingImg}
+                            onChange={handleImageSelect}
+                            className="hidden"
+                          />
+                        </label>
                       )}
                     </div>
                   </div>
-                ))}
+                </div>
+              )}
 
-                {uploadedImages.length < 5 && (
-                  <label className="border-2 border-dashed border-emerald-300 hover:border-[#006d37] bg-white hover:bg-emerald-50/50 aspect-square rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer transition p-2 text-center">
-                    <Upload className="w-5 h-5 text-[#006d37]" />
-                    <span className="text-[10px] font-bold text-emerald-800 leading-tight">
-                      {isUploadingImg ? 'Đang tải...' : '+ Thêm ảnh'}
+              {/* Bản đồ ghim vị trí */}
+              {showMapPicker && (
+                <div className="p-3 bg-gray-50 rounded-xl border border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
+                    <span>Nhấp hoặc kéo ghim để chọn vị trí chính xác</span>
+                    <span className="text-emerald-700">
+                      {effectivePin.lat.toFixed(5)}, {effectivePin.lng.toFixed(5)}
                     </span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      multiple
-                      disabled={isUploadingImg}
-                      onChange={handleImageSelect}
-                      className="hidden"
-                    />
-                  </label>
-                )}
-              </div>
-              <p className="text-[10px] text-gray-500">
-                Gợi ý: Tải ảnh góc ngủ, bếp nấu, nhà vệ sinh khép kín để người tìm ghép dễ hình dung.
-              </p>
+                  </div>
+                  <MapPinPicker
+                    initialLat={effectivePin.lat}
+                    initialLng={effectivePin.lng}
+                    onLocationChange={(loc) => {
+                      setRoomGeo({ lat: loc.lat, lng: loc.lng });
+                      if (hasRoom) {
+                        if (!roomAddress.trim() && loc.address) setRoomAddress(loc.address);
+                      } else {
+                        if (!desiredAddress.trim() && loc.address) setDesiredAddress(loc.address);
+                      }
+                    }}
+                    className="h-44 rounded-xl overflow-hidden"
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Intro */}
+            <div className="p-4 bg-white rounded-2xl border border-gray-200/90 space-y-2">
+              <h5 className="text-xs font-black text-gray-900 uppercase tracking-wide flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full bg-[#006d37] text-white text-[10px] flex items-center justify-center">
+                  4
+                </span>
+                Lời giới thiệu bản thân & Yêu cầu cụ thể *
+              </h5>
+              <textarea
+                required
+                rows={4}
+                value={intro}
+                onChange={(e) => setIntro(e.target.value)}
+                placeholder="VD: Mình là sinh viên năm 3 vui vẻ, sạch sẽ, không hút thuốc. Cần tìm 1 bạn ở ghép để share tiền phòng khu vực Cầu Giấy, ưu tiên bạn nào ngoan ngoãn và ít tụ tập bạn bè muộn..."
+                className="w-full p-3 rounded-xl border border-gray-300 text-xs font-medium leading-relaxed focus:ring-2 focus:ring-[#006d37] focus:outline-none"
+              />
             </div>
           </div>
-        )}
-
-        {/* Bản đồ ghim vị trí tin tìm người ở ghép */}
-        {showMapPicker && (
-          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-200 space-y-2">
-            <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
-              <span>Nhấp hoặc kéo ghim để chọn vị trí chính xác trên bản đồ</span>
-              <span className="text-emerald-700">
-                {effectivePin.lat.toFixed(5)}, {effectivePin.lng.toFixed(5)}
-              </span>
-            </div>
-            <MapPinPicker
-              initialLat={effectivePin.lat}
-              initialLng={effectivePin.lng}
-              onLocationChange={(loc) => {
-                setRoomGeo({ lat: loc.lat, lng: loc.lng });
-                if (hasRoom) {
-                  if (!roomAddress.trim() && loc.address) setRoomAddress(loc.address);
-                } else {
-                  if (!desiredAddress.trim() && loc.address) setDesiredAddress(loc.address);
-                }
-              }}
-              className="h-56 rounded-2xl overflow-hidden"
-            />
-          </div>
-        )}
-
-        {/* Intro */}
-        <div className="space-y-1 pt-2 border-t border-gray-100">
-          <label className="block text-xs font-bold text-gray-700">
-            Lời giới thiệu bản thân & Yêu cầu cụ thể *
-          </label>
-          <textarea
-            required
-            rows={3}
-            value={intro}
-            onChange={(e) => setIntro(e.target.value)}
-            placeholder="VD: Mình là sinh viên năm 3 vui vẻ, sạch sẽ, không hút thuốc. Cần tìm 1 bạn ở ghép để share tiền phòng khu vực Cầu Giấy, ưu tiên bạn nào ngoan ngoãn và ít tụ tập bạn bè muộn..."
-            className="w-full p-3 rounded-2xl border border-gray-300 text-xs font-medium leading-relaxed focus:ring-2 focus:ring-[#006d37] focus:outline-none"
-          />
         </div>
 
         {/* Submit Buttons */}
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-gray-200">
+        <div className="flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-3 pt-3 border-t border-gray-200">
           <div className="flex items-center gap-2">
             <Button
               type="button"
