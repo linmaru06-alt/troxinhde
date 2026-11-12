@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
@@ -14,18 +15,62 @@ import {
   getWalletTransactions,
 } from '../lib/api/k23Wallet';
 
-export type TopupWizardStep = 1 | 2 | 3 | 'success' | 'expired';
+export type TopupWizardStep = 'overview' | 1 | 2 | 3 | 'success' | 'expired';
+
+function parseStepFromParam(param: string | null): TopupWizardStep {
+  switch (param) {
+    case 'chon-goi':
+    case '1':
+      return 1;
+    case 'phuong-thuc':
+    case '2':
+      return 2;
+    case 'thanh-toan':
+    case '3':
+      return 3;
+    case 'hoan-tat':
+    case 'success':
+      return 'success';
+    case 'het-han':
+    case 'expired':
+      return 'expired';
+    default:
+      return 'overview';
+  }
+}
+
+function stepToParam(step: TopupWizardStep): string | null {
+  switch (step) {
+    case 1:
+      return 'chon-goi';
+    case 2:
+      return 'phuong-thuc';
+    case 3:
+      return 'thanh-toan';
+    case 'success':
+      return 'hoan-tat';
+    case 'expired':
+      return 'het-han';
+    default:
+      return null;
+  }
+}
 
 export function useWalletTopup() {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { currentUser, wallet: storeWallet, walletTransactions: storeTxs, syncWalletFromServer, showToast } =
     useAppStore();
 
   const userId = currentUser?.id;
   const isDemoAccount = Boolean(currentUser?.isDemoAccount);
 
-  // Trạng thái UI Wizard tạm thời (Bước 1 -> 2 -> 3 -> Hoàn tất / Hết hạn)
-  const [step, setStep] = useState<TopupWizardStep>(1);
+  // Điều hướng từng trang dựa theo URL query (?buoc=chon-goi -> ?buoc=phuong-thuc -> ?buoc=thanh-toan)
+  // Hỗ trợ nút Back / Forward của trình duyệt như các trang tách biệt hoàn toàn
+  const buocParam = searchParams.get('buoc');
+  const orderParam = searchParams.get('order');
+  const step: TopupWizardStep = parseStepFromParam(buocParam);
+
   const [selectedPackIndex, setSelectedPackIndex] = useState<number>(3); // Mặc định gói 500.000đ
   const [customXuInput, setCustomXuInput] = useState<string>('500');
   const [method, setMethod] = useState<WalletTopupMethod>('vietqr');
@@ -33,7 +78,31 @@ export function useWalletTopup() {
   const [secondsLeft, setSecondsLeft] = useState<number>(900);
   const [orderError, setOrderError] = useState<string | null>(null);
   const [isCheckingStatus, setIsCheckingStatus] = useState<boolean>(false);
+  const [isHydratingOrder, setIsHydratingOrder] = useState<boolean>(false);
   const [isConfirmingDemo, setIsConfirmingDemo] = useState<boolean>(false);
+
+  const navigateToStep = useCallback(
+    (nextStep: TopupWizardStep, options?: { replace?: boolean; orderCode?: string | null }) => {
+      const nextParams = new URLSearchParams(searchParams);
+      const paramValue = stepToParam(nextStep);
+      if (!paramValue) {
+        nextParams.delete('buoc');
+        nextParams.delete('order');
+      } else {
+        nextParams.set('buoc', paramValue);
+        if (options?.orderCode) {
+          nextParams.set('order', options.orderCode);
+        } else if (nextStep === 1 || nextStep === 2 || nextStep === 'expired') {
+          nextParams.delete('order');
+        }
+      }
+      setSearchParams(nextParams, { replace: Boolean(options?.replace) });
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    },
+    [searchParams, setSearchParams]
+  );
 
   // Tính số tiền & số Xu xem trước cho Bước 1 & Bước 2
   const numericCustomXu = Number(customXuInput.replace(/[^0-9]/g, '')) || 0;
@@ -66,7 +135,6 @@ export function useWalletTopup() {
   // Đồng bộ kết quả từ TanStack Query sang Zustand cache hiển thị trên Navbar/Sidebar
   useEffect(() => {
     if (!userId || !walletQuery.data) return;
-    // Với tài khoản demo chưa có ví trên Supabase, giữ trải nghiệm demo nếu số dư Supabase = 0
     if (isDemoAccount && walletQuery.data.total_xu === 0 && storeWallet.total_xu > 0) {
       return;
     }
@@ -81,6 +149,50 @@ export function useWalletTopup() {
     ]);
   }, [queryClient, userId]);
 
+  // Khôi phục đơn hàng nếu người dùng F5 trực tiếp ở trang Bước 3 (?buoc=thanh-toan&order=TXNAP...)
+  useEffect(() => {
+    if (step !== 3 && step !== 'success') return;
+    if (activeOrder && (!orderParam || activeOrder.orderCode === orderParam)) return;
+
+    if (!orderParam) {
+      navigateToStep(1, { replace: true });
+      return;
+    }
+    if (!userId) return;
+
+    let cancelled = false;
+    setIsHydratingOrder(true);
+    getWalletTopupStatus(orderParam)
+      .then((res) => {
+        if (cancelled) return;
+        if (res.order) {
+          setActiveOrder(res.order);
+          if (res.order.expiresAt) {
+            const msLeft = new Date(res.order.expiresAt).getTime() - Date.now();
+            setSecondsLeft(Math.max(0, Math.floor(msLeft / 1000)));
+          }
+        }
+        if (res.status === 'paid' || res.status === 'success') {
+          if (step !== 'success') {
+            navigateToStep('success', { replace: true, orderCode: res.orderCode });
+          }
+        } else if (res.status === 'expired') {
+          navigateToStep('expired', { replace: true });
+        }
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setOrderError(err?.message || 'Không thể tải thông tin đơn thanh toán.');
+      })
+      .finally(() => {
+        if (!cancelled) setIsHydratingOrder(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [step, orderParam, activeOrder, userId, navigateToStep]);
+
   // Mutation: Tạo đơn nạp Xu phía Server (Vercel API -> Supabase pending)
   const createOrderMutation = useMutation({
     mutationFn: async () => {
@@ -94,7 +206,7 @@ export function useWalletTopup() {
       setActiveOrder(order);
       const msLeft = new Date(order.expiresAt).getTime() - Date.now();
       setSecondsLeft(Math.max(1, Math.floor(msLeft / 1000)));
-      setStep(3);
+      navigateToStep(3, { orderCode: order.orderCode });
     },
     onError: (err: any) => {
       const msg = err?.message || 'Không thể khởi tạo đơn nạp Xu. Vui lòng thử lại.';
@@ -105,7 +217,7 @@ export function useWalletTopup() {
 
   const handleOrderPaid = useCallback(
     async (paidOrderCode: string, creditedTotal?: number) => {
-      setStep('success');
+      navigateToStep('success', { replace: true, orderCode: paidOrderCode });
       await refreshWalletData();
       showToast(
         'Nạp Trọ Xinh Xu thành công!',
@@ -115,7 +227,7 @@ export function useWalletTopup() {
         'success'
       );
     },
-    [refreshWalletData, showToast]
+    [navigateToStep, refreshWalletData, showToast]
   );
 
   // Đồng hồ đếm ngược 15 phút ở Bước 3
@@ -127,12 +239,12 @@ export function useWalletTopup() {
       setSecondsLeft(remaining);
       if (remaining <= 0) {
         clearInterval(timer);
-        setStep('expired');
+        navigateToStep('expired', { replace: true });
       }
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [step, activeOrder]);
+  }, [step, activeOrder, navigateToStep]);
 
   // Supabase Realtime + Polling dự phòng 3.5 giây khi đang chờ quét QR (Bước 3)
   useEffect(() => {
@@ -149,7 +261,7 @@ export function useWalletTopup() {
           await handleOrderPaid(activeOrder.orderCode, activeOrder.totalXu);
         } else if (res.status === 'expired') {
           stopped = true;
-          setStep('expired');
+          navigateToStep('expired', { replace: true });
         }
       } catch {
         // Bỏ qua lỗi mạng tạm thời trong chu kỳ polling tự động
@@ -177,7 +289,7 @@ export function useWalletTopup() {
               handleOrderPaid(activeOrder.orderCode, activeOrder.totalXu);
             } else if (newStatus === 'expired' && !stopped) {
               stopped = true;
-              setStep('expired');
+              navigateToStep('expired', { replace: true });
             }
           }
         )
@@ -191,7 +303,7 @@ export function useWalletTopup() {
         supabase.removeChannel(channel);
       }
     };
-  }, [step, activeOrder, userId, handleOrderPaid]);
+  }, [step, activeOrder, userId, handleOrderPaid, navigateToStep]);
 
   // Nút "Kiểm tra lại trạng thái" (Read-only từ server)
   const recheckStatus = useCallback(async () => {
@@ -203,7 +315,7 @@ export function useWalletTopup() {
       if (res.status === 'paid' || res.status === 'success') {
         await handleOrderPaid(activeOrder.orderCode, activeOrder.totalXu);
       } else if (res.status === 'expired') {
-        setStep('expired');
+        navigateToStep('expired', { replace: true });
         showToast('Đơn nạp đã hết hạn', 'Vui lòng tạo mã QR mới để tiếp tục.', 'warning');
       } else {
         showToast(
@@ -219,7 +331,7 @@ export function useWalletTopup() {
     } finally {
       setIsCheckingStatus(false);
     }
-  }, [activeOrder, handleOrderPaid, showToast]);
+  }, [activeOrder, handleOrderPaid, navigateToStep, showToast]);
 
   // Nút xác nhận dành riêng cho Demo Sandbox
   const confirmDemoTopup = useCallback(async () => {
@@ -255,12 +367,22 @@ export function useWalletTopup() {
     setOrderError(null);
   };
 
-  const resetWizard = () => {
+  const startTopup = useCallback(() => {
+    setOrderError(null);
+    navigateToStep(1);
+  }, [navigateToStep]);
+
+  const backToOverview = useCallback(() => {
+    setOrderError(null);
+    navigateToStep('overview');
+  }, [navigateToStep]);
+
+  const resetWizard = useCallback(() => {
     setActiveOrder(null);
     setOrderError(null);
-    setStep(1);
     setSecondsLeft(900);
-  };
+    navigateToStep(1);
+  }, [navigateToStep]);
 
   const formatCountdown = () => {
     const m = Math.floor(secondsLeft / 60);
@@ -288,9 +410,11 @@ export function useWalletTopup() {
     walletLoadError: walletQuery.error ? (walletQuery.error as Error).message : null,
     refreshWalletData,
 
-    // Wizard state & controls
+    // Wizard state & page controls
     step,
-    setStep,
+    setStep: navigateToStep,
+    startTopup,
+    backToOverview,
     selectedPackIndex,
     selectPack,
     customXuInput,
@@ -302,6 +426,7 @@ export function useWalletTopup() {
     method,
     setMethod,
     activeOrder,
+    isHydratingOrder,
     orderError,
     countdownText: formatCountdown(),
     isCreatingOrder: createOrderMutation.isPending,
@@ -313,4 +438,3 @@ export function useWalletTopup() {
     resetWizard,
   };
 }
-

@@ -1,4 +1,8 @@
 import {
+  WALLET_BANK_CONFIG,
+  WALLET_MOMO_CONFIG,
+  buildVietQrImageUrl,
+  calculateWalletXuBreakdown,
   getServiceSupabase,
   resolveProfileByFirebaseUid,
   verifyFirebaseIdToken,
@@ -58,15 +62,77 @@ export default async function handler(req: any, res: any) {
       .eq('owner_id', profile.id)
       .maybeSingle();
 
+    const normalizedMethod = tx.payment_method === 'momo' ? 'momo' : 'vietqr';
+    const meta = (tx.metadata || {}) as Record<string, any>;
+    const breakdown = calculateWalletXuBreakdown(Number(tx.amount) || 50000);
+    const realXu = Number(meta.real_xu ?? breakdown.realXu);
+    const bonusXu = Number(meta.bonus_xu ?? breakdown.bonusXu);
+    const totalXu = Number(meta.total_xu ?? realXu + bonusXu);
+    const bonusPercent = Number(meta.bonus_percent ?? breakdown.bonusPercent);
+
+    const qrCode =
+      normalizedMethod === 'momo'
+        ? buildVietQrImageUrl(
+            WALLET_MOMO_CONFIG.vietQrBankId,
+            WALLET_MOMO_CONFIG.phoneNumber,
+            tx.amount,
+            tx.order_code,
+            WALLET_MOMO_CONFIG.receiverName
+          )
+        : buildVietQrImageUrl(
+            WALLET_BANK_CONFIG.vietQrBankId,
+            WALLET_BANK_CONFIG.accountNumber,
+            tx.amount,
+            tx.order_code,
+            WALLET_BANK_CONFIG.accountName
+          );
+
+    const deeplink =
+      normalizedMethod === 'momo'
+        ? `momo://app?action=pay&amount=${tx.amount}&receiver=${WALLET_MOMO_CONFIG.phoneNumber}&comment=${encodeURIComponent(
+            tx.order_code
+          )}`
+        : undefined;
+
     return res.status(200).json({
       success: true,
       orderCode: tx.order_code,
       status: currentStatus,
       amount: tx.amount,
-      paymentMethod: tx.payment_method,
+      paymentMethod: normalizedMethod,
       paidAt: tx.paid_at,
       expiresAt: tx.expires_at,
-      metadata: tx.metadata || {},
+      metadata: meta,
+      order: {
+        id: tx.id,
+        orderCode: tx.order_code,
+        amountVnd: tx.amount,
+        realXu,
+        bonusXu,
+        totalXu,
+        bonusPercent,
+        method: normalizedMethod,
+        status: currentStatus,
+        expiresAt: tx.expires_at,
+        isSandbox: Boolean(meta.is_sandbox),
+        qrCode,
+        deeplink,
+        transferContent: tx.order_code,
+        receiverInfo:
+          normalizedMethod === 'momo'
+            ? {
+                bankName: WALLET_MOMO_CONFIG.providerName,
+                accountNumber: WALLET_MOMO_CONFIG.phoneNumber,
+                accountNumberLabel: 'Số ví MoMo nhận',
+                accountName: WALLET_MOMO_CONFIG.receiverName,
+              }
+            : {
+                bankName: WALLET_BANK_CONFIG.bankName,
+                accountNumber: WALLET_BANK_CONFIG.accountNumber,
+                accountNumberLabel: 'Số tài khoản',
+                accountName: WALLET_BANK_CONFIG.accountName,
+              },
+      },
       wallet: wallet
         ? {
             id: wallet.id,

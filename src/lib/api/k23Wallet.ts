@@ -84,6 +84,7 @@ export interface WalletTopupStatusResponse {
     total_xu?: number;
     is_sandbox?: boolean;
   };
+  order?: WalletTopupOrder | null;
   wallet?: K23Wallet | null;
 }
 

@@ -9,18 +9,22 @@ import {
   CheckCircle2,
   Clock,
   Info,
+  PlusCircle,
+  ArrowRight,
 } from 'lucide-react';
 
 interface WalletBalanceCardProps {
   currentUser: User | null;
   wallet: K23Wallet;
   isLoading?: boolean;
+  onStartTopup?: () => void;
 }
 
 export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
   currentUser,
   wallet,
   isLoading = false,
+  onStartTopup,
 }) => {
   const isLandlord = currentUser?.role === 'owner';
 
@@ -91,14 +95,28 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
           </div>
         </div>
 
-        <div className="relative z-10 pt-4 mt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs text-emerald-100">
-          <span className="flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
-            Hệ thống khấu trừ ưu tiên Xu thưởng trước
-          </span>
-          <span className="font-mono text-[11px] text-emerald-200 truncate">
-            ID: {(wallet?.id || 'wallet').slice(0, 16)}
-          </span>
+        <div className="relative z-10 pt-4 mt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-100">
+          <div className="space-y-1">
+            <span className="flex items-center gap-1.5">
+              <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
+              Hệ thống khấu trừ ưu tiên Xu thưởng trước
+            </span>
+            <span className="font-mono text-[11px] text-emerald-200/90 block truncate">
+              ID: {(wallet?.id || 'wallet').slice(0, 16)}
+            </span>
+          </div>
+
+          {onStartTopup && (
+            <button
+              type="button"
+              onClick={onStartTopup}
+              className="px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-lg shadow-black/20 transition cursor-pointer active:scale-95 shrink-0"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Nạp Xu ngay</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          )}
         </div>
       </div>
 

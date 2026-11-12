@@ -34,7 +34,11 @@ interface TopupStepperWizardProps {
   isDemoAccount: boolean;
   balanceTotalXu: number;
   step: TopupWizardStep;
-  setStep: (step: TopupWizardStep) => void;
+  setStep: (
+    step: TopupWizardStep,
+    options?: { replace?: boolean; orderCode?: string | null }
+  ) => void;
+  onBackToOverview: () => void;
   selectedPackIndex: number;
   selectPack: (idx: number) => void;
   customXuInput: string;
@@ -46,6 +50,7 @@ interface TopupStepperWizardProps {
   method: WalletTopupMethod;
   setMethod: (m: WalletTopupMethod) => void;
   activeOrder: WalletTopupOrder | null;
+  isHydratingOrder?: boolean;
   orderError: string | null;
   countdownText: string;
   isCreatingOrder: boolean;
@@ -64,6 +69,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
   balanceTotalXu,
   step,
   setStep,
+  onBackToOverview,
   selectedPackIndex,
   selectPack,
   customXuInput,
@@ -75,6 +81,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
   method,
   setMethod,
   activeOrder,
+  isHydratingOrder = false,
   orderError,
   countdownText,
   isCreatingOrder,
@@ -139,10 +146,31 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
     setStep(2);
   };
 
-  const numericStep = step === 'success' || step === 'expired' ? 3 : step;
+  const numericStep = step === 'success' || step === 'expired' ? 3 : step === 'overview' ? 1 : step;
 
   return (
-    <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 sm:p-8 space-y-6">
+    <div className="space-y-4">
+      {/* Thanh điều hướng quay về Tổng quan Ví Xu */}
+      <div className="flex items-center justify-between">
+        <button
+          type="button"
+          onClick={onBackToOverview}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white hover:bg-gray-100 border border-gray-200 text-xs font-bold text-gray-700 shadow-2xs transition cursor-pointer"
+        >
+          <ArrowLeft className="w-3.5 h-3.5" />
+          <span>Quay về Ví Xu</span>
+        </button>
+
+        <span className="text-xs font-bold text-gray-400">
+          {step === 1 && 'Bước 1 / 3'}
+          {step === 2 && 'Bước 2 / 3'}
+          {step === 3 && 'Bước 3 / 3'}
+          {step === 'success' && 'Hoàn tất'}
+          {step === 'expired' && 'Hết hạn'}
+        </span>
+      </div>
+
+      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 sm:p-8 space-y-6">
       {/* Header & Thanh Stepper 3 Bước */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
         <div>
@@ -459,6 +487,28 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
         </div>
       )}
 
+      {/* ================= TRẠNG THÁI ĐANG KHÔI PHỤC ĐƠN KHI F5 ================= */}
+      {step === 3 && !activeOrder && (
+        <div className="max-w-lg mx-auto py-8 text-center space-y-4">
+          {isHydratingOrder ? (
+            <>
+              <RefreshCw className="w-8 h-8 text-[#00a854] animate-spin mx-auto" />
+              <p className="text-sm font-bold text-gray-700">Đang tải thông tin mã thanh toán...</p>
+            </>
+          ) : (
+            <>
+              <AlertCircle className="w-8 h-8 text-rose-500 mx-auto" />
+              <p className="text-sm font-bold text-gray-800">
+                {orderError || 'Không tìm thấy thông tin đơn thanh toán.'}
+              </p>
+              <Button variant="primary" size="md" onClick={resetWizard} className="font-bold cursor-pointer">
+                Chọn gói nạp mới
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* ================= BƯỚC 3: QUÉT MÃ QR THANH TOÁN & ĐỐI SOÁT ================= */}
       {step === 3 && activeOrder && (
         <div className="max-w-lg mx-auto space-y-5 animate-fadeIn">
@@ -672,14 +722,22 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               {isCheckingStatus ? 'Đang kiểm tra giao dịch...' : 'Kiểm tra lại trạng thái'}
             </Button>
 
-            <div className="text-center">
+            <div className="flex items-center justify-center gap-4">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-800 underline cursor-pointer"
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                Quay lại
+              </button>
+              <span className="text-gray-300">•</span>
               <button
                 type="button"
                 onClick={resetWizard}
                 className="inline-flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-gray-800 underline cursor-pointer"
               >
-                <ArrowLeft className="w-3.5 h-3.5" />
-                Tạo đơn nạp khác
+                Đổi gói nạp khác
               </button>
             </div>
 
@@ -738,22 +796,34 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               variant="primary"
               size="md"
               fullWidth
+              onClick={onBackToOverview}
+              leftIcon={<Wallet className="w-4 h-4" />}
+              className="font-bold cursor-pointer"
+            >
+              Về Ví Xu
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              fullWidth
               onClick={resetWizard}
               className="font-bold cursor-pointer"
             >
               Nạp thêm Xu
             </Button>
-            <Link to={isLandlord ? '/chu-tro' : '/'} className="w-full">
-              <Button
-                variant="outline"
-                size="md"
-                fullWidth
-                leftIcon={<Building2 className="w-4 h-4" />}
-                className="font-bold cursor-pointer"
-              >
-                {isLandlord ? 'Về trang Chủ trọ' : 'Về trang chủ'}
-              </Button>
-            </Link>
+            {isLandlord && (
+              <Link to="/chu-tro" className="w-full">
+                <Button
+                  variant="outline"
+                  size="md"
+                  fullWidth
+                  leftIcon={<Building2 className="w-4 h-4" />}
+                  className="font-bold cursor-pointer"
+                >
+                  Về trang Chủ trọ
+                </Button>
+              </Link>
+            )}
           </div>
         </div>
       )}
@@ -770,17 +840,28 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               Mỗi mã QR chỉ có hiệu lực 15 phút để bảo đảm đối soát chính xác. Vui lòng tạo mã QR mới để tiếp tục nạp Xu.
             </p>
           </div>
-          <Button
-            variant="primary"
-            size="md"
-            onClick={resetWizard}
-            leftIcon={<RefreshCw className="w-4 h-4" />}
-            className="font-bold cursor-pointer"
-          >
-            Tạo mã QR mới
-          </Button>
+          <div className="flex flex-wrap items-center justify-center gap-3">
+            <Button
+              variant="primary"
+              size="md"
+              onClick={resetWizard}
+              leftIcon={<RefreshCw className="w-4 h-4" />}
+              className="font-bold cursor-pointer"
+            >
+              Tạo mã QR mới
+            </Button>
+            <Button
+              variant="outline"
+              size="md"
+              onClick={onBackToOverview}
+              className="font-bold cursor-pointer"
+            >
+              Về Ví Xu
+            </Button>
+          </div>
         </div>
       )}
+      </div>
     </div>
   );
 };
