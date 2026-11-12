@@ -183,9 +183,49 @@ export async function verifyFirebaseIdToken(bearerHeader?: string | null): Promi
 const DEFAULT_SUPABASE_URL = 'https://nanhmbnpihlaojbwfebb.supabase.co';
 const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_aIbyNWURIM1qwQG6g_bTUg_lukLkC4f';
 
+export function sanitizeEnvValue(val?: string): string {
+  if (!val || typeof val !== 'string') return '';
+  return val.trim().replace(/^['"]|['"]$/g, '').trim();
+}
+
+export function resolveSupabaseUrl(): string {
+  const candidates = [process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL];
+  for (const raw of candidates) {
+    const cleaned = sanitizeEnvValue(raw);
+    if (!cleaned) continue;
+    const withProtocol =
+      cleaned.startsWith('https://') || cleaned.startsWith('http://')
+        ? cleaned
+        : /^[a-z0-9-]+\.supabase\.co$/i.test(cleaned)
+          ? `https://${cleaned}`
+          : '';
+    if (!withProtocol) continue;
+    try {
+      const parsed = new URL(withProtocol);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.origin;
+      }
+    } catch {
+      // Bỏ qua biến môi trường URL bị sai định dạng và fallback về URL chuẩn
+    }
+  }
+  return DEFAULT_SUPABASE_URL;
+}
+
+function resolveSupabaseAnonKey(): string {
+  const candidates = [process.env.SUPABASE_ANON_KEY, process.env.VITE_SUPABASE_ANON_KEY];
+  for (const raw of candidates) {
+    const cleaned = sanitizeEnvValue(raw);
+    if (cleaned.startsWith('sb_publishable_') || cleaned.startsWith('eyJ')) {
+      return cleaned;
+    }
+  }
+  return DEFAULT_SUPABASE_ANON_KEY;
+}
+
 export function getServiceSupabase(): SupabaseClient {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = resolveSupabaseUrl();
+  const serviceKey = sanitizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (!supabaseUrl || !serviceKey) {
     throw new Error('Máy chủ chưa cấu hình SUPABASE_SERVICE_ROLE_KEY trên Vercel.');
@@ -209,8 +249,8 @@ export function getWalletSupabaseClient(bearerHeader: string): {
   supabase: SupabaseClient;
   isServiceRole: boolean;
 } {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = resolveSupabaseUrl();
+  const serviceKey = sanitizeEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (serviceKey) {
     return {
@@ -224,10 +264,7 @@ export function getWalletSupabaseClient(bearerHeader: string): {
     };
   }
 
-  const anonKey =
-    process.env.SUPABASE_ANON_KEY ||
-    process.env.VITE_SUPABASE_ANON_KEY ||
-    DEFAULT_SUPABASE_ANON_KEY;
+  const anonKey = resolveSupabaseAnonKey();
 
   const rawToken = String(bearerHeader || '')
     .replace(/^Bearer\s+/i, '')

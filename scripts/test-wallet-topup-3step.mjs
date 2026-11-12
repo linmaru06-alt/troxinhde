@@ -7,6 +7,7 @@ import {
   verifyFirebaseIdToken,
   getServiceSupabase,
   getWalletSupabaseClient,
+  resolveSupabaseUrl,
 } from '../api/_lib/walletServer.ts';
 import paymentIpnHandler from '../api/webhook/payment-ipn.ts';
 
@@ -176,12 +177,23 @@ async function runTests() {
     process.env.PAYOS_CHECKSUM_KEY = prevPayosKey;
   }
 
-  // Test 5: Kiểm tra cơ chế fallback Supabase Client khi chưa có SUPABASE_SERVICE_ROLE_KEY
-  console.log('\nTest 5: Kiểm tra fallback Anon + Firebase JWT cho create-topup-order & topup-status');
+  // Test 5: Kiểm tra cơ chế fallback Supabase URL & Client khi thiếu/sai env trên Vercel
+  console.log('\nTest 5: Kiểm tra resolveSupabaseUrl & fallback Anon + Firebase JWT');
   const prevUrl5 = process.env.SUPABASE_URL;
+  const prevViteUrl5 = process.env.VITE_SUPABASE_URL;
   const prevSrvKey5 = process.env.SUPABASE_SERVICE_ROLE_KEY;
   try {
+    // 5.0 SUPABASE_URL sai định dạng / placeholder / dính dấu ngoặc kép phải tự sửa hoặc fallback về URL chuẩn
+    process.env.SUPABASE_URL = 'your_supabase_url';
+    process.env.VITE_SUPABASE_URL = '  "https://nanhmbnpihlaojbwfebb.supabase.co/"  ';
+    assert.equal(resolveSupabaseUrl(), 'https://nanhmbnpihlaojbwfebb.supabase.co');
+
+    process.env.SUPABASE_URL = 'not-a-valid-url';
+    process.env.VITE_SUPABASE_URL = 'invalid_url_here';
+    assert.equal(resolveSupabaseUrl(), 'https://nanhmbnpihlaojbwfebb.supabase.co');
+
     delete process.env.SUPABASE_URL;
+    delete process.env.VITE_SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 
     // 5.1 Thiếu SERVICE_ROLE_KEY -> getServiceSupabase() phải báo rõ thiếu SUPABASE_SERVICE_ROLE_KEY
@@ -196,10 +208,12 @@ async function runTests() {
     process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy_service_role_key_test';
     const privilegedClient = getWalletSupabaseClient('Bearer dummy_firebase_jwt');
     assert.equal(privilegedClient.isServiceRole, true);
-    console.log('  ✅ [PASS] Fallback Anon+FirebaseJWT hoạt động khi thiếu SERVICE_ROLE_KEY, không làm lỗi Bước 2 -> Bước 3.');
+    console.log('  ✅ [PASS] resolveSupabaseUrl chống URL lỗi/placeholder & fallback Anon+FirebaseJWT hoạt động chuẩn.');
   } finally {
     if (prevUrl5 !== undefined) process.env.SUPABASE_URL = prevUrl5;
     else delete process.env.SUPABASE_URL;
+    if (prevViteUrl5 !== undefined) process.env.VITE_SUPABASE_URL = prevViteUrl5;
+    else delete process.env.VITE_SUPABASE_URL;
     if (prevSrvKey5 !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = prevSrvKey5;
     else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   }
