@@ -41,6 +41,7 @@ export default async function handler(req: any, res: any) {
     remindersSent: 0,
     listingsExpired: 0,
     listingsPurged: 0,
+    walletOrdersExpired: 0,
     errors: [] as string[]
   };
 
@@ -143,6 +144,31 @@ export default async function handler(req: any, res: any) {
         results.errors.push(`Lỗi chuyển trạng thái tin quá hạn lưu trữ: ${updatePurgeError.message}`);
       } else {
         results.listingsPurged = purgedRooms.length;
+      }
+    }
+
+    // D. Quét đơn nạp Ví Xu quá hạn 15 phút (plan_id = 'wallet_topup', status = 'pending', expires_at <= NOW())
+    const { data: expiredTopups, error: topupScanError } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('plan_id', 'wallet_topup')
+      .eq('status', 'pending')
+      .lte('expires_at', nowIso);
+
+    if (topupScanError) {
+      results.errors.push(`Lỗi quét đơn nạp Xu hết hạn: ${topupScanError.message}`);
+    } else if (expiredTopups && expiredTopups.length > 0) {
+      const topupIds = expiredTopups.map((t) => t.id);
+      const { error: topupExpireError } = await supabase
+        .from('transactions')
+        .update({ status: 'expired' })
+        .in('id', topupIds)
+        .eq('status', 'pending');
+
+      if (topupExpireError) {
+        results.errors.push(`Lỗi cập nhật đơn nạp Xu hết hạn: ${topupExpireError.message}`);
+      } else {
+        results.walletOrdersExpired = expiredTopups.length;
       }
     }
 
