@@ -4,13 +4,51 @@
 -- An toàn 100% Idempotent - Bảo toàn toàn bộ dữ liệu hiện có (Không DROP TABLE)
 -- ==============================================================================
 
--- 1. MỞ RỘNG BẢNG TRANSACTIONS CHO ĐƠN NẠP VÍ XU (expires_at, metadata)
+-- 1. MỞ RỘNG BẢNG TRANSACTIONS CHO ĐƠN NẠP VÍ XU (expires_at, metadata & trạng thái 'paid'/'cancelled')
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ;
 ALTER TABLE public.transactions ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+-- Nới lỏng CHECK constraint cũ (005_payments.sql từng thiếu 'paid' và 'cancelled')
+ALTER TABLE public.transactions DROP CONSTRAINT IF EXISTS transactions_status_check;
+ALTER TABLE public.transactions
+    ADD CONSTRAINT transactions_status_check
+    CHECK (status IN ('pending', 'paid', 'success', 'failed', 'cancelled', 'expired')) NOT VALID;
 
 CREATE INDEX IF NOT EXISTS idx_transactions_wallet_pending_exp
     ON public.transactions (plan_id, status, expires_at)
     WHERE plan_id = 'wallet_topup' AND status = 'pending';
+
+-- Không tự tạo bản ghi gói tháng user_subscriptions khi đơn nạp Ví Xu (plan_id = 'wallet_topup') chuyển sang paid
+CREATE OR REPLACE FUNCTION public.fn_auto_activate_subscription_on_paid()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NEW.status = 'paid' AND (OLD.status IS NULL OR OLD.status != 'paid') THEN
+        NEW.paid_at := COALESCE(NEW.paid_at, now());
+        NEW.activated_at := COALESCE(NEW.activated_at, now());
+
+        IF NEW.user_id IS NOT NULL AND NEW.plan_id IS NOT NULL AND NEW.plan_id <> 'wallet_topup' THEN
+            INSERT INTO public.user_subscriptions (user_id, plan_id, started_at, expires_at, transaction_id)
+            VALUES (
+                NEW.user_id,
+                NEW.plan_id,
+                now(),
+                now() + INTERVAL '30 days',
+                NEW.id
+            );
+        END IF;
+
+        IF NEW.room_id IS NOT NULL THEN
+            UPDATE public.rooms
+            SET
+                is_boosted = true,
+                boost_type = COALESCE(NEW.plan_id, 'vip'),
+                boost_badge = 'Phòng Nổi Bật VIP'
+            WHERE id = NEW.room_id;
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- 2. RÀNG BUỘC AN TOÀN CHO SỐ DƯ VÍ & CHỐNG CỘNG TRÙNG MÃ THAM CHIẾU NGÂN HÀNG
 DO $$
