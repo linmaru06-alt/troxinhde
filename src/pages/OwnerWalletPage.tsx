@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { useWalletTopup } from '../hooks/useWalletTopup';
@@ -7,16 +7,17 @@ import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { WalletBalanceCard } from '../components/wallet/WalletBalanceCard';
 import { TopupStepperWizard } from '../components/wallet/TopupStepperWizard';
 import { WalletHistoryTable } from '../components/wallet/WalletHistoryTable';
-import { Coins, Rocket, Gift, ArrowRight, AlertCircle, PlusCircle } from 'lucide-react';
+import { Coins, Rocket, Gift, ArrowRight, AlertCircle, PlusCircle, History } from 'lucide-react';
 
 export const OwnerWalletPage: React.FC = () => {
   const { grantDemoXu, showToast } = useAppStore();
   const topup = useWalletTopup();
+  const [mobileOverviewTab, setMobileOverviewTab] = useState<'pricing' | 'history'>('pricing');
 
   const isOverview = topup.step === 'overview';
 
   return (
-    <div className="flex bg-gray-50 min-h-[calc(100vh-4rem)]">
+    <div className="flex bg-gray-50 min-h-[calc(100vh-3.5rem)] sm:min-h-[calc(100vh-4rem)]">
       <SEOHead
         title={
           isOverview
@@ -30,33 +31,37 @@ export const OwnerWalletPage: React.FC = () => {
       {topup.currentUser?.role === 'owner' && <DashboardSidebar role="owner" />}
 
       <main
-        className={`flex-1 p-4 sm:p-8 ${
+        className={`flex-1 ${
+          isOverview
+            ? 'p-4 sm:p-8 pb-24 lg:pb-8 space-y-6 sm:space-y-8'
+            : 'p-0 sm:p-8 pb-28 sm:pb-8'
+        } ${
           topup.currentUser?.role === 'owner' ? 'max-w-6xl' : 'max-w-5xl mx-auto w-full'
-        } space-y-8 overflow-y-auto`}
+        } overflow-y-auto`}
       >
         {isOverview ? (
           <>
             {/* ================= TRANG TỔNG QUAN VÍ XU ================= */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-3 sm:pb-4 border-b border-gray-200">
               <div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-black mb-1">
+                <div className="inline-flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[10.5px] sm:text-xs font-black mb-1">
                   <Coins className="w-3.5 h-3.5 text-[#00a854]" />
                   <span>HỆ THỐNG THANH TOÁN XU NỘI BỘ</span>
                 </div>
-                <h1 className="text-2xl sm:text-3xl font-black text-gray-950 tracking-tight">
+                <h1 className="text-xl sm:text-3xl font-black text-gray-950 tracking-tight">
                   Ví Xu Trọ Xinh
                 </h1>
-                <p className="text-xs text-gray-500 mt-1">
+                <p className="text-xs text-gray-500 mt-0.5 sm:mt-1">
                   Tỷ giá cố định: <strong>1 Xu = 1.000 VNĐ</strong> • Bấm <strong>Nạp Xu ngay</strong> để mở quy trình nạp 3 bước
                 </p>
               </div>
 
-              <div className="flex flex-wrap items-center gap-2.5">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
                 {topup.isDemoAccount && (
                   <button
                     type="button"
                     onClick={() => grantDemoXu(500)}
-                    className="px-3.5 py-2.5 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black transition flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
+                    className="flex-1 sm:flex-initial min-h-[42px] px-3.5 py-2 rounded-xl bg-amber-100 hover:bg-amber-200 text-amber-900 text-xs font-black transition flex items-center justify-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
                     title="Cộng thêm 500 Xu trải nghiệm tính năng thanh toán Demo"
                   >
                     <Gift className="w-4 h-4 text-amber-700" />
@@ -67,7 +72,7 @@ export const OwnerWalletPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={topup.startTopup}
-                  className="px-5 py-2.5 rounded-xl bg-[#00a854] hover:bg-[#008f46] text-white text-xs sm:text-sm font-black transition flex items-center gap-2 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
+                  className="hidden sm:flex px-5 py-2.5 rounded-xl bg-[#00a854] hover:bg-[#008f46] text-white text-sm font-black transition items-center gap-2 cursor-pointer shadow-md shadow-emerald-600/20 active:scale-95"
                 >
                   <PlusCircle className="w-4 h-4" />
                   <span>Nạp Xu ngay</span>
@@ -76,7 +81,7 @@ export const OwnerWalletPage: React.FC = () => {
             </div>
 
             {topup.walletLoadError && (
-              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3">
+              <div className="p-3.5 sm:p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
                   <span>Không thể tải số dư ví từ máy chủ: {topup.walletLoadError}</span>
@@ -84,7 +89,7 @@ export const OwnerWalletPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={topup.refreshWalletData}
-                  className="px-3 py-1 rounded-lg bg-white border border-rose-300 font-bold text-rose-700 hover:bg-rose-100 cursor-pointer shrink-0"
+                  className="px-3 py-1.5 rounded-lg bg-white border border-rose-300 font-bold text-rose-700 hover:bg-rose-100 cursor-pointer shrink-0"
                 >
                   Thử lại
                 </button>
@@ -99,8 +104,40 @@ export const OwnerWalletPage: React.FC = () => {
               onStartTopup={topup.startTopup}
             />
 
+            {/* THANH CHUYỂN TAB NHANH CHO MOBILE (< 640px) */}
+            <div className="sm:hidden grid grid-cols-2 gap-1.5 p-1.5 rounded-2xl bg-white border border-gray-200 shadow-2xs">
+              <button
+                type="button"
+                onClick={() => setMobileOverviewTab('pricing')}
+                className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  mobileOverviewTab === 'pricing'
+                    ? 'bg-[#00a854] text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <Rocket className="w-3.5 h-3.5" />
+                <span>Bảng giá Xu</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobileOverviewTab('history')}
+                className={`min-h-[40px] px-3 py-2 rounded-xl text-xs font-black flex items-center justify-center gap-1.5 transition cursor-pointer ${
+                  mobileOverviewTab === 'history'
+                    ? 'bg-[#00a854] text-white shadow-sm'
+                    : 'text-gray-600 hover:bg-gray-50'
+                }`}
+              >
+                <History className="w-3.5 h-3.5" />
+                <span>Lịch sử ({topup.transactions.length})</span>
+              </button>
+            </div>
+
             {/* KHỐI 2: BẢNG QUY ĐỔI GIÁ DỊCH VỤ BẰNG XU */}
-            <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 sm:p-8 space-y-4">
+            <div
+              className={`${
+                mobileOverviewTab === 'pricing' ? 'block' : 'hidden sm:block'
+              } bg-white rounded-2xl sm:rounded-3xl border border-gray-200 shadow-sm p-4 sm:p-8 space-y-4`}
+            >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-gray-100">
                 <div>
                   <h2 className="text-base sm:text-lg font-black text-gray-950 flex items-center gap-2">
@@ -123,99 +160,99 @@ export const OwnerWalletPage: React.FC = () => {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
-                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-gray-900 text-sm">Đẩy Lẻ 1 Ngày</span>
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3 text-xs">
+                <div className="p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-gray-900 text-xs sm:text-sm">Đẩy Lẻ 1 Ngày</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
                       15 Xu
                     </span>
                   </div>
-                  <p className="text-gray-500 text-[11px]">
+                  <p className="text-gray-500 text-[11px] leading-relaxed">
                     Đẩy tin nổi lên đầu trang tìm kiếm ngay lập tức trong 24 giờ (~15.000đ).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-gray-900 text-sm">Đẩy Top 3 Ngày</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-gray-900 text-xs sm:text-sm">Đẩy Top 3 Ngày</span>
                     <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold text-[10px]">
                       29 Xu
                     </span>
                   </div>
-                  <p className="text-gray-500 text-[11px]">
+                  <p className="text-gray-500 text-[11px] leading-relaxed">
                     Lên đầu trang tìm kiếm trong 3 ngày cuối tuần cao điểm (~29.000đ).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-amber-950 text-sm">Đẩy Giờ Vàng 7 Ngày</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-amber-950 text-xs sm:text-sm">Đẩy Giờ Vàng 7 Ngày</span>
                     <span className="px-2 py-0.5 rounded-full bg-amber-500 text-white font-black text-[10px]">
                       59 Xu
                     </span>
                   </div>
-                  <p className="text-amber-900 text-[11px]">
+                  <p className="text-amber-900 text-[11px] leading-relaxed">
                     Tự động đẩy top 2 khung giờ vàng: 11h-13h & 19h-22h mỗi ngày (~59.000đ).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-emerald-950 text-sm">VIP Toàn Diện 30 Ngày</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-emerald-950 text-xs sm:text-sm">VIP Toàn Diện 30 Ngày</span>
                     <span className="px-2 py-0.5 rounded-full bg-[#00a854] text-white font-black text-[10px]">
                       199 Xu
                     </span>
                   </div>
-                  <p className="text-emerald-900 text-[11px]">
+                  <p className="text-emerald-900 text-[11px] leading-relaxed">
                     Ưu tiên vị trí số 1 liên tục 30 ngày, gắn huy hiệu VIP nổi bật (~199.000đ).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-gray-900 text-sm">Gia Hạn Tin 15 Ngày</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-gray-900 text-xs sm:text-sm">Gia Hạn 15 Ngày</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px]">
                       30 Xu
                     </span>
                   </div>
-                  <p className="text-gray-500 text-[11px]">
+                  <p className="text-gray-500 text-[11px] leading-relaxed">
                     Gia hạn tin hết hạn chu kỳ 30 ngày thêm 15 ngày hiển thị (~30.000đ).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-gray-900 text-sm">Gia Hạn Tin 30 Ngày</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-gray-50 border border-gray-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-gray-900 text-xs sm:text-sm">Gia Hạn 30 Ngày</span>
                     <span className="px-2 py-0.5 rounded-full bg-slate-200 text-slate-800 font-bold text-[10px]">
                       50 Xu
                     </span>
                   </div>
-                  <p className="text-gray-500 text-[11px]">
+                  <p className="text-gray-500 text-[11px] leading-relaxed">
                     Gia hạn tin hết hạn thêm 30 ngày đầy đủ với chi phí tiết kiệm nhất (~50.000đ).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-teal-950 text-sm">Đăng Lại Lần 1</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-teal-950 text-xs sm:text-sm">Đăng Lại Lần 1</span>
                     <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px]">
                       0 Xu (FREE)
                     </span>
                   </div>
-                  <p className="text-teal-900 text-[11px]">
+                  <p className="text-teal-900 text-[11px] leading-relaxed">
                     Trọ Xinh tặng miễn phí lần đăng lại đầu tiên cho mọi phòng trọ (0 Xu).
                   </p>
                 </div>
 
-                <div className="p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-black text-teal-950 text-sm">Xác Thực Chính Chủ</span>
+                <div className="p-3 sm:p-4 rounded-2xl bg-teal-50/70 border border-teal-200 space-y-1.5 sm:space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-1">
+                    <span className="font-black text-teal-950 text-xs sm:text-sm">Xác Thực Chính Chủ</span>
                     <span className="px-2 py-0.5 rounded-full bg-teal-600 text-white font-black text-[10px]">
                       TẶNG 48H VIP
                     </span>
                   </div>
-                  <p className="text-teal-900 text-[11px]">
+                  <p className="text-teal-900 text-[11px] leading-relaxed">
                     Cấp Tick Xanh và tặng miễn phí 48 giờ đẩy tin tự động.
                   </p>
                 </div>
@@ -223,14 +260,16 @@ export const OwnerWalletPage: React.FC = () => {
             </div>
 
             {/* KHỐI 3: LỊCH SỬ BIẾN ĐỘNG SỐ DƯ XU */}
-            <WalletHistoryTable
-              transactions={topup.transactions}
-              isLoading={topup.isLoadingWallet}
-            />
+            <div className={mobileOverviewTab === 'history' ? 'block' : 'hidden sm:block'}>
+              <WalletHistoryTable
+                transactions={topup.transactions}
+                isLoading={topup.isLoadingWallet}
+              />
+            </div>
           </>
         ) : (
           /* ================= TRANG RIÊNG CHO TỪNG BƯỚC NẠP XU (1 -> 2 -> 3) ================= */
-          <div className="max-w-3xl mx-auto py-2 sm:py-4">
+          <div className="max-w-3xl mx-auto sm:py-4">
             <TopupStepperWizard
               currentUser={topup.currentUser}
               isDemoAccount={topup.isDemoAccount}

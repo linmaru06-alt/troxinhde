@@ -148,10 +148,73 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
 
   const numericStep = step === 'success' || step === 'expired' ? 3 : step === 'overview' ? 1 : step;
 
+  const mobileBackHandler = () => {
+    if (step === 2) {
+      setStep(1);
+    } else if (step === 3) {
+      setStep(2);
+    } else {
+      onBackToOverview();
+    }
+  };
+
+  const mobileHeaderTitle =
+    step === 1
+      ? 'Chọn gói nạp Xu'
+      : step === 2
+        ? 'Phương thức thanh toán'
+        : step === 3
+          ? 'Quét mã QR thanh toán'
+          : step === 'success'
+            ? 'Nạp Xu thành công'
+            : 'Đơn nạp hết hạn';
+
   return (
-    <div className="space-y-4">
-      {/* Thanh điều hướng quay về Tổng quan Ví Xu */}
-      <div className="flex items-center justify-between">
+    <div className="sm:space-y-4">
+      {/* Mobile App Sticky Top Bar (< 640px) */}
+      <div className="sm:hidden sticky top-14 z-30 bg-white/95 backdrop-blur-md border-b border-gray-200 shadow-2xs">
+        <div className="flex items-center justify-between gap-2 px-3 py-2.5">
+          <button
+            type="button"
+            onClick={mobileBackHandler}
+            aria-label="Quay lại"
+            className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-800 active:scale-95 transition cursor-pointer shrink-0"
+          >
+            <ArrowLeft className="w-4 h-4" />
+          </button>
+
+          <div className="min-w-0 text-center flex-1">
+            <h2 className="text-sm font-black text-gray-950 truncate">{mobileHeaderTitle}</h2>
+            <p className="text-[10.5px] font-bold text-gray-500">
+              {step === 1 && 'Bước 1/3 • 1 Xu = 1.000đ'}
+              {step === 2 && 'Bước 2/3 • Chọn cổng thanh toán'}
+              {step === 3 && `Bước 3/3 • ${countdownText}`}
+              {step === 'success' && 'Đã đối soát hoàn tất'}
+              {step === 'expired' && 'Vui lòng tạo mã mới'}
+            </p>
+          </div>
+
+          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-50 text-[#006d37] text-[11px] font-black border border-emerald-200 shrink-0">
+            <Coins className="w-3 h-3" />
+            {balanceTotalXu.toLocaleString('vi-VN')}
+          </span>
+        </div>
+
+        {/* Thanh tiến độ 3 vạch kiểu Mobile App */}
+        <div className="grid grid-cols-3 gap-1 px-3 pb-2">
+          {[1, 2, 3].map((idx) => (
+            <div
+              key={idx}
+              className={`h-1 rounded-full transition-all ${
+                step === 'success' || numericStep >= idx ? 'bg-[#00a854]' : 'bg-gray-200'
+              }`}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Thanh điều hướng quay về Tổng quan Ví Xu (Desktop >= 640px) */}
+      <div className="hidden sm:flex items-center justify-between">
         <button
           type="button"
           onClick={onBackToOverview}
@@ -170,9 +233,9 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
         </span>
       </div>
 
-      <div className="bg-white rounded-3xl border border-gray-200 shadow-sm p-5 sm:p-8 space-y-6">
-      {/* Header & Thanh Stepper 3 Bước */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
+      <div className="bg-white sm:rounded-3xl sm:border sm:border-gray-200 sm:shadow-sm px-4 py-5 sm:p-8 space-y-5 sm:space-y-6">
+        {/* Header & Thanh Stepper 3 Bước (Desktop >= 640px) */}
+        <div className="hidden sm:flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-gray-100">
         <div>
           <div className="flex items-center gap-2 flex-wrap">
             <h2 className="text-lg sm:text-xl font-black text-gray-950 flex items-center gap-2">
@@ -235,7 +298,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               Chọn gói nạp nhanh
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-1">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3.5 pt-2">
               {WALLET_TOPUP_PACKS.map((pack, idx) => {
                 const isSelected = selectedPackIndex === idx;
                 return (
@@ -243,7 +306,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                     key={pack.vnd}
                     type="button"
                     onClick={() => selectPack(idx)}
-                    className={`p-4 rounded-2xl border-2 text-center transition cursor-pointer relative ${
+                    className={`min-h-[86px] px-2.5 py-3.5 sm:p-4 rounded-2xl border-2 text-center transition cursor-pointer relative active:scale-[0.98] touch-manipulation ${
                       isSelected
                         ? 'border-[#00a854] bg-emerald-50/70 shadow-sm ring-2 ring-emerald-500/15'
                         : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -251,7 +314,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                   >
                     {pack.badge && (
                       <span
-                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-black px-2.5 py-0.5 rounded-full shadow-2xs ${
+                        className={`absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9.5px] sm:text-[10px] font-black px-2 sm:px-2.5 py-0.5 rounded-full shadow-2xs ${
                           pack.popular
                             ? 'bg-emerald-100 text-[#006d37] border border-emerald-300'
                             : 'bg-amber-100 text-amber-800 border border-amber-300'
@@ -261,18 +324,18 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                       </span>
                     )}
 
-                    <span className="text-base sm:text-lg font-black text-gray-950 block mt-1">
-                      {pack.vnd.toLocaleString('vi-VN')} VND
+                    <span className="text-sm sm:text-lg font-black text-gray-950 block mt-1">
+                      {pack.vnd.toLocaleString('vi-VN')} đ
                     </span>
                     <span
-                      className={`text-sm font-black block mt-0.5 ${
+                      className={`text-xs sm:text-sm font-black block mt-0.5 ${
                         isSelected ? 'text-[#006d37]' : 'text-gray-700'
                       }`}
                     >
                       {pack.totalXu.toLocaleString('vi-VN')} Xu
                     </span>
                     {pack.bonusXu > 0 && (
-                      <span className="text-[11px] text-amber-700 font-semibold block mt-0.5">
+                      <span className="text-[10px] sm:text-[11px] text-amber-700 font-semibold block mt-0.5 leading-tight">
                         ({pack.realXu.toLocaleString('vi-VN')} gốc + {pack.bonusXu} thưởng)
                       </span>
                     )}
@@ -282,7 +345,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
             </div>
           </div>
 
-          {/* Ô nhập số Xu tùy ý */}
+          {/* Ô nhập số Xu tùy ý (16px font trên mobile để tránh iOS tự zoom) */}
           <div className="space-y-2.5">
             <label
               htmlFor="wallet-custom-xu"
@@ -300,7 +363,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                 value={customXuInput}
                 onChange={(e) => handleCustomXuChange(e.target.value)}
                 placeholder="Nhập số Xu (VD: 500)"
-                className="w-full pl-10 pr-16 py-3 bg-gray-50 border border-gray-300 rounded-2xl text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:bg-white transition"
+                className="w-full pl-10 pr-16 py-3 bg-gray-50 border border-gray-300 rounded-2xl text-base sm:text-sm font-bold text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#00a854] focus:bg-white transition"
               />
               <span className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-black text-gray-500">
                 XU
@@ -314,7 +377,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               </span>
 
               {isAmountValid ? (
-                <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium">
+                <div className="inline-flex items-center gap-1.5 px-3 py-2 sm:py-1.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 font-medium">
                   <Info className="w-3.5 h-3.5 text-[#00a854] shrink-0" />
                   <span>
                     Bạn sẽ nhận:{' '}
@@ -339,19 +402,48 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
             </div>
           </div>
 
-          <Button
-            variant="primary"
-            size="lg"
-            fullWidth
-            disabled={!isAmountValid && Boolean(currentUser)}
-            onClick={handleGoStep2}
-            rightIcon={<ArrowRight className="w-4 h-4" />}
-            className="font-black text-sm shadow-sm cursor-pointer"
+          <div className="hidden sm:block">
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={!isAmountValid && Boolean(currentUser)}
+              onClick={handleGoStep2}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="font-black text-sm shadow-sm cursor-pointer"
+            >
+              {currentUser
+                ? `Tiếp tục (${formatCurrency(amountVnd)})`
+                : 'Đăng nhập để tiếp tục nạp Xu'}
+            </Button>
+          </div>
+
+          {/* Mobile Sticky Bottom CTA Dock (< 640px) */}
+          <div
+            className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 pt-2.5 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
           >
-            {currentUser
-              ? `Tiếp tục (${formatCurrency(amountVnd)})`
-              : 'Đăng nhập để tiếp tục nạp Xu'}
-          </Button>
+            <div className="flex items-center justify-between gap-3 mb-2 text-xs">
+              <span className="text-gray-500 font-medium">
+                Nhận:{' '}
+                <strong className="text-[#006d37]">
+                  {isAmountValid ? `${preview.totalXu.toLocaleString('vi-VN')} Xu` : '—'}
+                </strong>
+              </span>
+              <span className="font-black text-gray-950">{formatCurrency(amountVnd)}</span>
+            </div>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              disabled={!isAmountValid && Boolean(currentUser)}
+              onClick={handleGoStep2}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="font-black text-sm shadow-sm cursor-pointer min-h-[48px]"
+            >
+              {currentUser ? 'Tiếp tục' : 'Đăng nhập để nạp Xu'}
+            </Button>
+          </div>
         </div>
       )}
 
@@ -459,7 +551,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
             </div>
           )}
 
-          <div className="space-y-3 pt-1">
+          <div className="hidden sm:block space-y-3 pt-1">
             <Button
               variant="primary"
               size="lg"
@@ -483,6 +575,32 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                 Quay lại chọn gói khác
               </button>
             </div>
+          </div>
+
+          {/* Mobile Sticky Bottom CTA Dock cho Bước 2 (< 640px) */}
+          <div
+            className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)] flex items-center gap-2.5"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            <button
+              type="button"
+              disabled={isCreatingOrder}
+              onClick={() => setStep(1)}
+              className="min-h-[48px] px-4 rounded-xl border border-gray-300 bg-white text-xs font-bold text-gray-700 active:scale-95 transition cursor-pointer shrink-0"
+            >
+              Quay lại
+            </button>
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              isLoading={isCreatingOrder}
+              onClick={createOrder}
+              rightIcon={<ArrowRight className="w-4 h-4" />}
+              className="font-black text-sm shadow-sm cursor-pointer min-h-[48px]"
+            >
+              {isCreatingOrder ? 'Đang tạo mã QR...' : 'Tạo mã thanh toán'}
+            </Button>
           </div>
         </div>
       )}
@@ -512,25 +630,35 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
       {/* ================= BƯỚC 3: QUÉT MÃ QR THANH TOÁN & ĐỐI SOÁT ================= */}
       {step === 3 && activeOrder && (
         <div className="max-w-lg mx-auto space-y-5 animate-fadeIn">
-          <div className="text-center space-y-1">
+          <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500">
               <span>{activeOrder.method === 'momo' ? 'Ví MoMo' : 'VietQR Ngân hàng'}</span>
               <span>•</span>
               <span>Mã đơn #{activeOrder.orderCode}</span>
             </div>
+
+            {/* Thanh đếm ngược đưa lên đầu trang trên Mobile (< 640px) */}
+            <div className="sm:hidden px-3 py-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center justify-center gap-2">
+              <Clock className="w-4 h-4 text-amber-600 animate-pulse shrink-0" />
+              <span>Đang chờ thanh toán • Còn {countdownText}</span>
+            </div>
           </div>
 
           {/* Khung QR */}
-          <div className="p-5 rounded-3xl bg-gray-50 border border-gray-200 flex flex-col items-center text-center space-y-3">
+          <div className="p-4 sm:p-5 rounded-2xl sm:rounded-3xl bg-gray-50 border border-gray-200 flex flex-col items-center text-center space-y-3">
             <span className="text-sm font-black text-gray-900">Quét mã để thanh toán</span>
 
-            <div className="w-52 h-52 bg-white p-2.5 rounded-2xl shadow-md border border-gray-200 flex items-center justify-center">
+            <div className="w-48 h-48 sm:w-52 sm:h-52 bg-white p-2.5 rounded-2xl shadow-md border border-gray-200 flex items-center justify-center">
               <img
                 src={activeOrder.qrCode}
                 alt={`QR thanh toán ${activeOrder.orderCode}`}
                 className="w-full h-full object-contain"
               />
             </div>
+
+            <p className="sm:hidden text-[11px] text-gray-500">
+              Mẹo: Chạm nút <strong>Tải mã QR</strong> hoặc nhấn giữ ảnh QR để lưu vào Thư viện ảnh
+            </p>
 
             <div>
               <div className="text-2xl font-black text-[#006d37]">
@@ -550,12 +678,12 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
+            <div className="flex flex-wrap items-center justify-center gap-2 pt-1 w-full sm:w-auto">
               <button
                 type="button"
                 onClick={handleDownloadQr}
                 disabled={isDownloadingQr}
-                className="px-3.5 py-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-300 text-xs font-bold text-gray-800 inline-flex items-center gap-1.5 cursor-pointer transition"
+                className="flex-1 sm:flex-initial min-h-[42px] px-3.5 py-2 rounded-xl bg-white hover:bg-gray-100 border border-gray-300 text-xs font-bold text-gray-800 inline-flex items-center justify-center gap-1.5 cursor-pointer transition active:scale-95"
               >
                 <Download className="w-3.5 h-3.5 text-[#006d37]" />
                 <span>{isDownloadingQr ? 'Đang tải...' : 'Tải mã QR'}</span>
@@ -564,7 +692,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               {activeOrder.deeplink && (
                 <a
                   href={activeOrder.deeplink}
-                  className="px-3.5 py-2 rounded-xl bg-[#A50064] hover:bg-[#8a0053] text-white text-xs font-bold inline-flex items-center gap-1.5 transition"
+                  className="flex-1 sm:flex-initial min-h-[42px] px-3.5 py-2 rounded-xl bg-[#A50064] hover:bg-[#8a0053] text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 transition active:scale-95"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Mở App MoMo</span>
@@ -665,8 +793,8 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
             </div>
           </div>
 
-          {/* Trạng thái chờ & đếm ngược */}
-          <div className="px-4 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold flex items-center justify-center gap-2">
+          {/* Trạng thái chờ & đếm ngược (Desktop >= 640px) */}
+          <div className="hidden sm:flex px-4 py-2.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-bold items-center justify-center gap-2">
             <Clock className="w-4 h-4 text-amber-600 animate-pulse shrink-0" />
             <span>Đang chờ thanh toán • Hết hạn sau {countdownText}</span>
           </div>
@@ -710,17 +838,19 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
           )}
 
           <div className="space-y-3">
-            <Button
-              variant="primary"
-              size="lg"
-              fullWidth
-              isLoading={isCheckingStatus}
-              onClick={recheckStatus}
-              leftIcon={<RefreshCw className={`w-4 h-4 ${isCheckingStatus ? 'animate-spin' : ''}`} />}
-              className="font-black text-sm shadow-sm cursor-pointer"
-            >
-              {isCheckingStatus ? 'Đang kiểm tra giao dịch...' : 'Kiểm tra lại trạng thái'}
-            </Button>
+            <div className="hidden sm:block">
+              <Button
+                variant="primary"
+                size="lg"
+                fullWidth
+                isLoading={isCheckingStatus}
+                onClick={recheckStatus}
+                leftIcon={<RefreshCw className={`w-4 h-4 ${isCheckingStatus ? 'animate-spin' : ''}`} />}
+                className="font-black text-sm shadow-sm cursor-pointer"
+              >
+                {isCheckingStatus ? 'Đang kiểm tra giao dịch...' : 'Kiểm tra lại trạng thái'}
+              </Button>
+            </div>
 
             <div className="flex items-center justify-center gap-4">
               <button
@@ -745,6 +875,24 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               <Info className="w-3.5 h-3.5 text-gray-400 shrink-0" />
               <span>Hệ thống tự động cộng Xu sau khi nhận được tiền, thường trong 1–3 phút.</span>
             </p>
+          </div>
+
+          {/* Mobile Sticky Bottom CTA Dock cho Bước 3 (< 640px) */}
+          <div
+            className="sm:hidden fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-gray-200 px-4 pt-3 shadow-[0_-8px_24px_rgba(0,0,0,0.08)]"
+            style={{ paddingBottom: 'calc(0.75rem + env(safe-area-inset-bottom, 0px))' }}
+          >
+            <Button
+              variant="primary"
+              size="lg"
+              fullWidth
+              isLoading={isCheckingStatus}
+              onClick={recheckStatus}
+              leftIcon={<RefreshCw className={`w-4 h-4 ${isCheckingStatus ? 'animate-spin' : ''}`} />}
+              className="font-black text-sm shadow-sm cursor-pointer min-h-[48px]"
+            >
+              {isCheckingStatus ? 'Đang kiểm tra...' : 'Kiểm tra lại trạng thái'}
+            </Button>
           </div>
         </div>
       )}

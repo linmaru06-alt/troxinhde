@@ -31,18 +31,18 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
       {/* Thẻ Ví Xu Emerald & Gold (7 cột) */}
-      <div className="lg:col-span-7 rounded-3xl bg-gradient-to-br from-emerald-900 via-[#006d37] to-slate-900 text-white p-5 sm:p-8 shadow-xl relative overflow-hidden flex flex-col justify-between border border-emerald-400/30">
+      <div className="lg:col-span-7 rounded-2xl sm:rounded-3xl bg-gradient-to-br from-emerald-900 via-[#006d37] to-slate-900 text-white p-4 sm:p-8 shadow-xl relative overflow-hidden flex flex-col justify-between border border-emerald-400/30">
         <div className="absolute top-0 right-0 w-80 h-80 bg-emerald-400/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute -bottom-10 -right-10 w-44 h-44 bg-amber-400/10 rounded-full blur-2xl pointer-events-none" />
 
-        <div className="relative z-10 space-y-4">
+        <div className="relative z-10 space-y-3.5 sm:space-y-4">
           <div className="flex items-center justify-between gap-2">
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-10 h-10 rounded-2xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 shadow-inner shrink-0">
-                <Coins className="w-5 h-5" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl sm:rounded-2xl bg-amber-400/20 border border-amber-300/40 flex items-center justify-center text-amber-300 shadow-inner shrink-0">
+                <Coins className="w-4 h-4 sm:w-5 sm:h-5" />
               </div>
               <div className="min-w-0">
-                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-200 block">
+                <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-wider text-emerald-200 block">
                   {isLandlord ? 'TÀI KHOẢN VÍ CHỦ TRỌ' : 'TÀI KHOẢN VÍ TRỌ XINH'}
                 </span>
                 <h3 className="text-sm font-bold text-white truncate">
@@ -51,57 +51,57 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
               </div>
             </div>
 
-            <span className="px-2.5 py-1 rounded-full bg-white/10 text-emerald-200 text-xs font-bold border border-white/10 shrink-0">
+            <span className="px-2.5 py-1 rounded-full bg-white/10 text-emerald-200 text-[11px] sm:text-xs font-bold border border-white/10 shrink-0">
               1 Xu = 1.000đ
             </span>
           </div>
 
-          <div className="pt-2">
+          <div className="pt-1 sm:pt-2">
             <p className="text-xs text-emerald-100 font-medium">Tổng số dư khả dụng:</p>
             {isLoading ? (
-              <div className="h-12 w-48 bg-white/10 rounded-2xl animate-pulse mt-1" />
+              <div className="h-10 sm:h-12 w-44 sm:w-48 bg-white/10 rounded-2xl animate-pulse mt-1" />
             ) : (
-              <div className="flex items-baseline gap-2.5 sm:gap-3 mt-1 flex-wrap">
+              <div className="flex items-baseline gap-2 sm:gap-3 mt-1 flex-wrap">
                 <span className="text-3xl sm:text-5xl font-black text-amber-300 tracking-tight font-mono">
                   {(wallet?.total_xu || 0).toLocaleString('vi-VN')}
                 </span>
-                <span className="text-lg sm:text-2xl font-black text-white">XU</span>
-                <span className="text-xs text-emerald-200 font-medium bg-white/10 px-2.5 py-1 rounded-lg">
+                <span className="text-base sm:text-2xl font-black text-white">XU</span>
+                <span className="text-[11px] sm:text-xs text-emerald-200 font-medium bg-white/10 px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-lg">
                   ≈ {((wallet?.total_xu || 0) * 1000).toLocaleString('vi-VN')} VNĐ
                 </span>
               </div>
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-3 border-t border-white/15">
-            <div className="p-3 rounded-2xl bg-white/5 border border-white/10 space-y-0.5">
-              <p className="text-[11px] text-emerald-200">Xu Thật (Gốc nạp):</p>
-              <p className="text-base sm:text-lg font-black text-white font-mono">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-3 pt-2.5 sm:pt-3 border-t border-white/15">
+            <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-white/5 border border-white/10 space-y-0.5">
+              <p className="text-[10.5px] sm:text-[11px] text-emerald-200">Xu Thật (Gốc nạp):</p>
+              <p className="text-sm sm:text-lg font-black text-white font-mono">
                 {(wallet?.balance_real_xu || 0).toLocaleString('vi-VN')}{' '}
-                <span className="text-xs font-normal">Xu</span>
+                <span className="text-[11px] sm:text-xs font-normal">Xu</span>
               </p>
             </div>
 
-            <div className="p-3 rounded-2xl bg-amber-400/10 border border-amber-400/20 space-y-0.5">
-              <p className="text-[11px] text-amber-200 flex items-center gap-1">
+            <div className="p-2.5 sm:p-3 rounded-xl sm:rounded-2xl bg-amber-400/10 border border-amber-400/20 space-y-0.5">
+              <p className="text-[10.5px] sm:text-[11px] text-amber-200 flex items-center gap-1">
                 <Sparkles className="w-3 h-3 text-amber-300 shrink-0" />
-                <span className="truncate">Xu Thưởng (Tặng thêm):</span>
+                <span className="truncate">Xu Thưởng (Tặng):</span>
               </p>
-              <p className="text-base sm:text-lg font-black text-amber-300 font-mono">
+              <p className="text-sm sm:text-lg font-black text-amber-300 font-mono">
                 {(wallet?.balance_bonus_xu || 0).toLocaleString('vi-VN')}{' '}
-                <span className="text-xs font-normal">Xu</span>
+                <span className="text-[11px] sm:text-xs font-normal">Xu</span>
               </p>
             </div>
           </div>
         </div>
 
-        <div className="relative z-10 pt-4 mt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-100">
-          <div className="space-y-1">
-            <span className="flex items-center gap-1.5">
+        <div className="relative z-10 pt-3.5 sm:pt-4 mt-3.5 sm:mt-4 border-t border-white/15 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs text-emerald-100">
+          <div className="space-y-0.5 sm:space-y-1">
+            <span className="flex items-center gap-1.5 text-[11px] sm:text-xs">
               <ShieldCheck className="w-4 h-4 text-emerald-300 shrink-0" />
               Hệ thống khấu trừ ưu tiên Xu thưởng trước
             </span>
-            <span className="font-mono text-[11px] text-emerald-200/90 block truncate">
+            <span className="font-mono text-[10.5px] sm:text-[11px] text-emerald-200/90 block truncate">
               ID: {(wallet?.id || 'wallet').slice(0, 16)}
             </span>
           </div>
@@ -110,7 +110,7 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
             <button
               type="button"
               onClick={onStartTopup}
-              className="px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-lg shadow-black/20 transition cursor-pointer active:scale-95 shrink-0"
+              className="w-full sm:w-auto min-h-[44px] px-4 py-2.5 rounded-xl sm:rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs sm:text-sm inline-flex items-center justify-center gap-1.5 shadow-lg shadow-black/20 transition cursor-pointer active:scale-95 shrink-0"
             >
               <PlusCircle className="w-4 h-4" />
               <span>Nạp Xu ngay</span>

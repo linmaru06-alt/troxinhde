@@ -34,8 +34,15 @@ export const MobileBottomNav: React.FC = () => {
     (n) => !n.read && (n.type === 'chat_message' || n.type === 'message')
   ).length;
 
-  // Hidden on specific fullscreen auth pages
-  if (['/dang-nhap', '/dang-ky', '/quen-mat-khau', '/xac-thuc-otp'].includes(location.pathname)) {
+  // Hidden on specific fullscreen auth pages or inside multi-step Wallet Topup subpages
+  const isWalletTopupStep =
+    ['/vi-xu', '/chu-tro/vi-xu', '/chu-tro/tro-xinh-xu'].includes(location.pathname) &&
+    new URLSearchParams(location.search).has('buoc');
+
+  if (
+    ['/dang-nhap', '/dang-ky', '/quen-mat-khau', '/xac-thuc-otp'].includes(location.pathname) ||
+    isWalletTopupStep
+  ) {
     return null;
   }
 
