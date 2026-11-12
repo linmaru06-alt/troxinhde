@@ -26,7 +26,7 @@ interface AccountDropdownMenuProps {
   onClose: () => void;
   currentUser: User | null;
   openAuthModal: (mode: 'login' | 'register') => void;
-  logout: () => void;
+  logout: () => void | Promise<void>;
 }
 
 // Mascot Vịt Vàng của Trọ Xinh
@@ -561,7 +561,7 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   type="button"
                   onClick={() =>
                     handleAction(() => {
-                      logout();
+                      void logout();
                     })
                   }
                   className="w-full flex items-center justify-between px-3.5 py-3 text-xs font-bold text-rose-600 hover:bg-rose-50 transition cursor-pointer text-left"

@@ -113,7 +113,7 @@ const PageSkeleton = () => (
 
 import { useCloseOnNavigate } from './hooks/useCloseOnNavigate';
 import { auth, onAuthStateChanged, onIdTokenChanged } from './lib/firebase';
-import { logoutAuth, syncFirebaseUserToSupabase } from './lib/authService';
+import { logoutAuth, syncFirebaseUserToSupabase, isAuthSigningOut } from './lib/authService';
 import { setAnalyticsUser } from './lib/analytics';
 
 // Global Firebase Auth & Cloud Data Loader
@@ -165,12 +165,18 @@ const AppCloudDataLoader: React.FC = () => {
     // 2. Lắng nghe trạng thái đăng nhập Firebase Auth duy nhất
     const unsubscribeAuth = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
+        if (isAuthSigningOut()) {
+          return;
+        }
         const email = fbUser.email?.toLowerCase();
         const isSuperAdmin = isAdminIdentifier(fbUser.email, fbUser.phoneNumber);
         const isLandlord = email === 'phuonglinh832005@gmail.com';
         try {
           // Hồ sơ luôn lấy theo Firebase UID của phiên thật, ghi đè currentUser cũ còn lưu trong trình duyệt
           const profile = await syncFirebaseUserToSupabase(fbUser, isLandlord ? 'owner' : 'renter');
+          if (isAuthSigningOut() || auth?.currentUser?.uid !== fbUser.uid) {
+            return;
+          }
           const isApprovedOwner = profile.ownerApplicationStatus === 'approved' || profile.role === 'owner' || isLandlord;
           const targetRole = isSuperAdmin ? 'admin' : (isApprovedOwner ? 'owner' : (profile.role || 'user'));
 

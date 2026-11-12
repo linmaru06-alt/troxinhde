@@ -168,7 +168,7 @@ interface AppState {
     phoneVerified?: boolean;
   }) => void;
   registerUser: (data: { name: string; phone: string; email?: string; id?: string; role?: UserRole }) => User;
-  logout: () => void;
+  logout: () => Promise<void>;
 
   // Local persistence for newly created items (to survive reloads before cloud sync)
   localCreatedRooms: Room[];
@@ -280,6 +280,8 @@ interface AppState {
 }
 
 const isDev = Boolean(import.meta.env?.DEV);
+
+let logoutInFlight: Promise<void> | null = null;
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -789,19 +791,41 @@ export const useAppStore = create<AppState>()(
         return newUser;
       },
 
-      logout: () => {
-        signOut().catch(() => {});
-        logoutAuth().catch(() => {});
-        set({
-          currentUser: null,
-          savedRoomIds: [],
-          savedRoommateIds: [],
-          savedItemIds: [],
-          bookings: [],
-        });
-        if (typeof window !== 'undefined') {
-          window.location.href = '/';
+      logout: async () => {
+        if (logoutInFlight) {
+          return logoutInFlight;
         }
+
+        logoutInFlight = (async () => {
+          set({
+            currentUser: null,
+            savedRoomIds: [],
+            savedRoommateIds: [],
+            savedItemIds: [],
+            bookings: [],
+          });
+
+          try {
+            await Promise.allSettled([
+              logoutAuth(),
+              signOut().catch(() => {}),
+            ]);
+          } finally {
+            set({
+              currentUser: null,
+              savedRoomIds: [],
+              savedRoommateIds: [],
+              savedItemIds: [],
+              bookings: [],
+            });
+            logoutInFlight = null;
+            if (typeof window !== 'undefined') {
+              window.location.href = '/';
+            }
+          }
+        })();
+
+        return logoutInFlight;
       },
 
       // OWNER UPGRADE WORKFLOW

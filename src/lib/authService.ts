@@ -865,14 +865,51 @@ export async function sendPasswordReset(email: string): Promise<{ success: boole
   }
 }
 
+let signingOutFlag = false;
+
+export function isAuthSigningOut(): boolean {
+  return signingOutFlag;
+}
+
 /**
  * 8. ĐĂNG XUẤT TOÀN DIỆN
+ * Chờ Firebase Auth xóa sạch phiên khỏi IndexedDB/storage trước khi kết thúc,
+ * tránh việc chuyển trang làm ngắt quãng quá trình signOut dẫn đến tự đăng nhập lại.
  */
 export async function logoutAuth(): Promise<void> {
+  signingOutFlag = true;
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   try {
-    await firebaseSignOut(auth);
+    await Promise.race([
+      firebaseSignOut(auth),
+      new Promise<void>((resolve) => {
+        timeoutId = setTimeout(resolve, 3000);
+      }),
+    ]);
   } catch (err) {
     console.warn('[Firebase Auth] Lỗi signOut:', err);
+  } finally {
+    if (timeoutId !== undefined) {
+      clearTimeout(timeoutId);
+    }
+    if (typeof window !== 'undefined') {
+      try {
+        for (const storage of [window.localStorage, window.sessionStorage]) {
+          if (!storage) continue;
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < storage.length; i++) {
+            const k = storage.key(i);
+            if (k && k.startsWith('firebase:authUser:')) {
+              keysToRemove.push(k);
+            }
+          }
+          keysToRemove.forEach((k) => storage.removeItem(k));
+        }
+      } catch {
+        // Bỏ qua nếu trình duyệt chặn truy cập storage
+      }
+    }
+    signingOutFlag = false;
   }
 }
 
