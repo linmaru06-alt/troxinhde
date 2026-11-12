@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   MapContainer,
-  TileLayer,
   Marker,
   Popup,
   Circle,
@@ -14,7 +13,7 @@ import { Link } from 'react-router-dom';
 import { Room, Building, RoommatePost } from '../../types';
 import { formatPrice } from '../ui/Cards';
 import { MapPin, ExternalLink, Compass, Users, GraduationCap } from 'lucide-react';
-import { MapAutoResize } from './ResilientTileLayer';
+import { MapAutoResize, ResilientTileLayer } from './ResilientTileLayer';
 import {
   DISTRICT_CENTERS,
   HANOI_UNIVERSITIES,
@@ -30,21 +29,6 @@ import {
 
 // Re-export for existing consumers
 export { DISTRICT_CENTERS, HANOI_UNIVERSITIES };
-
-function useLeafletCss() {
-  useEffect(() => {
-    if (typeof document === 'undefined') return;
-    const leafletId = 'leaflet-dynamic-css';
-    if (!document.getElementById(leafletId)) {
-      const link = document.createElement('link');
-      link.id = leafletId;
-      link.rel = 'stylesheet';
-      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-      link.crossOrigin = '';
-      document.head.appendChild(link);
-    }
-  }, []);
-}
 
 // Fix Leaflet default icon paths in bundler
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -219,7 +203,6 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
 }) => {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
   const [internalResolved, setInternalResolved] = useState<Record<string, { lat: number; lng: number }>>({});
-  useLeafletCss();
 
   // Fetch GeoJSON boundary data
   useEffect(() => {
@@ -444,10 +427,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
         scrollWheelZoom={true}
         className="w-full h-full"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        />
+        <ResilientTileLayer initialProviderId="google_roads" />
         <MapAutoResize />
 
         <MapClickHandler onMapClick={onMapClick} />
@@ -705,7 +685,6 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
     lat: initialResolved.lat,
     lng: initialResolved.lng,
   });
-  useLeafletCss();
 
   useEffect(() => {
     setCoords({ lat: initialResolved.lat, lng: initialResolved.lng });
@@ -758,10 +737,7 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
         scrollWheelZoom={false}
         className="w-full h-full z-0"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        />
+        <ResilientTileLayer initialProviderId="google_roads" />
         <MapAutoResize />
         <MapRecenter center={roomPosition} zoom={15} />
 
@@ -861,7 +837,6 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
   const [position, setPosition] = useState<[number, number]>([initialLat, initialLng]);
   const [addressPreview, setAddressPreview] = useState<string>('');
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
-  useLeafletCss();
 
   // Sync external coordinate changes (e.g. when user clicks "Định vị từ địa chỉ")
   useEffect(() => {
@@ -897,10 +872,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
         scrollWheelZoom={true}
         className="w-full h-full z-0"
       >
-        <TileLayer
-          attribution='&copy; <a href="https://maps.google.com">Google Maps</a>'
-          url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
-        />
+        <ResilientTileLayer initialProviderId="google_roads" />
         <MapAutoResize />
         <MapRecenter center={position} zoom={15} />
 

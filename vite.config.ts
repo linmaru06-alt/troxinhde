@@ -38,23 +38,8 @@ export default defineConfig({
       workbox: {
         skipWaiting: true,
         clientsClaim: true,
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/.*tile\.openstreetmap\.org/,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'osm-tiles-cache',
-              expiration: { maxEntries: 300, maxAgeSeconds: 86400 * 7 },
-            },
-          },
-          {
-            urlPattern: /^https:\/\/.*\.google\.com\/vt\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'google-maps-tiles-cache',
-              expiration: { maxEntries: 300, maxAgeSeconds: 86400 * 7 },
-            },
-          },
           {
             urlPattern: /^https:\/\/fonts\.(?:googleapis|gstatic)\.com\/.*/i,
             handler: 'CacheFirst',
@@ -68,6 +53,7 @@ export default defineConfig({
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'images-cache',
+              cacheableResponse: { statuses: [0, 200] },
               expiration: { maxEntries: 100, maxAgeSeconds: 86400 * 30 },
             },
           },

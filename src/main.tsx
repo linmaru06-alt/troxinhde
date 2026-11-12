@@ -13,6 +13,12 @@ import { registerSW } from 'virtual:pwa-register';
 // người dùng không bị kẹt ở giao diện cũ trong bộ nhớ đệm
 registerSW({ immediate: true });
 
+// Xóa cache tile bản đồ cũ do SW từng giữ (tránh lỗi bản đồ xám khi quay lại trang)
+if (typeof window !== 'undefined' && 'caches' in window) {
+  caches.delete('google-maps-tiles-cache').catch(() => {});
+  caches.delete('osm-tiles-cache').catch(() => {});
+}
+
 // Tự động khôi phục và tải lại khi có bản deploy mới của Vite (tránh lỗi 404 chunk cũ hoặc stale script)
 window.addEventListener('vite:preloadError', () => {
   const reloadKey = 'troxinh_vite_preload_error_reload';
