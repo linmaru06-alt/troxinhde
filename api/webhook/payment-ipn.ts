@@ -12,6 +12,36 @@
 import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
+const DEFAULT_SUPABASE_URL = 'https://nanhmbnpihlaojbwfebb.supabase.co';
+
+function cleanEnvValue(val?: string): string {
+  if (!val || typeof val !== 'string') return '';
+  return val.trim().replace(/^['"]|['"]$/g, '').trim();
+}
+
+function getCleanSupabaseUrl(): string {
+  for (const raw of [process.env.SUPABASE_URL, process.env.VITE_SUPABASE_URL]) {
+    const cleaned = cleanEnvValue(raw);
+    if (!cleaned) continue;
+    const withProtocol =
+      cleaned.startsWith('https://') || cleaned.startsWith('http://')
+        ? cleaned
+        : /^[a-z0-9-]+\.supabase\.co$/i.test(cleaned)
+          ? `https://${cleaned}`
+          : '';
+    if (!withProtocol) continue;
+    try {
+      const parsed = new URL(withProtocol);
+      if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+        return parsed.origin;
+      }
+    } catch {
+      // Fallback sang URL chuẩn nếu env bị lỗi định dạng
+    }
+  }
+  return DEFAULT_SUPABASE_URL;
+}
+
 interface UnifiedPaymentEvent {
   gateway: string;
   amount: number;
@@ -74,11 +104,8 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Chỉ chấp nhận phương thức POST' });
   }
 
-  const supabaseUrl =
-    process.env.VITE_SUPABASE_URL ||
-    process.env.SUPABASE_URL ||
-    'https://nanhmbnpihlaojbwfebb.supabase.co';
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const supabaseUrl = getCleanSupabaseUrl();
+  const supabaseKey = cleanEnvValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 
   if (!supabaseUrl || !supabaseKey) {
     return res.status(500).json({
