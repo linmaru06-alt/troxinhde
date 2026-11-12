@@ -9,6 +9,7 @@
  * 4. TROXINH HD<codeDoc>: Đối soát gạch nợ hóa đơn tiền phòng cho chủ trọ K23
  */
 
+import crypto from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 
 interface UnifiedPaymentEvent {
@@ -20,6 +21,53 @@ interface UnifiedPaymentEvent {
   transactionDate?: string;
 }
 
+function timingSafeMatch(expected: string, provided: string): boolean {
+  const a = Buffer.from(expected, 'utf8');
+  const b = Buffer.from(provided, 'utf8');
+  if (a.length !== b.length) return false;
+  return crypto.timingSafeEqual(a, b);
+}
+
+function verifyWebhookSecurity(req: any, body: any): { valid: boolean; reason?: string } {
+  // 1. Kiểm tra PayOS HMAC-SHA256 nếu payload là PayOS và có PAYOS_CHECKSUM_KEY
+  const payosKey = process.env.PAYOS_CHECKSUM_KEY || '';
+  if (payosKey && body?.data && body?.signature) {
+    const sortedKeys = Object.keys(body.data).sort();
+    const signString = sortedKeys.map((k) => `${k}=${body.data[k]}`).join('&');
+    const expectedSig = crypto.createHmac('sha256', payosKey).update(signString).digest('hex');
+    if (!timingSafeMatch(expectedSig, String(body.signature))) {
+      return { valid: false, reason: 'Chữ ký PayOS Webhook không hợp lệ.' };
+    }
+    return { valid: true };
+  }
+
+  // 2. Kiểm tra MoMo HMAC-SHA256 nếu payload là MoMo và có MOMO_SECRET_KEY
+  const momoSecret = process.env.MOMO_SECRET_KEY || '';
+  if (momoSecret && body?.orderId && body?.signature !== undefined) {
+    const accessKey = process.env.MOMO_ACCESS_KEY || '';
+    const rawSignature = `accessKey=${accessKey}&amount=${body.amount}&extraData=${body.extraData || ''}&message=${body.message || ''}&orderId=${body.orderId}&orderInfo=${body.orderInfo || ''}&orderType=${body.orderType || ''}&partnerCode=${body.partnerCode || ''}&payType=${body.payType || ''}&requestId=${body.requestId || ''}&responseTime=${body.responseTime || ''}&resultCode=${body.resultCode}&transId=${body.transId || ''}`;
+    const expectedSig = crypto.createHmac('sha256', momoSecret).update(rawSignature).digest('hex');
+    if (!timingSafeMatch(expectedSig, String(body.signature))) {
+      return { valid: false, reason: 'Chữ ký MoMo IPN không hợp lệ.' };
+    }
+    return { valid: true };
+  }
+
+  // 3. Kiểm tra SePay / Shared Webhook Secret nếu được cấu hình
+  const sharedSecret = process.env.SEPAY_WEBHOOK_SECRET || process.env.WEBHOOK_SHARED_SECRET || '';
+  if (sharedSecret) {
+    const authHeader = String(req.headers?.authorization || req.headers?.Authorization || '');
+    const customHeader = String(req.headers?.['x-webhook-secret'] || req.headers?.['x-sepay-secret'] || '');
+    const bearerOrApiKey = authHeader.replace(/^(Bearer|Apikey)\s+/i, '').trim();
+    const providedSecret = customHeader || bearerOrApiKey;
+    if (!providedSecret || !timingSafeMatch(sharedSecret, providedSecret)) {
+      return { valid: false, reason: 'Thiếu hoặc sai mã bảo mật Webhook (SEPAY_WEBHOOK_SECRET).' };
+    }
+  }
+
+  return { valid: true };
+}
+
 export default async function handler(req: any, res: any) {
   // Chỉ hỗ trợ POST request
   if (req.method !== 'POST') {
@@ -27,16 +75,21 @@ export default async function handler(req: any, res: any) {
   }
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {
     return res.status(500).json({
-      error: 'Supabase configuration missing (SUPABASE_URL or SUPABASE_KEY)'
+      error: 'Supabase configuration missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY)'
     });
   }
 
   const supabase = createClient(supabaseUrl, supabaseKey);
-  const body = req.body || {};
+  const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
+
+  const securityCheck = verifyWebhookSecurity(req, body);
+  if (!securityCheck.valid) {
+    return res.status(401).json({ error: securityCheck.reason || 'Unauthorized webhook request' });
+  }
 
   // Chuẩn hóa payload từ SePay / PayOS / Casso
   const events: UnifiedPaymentEvent[] = [];
@@ -98,13 +151,65 @@ export default async function handler(req: any, res: any) {
     const amount = event.amount;
 
     try {
-      // 1. NHÁNH 1: NẠP VÍ XU (Cú pháp: TX XU <userId>)
+      // 0. NHÁNH ƯU TIÊN: ĐƠN NẠP VÍ XU THEO MÃ ĐƠN DUY NHẤT (TXNAP...)
+      const matchTopupOrder =
+        rawContent.match(/\b(TXNAP[A-Z0-9]{6,16})\b/i) ||
+        String(body?.orderCode || body?.orderId || '').match(/\b(TXNAP[A-Z0-9]{6,16})\b/i);
+
+      if (matchTopupOrder && matchTopupOrder[1]) {
+        const orderCode = matchTopupOrder[1].toUpperCase();
+        const { data: rpcRes, error: rpcErr } = await supabase.rpc('credit_wallet_from_topup', {
+          p_order_code: orderCode,
+          p_paid_amount: Math.floor(amount),
+          p_reference_id: event.referenceCode,
+          p_gateway: event.gateway,
+        });
+
+        if (rpcErr) {
+          throw rpcErr;
+        }
+
+        results.push({
+          type: 'WALLET_TOPUP_ORDER',
+          orderCode,
+          ...rpcRes,
+        });
+        continue;
+      }
+
+      // 1. NHÁNH 1 (Tương thích ngược): NẠP VÍ XU (Cú pháp: TX XU <userId>)
       const matchXu = rawContent.match(/TX\s+XU\s+([A-Za-z0-9_-]+)/i);
       if (matchXu && matchXu[1]) {
         const userId = matchXu[1].trim();
+
+        // Chống xử lý trùng theo mã tham chiếu ngân hàng
+        if (event.referenceCode) {
+          const { data: existingRef } = await supabase
+            .from('k23_wallet_transactions')
+            .select('id')
+            .eq('reference_id', event.referenceCode)
+            .eq('transaction_type', 'deposit')
+            .maybeSingle();
+
+          if (existingRef) {
+            results.push({
+              type: 'TX_XU_DUPLICATE',
+              userId,
+              referenceCode: event.referenceCode,
+              message: 'Giao dịch đã được ghi nhận trước đó (Idempotent).',
+            });
+            continue;
+          }
+        }
+
         const realXu = Math.floor(amount / 1000);
-        // Nạp >= 500k (500 Xu) được tặng thêm 10% Xu thưởng
-        const bonusXu = amount >= 500000 ? Math.floor(realXu * 0.1) : 0;
+        // Bậc thưởng thống nhất: >= 2M tặng 12.5%, >= 500k tặng 10%
+        const bonusXu =
+          amount >= 2000000
+            ? Math.floor(realXu * 0.125)
+            : amount >= 500000
+              ? Math.floor(realXu * 0.1)
+              : 0;
 
         // Tìm hoặc khởi tạo ví
         let { data: wallet } = await supabase

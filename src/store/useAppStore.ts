@@ -267,6 +267,7 @@ interface AppState {
   wallet: K23Wallet;
   walletTransactions: K23WalletTransaction[];
   fetchWallet: (ownerId?: string) => Promise<void>;
+  syncWalletFromServer: (wallet: K23Wallet, transactions?: K23WalletTransaction[]) => void;
   depositXu: (amountVnd: number, gateway?: string) => Promise<{ success: boolean; realXu: number; bonusXu: number }>;
   spendXu: (amountXu: number, reason: string, referenceId?: string) => Promise<boolean>;
   grantDemoXu: (amountXu?: number) => void;
@@ -368,20 +369,33 @@ export const useAppStore = create<AppState>()(
 
       fetchWallet: async (ownerIdParam?: string) => {
         const { currentUser } = get();
-        const targetId = ownerIdParam || currentUser?.id || 'user_owner_1';
+        const targetId = ownerIdParam || currentUser?.id;
+        if (!targetId) return;
         try {
-          const w = await getWallet(targetId);
-          const txs = await getWalletTransactions(targetId);
+          const [w, txs] = await Promise.all([
+            getWallet(targetId),
+            getWalletTransactions(targetId),
+          ]);
           set({
             wallet: {
               ...w,
               total_xu: (w.balance_real_xu || 0) + (w.balance_bonus_xu || 0),
             },
-            walletTransactions: txs.length > 0 ? txs : get().walletTransactions,
+            walletTransactions: txs,
           });
         } catch (err) {
           console.warn('[useAppStore] fetchWallet fallback:', err);
         }
+      },
+
+      syncWalletFromServer: (wallet, transactions) => {
+        set((state) => ({
+          wallet: {
+            ...wallet,
+            total_xu: (wallet.balance_real_xu || 0) + (wallet.balance_bonus_xu || 0),
+          },
+          walletTransactions: transactions !== undefined ? transactions : state.walletTransactions,
+        }));
       },
 
       depositXu: async (amountVnd: number, gateway = 'VietQR') => {
@@ -1857,8 +1871,8 @@ export const useAppStore = create<AppState>()(
             state.savedItemIds = state.savedItemIds.filter((id) => validIds.has(id));
           }
 
-          // Đảm bảo ví Xu luôn được cập nhật đầy đủ số dư cao cho người dùng trải nghiệm
-          if (!state.wallet || (state.wallet.total_xu || 0) < 5500) {
+          // Chỉ áp dụng số dư trải nghiệm mặc định cho tài khoản Demo Sandbox
+          if (state.currentUser?.isDemoAccount && (!state.wallet || (state.wallet.total_xu || 0) < 5500)) {
             state.wallet = {
               id: state.wallet?.id || 'wallet_owner_k23',
               owner_id: state.currentUser?.id || state.wallet?.owner_id || 'user_owner_1',

@@ -1,4 +1,114 @@
-import { supabase, isSupabaseConfigured } from '../supabase';
+import { supabase, isSupabaseConfigured, getFirebaseIdToken } from '../supabase';
+
+export type WalletTopupMethod = 'vietqr' | 'momo';
+
+export interface WalletTopupPack {
+  vnd: number;
+  realXu: number;
+  bonusXu: number;
+  totalXu: number;
+  bonusPercent: number;
+  label: string;
+  badge?: string;
+  popular?: boolean;
+}
+
+export const WALLET_TOPUP_PACKS: WalletTopupPack[] = [
+  { vnd: 50000, realXu: 50, bonusXu: 0, totalXu: 50, bonusPercent: 0, label: 'Gói Trải Nghiệm' },
+  { vnd: 100000, realXu: 100, bonusXu: 0, totalXu: 100, bonusPercent: 0, label: 'Gói Tiêu Chuẩn' },
+  { vnd: 200000, realXu: 200, bonusXu: 0, totalXu: 200, bonusPercent: 0, label: 'Gói Cơ Bản' },
+  {
+    vnd: 500000,
+    realXu: 500,
+    bonusXu: 50,
+    totalXu: 550,
+    bonusPercent: 10,
+    label: 'Gói Tiết Kiệm',
+    badge: 'Tặng 10% • Phổ biến nhất',
+    popular: true,
+  },
+  {
+    vnd: 1000000,
+    realXu: 1000,
+    bonusXu: 100,
+    totalXu: 1100,
+    bonusPercent: 10,
+    label: 'Gói Đối Tác',
+    badge: 'Tặng 10%',
+  },
+  {
+    vnd: 2000000,
+    realXu: 2000,
+    bonusXu: 250,
+    totalXu: 2250,
+    bonusPercent: 12.5,
+    label: 'Gói Siêu Ưu Đãi',
+    badge: 'Tặng 12,5%',
+  },
+];
+
+export interface WalletTopupOrder {
+  id: string;
+  orderCode: string;
+  amountVnd: number;
+  realXu: number;
+  bonusXu: number;
+  totalXu: number;
+  bonusPercent: number;
+  method: WalletTopupMethod;
+  status: 'pending' | 'paid' | 'success' | 'expired' | 'failed';
+  expiresAt: string;
+  isSandbox: boolean;
+  qrCode: string;
+  deeplink?: string;
+  transferContent: string;
+  receiverInfo: {
+    bankName: string;
+    accountNumber: string;
+    accountNumberLabel: string;
+    accountName: string;
+  };
+}
+
+export interface WalletTopupStatusResponse {
+  success: boolean;
+  orderCode: string;
+  status: 'pending' | 'paid' | 'success' | 'expired' | 'failed';
+  amount: number;
+  paymentMethod: WalletTopupMethod;
+  paidAt?: string | null;
+  expiresAt?: string | null;
+  metadata?: {
+    real_xu?: number;
+    bonus_xu?: number;
+    total_xu?: number;
+    is_sandbox?: boolean;
+  };
+  wallet?: K23Wallet | null;
+}
+
+export function calculateTopupXuPreview(amountVnd: number): {
+  realXu: number;
+  bonusXu: number;
+  totalXu: number;
+  bonusPercent: number;
+} {
+  const safeVnd = Math.max(0, Math.floor(amountVnd / 1000) * 1000);
+  const realXu = Math.floor(safeVnd / 1000);
+  let bonusPercent = 0;
+  if (safeVnd >= 2000000) {
+    bonusPercent = 12.5;
+  } else if (safeVnd >= 500000) {
+    bonusPercent = 10;
+  }
+  const bonusXu = Math.floor((realXu * bonusPercent) / 100);
+  return {
+    realXu,
+    bonusXu,
+    totalXu: realXu + bonusXu,
+    bonusPercent,
+  };
+}
 
 export interface K23Wallet {
   id: string;
@@ -67,28 +177,16 @@ export async function getWallet(ownerId: string): Promise<K23Wallet> {
         };
       }
 
-      // Nếu chưa có ví trong Supabase, khởi tạo ví 0 Xu
-      const { data: newWallet, error: createError } = await supabase
-        .from('k23_wallets')
-        .insert({
+      // Chưa có ví trong Supabase (ví được tạo tự động ở server khi nạp lần đầu)
+      if (!error && !data) {
+        return {
+          id: `wallet_pending_${ownerId}`,
           owner_id: ownerId,
           balance_real_xu: 0,
           balance_bonus_xu: 0,
+          total_xu: 0,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
-        })
-        .select()
-        .single();
-
-      if (!createError && newWallet) {
-        return {
-          id: newWallet.id,
-          owner_id: newWallet.owner_id,
-          balance_real_xu: 0,
-          balance_bonus_xu: 0,
-          total_xu: 0,
-          created_at: newWallet.created_at,
-          updated_at: newWallet.updated_at,
         };
       }
     } catch (err) {
@@ -113,10 +211,98 @@ export async function getWallet(ownerId: string): Promise<K23Wallet> {
 }
 
 /**
- * Nạp xu vào ví Trọ Xinh
- * Quy tắc:
- * - 1 Xu = 1.000 VNĐ
- * - Nạp >= 500.000 VNĐ tặng thêm 10% Xu thưởng (bonus_xu)
+ * Tạo đơn nạp Xu ở Server (Vercel Serverless + Firebase JWT + Supabase pending order)
+ * Tỷ giá cố định: 1 Xu = 1.000 VNĐ
+ */
+export async function createWalletTopupOrder({
+  amountVnd,
+  method,
+}: {
+  amountVnd: number;
+  method: WalletTopupMethod;
+}): Promise<WalletTopupOrder> {
+  const idToken = await getFirebaseIdToken();
+  if (!idToken) {
+    throw new Error('Phiên đăng nhập chưa sẵn sàng. Vui lòng đăng nhập lại để tạo đơn nạp Xu.');
+  }
+
+  const response = await fetch('/api/wallet/create-topup-order', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ amountVnd, method }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success || !payload?.order) {
+    throw new Error(payload?.error || 'Không thể khởi tạo đơn nạp Xu. Vui lòng thử lại.');
+  }
+
+  return payload.order as WalletTopupOrder;
+}
+
+/**
+ * Tra cứu trạng thái đơn nạp Xu từ Server Database (Read-only, không tự duyệt paid)
+ */
+export async function getWalletTopupStatus(orderCode: string): Promise<WalletTopupStatusResponse> {
+  const idToken = await getFirebaseIdToken();
+  if (!idToken) {
+    throw new Error('Phiên đăng nhập Firebase đã hết hạn.');
+  }
+
+  const response = await fetch(
+    `/api/wallet/topup-status?orderCode=${encodeURIComponent(orderCode)}`,
+    {
+      method: 'GET',
+      headers: {
+        Authorization: `Bearer ${idToken}`,
+      },
+    }
+  );
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success) {
+    throw new Error(payload?.error || 'Không thể kiểm tra trạng thái giao dịch.');
+  }
+
+  return payload as WalletTopupStatusResponse;
+}
+
+/**
+ * Xác nhận đơn nạp thử nghiệm dành RIÊNG cho tài khoản Demo Sandbox
+ */
+export async function confirmDemoWalletTopup(orderCode: string): Promise<{
+  success: boolean;
+  sandbox: boolean;
+  result?: any;
+}> {
+  const idToken = await getFirebaseIdToken();
+  if (!idToken) {
+    throw new Error('Phiên đăng nhập Demo chưa sẵn sàng.');
+  }
+
+  const response = await fetch('/api/wallet/demo-topup', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ orderCode }),
+  });
+
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok || !payload?.success) {
+    throw new Error(payload?.error || 'Không thể hoàn tất giao dịch Demo Sandbox.');
+  }
+
+  return payload;
+}
+
+/**
+ * @deprecated Không dùng để cộng Xu thật ở client trong production.
+ * Chỉ giữ tương thích cho mô phỏng memory cục bộ khi chưa cấu hình backend.
  */
 export async function depositWalletXu({
   ownerId,
@@ -129,54 +315,10 @@ export async function depositWalletXu({
   referenceCode?: string;
   gateway?: string;
 }): Promise<{ success: boolean; wallet: K23Wallet; realXu: number; bonusXu: number }> {
-  const realXu = Math.floor(amountVnd / 1000);
-  const bonusXu = amountVnd >= 500000 ? Math.floor(realXu * 0.1) : 0;
+  const { realXu, bonusXu } = calculateTopupXuPreview(amountVnd);
   const nowIso = new Date().toISOString();
 
-  if (isSupabaseConfigured) {
-    try {
-      const current = await getWallet(ownerId);
-      const newReal = current.balance_real_xu + realXu;
-      const newBonus = current.balance_bonus_xu + bonusXu;
-
-      await supabase
-        .from('k23_wallets')
-        .update({
-          balance_real_xu: newReal,
-          balance_bonus_xu: newBonus,
-          updated_at: nowIso,
-        })
-        .eq('id', current.id);
-
-      await supabase.from('k23_wallet_transactions').insert({
-        wallet_id: current.id,
-        owner_id: ownerId,
-        amount_real_xu: realXu,
-        amount_bonus_xu: bonusXu,
-        transaction_type: 'deposit',
-        reason: `Nạp ví qua ${gateway} (+${realXu.toLocaleString('vi-VN')} Xu thật${bonusXu > 0 ? `, +${bonusXu} Xu thưởng 10%` : ''})`,
-        reference_id: referenceCode,
-        created_at: nowIso,
-      });
-
-      return {
-        success: true,
-        wallet: {
-          ...current,
-          balance_real_xu: newReal,
-          balance_bonus_xu: newBonus,
-          total_xu: newReal + newBonus,
-          updated_at: nowIso,
-        },
-        realXu,
-        bonusXu,
-      };
-    } catch (err) {
-      console.warn('[k23Wallet] Supabase deposit fallback:', err);
-    }
-  }
-
-  // Memory fallback
+  // Memory fallback (chỉ dùng nội bộ demo/test, không tự ghi số dư thật lên Supabase)
   const w = await getWallet(ownerId);
   w.balance_real_xu += realXu;
   w.balance_bonus_xu += bonusXu;
@@ -191,7 +333,7 @@ export async function depositWalletXu({
     amount_bonus_xu: bonusXu,
     total_amount_xu: realXu + bonusXu,
     transaction_type: 'deposit',
-    reason: `Nạp ví qua ${gateway} (+${realXu.toLocaleString('vi-VN')} Xu${bonusXu > 0 ? `, +${bonusXu} Xu thưởng 10%` : ''})`,
+    reason: `Nạp ví qua ${gateway} (+${realXu.toLocaleString('vi-VN')} Xu${bonusXu > 0 ? `, +${bonusXu} Xu thưởng` : ''})`,
     reference_id: referenceCode,
     created_at: nowIso,
   });
@@ -200,7 +342,7 @@ export async function depositWalletXu({
 }
 
 /**
- * Trừ xu từ ví Trọ Xinh theo quy tắc PDF:
+ * Trừ xu từ ví Trọ Xinh theo quy tắc:
  * "Xu thưởng (bonus_xu) dùng để trừ phí trước xu tiền thật (real_xu)"
  */
 export async function deductWalletXu({
@@ -220,6 +362,38 @@ export async function deductWalletXu({
   remainingTotal: number;
   message?: string;
 }> {
+  if (isSupabaseConfigured) {
+    try {
+      const { data: rpcData, error: rpcError } = await supabase.rpc('spend_wallet_xu', {
+        p_amount_xu: amountXu,
+        p_reason: reason,
+        p_reference_id: referenceId || null,
+      });
+
+      if (!rpcError && rpcData) {
+        if (rpcData.success) {
+          return {
+            success: true,
+            deductedBonus: Number(rpcData.deducted_bonus || 0),
+            deductedReal: Number(rpcData.deducted_real || 0),
+            remainingTotal: Number(rpcData.remaining_total || 0),
+          };
+        }
+        if (rpcData.error === 'INSUFFICIENT_BALANCE' || rpcData.error === 'WALLET_NOT_FOUND') {
+          return {
+            success: false,
+            deductedBonus: 0,
+            deductedReal: 0,
+            remainingTotal: Number(rpcData.remaining_total || 0),
+            message: `Số dư không đủ. Cần ${amountXu.toLocaleString('vi-VN')} Xu nhưng ví hiện có ${Number(rpcData.remaining_total || 0).toLocaleString('vi-VN')} Xu.`,
+          };
+        }
+      }
+    } catch (err) {
+      console.warn('[k23Wallet] Supabase RPC spend_wallet_xu fallback:', err);
+    }
+  }
+
   const wallet = await getWallet(ownerId);
 
   if (wallet.total_xu < amountXu) {
@@ -232,54 +406,12 @@ export async function deductWalletXu({
     };
   }
 
-  // Cơ chế trừ: ưu tiên trừ Xu thưởng trước, Xu thật sau
-  let deductedBonus = 0;
-  let deductedReal = 0;
-
-  if (wallet.balance_bonus_xu >= amountXu) {
-    deductedBonus = amountXu;
-  } else {
-    deductedBonus = wallet.balance_bonus_xu;
-    deductedReal = amountXu - deductedBonus;
-  }
-
+  const deductedBonus = Math.min(wallet.balance_bonus_xu, amountXu);
+  const deductedReal = amountXu - deductedBonus;
   const newBonus = wallet.balance_bonus_xu - deductedBonus;
   const newReal = wallet.balance_real_xu - deductedReal;
   const newTotal = newBonus + newReal;
   const nowIso = new Date().toISOString();
-
-  if (isSupabaseConfigured) {
-    try {
-      await supabase
-        .from('k23_wallets')
-        .update({
-          balance_real_xu: newReal,
-          balance_bonus_xu: newBonus,
-          updated_at: nowIso,
-        })
-        .eq('id', wallet.id);
-
-      await supabase.from('k23_wallet_transactions').insert({
-        wallet_id: wallet.id,
-        owner_id: ownerId,
-        amount_real_xu: -deductedReal,
-        amount_bonus_xu: -deductedBonus,
-        transaction_type: 'spend',
-        reason,
-        reference_id: referenceId,
-        created_at: nowIso,
-      });
-
-      return {
-        success: true,
-        deductedBonus,
-        deductedReal,
-        remainingTotal: newTotal,
-      };
-    } catch (err) {
-      console.warn('[k23Wallet] Supabase deduct fallback:', err);
-    }
-  }
 
   // Memory fallback
   wallet.balance_bonus_xu = newBonus;
