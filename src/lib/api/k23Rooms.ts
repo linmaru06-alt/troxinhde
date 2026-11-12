@@ -13,6 +13,8 @@ export interface BatchCreateRoomsParams {
   ownerAvatar?: string;
   address: string;
   district: string;
+  lat?: number;
+  lng?: number;
   startFloor: number;
   endFloor: number;
   roomsPerFloor: number;
@@ -150,6 +152,8 @@ export async function createBatchRooms(params: BatchCreateRoomsParams): Promise<
         nearestSchool: 'Đại học Quốc Gia Hà Nội',
         address: params.address,
         district: params.district,
+        lat: params.lat,
+        lng: params.lng,
         description: `Phòng ${item.roomNumber} tại ${params.buildingName}, tầng ${item.floor}. Đầy đủ nội thất, điều hòa, nóng lạnh, giờ giấc tự do, an ninh 24/7.`,
         views: 0,
         savedCount: 0,
@@ -176,6 +180,10 @@ export async function createBatchRooms(params: BatchCreateRoomsParams): Promise<
           amenities: newRoom.amenities,
           description: newRoom.description,
           images: newRoom.images,
+          address: newRoom.address,
+          district: newRoom.district,
+          lat: newRoom.lat,
+          lng: newRoom.lng,
           status: 'available',
         });
       }
@@ -183,7 +191,13 @@ export async function createBatchRooms(params: BatchCreateRoomsParams): Promise<
 
     // 2. Insert vào Supabase nếu đã kết nối
     if (isSupabaseConfigured && dbPayloads.length > 0) {
-      const { data, error } = await supabase.from('rooms').insert(dbPayloads).select();
+      let { data, error } = await supabase.from('rooms').insert(dbPayloads).select();
+      if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+        const legacyPayloads = dbPayloads.map(({ address, district, lat, lng, ...rest }) => rest);
+        const retry = await supabase.from('rooms').insert(legacyPayloads).select();
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) {
         console.warn('[K23 Batch Rooms] Supabase insert warning (fallback local state):', error.message);
       } else if (data && data.length > 0) {

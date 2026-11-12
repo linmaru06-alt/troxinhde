@@ -233,3 +233,33 @@
   border: 1px solid #d1d5db;
 }
 
+.custom-roommate-pin {
+  background: transparent !important;
+  border: none !important;
+}
+
+.custom-roommate-pin .pin-body.roommate {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 800;
+  background-color: #eef2ff;
+  color: #4338ca;
+  border: 1.5px solid #4f46e5;
+  box-shadow: 0 4px 10px rgba(79, 70, 229, 0.2);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.custom-roommate-pin .pin-body.roommate:hover,
+.custom-roommate-pin .pin-body.roommate.active {
+  background-color: #4f46e5;
+  color: #ffffff;
+  transform: scale(1.15);
+  box-shadow: 0 10px 15px -3px rgba(79, 70, 229, 0.45);
+}
+

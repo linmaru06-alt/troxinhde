@@ -820,6 +820,10 @@ export const RoomDetailPage: React.FC = () => {
                   <MiniRoomMap
                     roomTitle={room.title}
                     buildingName={building?.name}
+                    address={room.address || building?.address}
+                    district={room.district || building?.district}
+                    lat={room.lat ?? building?.geo?.lat}
+                    lng={room.lng ?? building?.geo?.lng}
                     nearestSchool={room.nearestSchool}
                     className="h-72 rounded-2xl overflow-hidden"
                   />

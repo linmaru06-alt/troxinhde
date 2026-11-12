@@ -1280,7 +1280,7 @@ export const useAppStore = create<AppState>()(
           rating: 5.0,
           reviewCount: 0,
           verifiedBadge: false,
-          geo: data.geo || { lat: 10.8, lng: 106.7 },
+          geo: data.geo || { lat: 21.0333, lng: 105.7937 },
         };
         set((state) => ({ buildings: [newBuilding, ...state.buildings], localCreatedBuildings: [newBuilding, ...state.localCreatedBuildings] }));
         get().showToast('Tạo hồ sơ tòa nhà thành công!', 'Hồ sơ đã được gửi để kiểm duyệt', 'success');

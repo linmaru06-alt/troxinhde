@@ -21,7 +21,11 @@ import {
   RotateCcw,
   ChevronLeft,
   ChevronRight,
+  MapPin,
+  LocateFixed,
 } from 'lucide-react';
+import { MapPinPicker } from '../map/TroXinhMap';
+import { geocodeAddressCached, resolveEntityCoordsSync } from '../../lib/geocoding';
 
 interface CreateRoommateModalProps {
   isOpen: boolean;
@@ -56,7 +60,7 @@ const DISTRICTS = [
 ];
 
 export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, rooms, addRoommatePost, showToast } = useAppStore();
+  const { currentUser, rooms, buildings, addRoommatePost, showToast } = useAppStore();
 
   // 1. Tất cả các trường thông tin đều để trống theo yêu cầu của người dùng
   const [userName, setUserName] = useState<string>('');
@@ -64,17 +68,21 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
   const [userAge, setUserAge] = useState<number | ''>('');
   const [userSchool, setUserSchool] = useState<string>('');
   const [district, setDistrict] = useState<string>('');
+  const [desiredAddress, setDesiredAddress] = useState<string>('');
   const [budgetShare, setBudgetShare] = useState<number | ''>('');
   const [genderPreference, setGenderPreference] = useState<'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả' | ''>('');
   const [selectedHabits, setSelectedHabits] = useState<string[]>([]);
   const [intro, setIntro] = useState<string>('');
 
-  // 2. Tùy chọn: Đã có phòng sẵn hay chưa
+  // 2. Tùy chọn: Đã có phòng sẵn hay chưa + Tọa độ hiển thị bản đồ
   const [hasRoom, setHasRoom] = useState<boolean>(false);
   const [roomAddress, setRoomAddress] = useState<string>('');
   const [roomPrice, setRoomPrice] = useState<number | ''>('');
   const [roomArea, setRoomArea] = useState<number | ''>('');
   const [linkedRoomId, setLinkedRoomId] = useState<string>('');
+  const [roomGeo, setRoomGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const [showMapPicker, setShowMapPicker] = useState<boolean>(false);
+  const [isLocatingPin, setIsLocatingPin] = useState<boolean>(false);
   const [uploadedImages, setUploadedImages] = useState<string[]>([]);
   const [isUploadingImg, setIsUploadingImg] = useState<boolean>(false);
 
@@ -97,6 +105,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         if (d.userAge) setUserAge(d.userAge);
         if (d.userSchool) setUserSchool(d.userSchool);
         if (d.district) setDistrict(d.district);
+        if (d.desiredAddress) setDesiredAddress(d.desiredAddress);
         if (d.budgetShare) setBudgetShare(d.budgetShare);
         if (d.genderPreference) setGenderPreference(d.genderPreference);
         if (d.selectedHabits) setSelectedHabits(d.selectedHabits);
@@ -106,6 +115,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         if (d.roomPrice) setRoomPrice(d.roomPrice);
         if (d.roomArea) setRoomArea(d.roomArea);
         if (d.linkedRoomId) setLinkedRoomId(d.linkedRoomId);
+        if (d.roomGeo) setRoomGeo(d.roomGeo);
         if (d.uploadedImages) setUploadedImages(d.uploadedImages);
         if (d.savedAt) setLastSavedTime(d.savedAt);
         setHasDraft(true);
@@ -129,6 +139,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
           userAge,
           userSchool,
           district,
+          desiredAddress,
           budgetShare,
           genderPreference,
           selectedHabits,
@@ -138,6 +149,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
           roomPrice,
           roomArea,
           linkedRoomId,
+          roomGeo,
           uploadedImages,
           savedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
         };
@@ -154,6 +166,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     userAge,
     userSchool,
     district,
+    desiredAddress,
     budgetShare,
     genderPreference,
     selectedHabits,
@@ -163,6 +176,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     roomPrice,
     roomArea,
     linkedRoomId,
+    roomGeo,
     uploadedImages,
   ]);
 
@@ -173,6 +187,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       userAge,
       userSchool,
       district,
+      desiredAddress,
       budgetShare,
       genderPreference,
       selectedHabits,
@@ -182,6 +197,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       roomPrice,
       roomArea,
       linkedRoomId,
+      roomGeo,
       uploadedImages,
       savedAt: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
     };
@@ -198,6 +214,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     setUserAge('');
     setUserSchool('');
     setDistrict('');
+    setDesiredAddress('');
     setBudgetShare('');
     setGenderPreference('');
     setSelectedHabits([]);
@@ -207,6 +224,8 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     setRoomPrice('');
     setRoomArea('');
     setLinkedRoomId('');
+    setRoomGeo(null);
+    setShowMapPicker(false);
     setUploadedImages([]);
     setHasDraft(false);
     setLastSavedTime(null);
@@ -331,6 +350,9 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     const validGenderPreference = genderPreference as 'Chỉ tìm Nữ' | 'Chỉ tìm Nam' | 'Tất cả';
 
     const selectedRoom = rooms.find((r) => r.id === linkedRoomId);
+    const selectedRoomBuilding = selectedRoom?.buildingId
+      ? buildings.find((b) => b.id === selectedRoom.buildingId)
+      : undefined;
     // Ưu tiên UUID của tài khoản hiện tại, nếu ID dạng khác thì dùng profile UUID hợp lệ trong DB
     const posterId = (currentUser?.id && currentUser.id.length === 36)
       ? currentUser.id
@@ -341,8 +363,35 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
       ? (uploadedImages.length > 0 ? uploadedImages : (selectedRoom?.images || []))
       : [];
 
+    const finalAddress = hasRoom
+      ? (roomAddress.trim() || selectedRoom?.address || selectedRoomBuilding?.address || '')
+      : (desiredAddress.trim() || '');
+
     setIsSubmitting(true);
     try {
+      let finalCoords = roomGeo;
+      if (!finalCoords) {
+        if (finalAddress) {
+          finalCoords = await geocodeAddressCached(finalAddress, district, userSchool.trim());
+        }
+        if (!finalCoords) {
+          const fallback = resolveEntityCoordsSync({
+            lat: hasRoom ? selectedRoom?.lat : undefined,
+            lng: hasRoom ? selectedRoom?.lng : undefined,
+            address: finalAddress || (hasRoom ? selectedRoom?.address : undefined),
+            district,
+            school: userSchool.trim(),
+            buildingGeo: hasRoom ? selectedRoomBuilding?.geo : null,
+            buildingAddress: hasRoom ? selectedRoomBuilding?.address : undefined,
+          });
+          finalCoords = { lat: fallback.lat, lng: fallback.lng };
+        }
+      }
+
+      const finalLinkedTitle = hasRoom ? (finalAddress || selectedRoom?.title || 'Phòng trọ đang ở') : undefined;
+      const finalLinkedPrice = hasRoom ? (Number(roomPrice) || selectedRoom?.price || Number(budgetShare) * 2) : undefined;
+      const finalLinkedArea = hasRoom ? (Number(roomArea) || selectedRoom?.area) : undefined;
+
       const created = await createRoommatePost({
         poster_id: posterId,
         room_id: (hasRoom && selectedRoom?.id && selectedRoom.id.length === 36) ? selectedRoom.id : undefined,
@@ -354,8 +403,14 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         lifestyle_tags: selectedHabits,
         self_intro: intro.trim(),
         district,
+        address: finalAddress || undefined,
+        lat: finalCoords.lat,
+        lng: finalCoords.lng,
         school: userSchool.trim(),
         images: finalImages.slice(0, 5),
+        linked_room_title: finalLinkedTitle,
+        linked_room_price: finalLinkedPrice,
+        linked_room_area: finalLinkedArea,
       });
 
       const generateUUID = () => {
@@ -378,15 +433,18 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         userAge: Number(userAge),
         userSchool: userSchool.trim(),
         district,
+        address: finalAddress || undefined,
+        lat: finalCoords.lat,
+        lng: finalCoords.lng,
         budgetShare: Number(budgetShare),
         genderPreference: validGenderPreference,
         habits: selectedHabits,
         lifestyleTags: selectedHabits.slice(0, 3),
         intro: intro.trim(),
         linkedRoomId: hasRoom ? (selectedRoom?.id || `room_custom_${Date.now()}`) : undefined,
-        linkedRoomTitle: hasRoom ? (roomAddress.trim() || selectedRoom?.title || 'Phòng trọ đang ở') : undefined,
-        linkedRoomPrice: hasRoom ? (Number(roomPrice) || selectedRoom?.price || Number(budgetShare) * 2) : undefined,
-        linkedRoomArea: hasRoom ? (Number(roomArea) || selectedRoom?.area) : undefined,
+        linkedRoomTitle: finalLinkedTitle,
+        linkedRoomPrice: finalLinkedPrice,
+        linkedRoomArea: finalLinkedArea,
         linkedRoomImage: finalImages[0],
         images: finalImages,
         status: 'Đang tìm',
@@ -409,6 +467,68 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     }
   };
 
+  const selectedLinkedRoom = rooms.find((r) => r.id === linkedRoomId);
+  const selectedLinkedBuilding = selectedLinkedRoom?.buildingId
+    ? buildings.find((b) => b.id === selectedLinkedRoom.buildingId)
+    : undefined;
+  const effectivePin = roomGeo
+    ? roomGeo
+    : resolveEntityCoordsSync({
+        lat: hasRoom ? selectedLinkedRoom?.lat : undefined,
+        lng: hasRoom ? selectedLinkedRoom?.lng : undefined,
+        address: (hasRoom ? (roomAddress.trim() || selectedLinkedRoom?.address) : desiredAddress.trim()) || undefined,
+        district: district || selectedLinkedRoom?.district,
+        school: userSchool.trim() || undefined,
+        buildingGeo: hasRoom ? selectedLinkedBuilding?.geo : null,
+        buildingAddress: hasRoom ? selectedLinkedBuilding?.address : undefined,
+      });
+
+  const handleSelectLinkedRoom = (nextRoomId: string) => {
+    setLinkedRoomId(nextRoomId);
+    const chosen = rooms.find((r) => r.id === nextRoomId);
+    if (!chosen) return;
+    if (chosen.address) setRoomAddress(chosen.address);
+    if (chosen.district) setDistrict(chosen.district);
+    if (!roomPrice && chosen.price) setRoomPrice(chosen.price);
+    if (!roomArea && chosen.area) setRoomArea(chosen.area);
+    const bld = chosen.buildingId ? buildings.find((b) => b.id === chosen.buildingId) : undefined;
+    const resolved = resolveEntityCoordsSync({
+      lat: chosen.lat,
+      lng: chosen.lng,
+      address: chosen.address || bld?.address,
+      district: chosen.district || bld?.district,
+      school: chosen.nearestSchool || userSchool.trim(),
+      buildingGeo: bld?.geo,
+      buildingAddress: bld?.address,
+    });
+    setRoomGeo({ lat: resolved.lat, lng: resolved.lng });
+  };
+
+  const handleLocateRoommatePin = async () => {
+    const addr = hasRoom
+      ? (roomAddress.trim() || selectedLinkedRoom?.address || '')
+      : desiredAddress.trim();
+    const dist = district || selectedLinkedRoom?.district || '';
+    if (!addr && !dist && !userSchool.trim()) {
+      showToast('Thiếu thông tin vị trí', 'Vui lòng chọn Quận/Huyện hoặc nhập tên đường/phố trước khi định vị.', 'warning');
+      return;
+    }
+    setIsLocatingPin(true);
+    try {
+      const coords = await geocodeAddressCached(addr || undefined, dist || undefined, userSchool.trim() || undefined);
+      if (coords) {
+        setRoomGeo(coords);
+        setShowMapPicker(true);
+        showToast('Đã định vị trên bản đồ!', addr || dist || userSchool, 'success');
+      } else {
+        setShowMapPicker(true);
+        showToast('Chưa khớp chính xác số nhà', 'Bản đồ đã mở ở khu vực gần nhất, bạn có thể nhấp/kéo ghim để chỉnh.', 'info');
+      }
+    } finally {
+      setIsLocatingPin(false);
+    }
+  };
+
   const previewPost: RoommatePost = {
     id: 'preview_roommate',
     userId: currentUser?.id || 'preview_user',
@@ -418,6 +538,9 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
     userAge: Number(userAge) || 20,
     userSchool: userSchool.trim() || 'Trường / Nơi làm việc',
     district: district || 'Khu vực mong muốn',
+    address: (hasRoom ? roomAddress.trim() : desiredAddress.trim()) || undefined,
+    lat: effectivePin.lat,
+    lng: effectivePin.lng,
     budgetShare: Number(budgetShare) || 2000000,
     genderPreference: (genderPreference as any) || 'Tất cả',
     habits: selectedHabits.length > 0 ? selectedHabits : ['Giữ vệ sinh sạch sẽ'],
@@ -617,7 +740,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
         </div>
 
         {/* Option: Đã có phòng hay chưa */}
-        <div className="pt-2 border-t border-gray-100">
+        <div className="pt-2 border-t border-gray-100 space-y-3">
           <label className="flex items-center gap-2 cursor-pointer select-none">
             <input
               type="checkbox"
@@ -630,15 +753,72 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
               Tôi hiện đã thuê được phòng và đang tìm người dọn vào ở chung
             </span>
           </label>
+
+          {/* Địa chỉ chi tiết khi chưa có phòng (hiển thị trên bản đồ ở ghép) */}
+          {!hasRoom && (
+            <div className="p-3.5 bg-indigo-50/50 rounded-2xl border border-indigo-200/70 space-y-2.5">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <label className="text-[11px] font-bold text-indigo-950 flex items-center gap-1.5">
+                  <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                  Đường / Phố hoặc khu vực muốn ở ghép (hiển thị đúng ghim trên bản đồ)
+                </label>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleLocateRoommatePin}
+                    disabled={isLocatingPin}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    <LocateFixed className={`w-3.5 h-3.5 ${isLocatingPin ? 'animate-spin' : ''}`} />
+                    {isLocatingPin ? 'Đang định vị...' : 'Định vị'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowMapPicker((prev) => !prev)}
+                    className="px-2.5 py-1 rounded-lg bg-white hover:bg-indigo-50 text-gray-700 border border-indigo-200 text-[11px] font-bold cursor-pointer"
+                  >
+                    {showMapPicker ? 'Ẩn bản đồ' : 'Ghim bản đồ'}
+                  </button>
+                </div>
+              </div>
+              <input
+                type="text"
+                value={desiredAddress}
+                onChange={(e) => setDesiredAddress(e.target.value)}
+                placeholder="VD: Ngõ 165 Xuân Thủy, Phố Chùa Láng, KĐT Văn Quán..."
+                className="w-full px-3 py-2 rounded-xl border border-indigo-200 text-xs bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"
+              />
+            </div>
+          )}
         </div>
 
         {/* Thông tin phòng đã có (chỉ hiện khi hasRoom = true) */}
         {hasRoom && (
           <div className="p-4 bg-emerald-50/40 rounded-2xl border border-emerald-200/60 space-y-3">
-            <h5 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
-              <Home className="w-3.5 h-3.5 text-[#006d37]" />
-              Thông tin chi tiết căn phòng bạn đang ở
-            </h5>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h5 className="text-xs font-bold text-emerald-900 flex items-center gap-1.5">
+                <Home className="w-3.5 h-3.5 text-[#006d37]" />
+                Thông tin chi tiết căn phòng bạn đang ở
+              </h5>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleLocateRoommatePin}
+                  disabled={isLocatingPin}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-[#006d37] border border-emerald-200 text-[11px] font-bold cursor-pointer"
+                >
+                  <LocateFixed className={`w-3.5 h-3.5 ${isLocatingPin ? 'animate-spin' : ''}`} />
+                  {isLocatingPin ? 'Đang định vị...' : 'Định vị địa chỉ'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowMapPicker((prev) => !prev)}
+                  className="px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-gray-700 border border-emerald-200 text-[11px] font-bold cursor-pointer"
+                >
+                  {showMapPicker ? 'Ẩn bản đồ' : 'Ghim bản đồ'}
+                </button>
+              </div>
+            </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div className="sm:col-span-2">
@@ -687,7 +867,7 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
                 </label>
                 <select
                   value={linkedRoomId}
-                  onChange={(e) => setLinkedRoomId(e.target.value)}
+                  onChange={(e) => handleSelectLinkedRoom(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-gray-300 text-xs bg-white focus:ring-2 focus:ring-[#006d37] focus:outline-none"
                 >
                   <option value="">-- Tự nhập thông tin ở trên --</option>
@@ -791,6 +971,31 @@ export const CreateRoommateModal: React.FC<CreateRoommateModalProps> = ({ isOpen
                 Gợi ý: Tải ảnh góc ngủ, bếp nấu, nhà vệ sinh khép kín để người tìm ghép dễ hình dung.
               </p>
             </div>
+          </div>
+        )}
+
+        {/* Bản đồ ghim vị trí tin tìm người ở ghép */}
+        {showMapPicker && (
+          <div className="p-3 bg-gray-50 rounded-2xl border border-gray-200 space-y-2">
+            <div className="flex items-center justify-between text-[11px] font-bold text-gray-700">
+              <span>Nhấp hoặc kéo ghim để chọn vị trí chính xác trên bản đồ</span>
+              <span className="text-emerald-700">
+                {effectivePin.lat.toFixed(5)}, {effectivePin.lng.toFixed(5)}
+              </span>
+            </div>
+            <MapPinPicker
+              initialLat={effectivePin.lat}
+              initialLng={effectivePin.lng}
+              onLocationChange={(loc) => {
+                setRoomGeo({ lat: loc.lat, lng: loc.lng });
+                if (hasRoom) {
+                  if (!roomAddress.trim() && loc.address) setRoomAddress(loc.address);
+                } else {
+                  if (!desiredAddress.trim() && loc.address) setDesiredAddress(loc.address);
+                }
+              }}
+              className="h-56 rounded-2xl overflow-hidden"
+            />
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -11,10 +11,40 @@ import {
 } from 'react-leaflet';
 import L from 'leaflet';
 import { Link } from 'react-router-dom';
-import { Room, Building } from '../../types';
+import { Room, Building, RoommatePost } from '../../types';
 import { formatPrice } from '../ui/Cards';
-import { MapPin, Navigation, School, ExternalLink, Compass } from 'lucide-react';
+import { MapPin, ExternalLink, Compass, Users, GraduationCap } from 'lucide-react';
 import { MapAutoResize } from './ResilientTileLayer';
+import {
+  DISTRICT_CENTERS,
+  HANOI_UNIVERSITIES,
+  cleanDistrictName,
+  geocodeAddressCached,
+  getDistanceKm,
+  getDistrictCenter,
+  isValidHanoiCoord,
+  resolveEntityCoordsSync,
+  reverseGeocodeAddress,
+  spreadCoincidentCoords,
+} from '../../lib/geocoding';
+
+// Re-export for existing consumers
+export { DISTRICT_CENTERS, HANOI_UNIVERSITIES };
+
+function useLeafletCss() {
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    const leafletId = 'leaflet-dynamic-css';
+    if (!document.getElementById(leafletId)) {
+      const link = document.createElement('link');
+      link.id = leafletId;
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      link.crossOrigin = '';
+      document.head.appendChild(link);
+    }
+  }, []);
+}
 
 // Fix Leaflet default icon paths in bundler
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -23,54 +53,6 @@ L.Icon.Default.mergeOptions({
   iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
-
-// Coordinates for top universities in Hanoi
-export const HANOI_UNIVERSITIES = [
-  { name: 'ĐH Quốc Gia Hà Nội', coords: [21.0375, 105.7816] as [number, number] },
-  { name: 'ĐH Bách Khoa HN', coords: [21.0054, 105.8427] as [number, number] },
-  { name: 'ĐH Kinh Tế Quốc Dân', coords: [20.9995, 105.8432] as [number, number] },
-  { name: 'ĐH Xây Dựng', coords: [21.0036, 105.8426] as [number, number] },
-  { name: 'ĐH Sư Phạm HN', coords: [21.0375, 105.7831] as [number, number] },
-  { name: 'ĐH Y Hà Nội', coords: [21.0030, 105.8302] as [number, number] },
-  { name: 'ĐH Ngoại Thương', coords: [21.0227, 105.8037] as [number, number] },
-  { name: 'ĐH Luật HN', coords: [21.0227, 105.8115] as [number, number] },
-  { name: 'Học Viện Ngân Hàng', coords: [21.0076, 105.8286] as [number, number] },
-  { name: 'ĐH FPT Hà Nội', coords: [21.0131, 105.5273] as [number, number] },
-  { name: 'ĐH Công Nghiệp HN', coords: [21.0538, 105.7351] as [number, number] },
-  { name: 'ĐH Thương Mại', coords: [21.0366, 105.7747] as [number, number] },
-  { name: 'ĐH Giao Thông VT', coords: [21.0287, 105.8037] as [number, number] },
-  { name: 'ĐH Thủy Lợi', coords: [21.0074, 105.8247] as [number, number] },
-  { name: 'HV Tài Chính', coords: [21.0754, 105.7745] as [number, number] },
-  { name: 'HV Báo Chí & TT', coords: [21.0382, 105.7869] as [number, number] },
-  { name: 'ĐH Mỏ - Địa Chất', coords: [21.0721, 105.7749] as [number, number] },
-  { name: 'ĐH Dược HN', coords: [21.0253, 105.8554] as [number, number] },
-  { name: 'HV Bưu Chính VT', coords: [20.9806, 105.7877] as [number, number] },
-  { name: 'ĐH Kiến Trúc HN', coords: [20.9831, 105.7891] as [number, number] },
-  { name: 'ĐH Hà Nội', coords: [20.9904, 105.7958] as [number, number] },
-  { name: 'HV An Ninh ND', coords: [20.9839, 105.7925] as [number, number] },
-  { name: 'ĐH KHTN (ĐHQGHN)', coords: [20.9959, 105.8080] as [number, number] },
-  { name: 'ĐH KHXH&NV (ĐHQGHN)', coords: [20.9961, 105.8058] as [number, number] },
-  { name: 'HV Ngoại Giao', coords: [21.0215, 105.8085] as [number, number] },
-  { name: 'ĐH Ngoại Ngữ (ĐHQGHN)', coords: [21.0375, 105.7815] as [number, number] },
-  { name: 'ĐH Công Đoàn', coords: [21.0118, 105.8268] as [number, number] },
-  { name: 'ĐH Thăng Long', coords: [20.9754, 105.8143] as [number, number] },
-  { name: 'ĐH Điện Lực', coords: [21.0463, 105.7845] as [number, number] },
-  { name: 'ĐH Mở Hà Nội', coords: [21.0025, 105.8459] as [number, number] },
-  { name: 'ĐH Tài Nguyên MT', coords: [21.0427, 105.7601] as [number, number] },
-  { name: 'HV Nông Nghiệp VN', coords: [21.0041, 105.9348] as [number, number] },
-  { name: 'HV Cảnh Sát ND', coords: [21.0664, 105.7629] as [number, number] },
-  { name: 'ĐH Sân Khấu ĐA', coords: [21.0374, 105.7725] as [number, number] },
-  { name: 'ĐH Mỹ Thuật CN', coords: [21.0232, 105.8267] as [number, number] },
-  { name: 'HV Quản Lý GD', coords: [20.9859, 105.8443] as [number, number] },
-  { name: 'HV Y Dược Cổ Truyền', coords: [20.9789, 105.7909] as [number, number] },
-  { name: 'HV Kỹ thuật Quân sự', coords: [21.0471, 105.7928] as [number, number] },
-  { name: 'ĐH Phenikaa', coords: [20.9616, 105.7482] as [number, number] },
-  { name: 'ĐH Kinh tế kỹ thuật CN', coords: [20.9984, 105.8647] as [number, number] },
-  { name: 'HV Phụ nữ Việt Nam', coords: [21.0203, 105.8099] as [number, number] },
-  { name: 'ĐH Văn hóa HN', coords: [21.0267, 105.8251] as [number, number] },
-  { name: 'ĐH KD & Công nghệ HN', coords: [20.9959, 105.8756] as [number, number] },
-  { name: 'ĐH Y tế Công cộng', coords: [21.0776, 105.7770] as [number, number] }
-];
 
 // Coordinates for Metro & Bus stations in Hanoi
 export const HANOI_METRO_BUS_STATIONS = [
@@ -122,7 +104,7 @@ const createUniIcon = (name: string) => {
   return L.divIcon({
     className: 'custom-uni-pin',
     html: `
-      <div style="background: white; border: 1.5px solid #2563eb; color: #1e40af; border-radius: 9999px; padding: 2px 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; items-center; gap: 3px; white-space: nowrap;">
+      <div style="background: white; border: 1.5px solid #2563eb; color: #1e40af; border-radius: 9999px; padding: 2px 8px; font-size: 10px; font-weight: 700; box-shadow: 0 2px 4px rgba(0,0,0,0.15); display: flex; align-items: center; gap: 3px; white-space: nowrap;">
         <span>🎓</span> ${name}
       </div>
     `,
@@ -131,23 +113,7 @@ const createUniIcon = (name: string) => {
   });
 };
 
-// Metro & Bus icon creator
-const createMetroBusIcon = (type: string) => {
-  const iconEmoji = type === 'metro' ? '🚇' : '🚌';
-  const bgColor = type === 'metro' ? '#f59e0b' : '#0284c7';
-  return L.divIcon({
-    className: 'custom-metro-pin',
-    html: `
-      <div style="background: ${bgColor}; color: white; border: 2px solid white; border-radius: 50%; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 3px 6px rgba(0,0,0,0.3);">
-        ${iconEmoji}
-      </div>
-    `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-  });
-};
-
-// Custom Price Pin Icon Creator
+// Custom Price Pin Icon Creator (Phòng trọ)
 export const createPricePinIcon = (price: number, isActive: boolean, isRented = false) => {
   const statusClass = isRented ? 'rented' : isActive ? 'available active' : 'available';
   const priceText = formatPrice(price);
@@ -156,21 +122,50 @@ export const createPricePinIcon = (price: number, isActive: boolean, isRented = 
     className: 'custom-price-pin',
     html: `
       <div class="pin-body ${statusClass}">
-        <span style="font-size: 11px;">📍</span>
+        <span style="font-size: 11px;">🏠</span>
         <span>${priceText}</span>
       </div>
     `,
-    iconSize: [80, 30],
-    iconAnchor: [40, 15],
+    iconSize: [96, 30],
+    iconAnchor: [48, 15],
   });
 };
 
-// Component to dynamically re-center when active room changes
+// Custom Roommate Pin Icon Creator (Tìm người ở ghép)
+export const createRoommatePinIcon = (budgetShare: number, isActive: boolean) => {
+  const statusClass = isActive ? 'roommate active' : 'roommate';
+  const priceText = formatPrice(budgetShare);
+
+  return L.divIcon({
+    className: 'custom-roommate-pin',
+    html: `
+      <div class="pin-body ${statusClass}">
+        <span style="font-size: 11px;">👥</span>
+        <span>${priceText}</span>
+      </div>
+    `,
+    iconSize: [100, 30],
+    iconAnchor: [50, 15],
+  });
+};
+
+// Component to dynamically re-center only when target coordinates or zoom meaningfully change
 const MapRecenter: React.FC<{ center: [number, number]; zoom?: number }> = ({ center, zoom }) => {
   const map = useMap();
+  const prevRef = useRef<{ lat: number; lng: number; zoom?: number } | null>(null);
+
   useEffect(() => {
-    map.setView(center, zoom || map.getZoom(), { animate: true });
+    const prev = prevRef.current;
+    const latDiff = prev ? Math.abs(prev.lat - center[0]) : 1;
+    const lngDiff = prev ? Math.abs(prev.lng - center[1]) : 1;
+    const zoomChanged = prev ? prev.zoom !== zoom : true;
+
+    if (latDiff > 0.0001 || lngDiff > 0.0001 || zoomChanged) {
+      map.setView(center, zoom || map.getZoom(), { animate: true });
+      prevRef.current = { lat: center[0], lng: center[1], zoom };
+    }
   }, [center, zoom, map]);
+
   return null;
 };
 
@@ -187,8 +182,13 @@ const MapClickHandler: React.FC<{ onMapClick?: () => void }> = ({ onMapClick }) 
 // 1. MAIN MAP COMPONENT (/ban-do)
 export interface TroXinhMapProps {
   rooms: Room[];
+  buildings?: Building[];
+  roommates?: RoommatePost[];
   activeRoomId?: string | null;
+  activeRoommateId?: string | null;
   onSelectRoom?: (roomId: string) => void;
+  onSelectRoommate?: (roommateId: string) => void;
+  resolvedCoordsMap?: Record<string, { lat: number; lng: number }>;
   center?: [number, number];
   zoom?: number;
   showUniversities?: boolean;
@@ -199,25 +199,15 @@ export interface TroXinhMapProps {
   selectedDistrict?: string | null;
 }
 
-export const DISTRICT_CENTERS: Record<string, { lat: number; lng: number }> = {
-  'Cầu Giấy': { lat: 21.0333, lng: 105.7937 },
-  'Đống Đa': { lat: 21.0150, lng: 105.8239 },
-  'Hai Bà Trưng': { lat: 21.0062, lng: 105.8431 },
-  'Hoàn Kiếm': { lat: 21.0287, lng: 105.8524 },
-  'Thanh Xuân': { lat: 20.9935, lng: 105.8152 },
-  'Hoàng Mai': { lat: 20.9634, lng: 105.8499 },
-  'Nam Từ Liêm': { lat: 21.0120, lng: 105.7663 },
-  'Bắc Từ Liêm': { lat: 21.0664, lng: 105.7483 },
-  'Hà Đông': { lat: 20.9669, lng: 105.7723 },
-  'Ba Đình': { lat: 21.0340, lng: 105.8226 },
-  'Tây Hồ': { lat: 21.0601, lng: 105.8173 },
-  'Long Biên': { lat: 21.0404, lng: 105.8973 },
-};
-
 export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   rooms,
+  buildings = [],
+  roommates = [],
   activeRoomId,
+  activeRoommateId,
   onSelectRoom,
+  onSelectRoommate,
+  resolvedCoordsMap = {},
   center = [21.0333, 105.7937], // Default Hanoi Cầu Giấy center
   zoom = 13,
   showUniversities = true,
@@ -228,52 +218,218 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   selectedDistrict = null,
 }) => {
   const [geoJsonData, setGeoJsonData] = useState<any>(null);
+  const [internalResolved, setInternalResolved] = useState<Record<string, { lat: number; lng: number }>>({});
+  useLeafletCss();
 
   // Fetch GeoJSON boundary data
   useEffect(() => {
     fetch('/data/hanoi-districts.geojson')
-      .then(res => res.json())
-      .then(data => setGeoJsonData(data))
-      .catch(err => console.warn('Không tải được viền quận huyện:', err));
+      .then((res) => res.json())
+      .then((data) => setGeoJsonData(data))
+      .catch((err) => console.warn('Không tải được viền quận huyện:', err));
   }, []);
+
+  const buildingMap = useMemo(() => {
+    const map = new Map<string, Building>();
+    (buildings || []).forEach((b) => {
+      if (b?.id) map.set(b.id, b);
+    });
+    return map;
+  }, [buildings]);
+
+  const roomMap = useMemo(() => {
+    const map = new Map<string, Room>();
+    (rooms || []).forEach((r) => {
+      if (r?.id) map.set(r.id, r);
+    });
+    return map;
+  }, [rooms]);
+
+  // Background geocode any rooms or roommates that lack explicit coordinates
+  useEffect(() => {
+    let cancelled = false;
+    const queue: Array<{ key: string; address?: string; district?: string; school?: string }> = [];
+
+    (rooms || []).forEach((room: any) => {
+      const key = `room:${room.id}`;
+      if (resolvedCoordsMap[key] || internalResolved[key]) return;
+      const bld = room.buildingId ? buildingMap.get(room.buildingId) : undefined;
+      const bldLat = room.buildings?.lat ?? bld?.geo?.lat;
+      const bldLng = room.buildings?.lng ?? bld?.geo?.lng;
+      const bldAddr = room.buildings?.address ?? bld?.address;
+      const sync = resolveEntityCoordsSync({
+        lat: room.lat,
+        lng: room.lng,
+        address: room.address || bldAddr,
+        district: room.district || room.buildings?.district || bld?.district,
+        school: room.nearestSchool,
+        buildingGeo: isValidHanoiCoord(bldLat, bldLng) ? { lat: bldLat, lng: bldLng } : null,
+        buildingAddress: bldAddr,
+      });
+      if ((sync.source === 'district' || sync.source === 'school') && (room.address || bldAddr)) {
+        queue.push({
+          key,
+          address: room.address || bldAddr,
+          district: room.district || room.buildings?.district || bld?.district,
+          school: room.nearestSchool,
+        });
+      }
+    });
+
+    (roommates || []).forEach((rm) => {
+      const key = `roommate:${rm.id}`;
+      if (resolvedCoordsMap[key] || internalResolved[key]) return;
+      const linked = rm.linkedRoomId ? roomMap.get(rm.linkedRoomId) : undefined;
+      const sync = resolveEntityCoordsSync({
+        lat: rm.lat ?? linked?.lat,
+        lng: rm.lng ?? linked?.lng,
+        address: rm.address || linked?.address || rm.linkedRoomTitle,
+        district: rm.district || linked?.district,
+        school: rm.userSchool,
+      });
+      if ((sync.source === 'district' || sync.source === 'school') && (rm.address || linked?.address)) {
+        queue.push({
+          key,
+          address: rm.address || linked?.address,
+          district: rm.district || linked?.district,
+          school: rm.userSchool,
+        });
+      }
+    });
+
+    if (queue.length === 0) return;
+
+    (async () => {
+      for (const item of queue.slice(0, 15)) {
+        if (cancelled) break;
+        const coords = await geocodeAddressCached(item.address, item.district, item.school);
+        if (!cancelled && coords) {
+          setInternalResolved((prev) => (prev[item.key] ? prev : { ...prev, [item.key]: coords }));
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [rooms, roommates, buildingMap, roomMap, resolvedCoordsMap, internalResolved]);
 
   // Filter geojson for selected district
   const selectedDistrictGeoJson = useMemo(() => {
     if (!selectedDistrict || !geoJsonData) return null;
+    const cleanSelected = cleanDistrictName(selectedDistrict);
     const feature = geoJsonData.features?.find((f: any) => {
       const name = f.properties?.shapeName || f.properties?.name || '';
-      return name.includes(selectedDistrict);
+      return name.includes(cleanSelected);
     });
     return feature ? { type: 'FeatureCollection' as const, features: [feature] } : null;
   }, [selectedDistrict, geoJsonData]);
 
-  // Map rooms to geo locations
-  const roomMarkers = useMemo(() => {
-    return rooms.map((room, index) => {
-      const cleanDistrict = room.district?.replace('Quận ', '').replace('Huyện ', '') || 'Cầu Giấy';
-      const baseCenter = DISTRICT_CENTERS[cleanDistrict] || { lat: 21.0333, lng: 105.7937 };
+  // Resolve real coordinates for rooms and roommate posts together, spreading only exact duplicates (~12m)
+  const { roomMarkers, roommateMarkers } = useMemo(() => {
+    type MarkerEntry =
+      | { kind: 'room'; id: string; item: Room; coords: { lat: number; lng: number } }
+      | { kind: 'roommate'; id: string; item: RoommatePost; coords: { lat: number; lng: number } };
 
-      // Spiral placement to prevent overlapping markers
-      const angle = index * 2.4; // Golden angle approximation
-      const radius = 0.003 * Math.sqrt(index); // Expanding radius
-      
-      const lat = baseCenter.lat + (radius * Math.cos(angle));
-      const lng = baseCenter.lng + (radius * Math.sin(angle));
+    const entries: MarkerEntry[] = [];
 
-      return {
-        ...room,
-        geo: { lat, lng },
-      };
+    (rooms || []).forEach((room: any) => {
+      const key = `room:${room.id}`;
+      const override = resolvedCoordsMap[key] || internalResolved[key];
+      const bld = room.buildingId ? buildingMap.get(room.buildingId) : undefined;
+      const bldLat = Number(room.buildings?.lat ?? bld?.geo?.lat);
+      const bldLng = Number(room.buildings?.lng ?? bld?.geo?.lng);
+      const bldAddr = room.buildings?.address ?? bld?.address;
+      const addr = room.address || bldAddr;
+      const dist = room.district || room.buildings?.district || bld?.district;
+
+      const coords = override
+        ? override
+        : resolveEntityCoordsSync({
+            lat: typeof room.lat === 'number' ? room.lat : undefined,
+            lng: typeof room.lng === 'number' ? room.lng : undefined,
+            address: addr,
+            district: dist,
+            school: room.nearestSchool,
+            buildingGeo: isValidHanoiCoord(bldLat, bldLng) ? { lat: bldLat, lng: bldLng } : null,
+            buildingAddress: bldAddr,
+          });
+
+      entries.push({
+        kind: 'room',
+        id: `room_${room.id}`,
+        item: {
+          ...room,
+          address: addr || 'Hà Nội',
+          district: dist || 'Quận Cầu Giấy',
+        },
+        coords: { lat: coords.lat, lng: coords.lng },
+      });
     });
-  }, [rooms]);
+
+    (roommates || []).forEach((rm) => {
+      const key = `roommate:${rm.id}`;
+      const override = resolvedCoordsMap[key] || internalResolved[key];
+      const linked = rm.linkedRoomId ? roomMap.get(rm.linkedRoomId) : undefined;
+      const linkedBld = linked?.buildingId ? buildingMap.get(linked.buildingId) : undefined;
+      const addr = rm.address || linked?.address || linkedBld?.address;
+      const dist = rm.district || linked?.district || linkedBld?.district;
+
+      const coords = override
+        ? override
+        : resolveEntityCoordsSync({
+            lat: rm.lat ?? linked?.lat,
+            lng: rm.lng ?? linked?.lng,
+            address: addr,
+            district: dist,
+            school: rm.userSchool,
+            buildingGeo: linkedBld?.geo,
+            buildingAddress: linkedBld?.address,
+          });
+
+      entries.push({
+        kind: 'roommate',
+        id: `rm_${rm.id}`,
+        item: {
+          ...rm,
+          address: addr || rm.address,
+        },
+        coords: { lat: coords.lat, lng: coords.lng },
+      });
+    });
+
+    const spread = spreadCoincidentCoords(entries);
+
+    const nextRooms: Array<Room & { geo: { lat: number; lng: number } }> = [];
+    const nextRoommates: Array<RoommatePost & { geo: { lat: number; lng: number } }> = [];
+
+    spread.forEach((entry) => {
+      if (entry.kind === 'room') {
+        nextRooms.push({
+          ...entry.item,
+          geo: entry.displayCoords,
+        });
+      } else {
+        nextRoommates.push({
+          ...entry.item,
+          geo: entry.displayCoords,
+        });
+      }
+    });
+
+    return { roomMarkers: nextRooms, roommateMarkers: nextRoommates };
+  }, [rooms, roommates, buildingMap, roomMap, resolvedCoordsMap, internalResolved]);
 
   const selectedRoom = roomMarkers.find((r) => r.id === activeRoomId);
-  const selectedDistrictCenter = selectedDistrict ? DISTRICT_CENTERS[selectedDistrict] : null;
+  const selectedRoommate = roommateMarkers.find((rm) => rm.id === activeRoommateId);
+  const selectedDistrictCenter = selectedDistrict ? getDistrictCenter(selectedDistrict) : null;
 
   const mapCenter: [number, number] = userLocation
     ? userLocation
     : universityRadiusCenter
     ? universityRadiusCenter
+    : selectedRoommate
+    ? [selectedRoommate.geo.lat, selectedRoommate.geo.lng]
     : selectedRoom
     ? [selectedRoom.geo.lat, selectedRoom.geo.lng]
     : selectedDistrictCenter
@@ -314,7 +470,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
               })}
             >
               <Popup>
-                <div className="text-xs font-bold text-gray-900 p-1">📍 Vị trí hiện tại của bạn</div>
+                <div className="text-xs font-bold text-gray-900 p-2">📍 Vị trí hiện tại của bạn</div>
               </Popup>
             </Marker>
             <Circle
@@ -355,26 +511,24 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
               eventHandlers={{
                 click: () => {
                   if (onSelectUniversity) onSelectUniversity(uni);
-                }
+                },
               }}
             />
           ))}
 
-
-
         {/* District Boundary Highlight */}
         {selectedDistrictGeoJson && (
-          <GeoJSON 
-            key={selectedDistrict}
-            data={selectedDistrictGeoJson} 
+          <GeoJSON
+            key={selectedDistrict || 'district'}
+            data={selectedDistrictGeoJson}
             style={{
-              color: '#ef4444', // Red-500
+              color: '#ef4444',
               weight: 2,
               opacity: 1,
               fillColor: '#ef4444',
               fillOpacity: 0.1,
-              dashArray: '5, 5'
-            }} 
+              dashArray: '5, 5',
+            }}
           />
         )}
 
@@ -385,7 +539,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
 
           return (
             <Marker
-              key={room.id}
+              key={`room_${room.id}`}
               position={[room.geo.lat, room.geo.lng]}
               icon={createPricePinIcon(room.price, isActive, isRented)}
               eventHandlers={{
@@ -395,7 +549,7 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
               }}
             >
               <Popup className="troxinh-map-popup">
-                <div className="w-56 p-3 space-y-2 text-left">
+                <div className="w-60 p-3 space-y-2 text-left">
                   <div className="aspect-16/10 rounded-xl overflow-hidden bg-gray-100 relative">
                     <img
                       src={room.images?.[0] || '/images/hero-banner.webp'}
@@ -410,20 +564,99 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
                     <h4 className="font-bold text-gray-900 text-xs line-clamp-1 leading-snug">
                       {room.title}
                     </h4>
-                    <p className="text-[11px] text-gray-500 line-clamp-1 flex items-center gap-1 mt-0.5">
-                      <MapPin className="w-3 h-3 text-gray-400 shrink-0" />
-                      {room.district} • {room.area}m²
+                    <p className="text-[11px] text-gray-600 line-clamp-2 flex items-start gap-1 mt-1">
+                      <MapPin className="w-3 h-3 text-rose-500 shrink-0 mt-0.5" />
+                      <span>
+                        {[room.address, room.district].filter(Boolean).join(', ')} • {room.area}m²
+                      </span>
                     </p>
                   </div>
-                  <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between">
-                    <span className="text-[10px] text-[#006d37] font-semibold">
+                  <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <span className="text-[10px] text-[#006d37] font-semibold truncate">
                       {room.nearestSchool}
                     </span>
                     <Link
                       to={`/phong/${room.id}`}
-                      className="text-[11px] font-bold text-[#006d37] hover:underline flex items-center gap-0.5"
+                      className="text-[11px] font-bold text-[#006d37] hover:underline flex items-center gap-0.5 shrink-0"
                     >
                       Chi tiết <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+
+        {/* Roommate Post Pin Markers */}
+        {roommateMarkers.map((rm) => {
+          const isActive = rm.id === activeRoommateId;
+
+          return (
+            <Marker
+              key={`rm_${rm.id}`}
+              position={[rm.geo.lat, rm.geo.lng]}
+              icon={createRoommatePinIcon(rm.budgetShare, isActive)}
+              eventHandlers={{
+                click: () => {
+                  if (onSelectRoommate) onSelectRoommate(rm.id);
+                },
+              }}
+            >
+              <Popup className="troxinh-map-popup">
+                <div className="w-64 p-3 space-y-2.5 text-left">
+                  <div className="flex items-center gap-2.5">
+                    <img
+                      src={rm.userAvatar || '/images/user-avatar.jpg'}
+                      alt={rm.userName}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-indigo-200 shrink-0"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/images/user-avatar.jpg';
+                      }}
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[9px] font-black px-1.5 py-0.5 rounded bg-indigo-100 text-indigo-700 uppercase">
+                          Ở ghép
+                        </span>
+                        <span className="text-[10px] font-bold text-indigo-700 truncate">
+                          {rm.genderPreference}
+                        </span>
+                      </div>
+                      <h4 className="font-bold text-gray-900 text-xs truncate mt-0.5">
+                        {rm.userName} ({rm.userAge}t • {rm.userGender})
+                      </h4>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    {rm.userSchool && (
+                      <p className="text-[11px] text-[#006d37] font-semibold flex items-center gap-1 truncate">
+                        <GraduationCap className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{rm.userSchool}</span>
+                      </p>
+                    )}
+                    <p className="text-[11px] text-gray-600 flex items-start gap-1 line-clamp-2">
+                      <MapPin className="w-3.5 h-3.5 text-indigo-500 shrink-0 mt-0.5" />
+                      <span>{[rm.address, rm.district].filter(Boolean).join(', ') || 'Hà Nội'}</span>
+                    </p>
+                    {rm.linkedRoomTitle && (
+                      <p className="text-[10px] text-gray-500 bg-gray-50 px-2 py-1 rounded-lg border border-gray-100 truncate">
+                        🏠 {rm.linkedRoomTitle}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-black text-indigo-700 flex items-center gap-1">
+                      <Users className="w-3.5 h-3.5" />
+                      {formatPrice(rm.budgetShare)}
+                    </span>
+                    <Link
+                      to={`/roommate/${rm.id}`}
+                      className="text-[11px] font-bold text-indigo-700 hover:underline flex items-center gap-0.5 shrink-0"
+                    >
+                      Xem hồ sơ <ExternalLink className="w-3 h-3" />
                     </Link>
                   </div>
                 </div>
@@ -436,10 +669,12 @@ export const TroXinhMap: React.FC<TroXinhMapProps> = ({
   );
 };
 
-// 2. MINI ROOM MAP FOR DETAILS PAGE (/phong/:id)
+// 2. MINI ROOM MAP FOR DETAILS PAGE (/phong/:id & /roommate/:id)
 export interface MiniRoomMapProps {
   roomTitle: string;
   buildingName?: string;
+  address?: string;
+  district?: string;
   lat?: number;
   lng?: number;
   nearestSchool?: string;
@@ -449,29 +684,77 @@ export interface MiniRoomMapProps {
 export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
   roomTitle,
   buildingName,
-  lat = 21.0333,
-  lng = 105.7937,
+  address,
+  district,
+  lat,
+  lng,
   nearestSchool,
   className = 'h-64 rounded-3xl overflow-hidden',
 }) => {
-  const roomPosition: [number, number] = [lat, lng];
+  const initialResolved = useMemo(() => {
+    return resolveEntityCoordsSync({
+      lat,
+      lng,
+      address,
+      district,
+      school: nearestSchool,
+    });
+  }, [lat, lng, address, district, nearestSchool]);
+
+  const [coords, setCoords] = useState<{ lat: number; lng: number }>({
+    lat: initialResolved.lat,
+    lng: initialResolved.lng,
+  });
+  useLeafletCss();
+
+  useEffect(() => {
+    setCoords({ lat: initialResolved.lat, lng: initialResolved.lng });
+  }, [initialResolved.lat, initialResolved.lng]);
+
+  useEffect(() => {
+    if (isValidHanoiCoord(lat, lng)) return;
+    if (!address && !district && !nearestSchool) return;
+    if (initialResolved.source !== 'district' && initialResolved.source !== 'school') return;
+
+    let cancelled = false;
+    geocodeAddressCached(address, district, nearestSchool).then((res) => {
+      if (!cancelled && res) {
+        setCoords(res);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [lat, lng, address, district, nearestSchool, initialResolved.source]);
+
+  const roomPosition: [number, number] = [coords.lat, coords.lng];
+
+  const nearbyUniversities = useMemo(() => {
+    return [...HANOI_UNIVERSITIES]
+      .map((u) => ({
+        ...u,
+        dist: getDistanceKm(coords.lat, coords.lng, u.coords[0], u.coords[1]),
+      }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 3);
+  }, [coords.lat, coords.lng]);
 
   const singlePinIcon = L.divIcon({
     className: 'custom-single-pin',
     html: `
-      <div style="background: #006d37; color: white; padding: 6px 12px; border-radius: 9999px; font-weight: 800; font-size: 11px; box-shadow: 0 4px 10px rgba(0,109,55,0.4); display: flex; align-items: center; gap: 4px; border: 2px solid white;">
-        <span>🏠</span> ${buildingName || 'Vị trí phòng'}
+      <div style="background: #006d37; color: white; padding: 6px 12px; border-radius: 9999px; font-weight: 800; font-size: 11px; box-shadow: 0 4px 10px rgba(0,109,55,0.4); display: flex; align-items: center; gap: 4px; border: 2px solid white; white-space: nowrap;">
+        <span>📍</span> ${buildingName || 'Vị trí trên bản đồ'}
       </div>
     `,
-    iconSize: [140, 32],
-    iconAnchor: [70, 16],
+    iconSize: [150, 32],
+    iconAnchor: [75, 16],
   });
 
   return (
     <div className={`relative border border-gray-200 shadow-xs ${className}`}>
       <MapContainer
         center={roomPosition}
-        zoom={14}
+        zoom={15}
         scrollWheelZoom={false}
         className="w-full h-full z-0"
       >
@@ -480,8 +763,9 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
           url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
         <MapAutoResize />
+        <MapRecenter center={roomPosition} zoom={15} />
 
-        {/* 1.5km Radius circle around room */}
+        {/* 1.2km Radius circle around listing */}
         <Circle
           center={roomPosition}
           radius={1200}
@@ -496,33 +780,33 @@ export const MiniRoomMap: React.FC<MiniRoomMapProps> = ({
         {/* Room Marker */}
         <Marker position={roomPosition} icon={singlePinIcon}>
           <Popup>
-            <div className="p-2 text-xs font-semibold text-gray-800">
-              <p className="font-bold text-[#006d37]">{buildingName || 'Tòa nhà'}</p>
-              <p className="text-gray-500 text-[11px]">{roomTitle}</p>
+            <div className="p-2.5 text-xs font-semibold text-gray-800 space-y-1">
+              <p className="font-bold text-[#006d37]">{buildingName || roomTitle}</p>
+              {address && (
+                <p className="text-gray-600 text-[11px]">{[address, district].filter(Boolean).join(', ')}</p>
+              )}
             </div>
           </Popup>
         </Marker>
 
-        {/* Nearby University Markers */}
-        {HANOI_UNIVERSITIES.slice(0, 3).map((uni, i) => (
-          <Marker
-            key={i}
-            position={uni.coords}
-            icon={createUniIcon(uni.name)}
-          />
+        {/* Closest University Markers */}
+        {nearbyUniversities.map((uni, i) => (
+          <Marker key={i} position={uni.coords} icon={createUniIcon(uni.name)} />
         ))}
       </MapContainer>
 
       {/* Floating Info Badge */}
-      <div className="absolute bottom-3 left-3 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 shadow-md flex items-center gap-2 z-10">
-        <Compass className="w-4 h-4 text-[#006d37]" />
-        <span>Bán kính 1.2km quanh phòng</span>
+      <div className="absolute bottom-3 left-3 right-3 sm:right-auto max-w-[92%] bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 shadow-md flex items-center gap-2 z-10">
+        <Compass className="w-4 h-4 text-[#006d37] shrink-0" />
+        <span className="truncate">
+          {address ? `${address}${district ? `, ${district}` : ''}` : 'Bán kính 1.2km quanh vị trí'}
+        </span>
       </div>
     </div>
   );
 };
 
-// 3. MAP PIN PICKER FOR BUILDING CREATION (/chu-tro/toa-nha/tao-moi)
+// 3. MAP PIN PICKER FOR CREATION & EDITING
 export interface MapPinPickerProps {
   initialLat?: number;
   initialLng?: number;
@@ -577,13 +861,25 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
   const [position, setPosition] = useState<[number, number]>([initialLat, initialLng]);
   const [addressPreview, setAddressPreview] = useState<string>('');
   const [isGeocoding, setIsGeocoding] = useState<boolean>(false);
+  useLeafletCss();
+
+  // Sync external coordinate changes (e.g. when user clicks "Định vị từ địa chỉ")
+  useEffect(() => {
+    if (
+      Number.isFinite(initialLat) &&
+      Number.isFinite(initialLng) &&
+      (Math.abs(position[0] - initialLat) > 0.00005 || Math.abs(position[1] - initialLng) > 0.00005)
+    ) {
+      setPosition([initialLat, initialLng]);
+    }
+  }, [initialLat, initialLng]);
 
   const handlePositionChange = async (newPos: [number, number]) => {
     setPosition(newPos);
     setIsGeocoding(true);
 
     try {
-      const address = await reverseGeocode(newPos[0], newPos[1]);
+      const address = await reverseGeocodeAddress(newPos[0], newPos[1]);
       setAddressPreview(address);
       onLocationChange({ lat: newPos[0], lng: newPos[1], address });
     } catch {
@@ -597,7 +893,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
     <div className={`relative border border-gray-300 ${className}`}>
       <MapContainer
         center={position}
-        zoom={14}
+        zoom={15}
         scrollWheelZoom={true}
         className="w-full h-full z-0"
       >
@@ -606,6 +902,7 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
           url="https://mt1.google.com/vt/lyrs=m&x={x}&y={y}&z={z}"
         />
         <MapAutoResize />
+        <MapRecenter center={position} zoom={15} />
 
         <LocationPickerMarker
           position={position}
@@ -620,54 +917,25 @@ export const MapPinPicker: React.FC<MapPinPickerProps> = ({
           <span className="truncate">
             {isGeocoding
               ? 'Đang nhận diện địa chỉ...'
-              : addressPreview || `Tọa độ: ${position[0].toFixed(4)}, ${position[1].toFixed(4)}`}
+              : addressPreview || `Tọa độ: ${position[0].toFixed(5)}, ${position[1].toFixed(5)}`}
           </span>
         </div>
         <span className="text-[10px] text-gray-400 font-medium shrink-0">
-          Nhấp hoặc kéo ghim để đổi vị trí
+          Nhấp hoặc kéo ghim để chỉnh vị trí
         </span>
       </div>
     </div>
   );
 };
 
-// 4. FREE NOMINATIM GEOCODING UTILITIES
+// 4. FREE NOMINATIM GEOCODING UTILITIES (Delegated to shared cache/service)
 export async function geocodeAddress(
-  address: string
+  address: string,
+  district?: string
 ): Promise<{ lat: number; lng: number } | null> {
-  try {
-    const query = `${address}, Hà Nội, Vietnam`;
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
-      query
-    )}&format=json&limit=1`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'TroXinh/1.0' },
-    });
-    const data = await response.json();
-    if (data && data[0]) {
-      return {
-        lat: parseFloat(data[0].lat),
-        lng: parseFloat(data[0].lon),
-      };
-    }
-  } catch (err) {
-    console.error('Geocoding error:', err);
-  }
-  return null;
+  return geocodeAddressCached(address, district);
 }
 
 export async function reverseGeocode(lat: number, lng: number): Promise<string> {
-  try {
-    const url = `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`;
-    const response = await fetch(url, {
-      headers: { 'User-Agent': 'TroXinh/1.0' },
-    });
-    const data = await response.json();
-    if (data && data.display_name) {
-      return data.display_name;
-    }
-  } catch (err) {
-    console.error('Reverse geocoding error:', err);
-  }
-  return 'Không xác định được địa chỉ';
+  return reverseGeocodeAddress(lat, lng);
 }

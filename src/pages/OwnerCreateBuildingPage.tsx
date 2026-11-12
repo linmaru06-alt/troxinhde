@@ -14,10 +14,12 @@ import {
   Check,
   MapPin,
   Plus,
+  LocateFixed,
 } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
 import { MapPinPicker } from '../components/map/TroXinhMap';
 import { createBuilding } from '../lib/api/buildings';
+import { geocodeAddressCached } from '../lib/geocoding';
 
 export const OwnerCreateBuildingPage: React.FC = () => {
   const navigate = useNavigate();
@@ -35,7 +37,9 @@ export const OwnerCreateBuildingPage: React.FC = () => {
     'Tòa nhà mới xây 100%, trang bị đầy đủ PCCC và camera an ninh 24/7. Giờ giấc tự do.'
   );
   const [images, setImages] = useState<string[]>([]);
-  const [geo, setGeo] = useState<{ lat: number; lng: number }>({ lat: 21.0333, lng: 105.7937 });
+  const [geo, setGeo] = useState<{ lat: number; lng: number }>({ lat: 21.0338, lng: 105.7982 });
+  const [hasPinnedManually, setHasPinnedManually] = useState<boolean>(false);
+  const [isLocatingAddress, setIsLocatingAddress] = useState<boolean>(false);
   const [selectedAmenities, setSelectedAmenities] = useState<string[]>([
     'Wifi tốc độ cao',
     'Bảo vệ 24/7',
@@ -62,6 +66,26 @@ export const OwnerCreateBuildingPage: React.FC = () => {
     );
   };
 
+  const handleLocateFromAddress = async () => {
+    if (!address.trim() && !district.trim()) {
+      showToast('Thiếu địa chỉ', 'Vui lòng nhập số nhà, tên đường để định vị.', 'warning');
+      return;
+    }
+    setIsLocatingAddress(true);
+    try {
+      const coords = await geocodeAddressCached(address.trim(), district.trim());
+      if (coords) {
+        setGeo(coords);
+        setHasPinnedManually(false);
+        showToast('Đã định vị địa chỉ!', `Ghim bản đồ đã di chuyển tới ${address || district}.`, 'success');
+      } else {
+        showToast('Chưa tìm thấy chính xác', 'Bạn có thể nhấp hoặc kéo ghim trực tiếp trên bản đồ.', 'info');
+      }
+    } finally {
+      setIsLocatingAddress(false);
+    }
+  };
+
   const handleSubmit = async () => {
     const ownerId =
       currentUser?.id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(currentUser.id)
@@ -70,14 +94,20 @@ export const OwnerCreateBuildingPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      let finalGeo = geo;
+      if (!hasPinnedManually && address.trim()) {
+        const resolved = await geocodeAddressCached(address.trim(), district.trim());
+        if (resolved) finalGeo = resolved;
+      }
+
       await createBuilding({
         owner_id: ownerId,
         name: name.trim(),
         address: address.trim(),
         district: district.trim(),
         city: 'Hà Nội',
-        lat: geo.lat,
-        lng: geo.lng,
+        lat: finalGeo.lat,
+        lng: finalGeo.lng,
         description: description.trim(),
         amenities: selectedAmenities,
         cover_image_url: images.length > 0 ? images[0] : '/images/hero-banner.webp',
@@ -100,7 +130,7 @@ export const OwnerCreateBuildingPage: React.FC = () => {
         rating: 5.0,
         reviewCount: 0,
         description,
-        geo,
+        geo: finalGeo,
         nearbyUniversities: [{ name: 'ĐH Quốc Gia Hà Nội', distanceKm: 0.5 }],
       });
 
@@ -158,15 +188,27 @@ export const OwnerCreateBuildingPage: React.FC = () => {
 
               {/* Map Pin Picker */}
               <div className="space-y-2 text-left">
-                <label className="block text-sm font-medium text-gray-700">
-                  Chọn vị trí tòa nhà trên bản đồ (Click hoặc Kéo ghim)
-                </label>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Chọn vị trí tòa nhà trên bản đồ (Click hoặc Kéo ghim)
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleLocateFromAddress}
+                    disabled={isLocatingAddress}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-[#006d37] border border-emerald-200 text-xs font-bold transition cursor-pointer"
+                  >
+                    <LocateFixed className={`w-3.5 h-3.5 ${isLocatingAddress ? 'animate-spin' : ''}`} />
+                    {isLocatingAddress ? 'Đang định vị...' : 'Định vị theo địa chỉ'}
+                  </button>
+                </div>
                 <MapPinPicker
                   initialLat={geo.lat}
                   initialLng={geo.lng}
                   onLocationChange={(loc) => {
                     setGeo({ lat: loc.lat, lng: loc.lng });
-                    if (loc.address) {
+                    setHasPinnedManually(true);
+                    if (loc.address && !address.trim()) {
                       setAddress(loc.address);
                     }
                   }}

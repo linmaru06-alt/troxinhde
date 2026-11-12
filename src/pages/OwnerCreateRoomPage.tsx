@@ -31,9 +31,12 @@ import {
   ChevronRight,
   Clock,
   Building2,
+  LocateFixed,
 } from 'lucide-react';
 import { ImageUploader } from '../components/ui/ImageUploader';
+import { MapPinPicker, MiniRoomMap } from '../components/map/TroXinhMap';
 import { createRoom, updateRoom as apiUpdateRoom } from '../lib/api/rooms';
+import { geocodeAddressCached, resolveEntityCoordsSync } from '../lib/geocoding';
 
 const COMMON_AMENITIES = [
   'Máy lạnh',
@@ -152,6 +155,71 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
   const selectedBuilding = buildings.find((b) => b.id === buildingId) || buildings[0];
 
+  const [useCustomLocation, setUseCustomLocation] = useState<boolean>(() => {
+    if (typeof initialDraft?.useCustomLocation === 'boolean') return initialDraft.useCustomLocation;
+    if (editingRoom?.address && selectedBuilding?.address && editingRoom.address !== selectedBuilding.address) {
+      return true;
+    }
+    return false;
+  });
+  const [customAddress, setCustomAddress] = useState<string>(() => {
+    return initialDraft?.customAddress ?? (editingRoom?.address || selectedBuilding?.address || '');
+  });
+  const [customDistrict, setCustomDistrict] = useState<string>(() => {
+    return initialDraft?.customDistrict ?? (editingRoom?.district || selectedBuilding?.district || 'Quận Cầu Giấy');
+  });
+  const [roomGeo, setRoomGeo] = useState<{ lat: number; lng: number }>(() => {
+    if (initialDraft?.roomGeo?.lat && initialDraft?.roomGeo?.lng) return initialDraft.roomGeo;
+    const init = resolveEntityCoordsSync({
+      lat: editingRoom?.lat,
+      lng: editingRoom?.lng,
+      address: editingRoom?.address || selectedBuilding?.address,
+      district: editingRoom?.district || selectedBuilding?.district,
+      buildingGeo: selectedBuilding?.geo,
+      buildingAddress: selectedBuilding?.address,
+    });
+    return { lat: init.lat, lng: init.lng };
+  });
+  const [showRoomMapPicker, setShowRoomMapPicker] = useState<boolean>(false);
+  const [isLocatingRoomGeo, setIsLocatingRoomGeo] = useState<boolean>(false);
+
+  // Sync tọa độ mặc định theo tòa nhà khi chưa bật vị trí tùy chỉnh
+  useEffect(() => {
+    if (!useCustomLocation && selectedBuilding) {
+      const resolved = resolveEntityCoordsSync({
+        address: selectedBuilding.address,
+        district: selectedBuilding.district,
+        buildingGeo: selectedBuilding.geo,
+        buildingAddress: selectedBuilding.address,
+      });
+      setRoomGeo({ lat: resolved.lat, lng: resolved.lng });
+      if (!editingRoom) {
+        setCustomAddress(selectedBuilding.address);
+        setCustomDistrict(selectedBuilding.district);
+      }
+    }
+  }, [buildingId, useCustomLocation, selectedBuilding]);
+
+  const handleLocateRoomAddress = async () => {
+    const addr = (useCustomLocation ? customAddress : selectedBuilding?.address) || '';
+    const dist = (useCustomLocation ? customDistrict : selectedBuilding?.district) || '';
+    if (!addr.trim() && !dist.trim()) {
+      showToast('Thiếu địa chỉ', 'Vui lòng nhập địa chỉ phòng trước khi định vị.', 'warning');
+      return;
+    }
+    setIsLocatingRoomGeo(true);
+    try {
+      const coords = await geocodeAddressCached(addr.trim(), dist.trim());
+      if (coords) {
+        setRoomGeo(coords);
+        setShowRoomMapPicker(true);
+        showToast('Đã định vị phòng trên bản đồ!', `${addr || dist}`, 'success');
+      }
+    } finally {
+      setIsLocatingRoomGeo(false);
+    }
+  };
+
   // Auto-save draft effect
   useEffect(() => {
     const draftData = {
@@ -165,6 +233,10 @@ export const OwnerCreateRoomPage: React.FC = () => {
       images,
       amenities,
       description,
+      useCustomLocation,
+      customAddress,
+      customDistrict,
+      roomGeo,
       savedAt: new Date().toISOString(),
     };
 
@@ -177,7 +249,7 @@ export const OwnerCreateRoomPage: React.FC = () => {
     } catch (e) {
       console.warn('Lỗi lưu bản nháp:', e);
     }
-  }, [buildingId, roomNumber, title, price, deposit, area, type, images, amenities, description, draftStorageKey]);
+  }, [buildingId, roomNumber, title, price, deposit, area, type, images, amenities, description, useCustomLocation, customAddress, customDistrict, roomGeo, draftStorageKey]);
 
   // Thủ công lưu bản nháp
   const handleSaveDraftManually = () => {
@@ -252,8 +324,10 @@ export const OwnerCreateRoomPage: React.FC = () => {
     images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
     distanceToSchoolKm: 0.5,
     nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
-    address: selectedBuilding?.address || 'Hà Nội',
-    district: selectedBuilding?.district || 'Quận Cầu Giấy',
+    address: (useCustomLocation && customAddress.trim()) ? customAddress.trim() : (selectedBuilding?.address || 'Hà Nội'),
+    district: (useCustomLocation && customDistrict.trim()) ? customDistrict.trim() : (selectedBuilding?.district || 'Quận Cầu Giấy'),
+    lat: roomGeo.lat,
+    lng: roomGeo.lng,
     description: description || 'Chưa có mô tả chi tiết.',
     views: editingRoom?.views || 1,
     savedCount: editingRoom?.savedCount || 0,
@@ -298,6 +372,27 @@ export const OwnerCreateRoomPage: React.FC = () => {
 
     setIsSubmitting(true);
     try {
+      const finalAddress = (useCustomLocation && customAddress.trim())
+        ? customAddress.trim()
+        : (selectedBuilding?.address || editingRoom?.address || 'Hà Nội');
+      const finalDistrict = (useCustomLocation && customDistrict.trim())
+        ? customDistrict.trim()
+        : (selectedBuilding?.district || editingRoom?.district || 'Quận Cầu Giấy');
+
+      let finalCoords = roomGeo;
+      if (useCustomLocation && !showRoomMapPicker && finalAddress) {
+        const geocoded = await geocodeAddressCached(finalAddress, finalDistrict);
+        if (geocoded) finalCoords = geocoded;
+      } else if (!useCustomLocation && selectedBuilding) {
+        const resolved = resolveEntityCoordsSync({
+          address: selectedBuilding.address,
+          district: selectedBuilding.district,
+          buildingGeo: selectedBuilding.geo,
+          buildingAddress: selectedBuilding.address,
+        });
+        finalCoords = { lat: resolved.lat, lng: resolved.lng };
+      }
+
       if (isEditMode && editingRoom) {
         // CẬP NHẬT PHÒNG HIỆN CÓ
         await apiUpdateRoom(editingRoom.id, {
@@ -310,6 +405,10 @@ export const OwnerCreateRoomPage: React.FC = () => {
           amenities,
           description: description.trim(),
           images,
+          address: finalAddress,
+          district: finalDistrict,
+          lat: finalCoords.lat,
+          lng: finalCoords.lng,
         });
 
         updateRoom(editingRoom.id, {
@@ -324,8 +423,10 @@ export const OwnerCreateRoomPage: React.FC = () => {
           amenities,
           description: description.trim(),
           images,
-          address: selectedBuilding?.address || editingRoom.address,
-          district: selectedBuilding?.district || editingRoom.district,
+          address: finalAddress,
+          district: finalDistrict,
+          lat: finalCoords.lat,
+          lng: finalCoords.lng,
         });
 
         // Xóa bản nháp sau khi sửa thành công
@@ -348,6 +449,10 @@ export const OwnerCreateRoomPage: React.FC = () => {
           amenities,
           description: description.trim(),
           images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'],
+          address: finalAddress,
+          district: finalDistrict,
+          lat: finalCoords.lat,
+          lng: finalCoords.lng,
         });
 
         addRoom({
@@ -368,11 +473,13 @@ export const OwnerCreateRoomPage: React.FC = () => {
           status: 'Còn trống',
           verified: true,
           amenities,
-          images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'],
+          images: images.length > 0 ? images : ['https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800'],
           distanceToSchoolKm: 0.5,
           nearestSchool: 'ĐH Quốc Gia Hà Nội (500m)',
-          address: selectedBuilding?.address || 'Hà Nội',
-          district: selectedBuilding?.district || 'Cầu Giấy',
+          address: finalAddress,
+          district: finalDistrict,
+          lat: finalCoords.lat,
+          lng: finalCoords.lng,
           description: description.trim(),
         });
 
@@ -559,6 +666,103 @@ export const OwnerCreateRoomPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* 2.5 Địa chỉ & Ghim vị trí trên bản đồ */}
+              <div className="p-4 rounded-2xl bg-emerald-50/40 border border-emerald-200/70 space-y-3 text-left">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-xs font-bold text-gray-900 flex items-center gap-1.5">
+                      <MapPin className="w-4 h-4 text-[#006d37]" />
+                      Vị trí hiển thị trên bản đồ
+                    </p>
+                    <p className="text-[11px] text-gray-600 mt-0.5">
+                      {useCustomLocation
+                        ? [customAddress, customDistrict].filter(Boolean).join(', ') || 'Nhập địa chỉ riêng cho phòng'
+                        : `${selectedBuilding?.address || 'Hà Nội'} (${selectedBuilding?.district || 'Quận Cầu Giấy'})`}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="inline-flex items-center gap-1.5 text-[11px] font-bold text-gray-700 cursor-pointer bg-white px-2.5 py-1.5 rounded-xl border border-gray-200">
+                      <input
+                        type="checkbox"
+                        checked={useCustomLocation}
+                        onChange={(e) => setUseCustomLocation(e.target.checked)}
+                        className="w-3.5 h-3.5 rounded text-[#006d37]"
+                      />
+                      Địa chỉ riêng
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setShowRoomMapPicker(!showRoomMapPicker)}
+                      className="text-[11px] font-bold px-2.5 py-1.5 rounded-xl bg-white border border-emerald-200 text-[#006d37] hover:bg-emerald-50 cursor-pointer"
+                    >
+                      {showRoomMapPicker ? 'Ẩn bản đồ' : 'Chỉnh ghim bản đồ'}
+                    </button>
+                  </div>
+                </div>
+
+                {useCustomLocation && (
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-1">
+                    <div className="sm:col-span-2">
+                      <Input
+                        label="Địa chỉ cụ thể của phòng"
+                        value={customAddress}
+                        onChange={(e) => setCustomAddress(e.target.value)}
+                        placeholder="VD: Số 18 Ngõ 165 Cầu Giấy, P. Dịch Vọng"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Quận / Huyện</label>
+                      <select
+                        value={customDistrict}
+                        onChange={(e) => setCustomDistrict(e.target.value)}
+                        className="w-full bg-white border border-gray-300 rounded-xl p-2.5 text-sm"
+                      >
+                        <option value="Quận Cầu Giấy">Quận Cầu Giấy</option>
+                        <option value="Quận Đống Đa">Quận Đống Đa</option>
+                        <option value="Quận Hai Bà Trưng">Quận Hai Bà Trưng</option>
+                        <option value="Quận Thanh Xuân">Quận Thanh Xuân</option>
+                        <option value="Quận Nam Từ Liêm">Quận Nam Từ Liêm</option>
+                        <option value="Quận Bắc Từ Liêm">Quận Bắc Từ Liêm</option>
+                        <option value="Quận Hà Đông">Quận Hà Đông</option>
+                        <option value="Quận Ba Đình">Quận Ba Đình</option>
+                        <option value="Quận Hoàng Mai">Quận Hoàng Mai</option>
+                        <option value="Quận Tây Hồ">Quận Tây Hồ</option>
+                        <option value="Quận Long Biên">Quận Long Biên</option>
+                        <option value="Quận Hoàn Kiếm">Quận Hoàn Kiếm</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {showRoomMapPicker && (
+                  <div className="space-y-2 pt-1">
+                    <div className="flex justify-end">
+                      <button
+                        type="button"
+                        onClick={handleLocateRoomAddress}
+                        disabled={isLocatingRoomGeo}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white hover:bg-emerald-50 text-[#006d37] border border-emerald-200 text-[11px] font-bold cursor-pointer"
+                      >
+                        <LocateFixed className={`w-3.5 h-3.5 ${isLocatingRoomGeo ? 'animate-spin' : ''}`} />
+                        {isLocatingRoomGeo ? 'Đang định vị...' : 'Định vị theo địa chỉ'}
+                      </button>
+                    </div>
+                    <MapPinPicker
+                      initialLat={roomGeo.lat}
+                      initialLng={roomGeo.lng}
+                      onLocationChange={(loc) => {
+                        setRoomGeo({ lat: loc.lat, lng: loc.lng });
+                        if (useCustomLocation && loc.address && !customAddress.trim()) {
+                          setCustomAddress(loc.address);
+                        }
+                      }}
+                      className="h-56 rounded-2xl overflow-hidden"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* 3. Số phòng / Mã phòng & Loại phòng */}
@@ -1001,6 +1205,16 @@ export const OwnerCreateRoomPage: React.FC = () => {
                       Gần: {previewRoom.nearestSchool}
                     </p>
                   </div>
+                  <MiniRoomMap
+                    roomTitle={previewRoom.title}
+                    buildingName={previewRoom.buildingName}
+                    address={previewRoom.address}
+                    district={previewRoom.district}
+                    lat={previewRoom.lat}
+                    lng={previewRoom.lng}
+                    nearestSchool={previewRoom.nearestSchool}
+                    className="h-60 rounded-2xl overflow-hidden"
+                  />
                 </div>
               )}
 

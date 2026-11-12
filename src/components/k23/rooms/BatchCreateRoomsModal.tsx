@@ -32,6 +32,7 @@ interface BatchCreateRoomsModalProps {
     address: string;
     district: string;
     city?: string;
+    geo?: { lat: number; lng: number };
     totalRooms?: number;
     availableRooms?: number;
     images?: string[];
@@ -144,6 +145,8 @@ export const BatchCreateRoomsModal: React.FC<BatchCreateRoomsModalProps> = ({
       ownerAvatar: owner.avatar,
       address: building.address,
       district: building.district,
+      lat: building.geo?.lat,
+      lng: building.geo?.lng,
       startFloor,
       endFloor,
       roomsPerFloor,

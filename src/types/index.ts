@@ -71,6 +71,8 @@ export interface OwnerApplication {
   buildingName: string;
   address: string;
   district: string;
+  lat?: number;
+  lng?: number;
   totalRooms: number;
   legalDocsNote?: string;
   status: "pending" | "approved" | "rejected" | "needs_info";
@@ -105,6 +107,8 @@ export interface Room {
   nearestSchool: string;
   address: string;
   district: string;
+  lat?: number;
+  lng?: number;
   description: string;
   views: number;
   savedCount: number;
@@ -130,6 +134,8 @@ export interface Building {
   name: string;
   address: string;
   district: string;
+  lat?: number;
+  lng?: number;
   city: string;
   totalRooms: number;
   availableRooms: number;
@@ -159,7 +165,10 @@ export interface RoommatePost {
   userGender: "Nam" | "Nữ" | "Khác";
   userAge: number;
   userSchool: string;
+  address?: string;
   district: string;
+  lat?: number;
+  lng?: number;
   budgetShare: number;
   genderPreference: "Chỉ tìm Nữ" | "Chỉ tìm Nam" | "Tất cả";
   habits: string[];
@@ -197,6 +206,8 @@ export interface MarketplaceItem {
   condition: MarketplaceConditionCode;
   location: string;
   district: string;
+  lat?: number;
+  lng?: number;
   images: string[];
   image_urls?: string[];
   description: string;

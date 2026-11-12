@@ -15,12 +15,14 @@ import {
   ShieldCheck,
   ShieldOff,
   Trash2,
+  MapPin,
 } from 'lucide-react';
 
 import { getOrCreateConversation, saveConversationMeta, isSameUserId } from '../lib/api/messages';
 import { getRoommatePostById } from '../lib/api/roommates';
 import { SEOHead } from '../components/seo/SEOHead';
 import { extractIdFromParam, buildRoommateUrl } from '../utils/slugify';
+import { MiniRoomMap } from '../components/map/TroXinhMap';
 import type { RoommatePost } from '../types';
 
 /**
@@ -281,6 +283,12 @@ export const RoommateDetailPage: React.FC = () => {
           <div>
             <span className="text-xs text-gray-500 font-medium">Khu vực & Tiêu chí:</span>
             <div className="text-sm font-bold text-gray-900">{post.district || 'Hà Nội'} • {post.genderPreference || 'Tất cả'}</div>
+            {(post.address || linkedRoom?.address) && (
+              <p className="text-xs text-[#006d37] font-semibold flex items-center gap-1 mt-1">
+                <MapPin className="w-3.5 h-3.5 shrink-0" />
+                <span>{post.address || linkedRoom?.address}</span>
+              </p>
+            )}
           </div>
         </div>
 
@@ -348,7 +356,7 @@ export const RoommateDetailPage: React.FC = () => {
                   {linkedRoom?.title || post.linkedRoomTitle || 'Phòng trọ liên kết'}
                 </h4>
                 <p className="text-xs text-gray-500 truncate">
-                  {linkedRoom?.address || post.district || 'Hà Nội'}
+                  {post.address || linkedRoom?.address || post.district || 'Hà Nội'}
                 </p>
               </div>
               {(linkedRoom?.id || post.linkedRoomId) && (
@@ -361,6 +369,32 @@ export const RoommateDetailPage: React.FC = () => {
             </div>
           </div>
         )}
+
+        {/* Map Location */}
+        <div className="pt-6 border-t border-gray-100 space-y-3">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-bold text-gray-900 uppercase flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-[#006d37]" />
+              Vị trí trên bản đồ:
+            </h3>
+            <Link
+              to="/ban-do?loai=o-ghep"
+              className="text-xs font-bold text-indigo-700 hover:underline"
+            >
+              Xem trên bản đồ lớn →
+            </Link>
+          </div>
+          <MiniRoomMap
+            roomTitle={post.linkedRoomTitle || `Tìm bạn ở ghép - ${post.userName}`}
+            buildingName={post.userName}
+            address={post.address || linkedRoom?.address}
+            district={post.district || linkedRoom?.district}
+            lat={post.lat ?? linkedRoom?.lat}
+            lng={post.lng ?? linkedRoom?.lng}
+            nearestSchool={post.userSchool}
+            className="h-64 rounded-2xl overflow-hidden"
+          />
+        </div>
 
         {/* Report & Block Buttons */}
         <div className="pt-4 text-center flex flex-wrap items-center justify-center gap-3">

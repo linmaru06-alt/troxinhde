@@ -23,8 +23,12 @@ import {
   Sliders,
   CreditCard,
   Layers,
+  LocateFixed,
 } from 'lucide-react';
 import { Building } from '../types';
+import { MapPinPicker } from '../components/map/TroXinhMap';
+import { geocodeAddressCached, resolveEntityCoordsSync } from '../lib/geocoding';
+import { updateBuilding as apiUpdateBuilding } from '../lib/api/buildings';
 
 export const OwnerBuildingListPage: React.FC = () => {
   const { buildings, currentUser, ownerApplications, addBuilding, updateBuilding, removeBuilding, showToast } =
@@ -44,6 +48,8 @@ export const OwnerBuildingListPage: React.FC = () => {
   const [editDistrict, setEditDistrict] = useState('');
   const [editTotalRooms, setEditTotalRooms] = useState(12);
   const [editDescription, setEditDescription] = useState('');
+  const [editGeo, setEditGeo] = useState<{ lat: number; lng: number }>({ lat: 21.0338, lng: 105.7982 });
+  const [isLocatingEditGeo, setIsLocatingEditGeo] = useState(false);
 
   // Close menu on click outside
   const menuRef = useRef<HTMLDivElement>(null);
@@ -114,7 +120,27 @@ export const OwnerBuildingListPage: React.FC = () => {
     setEditDistrict(bld.district);
     setEditTotalRooms(bld.totalRooms);
     setEditDescription(bld.description || '');
+    const resolved = resolveEntityCoordsSync({
+      lat: bld.geo?.lat,
+      lng: bld.geo?.lng,
+      address: bld.address,
+      district: bld.district,
+    });
+    setEditGeo({ lat: resolved.lat, lng: resolved.lng });
     setActiveMenuId(null);
+  };
+
+  const handleLocateEditGeo = async () => {
+    setIsLocatingEditGeo(true);
+    try {
+      const coords = await geocodeAddressCached(editAddress.trim(), editDistrict.trim());
+      if (coords) {
+        setEditGeo(coords);
+        showToast('Đã định vị địa chỉ tòa nhà', `${editAddress || editDistrict}`, 'success');
+      }
+    } finally {
+      setIsLocatingEditGeo(false);
+    }
   };
 
   const handleOpenServicesForBuilding = (buildingId: string) => {
@@ -122,12 +148,29 @@ export const OwnerBuildingListPage: React.FC = () => {
     setSearchParams({ tab: 'services', buildingId });
   };
 
-  const handleSaveEdit = (e: React.FormEvent) => {
+  const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingBuilding) return;
     if (!editName.trim()) {
       showToast('Thiếu tên tòa nhà', 'Vui lòng nhập tên tòa nhà', 'warning');
       return;
+    }
+
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (UUID_REGEX.test(editingBuilding.id)) {
+      try {
+        await apiUpdateBuilding(editingBuilding.id, {
+          name: editName.trim(),
+          address: editAddress.trim(),
+          district: editDistrict.trim(),
+          total_rooms: Number(editTotalRooms) || editingBuilding.totalRooms,
+          description: editDescription.trim(),
+          lat: editGeo.lat,
+          lng: editGeo.lng,
+        });
+      } catch (err) {
+        console.warn('[Buildings] Không thể đồng bộ cập nhật lên Supabase:', err);
+      }
     }
 
     updateBuilding(editingBuilding.id, {
@@ -136,6 +179,7 @@ export const OwnerBuildingListPage: React.FC = () => {
       district: editDistrict.trim(),
       totalRooms: Number(editTotalRooms) || editingBuilding.totalRooms,
       description: editDescription.trim(),
+      geo: editGeo,
     });
 
     setEditingBuilding(null);
@@ -402,6 +446,29 @@ export const OwnerBuildingListPage: React.FC = () => {
                   value={editDistrict}
                   onChange={(e) => setEditDistrict(e.target.value)}
                   placeholder="Ví dụ: Quận Cầu Giấy"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <label className="block text-xs font-bold text-gray-700 uppercase tracking-wider">
+                    Vị trí trên bản đồ
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleLocateEditGeo}
+                    disabled={isLocatingEditGeo}
+                    className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 hover:bg-emerald-100 text-[#006d37] border border-emerald-200 text-[11px] font-bold transition cursor-pointer"
+                  >
+                    <LocateFixed className={`w-3.5 h-3.5 ${isLocatingEditGeo ? 'animate-spin' : ''}`} />
+                    {isLocatingEditGeo ? 'Đang định vị...' : 'Định vị theo địa chỉ'}
+                  </button>
+                </div>
+                <MapPinPicker
+                  initialLat={editGeo.lat}
+                  initialLng={editGeo.lng}
+                  onLocationChange={(loc) => setEditGeo({ lat: loc.lat, lng: loc.lng })}
+                  className="h-52 rounded-2xl overflow-hidden"
                 />
               </div>
 

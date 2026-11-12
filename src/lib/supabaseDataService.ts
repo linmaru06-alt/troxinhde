@@ -68,8 +68,10 @@ export async function fetchRoomsFromSupabase(): Promise<Room[]> {
         images,
         distanceToSchoolKm: Number(r.distance_to_school_km) || 0.8,
         nearestSchool: r.nearest_school || 'Đại Học Quốc Gia Hà Nội',
-        address: b.address || r.address || 'Hà Nội',
-        district: b.district || r.district || 'Quận Cầu Giấy',
+        address: r.address || b.address || 'Hà Nội',
+        district: r.district || b.district || 'Quận Cầu Giấy',
+        lat: Number(r.lat) || Number(b.lat) || undefined,
+        lng: Number(r.lng) || Number(b.lng) || undefined,
         description: r.description || '',
         views: Number(r.view_count || r.views) || 0,
         savedCount: Number(r.save_count || r.saved_count) || 0,
@@ -157,6 +159,10 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
 
   const mapRecord = (r: any): RoommatePost => {
     const poster = r.profiles || {};
+    const room = r.room || {};
+    const roomBld = room.buildings || {};
+    const rawLat = Number(r.lat) || Number(room.lat) || Number(roomBld.lat);
+    const rawLng = Number(r.lng) || Number(room.lng) || Number(roomBld.lng);
     return {
       id: r.id,
       userId: r.original_user_id || r.poster_id || poster.id || r.userId || '',
@@ -166,13 +172,19 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
       userGender: (genderMap[r.gender] || (r.gender === 'Nam' || r.gender === 'Nữ' ? r.gender : (r.userGender || 'Nam'))) as any,
       userSchool: r.school || r.userSchool || '',
       genderPreference: (targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : (r.genderPreference || 'Tất cả'))) as any,
-      district: r.district || 'Hà Nội',
+      district: r.district || room.district || roomBld.district || 'Hà Nội',
+      address: r.address || room.address || roomBld.address || undefined,
+      lat: Number.isFinite(rawLat) && rawLat !== 0 ? rawLat : undefined,
+      lng: Number.isFinite(rawLng) && rawLng !== 0 ? rawLng : undefined,
       budgetShare: Number(r.budget_per_person || r.budget || r.budgetShare) || 2000000,
       habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
       lifestyleTags: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags.slice(0, 3) : (Array.isArray(r.habits) ? r.habits.slice(0, 3) : []),
       intro: r.self_intro || r.bio || r.intro || '',
       images: Array.isArray(r.images) ? r.images : [],
       linkedRoomId: r.room_id || r.linkedRoomId,
+      linkedRoomTitle: r.linked_room_title || room.name || room.title || undefined,
+      linkedRoomPrice: r.linked_room_price || room.price || undefined,
+      linkedRoomArea: r.linked_room_area || room.area || undefined,
       status: r.status === 'closed' ? 'Đã ghép' : 'Đang tìm',
       createdAt: r.created_at || r.createdAt || new Date().toISOString(),
     };
@@ -185,7 +197,7 @@ export async function fetchRoommatesFromSupabase(): Promise<RoommatePost[]> {
   try {
     const { data: rmData, error: rmErr } = await supabase
       .from('roommate_posts')
-      .select('*, profiles:poster_id(id, full_name, avatar_url)')
+      .select('*, profiles:poster_id(id, full_name, avatar_url), room:rooms(*, buildings(address, district, lat, lng))')
       .eq('status', 'active')
       .order('created_at', { ascending: false });
 
@@ -259,8 +271,9 @@ export async function fetchMarketplaceItemsFromSupabase(): Promise<MarketplaceIt
 // 5. GHI / ĐỒNG BỘ PHÒNG TRỌ MỚI LÊN SUPABASE
 export async function syncRoomToSupabase(room: Room): Promise<boolean> {
   try {
-    const payload = {
+    const basePayload = {
       name: room.title,
+      title: room.title,
       price: room.price,
       area: room.area,
       room_type: room.type === 'Studio' ? 'studio' : room.type === 'Căn hộ mini' ? 'apartment' : 'single',
@@ -270,7 +283,19 @@ export async function syncRoomToSupabase(room: Room): Promise<boolean> {
       moderation_status: 'approved',
     };
 
-    const { error } = await supabase.from('rooms').insert(payload);
+    const geoPayload = {
+      ...basePayload,
+      address: room.address,
+      district: room.district,
+      lat: room.lat ?? null,
+      lng: room.lng ?? null,
+    };
+
+    let { error } = await supabase.from('rooms').insert(geoPayload);
+    if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+      const retry = await supabase.from('rooms').insert(basePayload);
+      error = retry.error;
+    }
     if (error) {
       console.warn('[Supabase] Sync room error:', error.message);
       return false;
@@ -293,13 +318,13 @@ export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<bo
     }
   }
 
-  const payload = {
+  const basePayload = {
     id: post.id,
     poster_id: validPosterId,
     room_id: (post.linkedRoomId && post.linkedRoomId.length === 36) ? post.linkedRoomId : null,
     nickname: post.userName,
     age: post.userAge || 20,
-    gender: post.userGender === 'Nam' ? 'male' : 'female',
+    gender: post.userGender === 'Nam' ? 'male' : post.userGender === 'Nữ' ? 'female' : 'any',
     preferred_gender: post.genderPreference === 'Chỉ tìm Nam' ? 'male' : post.genderPreference === 'Chỉ tìm Nữ' ? 'female' : 'any',
     budget_per_person: post.budgetShare,
     lifestyle_tags: post.habits,
@@ -311,21 +336,37 @@ export async function syncRoommatePostToSupabase(post: RoommatePost): Promise<bo
     created_at: post.createdAt || new Date().toISOString(),
   };
 
+  const fullPayload = {
+    ...basePayload,
+    address: post.address || null,
+    lat: post.lat ?? null,
+    lng: post.lng ?? null,
+  };
+
   // 1. Thử insert trực tiếp vào roommate_posts
   try {
-    const { error } = await supabase.from('roommate_posts').insert(payload);
+    let { error } = await supabase.from('roommate_posts').insert(fullPayload);
+    if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+      const retry = await supabase.from('roommate_posts').insert(basePayload);
+      error = retry.error;
+    }
     if (!error) return true;
   } catch (directErr) {
     console.warn('[Supabase] Thử insert roommate_posts:', directErr);
   }
 
-  // 2. Chuyển tiếp lưu Cloud audit_logs nếu RLS chặn
+  // 2. Chuyển tiếp lưu Cloud audit_logs nếu RLS chặn (luôn giữ đủ address/lat/lng)
   try {
     const cloudPayload = {
       action: 'create_roommate_post',
       entity_type: 'roommate_post',
       entity_id: post.id,
-      data_after: payload,
+      data_after: {
+        ...fullPayload,
+        linked_room_title: post.linkedRoomTitle,
+        linked_room_price: post.linkedRoomPrice,
+        linked_room_area: post.linkedRoomArea,
+      },
     };
     const { error: auditErr } = await supabase.from('audit_logs').insert(cloudPayload);
     if (!auditErr) return true;

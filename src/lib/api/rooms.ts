@@ -19,27 +19,7 @@ export async function getRooms(filters?: RoomFilters) {
   let query = supabase
     .from('rooms')
     .select(`
-      id,
-      title,
-      room_number,
-      room_type,
-      price,
-      deposit,
-      area,
-      floor,
-      status,
-      availability_status,
-      moderation_status,
-      images,
-      amenities,
-      is_boosted,
-      boost_badge,
-      created_at,
-      owner_id,
-      owner_name,
-      owner_avatar,
-      owner_phone,
-      show_phone,
+      *,
       buildings(id, name, district, address, lat, lng, electricity_price, water_price)
     `)
     .eq('moderation_status', 'approved')
@@ -61,16 +41,32 @@ export async function getRooms(filters?: RoomFilters) {
   const { data, error } = await query.order('created_at', { ascending: false });
   if (error) throw error;
   
-  return (data || []).map((r: any) => ({
-    ...r,
-    profiles: {
-      id: r.owner_id,
-      full_name: r.owner_name || 'Chủ trọ',
-      avatar_url: r.owner_avatar || '/images/user-avatar.jpg',
-      phone: r.owner_phone || '',
-      app_role: 'owner',
-    },
-  }));
+  return (data || []).map((r: any) => {
+    const b = r.buildings || {};
+    const lat = Number(r.lat) || Number(b.lat) || undefined;
+    const lng = Number(r.lng) || Number(b.lng) || undefined;
+    return {
+      ...r,
+      buildingId: r.building_id || b.id || r.buildingId,
+      buildingName: b.name || r.building_name || r.buildingName,
+      title: r.title || r.name || 'Phòng trọ Trọ Xinh',
+      roomNumber: r.room_number || r.roomNumber || '',
+      type: r.type || r.room_type || 'Phòng đơn',
+      address: r.address || b.address || '',
+      district: r.district || b.district || '',
+      lat,
+      lng,
+      nearestSchool: r.nearest_school || r.nearestSchool || '',
+      distanceToSchoolKm: Number(r.distance_to_school_km || r.distanceToSchoolKm) || 0.8,
+      profiles: {
+        id: r.owner_id,
+        full_name: r.owner_name || 'Chủ trọ',
+        avatar_url: r.owner_avatar || '/images/user-avatar.jpg',
+        phone: r.owner_phone || '',
+        app_role: 'owner',
+      },
+    };
+  });
 }
 
 export async function getRoomById(id: string) {
@@ -115,6 +111,10 @@ export async function createRoom(roomData: {
   amenities?: string[];
   description?: string;
   images?: string[];
+  address?: string;
+  district?: string;
+  lat?: number;
+  lng?: number;
   show_phone?: boolean;
 }) {
   if (!isSupabaseConfigured) {
@@ -140,29 +140,49 @@ export async function createRoom(roomData: {
     ? roomData.images
     : ['https://images.unsplash.com/photo-1522771739844-6a9f6d5f14af?w=800'];
 
-  const { data: room, error } = await supabase
+  const basePayload = {
+    building_id: cleanBuildingId,
+    owner_id: cleanOwnerId,
+    title: roomTitle,
+    name: roomTitle,
+    room_number: roomData.room_number || '101',
+    price: roomData.price,
+    deposit: roomData.deposit || 0,
+    electricity_price: roomData.electricity_price || 3500,
+    water_price: roomData.water_price || 100000,
+    area: roomData.area,
+    room_type: roomData.room_type,
+    amenities: roomData.amenities || [],
+    description: roomData.description || '',
+    images: imagesList,
+    moderation_status: 'approved',
+    status: 'available',
+    availability_status: 'available',
+  };
+
+  const geoPayload = {
+    ...basePayload,
+    ...(roomData.address ? { address: roomData.address } : {}),
+    ...(roomData.district ? { district: roomData.district } : {}),
+    ...(typeof roomData.lat === 'number' ? { lat: roomData.lat } : {}),
+    ...(typeof roomData.lng === 'number' ? { lng: roomData.lng } : {}),
+  };
+
+  let { data: room, error } = await supabase
     .from('rooms')
-    .insert({
-      building_id: cleanBuildingId,
-      owner_id: cleanOwnerId,
-      title: roomTitle,
-      name: roomTitle,
-      room_number: roomData.room_number || '101',
-      price: roomData.price,
-      deposit: roomData.deposit || 0,
-      electricity_price: roomData.electricity_price || 3500,
-      water_price: roomData.water_price || 100000,
-      area: roomData.area,
-      room_type: roomData.room_type,
-      amenities: roomData.amenities || [],
-      description: roomData.description || '',
-      images: imagesList,
-      moderation_status: 'approved',
-      status: 'available',
-      availability_status: 'available',
-    })
+    .insert(geoPayload)
     .select()
     .single();
+
+  if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+    const retry = await supabase
+      .from('rooms')
+      .insert(basePayload)
+      .select()
+      .single();
+    room = retry.data;
+    error = retry.error;
+  }
 
   if (error) {
     console.error('[RoomsAPI] Lỗi khi tạo phòng trên Supabase:', error);
@@ -190,12 +210,24 @@ export async function createRoom(roomData: {
 export async function updateRoom(id: string, updates: Record<string, any>) {
   if (!isSupabaseConfigured) return updates;
 
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('rooms')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
     .select()
     .single();
+
+  if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+    const { address, district, lat, lng, ...legacyUpdates } = updates;
+    const retry = await supabase
+      .from('rooms')
+      .update({ ...legacyUpdates, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
 
   if (error) throw error;
   return data;

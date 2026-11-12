@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
 import { RoommateCard } from '../components/ui/Cards';
 import { EmptyState } from '../components/ui/EmptyState';
@@ -10,6 +10,7 @@ import {
   X,
   SlidersHorizontal,
   RotateCcw,
+  MapPin,
 } from 'lucide-react';
 
 const HANOI_DISTRICTS = [
@@ -333,9 +334,18 @@ export const RoommateListPage: React.FC = () => {
             )}
           </div>
 
-          <span className="text-xs text-gray-500 font-bold bg-emerald-50 px-3 py-1 rounded-full text-[#006d37]">
-            {filteredRoommates.length} hồ sơ bạn ghép
-          </span>
+          <div className="flex items-center gap-2 shrink-0">
+            <Link
+              to="/ban-do?loai=o-ghep"
+              className="inline-flex items-center gap-1 text-xs font-bold px-3 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100 transition"
+            >
+              <MapPin className="w-3.5 h-3.5" />
+              Xem bản đồ ở ghép
+            </Link>
+            <span className="text-xs text-gray-500 font-bold bg-emerald-50 px-3 py-1 rounded-full text-[#006d37]">
+              {filteredRoommates.length} hồ sơ bạn ghép
+            </span>
+          </div>
         </div>
       </div>
 

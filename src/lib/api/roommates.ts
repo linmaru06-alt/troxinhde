@@ -6,6 +6,7 @@ import { attachPublicProfiles } from './publicProfiles';
 export function formatRoommatePost(r: any): RoommatePost {
   const poster = r.poster || r.profiles || {};
   const room = r.room || {};
+  const roomBld = room.buildings || {};
   const roomImages = Array.isArray(room.room_images) ? room.room_images.map((img: any) => img.url) : [];
 
   const genderMap: Record<string, 'Nam' | 'Nữ' | 'Khác'> = {
@@ -20,6 +21,9 @@ export function formatRoommatePost(r: any): RoommatePost {
     any: 'Tất cả',
   };
 
+  const rawLat = Number(r.lat) || Number(room.lat) || Number(roomBld.lat);
+  const rawLng = Number(r.lng) || Number(room.lng) || Number(roomBld.lng);
+
   return {
     id: r.id,
     userId: r.poster_id || poster.id || '',
@@ -28,7 +32,10 @@ export function formatRoommatePost(r: any): RoommatePost {
     userAge: Number(r.age) || 20,
     userGender: genderMap[r.gender] || (r.gender === 'Nam' || r.gender === 'Nữ' ? r.gender : 'Nam'),
     userSchool: r.school || '',
-    district: r.district || 'Hà Nội',
+    district: r.district || room.district || roomBld.district || 'Hà Nội',
+    address: r.address || room.address || roomBld.address || undefined,
+    lat: Number.isFinite(rawLat) && rawLat !== 0 ? rawLat : undefined,
+    lng: Number.isFinite(rawLng) && rawLng !== 0 ? rawLng : undefined,
     budgetShare: Number(r.budget_per_person || r.budget) || 2000000,
     genderPreference: targetGenderMap[r.preferred_gender] || (r.preferred_gender === 'Chỉ tìm Nữ' || r.preferred_gender === 'Chỉ tìm Nam' ? r.preferred_gender : 'Tất cả'),
     habits: Array.isArray(r.lifestyle_tags) ? r.lifestyle_tags : (Array.isArray(r.habits) ? r.habits : []),
@@ -36,9 +43,9 @@ export function formatRoommatePost(r: any): RoommatePost {
     intro: r.self_intro || r.bio || '',
     images: Array.isArray(r.images) ? r.images : [],
     linkedRoomId: r.room_id || room.id,
-    linkedRoomTitle: room.name,
-    linkedRoomPrice: room.price,
-    linkedRoomArea: room.area,
+    linkedRoomTitle: r.linked_room_title || room.name || room.title,
+    linkedRoomPrice: r.linked_room_price || room.price,
+    linkedRoomArea: r.linked_room_area || room.area,
     linkedRoomImage: roomImages[0],
     status: r.status === 'closed' ? 'Đã ghép' : 'Đang tìm',
     createdAt: r.created_at || new Date().toISOString(),
@@ -58,7 +65,7 @@ export async function getRoommatePosts(district?: string): Promise<RoommatePost[
       .select(`
         *,
         poster:profiles!poster_id(id, full_name, avatar_url, is_banned),
-        room:rooms(id, name, price, area, room_images(url))
+        room:rooms(*, buildings(address, district, lat, lng), room_images(url))
       `)
       .eq('status', 'active');
 
@@ -144,7 +151,7 @@ export async function getRoommatePostById(id: string): Promise<RoommatePost | nu
       .select(`
         *,
         poster:profiles!poster_id(id, full_name, avatar_url, is_banned),
-        room:rooms(id, name, price, area, room_images(url))
+        room:rooms(*, buildings(address, district, lat, lng), room_images(url))
       `)
       .eq('id', id)
       .maybeSingle();
@@ -198,6 +205,12 @@ export async function createRoommatePost(postData: {
   lifestyle_tags?: string[];
   self_intro?: string;
   district?: string;
+  address?: string;
+  lat?: number;
+  lng?: number;
+  linked_room_title?: string;
+  linked_room_price?: number;
+  linked_room_area?: number;
   school?: string;
   images?: string[];
 }) {
@@ -213,7 +226,7 @@ export async function createRoommatePost(postData: {
   const newPostId = postData.id || generateUUID();
   const cleanPosterId = await resolveUserIdToUuid(postData.poster_id);
 
-  const fullPayload = {
+  const basePayload = {
     id: newPostId,
     poster_id: cleanPosterId,
     room_id: postData.room_id || null,
@@ -231,32 +244,61 @@ export async function createRoommatePost(postData: {
     created_at: new Date().toISOString(),
   };
 
+  const fullPayload = {
+    ...basePayload,
+    address: postData.address || null,
+    lat: typeof postData.lat === 'number' ? postData.lat : null,
+    lng: typeof postData.lng === 'number' ? postData.lng : null,
+  };
+
   if (!isSupabaseConfigured) {
-    return fullPayload;
+    return {
+      ...fullPayload,
+      linked_room_title: postData.linked_room_title,
+      linked_room_price: postData.linked_room_price,
+      linked_room_area: postData.linked_room_area,
+    };
   }
 
   // 1. Thử insert trực tiếp vào bảng roommate_posts
   try {
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('roommate_posts')
       .insert(fullPayload)
       .select()
       .maybeSingle();
 
+    if (error && /column .* does not exist|schema cache/i.test(error.message || '')) {
+      const retry = await supabase
+        .from('roommate_posts')
+        .insert(basePayload)
+        .select()
+        .maybeSingle();
+      data = retry.data;
+      error = retry.error;
+    }
+
     if (!error && data) {
-      return data;
+      return { ...fullPayload, ...data };
     }
   } catch (directErr) {
     console.warn('[Roommate Post] Lỗi insert trực tiếp roommate_posts, tự động chuyển sang lưu Cloud an toàn:', directErr);
   }
 
   // 2. Cơ chế lưu trữ Cloud Supabase an toàn (vượt qua RLS policy 42501 đối với tài khoản Firebase)
+  const auditData = {
+    ...fullPayload,
+    linked_room_title: postData.linked_room_title,
+    linked_room_price: postData.linked_room_price,
+    linked_room_area: postData.linked_room_area,
+  };
+
   try {
     const cloudPayload = {
       action: 'create_roommate_post',
       entity_type: 'roommate_post',
       entity_id: newPostId,
-      data_after: fullPayload,
+      data_after: auditData,
     };
 
     const { error: auditErr } = await supabase
@@ -265,7 +307,7 @@ export async function createRoommatePost(postData: {
 
     if (!auditErr) {
       console.log('[Roommate Post] Đã lưu bài đăng lên Supabase Cloud thành công!');
-      return fullPayload;
+      return auditData;
     } else {
       console.warn('[Roommate Post] Lỗi khi lưu audit_logs:', auditErr.message);
     }
@@ -273,7 +315,7 @@ export async function createRoommatePost(postData: {
     console.warn('[Roommate Post] Ngoại lệ khi lưu Cloud audit_logs:', auditException);
   }
 
-  return fullPayload;
+  return auditData;
 }
 
 export async function updateRoommatePost(id: string, updates: Record<string, any>) {
