@@ -3,7 +3,7 @@ import {
   WALLET_MOMO_CONFIG,
   buildVietQrImageUrl,
   calculateWalletXuBreakdown,
-  getServiceSupabase,
+  getWalletSupabaseClient,
   resolveProfileByFirebaseUid,
   verifyFirebaseIdToken,
 } from '../_lib/walletServer.js';
@@ -22,38 +22,68 @@ export default async function handler(req: any, res: any) {
       return res.status(400).json({ error: 'Thiếu mã đơn nạp Xu (orderCode).' });
     }
 
-    const supabase = getServiceSupabase();
+    const { supabase, isServiceRole } = getWalletSupabaseClient(authHeader);
     const profile = await resolveProfileByFirebaseUid(supabase, claims.uid);
     if (!profile) {
       return res.status(404).json({ error: 'Không tìm thấy hồ sơ người dùng.' });
     }
 
-    const { data: tx, error: txError } = await supabase
+    let tx: any = null;
+    const { data: fullTx, error: fullTxError } = await supabase
       .from('transactions')
-      .select('id, order_code, user_id, amount, payment_method, status, expires_at, paid_at, activated_at, metadata')
+      .select('id, order_code, user_id, amount, payment_method, status, expires_at, paid_at, activated_at, metadata, created_at')
       .eq('order_code', orderCode)
       .eq('user_id', profile.id)
       .maybeSingle();
 
-    if (txError) {
-      return res.status(500).json({ error: `Lỗi tra cứu đơn nạp: ${txError.message}` });
+    if (fullTxError) {
+      const missingMigrationCols =
+        fullTxError.code === '42703' ||
+        fullTxError.code === 'PGRST204' ||
+        /column .* does not exist|schema cache/i.test(fullTxError.message || '');
+
+      if (!missingMigrationCols) {
+        return res.status(500).json({ error: `Lỗi tra cứu đơn nạp: ${fullTxError.message}` });
+      }
+
+      const { data: baseTx, error: baseTxError } = await supabase
+        .from('transactions')
+        .select('id, order_code, user_id, amount, payment_method, status, paid_at, activated_at, created_at')
+        .eq('order_code', orderCode)
+        .eq('user_id', profile.id)
+        .maybeSingle();
+
+      if (baseTxError) {
+        return res.status(500).json({ error: `Lỗi tra cứu đơn nạp: ${baseTxError.message}` });
+      }
+      tx = baseTx;
+    } else {
+      tx = fullTx;
     }
+
     if (!tx) {
       return res.status(404).json({ error: 'Không tìm thấy đơn nạp Xu tương ứng.' });
     }
 
+    const fallbackExpiresAt = tx.created_at
+      ? new Date(new Date(tx.created_at).getTime() + 15 * 60 * 1000).toISOString()
+      : new Date(Date.now() + 15 * 60 * 1000).toISOString();
+    const resolvedExpiresAt = tx.expires_at || fallbackExpiresAt;
+
     let currentStatus = tx.status;
     if (
       currentStatus === 'pending' &&
-      tx.expires_at &&
-      new Date(tx.expires_at).getTime() <= Date.now()
+      resolvedExpiresAt &&
+      new Date(resolvedExpiresAt).getTime() <= Date.now()
     ) {
       currentStatus = 'expired';
-      await supabase
-        .from('transactions')
-        .update({ status: 'expired' })
-        .eq('id', tx.id)
-        .eq('status', 'pending');
+      if (isServiceRole) {
+        await supabase
+          .from('transactions')
+          .update({ status: 'expired' })
+          .eq('id', tx.id)
+          .eq('status', 'pending');
+      }
     }
 
     const { data: wallet } = await supabase
@@ -101,7 +131,7 @@ export default async function handler(req: any, res: any) {
       amount: tx.amount,
       paymentMethod: normalizedMethod,
       paidAt: tx.paid_at,
-      expiresAt: tx.expires_at,
+      expiresAt: resolvedExpiresAt,
       metadata: meta,
       order: {
         id: tx.id,
@@ -113,8 +143,8 @@ export default async function handler(req: any, res: any) {
         bonusPercent,
         method: normalizedMethod,
         status: currentStatus,
-        expiresAt: tx.expires_at,
-        isSandbox: Boolean(meta.is_sandbox),
+        expiresAt: resolvedExpiresAt,
+        isSandbox: Boolean(meta.is_sandbox ?? profile.is_demo_account),
         qrCode,
         deeplink,
         transferContent: tx.order_code,

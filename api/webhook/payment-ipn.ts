@@ -74,7 +74,10 @@ export default async function handler(req: any, res: any) {
     return res.status(405).json({ error: 'Chỉ chấp nhận phương thức POST' });
   }
 
-  const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+  const supabaseUrl =
+    process.env.VITE_SUPABASE_URL ||
+    process.env.SUPABASE_URL ||
+    'https://nanhmbnpihlaojbwfebb.supabase.co';
   const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !supabaseKey) {

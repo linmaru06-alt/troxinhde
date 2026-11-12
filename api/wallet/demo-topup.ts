@@ -82,7 +82,12 @@ export default async function handler(req: any, res: any) {
   } catch (err: any) {
     const message = err?.message || 'Lỗi xử lý đơn nạp Demo Sandbox.';
     const isAuthError = message.includes('Firebase') || message.includes('Bearer');
-    return res.status(isAuthError ? 401 : 500).json({ error: message });
+    const isConfigError = message.includes('SUPABASE_SERVICE_ROLE_KEY');
+    return res.status(isAuthError ? 401 : isConfigError ? 503 : 500).json({
+      error: isConfigError
+        ? "Vercel chưa cấu hình SUPABASE_SERVICE_ROLE_KEY nên chưa thể chạy RPC đối soát Demo Sandbox trên Supabase. Hãy thêm biến môi trường này trên Vercel hoặc dùng nút '+ Tặng 500 Xu (Demo)' ở trang Ví Xu."
+        : message,
+    });
   }
 }
 

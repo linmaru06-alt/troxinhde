@@ -5,6 +5,8 @@ import {
   generateTopupOrderCode,
   buildVietQrImageUrl,
   verifyFirebaseIdToken,
+  getServiceSupabase,
+  getWalletSupabaseClient,
 } from '../api/_lib/walletServer.ts';
 import paymentIpnHandler from '../api/webhook/payment-ipn.ts';
 
@@ -174,7 +176,35 @@ async function runTests() {
     process.env.PAYOS_CHECKSUM_KEY = prevPayosKey;
   }
 
-  console.log('\n🎉 TẤT CẢ 4/4 BÀI TEST LUỒNG NẠP XU 3 BƯỚC ĐẠT 100%!');
+  // Test 5: Kiểm tra cơ chế fallback Supabase Client khi chưa có SUPABASE_SERVICE_ROLE_KEY
+  console.log('\nTest 5: Kiểm tra fallback Anon + Firebase JWT cho create-topup-order & topup-status');
+  const prevUrl5 = process.env.SUPABASE_URL;
+  const prevSrvKey5 = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  try {
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    // 5.1 Thiếu SERVICE_ROLE_KEY -> getServiceSupabase() phải báo rõ thiếu SUPABASE_SERVICE_ROLE_KEY
+    assert.throws(() => getServiceSupabase(), /SUPABASE_SERVICE_ROLE_KEY/);
+
+    // 5.2 Thiếu SERVICE_ROLE_KEY -> getWalletSupabaseClient() tự fallback sang Anon Key + Firebase JWT (isServiceRole=false)
+    const fallbackClient = getWalletSupabaseClient('Bearer dummy_firebase_jwt');
+    assert.equal(fallbackClient.isServiceRole, false);
+    assert.ok(fallbackClient.supabase);
+
+    // 5.3 Khi có SERVICE_ROLE_KEY -> isServiceRole=true
+    process.env.SUPABASE_SERVICE_ROLE_KEY = 'dummy_service_role_key_test';
+    const privilegedClient = getWalletSupabaseClient('Bearer dummy_firebase_jwt');
+    assert.equal(privilegedClient.isServiceRole, true);
+    console.log('  ✅ [PASS] Fallback Anon+FirebaseJWT hoạt động khi thiếu SERVICE_ROLE_KEY, không làm lỗi Bước 2 -> Bước 3.');
+  } finally {
+    if (prevUrl5 !== undefined) process.env.SUPABASE_URL = prevUrl5;
+    else delete process.env.SUPABASE_URL;
+    if (prevSrvKey5 !== undefined) process.env.SUPABASE_SERVICE_ROLE_KEY = prevSrvKey5;
+    else delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+  }
+
+  console.log('\n🎉 TẤT CẢ 5/5 BÀI TEST LUỒNG NẠP XU 3 BƯỚC ĐẠT 100%!');
 }
 
 runTests().catch((err) => {

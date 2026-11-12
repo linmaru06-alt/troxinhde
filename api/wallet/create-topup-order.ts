@@ -4,7 +4,7 @@ import {
   buildVietQrImageUrl,
   calculateWalletXuBreakdown,
   generateTopupOrderCode,
-  getServiceSupabase,
+  getWalletSupabaseClient,
   resolveProfileByFirebaseUid,
   verifyFirebaseIdToken,
 } from '../_lib/walletServer.js';
@@ -23,7 +23,7 @@ export default async function handler(req: any, res: any) {
     const method = body.method === 'momo' ? 'momo' : 'vietqr';
 
     const breakdown = calculateWalletXuBreakdown(amountVnd);
-    const supabase = getServiceSupabase();
+    const { supabase } = getWalletSupabaseClient(authHeader);
     const profile = await resolveProfileByFirebaseUid(supabase, claims.uid);
 
     if (!profile) {
@@ -41,7 +41,8 @@ export default async function handler(req: any, res: any) {
     const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
     const transferContent = orderCode;
 
-    const { data: insertedOrder, error: insertError } = await supabase
+    let insertedOrder: any = null;
+    const { data: fullOrder, error: fullInsertErr } = await supabase
       .from('transactions')
       .insert({
         order_code: orderCode,
@@ -64,10 +65,41 @@ export default async function handler(req: any, res: any) {
       .select('id, order_code, amount, payment_method, status, expires_at, metadata, created_at')
       .single();
 
-    if (insertError) {
-      return res.status(500).json({
-        error: `Không thể tạo đơn nạp Xu: ${insertError.message}`,
-      });
+    if (fullInsertErr) {
+      const missingMigrationCols =
+        fullInsertErr.code === '42703' ||
+        fullInsertErr.code === 'PGRST204' ||
+        /column .* does not exist|schema cache/i.test(fullInsertErr.message || '');
+
+      if (!missingMigrationCols) {
+        return res.status(500).json({
+          error: `Không thể tạo đơn nạp Xu: ${fullInsertErr.message}`,
+        });
+      }
+
+      // Tương thích ngược nếu quản trị viên chưa chạy migration 050 thêm expires_at & metadata
+      const { data: baseOrder, error: baseInsertErr } = await supabase
+        .from('transactions')
+        .insert({
+          order_code: orderCode,
+          user_id: profile.id,
+          plan_id: 'wallet_topup',
+          amount: breakdown.amountVnd,
+          payment_method: method,
+          status: 'pending',
+          created_at: now.toISOString(),
+        })
+        .select('id, order_code, amount, payment_method, status, created_at')
+        .single();
+
+      if (baseInsertErr || !baseOrder) {
+        return res.status(500).json({
+          error: `Không thể tạo đơn nạp Xu: ${baseInsertErr?.message || fullInsertErr.message}`,
+        });
+      }
+      insertedOrder = baseOrder;
+    } else {
+      insertedOrder = fullOrder;
     }
 
     const qrCode =

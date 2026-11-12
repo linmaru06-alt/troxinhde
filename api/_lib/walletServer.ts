@@ -180,12 +180,15 @@ export async function verifyFirebaseIdToken(bearerHeader?: string | null): Promi
   };
 }
 
+const DEFAULT_SUPABASE_URL = 'https://nanhmbnpihlaojbwfebb.supabase.co';
+const DEFAULT_SUPABASE_ANON_KEY = 'sb_publishable_aIbyNWURIM1qwQG6g_bTUg_lukLkC4f';
+
 export function getServiceSupabase(): SupabaseClient {
-  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
   if (!supabaseUrl || !serviceKey) {
-    throw new Error('Máy chủ chưa cấu hình SUPABASE_URL hoặc SUPABASE_SERVICE_ROLE_KEY.');
+    throw new Error('Máy chủ chưa cấu hình SUPABASE_SERVICE_ROLE_KEY trên Vercel.');
   }
 
   return createClient(supabaseUrl, serviceKey, {
@@ -194,6 +197,52 @@ export function getServiceSupabase(): SupabaseClient {
       autoRefreshToken: false,
     },
   });
+}
+
+/**
+ * Tạo Supabase client dùng cho create-topup-order & topup-status:
+ * - Nếu Vercel đã cấu hình SUPABASE_SERVICE_ROLE_KEY -> dùng service_role
+ * - Nếu chưa có SUPABASE_SERVICE_ROLE_KEY -> dùng Anon Key kèm Firebase JWT đã verify
+ *   để Supabase thực thi đúng RLS (chỉ tạo đơn pending của chính chủ và chỉ đọc đơn của mình).
+ */
+export function getWalletSupabaseClient(bearerHeader: string): {
+  supabase: SupabaseClient;
+  isServiceRole: boolean;
+} {
+  const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || DEFAULT_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (serviceKey) {
+    return {
+      isServiceRole: true,
+      supabase: createClient(supabaseUrl, serviceKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+        },
+      }),
+    };
+  }
+
+  const anonKey =
+    process.env.SUPABASE_ANON_KEY ||
+    process.env.VITE_SUPABASE_ANON_KEY ||
+    DEFAULT_SUPABASE_ANON_KEY;
+
+  const rawToken = String(bearerHeader || '')
+    .replace(/^Bearer\s+/i, '')
+    .trim();
+
+  return {
+    isServiceRole: false,
+    supabase: createClient(supabaseUrl, anonKey, {
+      accessToken: async () => rawToken,
+      auth: {
+        persistSession: false,
+        autoRefreshToken: false,
+      },
+    }),
+  };
 }
 
 export async function resolveProfileByFirebaseUid(
