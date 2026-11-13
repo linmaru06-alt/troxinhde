@@ -472,29 +472,15 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
               <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
                 <Link
-                  to="/chu-tro/quan-ly-goi"
+                  to="/bang-gia"
                   onClick={onClose}
                   className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
                 >
                   <div className="flex items-center gap-3">
                     <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
-                      TIN
+                      PRO
                     </span>
-                    <span>Gói đăng phòng</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </Link>
-
-                <Link
-                  to="/chu-tro/goi-dich-vu"
-                  onClick={onClose}
-                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="px-1.5 py-0.5 bg-emerald-700 text-white rounded text-[9px] font-black tracking-wider">
-                      K23
-                    </span>
-                    <span>Gói quản lý phòng trọ K23</span>
+                    <span>Gói PRO</span>
                   </div>
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </Link>
