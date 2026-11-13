@@ -75,31 +75,42 @@ export const OwnerSubscriptionManagePage: React.FC = () => {
       if (!uid) return [];
       const { data, error } = await supabase
         .from('transactions')
-        .select('id, order_code, plan_id, service_type, amount, amount_xu, method, status, created_at')
+        .select('id, order_code, plan_id, metadata, amount, status, created_at')
         .eq('user_id', uid)
         .order('created_at', { ascending: false })
         .limit(30);
       if (error) return [];
-      return (data || []).map((row: any): PaymentTransaction => ({
-        id: row.id,
-        userId: currentUser.id,
-        userName: currentUser.name || 'Chủ Trọ',
-        orderId: row.order_code,
-        orderInfo:
-          row.service_type === 'boost'
-            ? `Đẩy tin (${row.plan_id || 'boost'})`
-            : row.service_type === 'k23'
-            ? `Quản lý K23 (${row.plan_id || 'standard'})`
-            : row.service_type === 'repost'
-            ? 'Gia hạn / Đăng lại tin'
-            : `Gói đăng phòng (${row.plan_id || 'featured'})`,
-        amount: Number(row.amount) || 0,
-        amountXu: Number(row.amount_xu) || Math.round((Number(row.amount) || 0) / XU_TO_VND_RATE),
-        method: row.method || 'vietqr',
-        status: row.status === 'paid' || row.status === 'success' ? 'success' : row.status === 'failed' ? 'failed' : 'pending',
-        planId: row.plan_id,
-        createdAt: row.created_at,
-      }));
+      return (data || []).map((row: any): PaymentTransaction => {
+        const meta = (row.metadata && typeof row.metadata === 'object') ? row.metadata : {};
+        const serviceType = meta.service_type || (
+          row.order_code?.startsWith('TXBST') ? 'boost' :
+          row.order_code?.startsWith('TXK23') ? 'k23' :
+          row.order_code?.startsWith('TXGHN') ? 'repost' :
+          row.order_code?.startsWith('TXNAP') ? 'topup' : 'listing_plan'
+        );
+        const amountXu = Number(meta.amount_xu) || Math.round((Number(row.amount) || 0) / XU_TO_VND_RATE);
+
+        return {
+          id: row.id,
+          userId: currentUser.id,
+          userName: currentUser.name || 'Chủ Trọ',
+          orderId: row.order_code,
+          orderInfo:
+            serviceType === 'boost'
+              ? `Đẩy tin (${row.plan_id || 'boost'})`
+              : serviceType === 'k23'
+              ? `Quản lý K23 (${row.plan_id || 'standard'})`
+              : serviceType === 'repost'
+              ? 'Gia hạn / Đăng lại tin'
+              : `Gói đăng phòng (${row.plan_id || 'featured'})`,
+          amount: Number(row.amount) || 0,
+          amountXu,
+          method: meta.payment_method || row.payment_method || 'vietqr',
+          status: row.status === 'paid' || row.status === 'success' ? 'success' : row.status === 'failed' ? 'failed' : 'pending',
+          planId: row.plan_id,
+          createdAt: row.created_at,
+        };
+      });
     },
     enabled: Boolean(currentUser?.id) && isSupabaseConfigured,
     staleTime: 30_000,

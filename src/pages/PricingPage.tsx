@@ -188,7 +188,7 @@ export const PricingPage: React.FC = () => {
                 <div>
                   <div className="flex items-start justify-between gap-2 min-h-[28px]">
                     <h3 className="text-lg font-extrabold text-gray-900 leading-tight">{plan.name}</h3>
-                    {plan.badge && (
+                    {plan.badge && !plan.popular && (
                       <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-[#006d37] border border-emerald-200 whitespace-nowrap shrink-0">
                         {plan.badge}
                       </span>
