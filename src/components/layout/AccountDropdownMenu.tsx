@@ -449,11 +449,57 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
                   <ChevronRight className="w-4 h-4 text-gray-400" />
                 </div>
               </Link>
+            </div>
+          </div>
+
+          {/* 3. NHÓM "DỊCH VỤ TRẢ PHÍ": hiển thị cho mọi vai trò (khách vãng lai, sinh viên, người thuê, chủ trọ) */}
+          <div className="space-y-1.5">
+            <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
+            <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
+              <Link
+                to="/bang-gia"
+                onClick={onClose}
+                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
+                    PRO
+                  </span>
+                  <span>Gói PRO</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
+
+              <Link
+                to={isLandlord ? '/chu-tro' : '/dang-ky-chu-tro'}
+                onClick={onClose}
+                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
+                    <ShieldCheck className="w-3.5 h-3.5" />
+                  </div>
+                  <span>Kênh Đối Tác</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
+
+              <Link
+                to={isLandlord ? '/chu-tro/quan-ly-goi' : currentUser ? '/vi-xu' : '/dang-nhap?returnUrl=/chu-tro/quan-ly-goi'}
+                onClick={onClose}
+                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
+              >
+                <div className="flex items-center gap-3">
+                  <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
+                  <span>Lịch sử giao dịch</span>
+                </div>
+                <ChevronRight className="w-4 h-4 text-gray-400" />
+              </Link>
 
               <Link
                 to="/demo-hoa-don"
                 onClick={onClose}
-                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-emerald-900 bg-emerald-50/80 hover:bg-emerald-100/80 transition"
+                className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-emerald-800 bg-emerald-50/60 hover:bg-emerald-50 transition"
               >
                 <div className="flex items-center gap-3">
                   <Sparkles className="w-4 h-4 text-[#00a854] stroke-[2.2]" />
@@ -465,68 +511,6 @@ export const AccountDropdownMenu: React.FC<AccountDropdownMenuProps> = ({
               </Link>
             </div>
           </div>
-
-          {/* 3. NHÓM "DỊCH VỤ TRẢ PHÍ": các trang này nằm trong khu vực chủ trọ nên chỉ hiện cho chủ trọ */}
-          {isLandlord && (
-            <div className="space-y-1.5">
-              <span className="text-xs font-semibold text-gray-500 px-1 block">Dịch vụ trả phí</span>
-              <div className="bg-white rounded-2xl shadow-2xs border border-gray-100 divide-y divide-gray-50 overflow-hidden">
-                <Link
-                  to="/bang-gia"
-                  onClick={onClose}
-                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <span className="px-1.5 py-0.5 bg-gray-950 text-white rounded text-[9px] font-black tracking-wider">
-                      PRO
-                    </span>
-                    <span>Gói PRO</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </Link>
-
-                <Link
-                  to="/chu-tro"
-                  onClick={onClose}
-                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center">
-                      <ShieldCheck className="w-3.5 h-3.5" />
-                    </div>
-                    <span>Kênh Đối Tác</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </Link>
-
-                <Link
-                  to="/chu-tro/quan-ly-goi"
-                  onClick={onClose}
-                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-gray-800 hover:bg-gray-50/80 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <Clock className="w-4 h-4 text-gray-600 stroke-[2.2]" />
-                    <span>Lịch sử giao dịch</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </Link>
-
-                <Link
-                  to="/demo-hoa-don"
-                  onClick={onClose}
-                  className="flex items-center justify-between px-3.5 py-3 text-xs font-bold text-emerald-800 bg-emerald-50/60 hover:bg-emerald-50 transition"
-                >
-                  <div className="flex items-center gap-3">
-                    <Sparkles className="w-4 h-4 text-[#00a854] stroke-[2.2]" />
-                    <span>Demo 1 tháng trọ K23</span>
-                  </div>
-                  <span className="px-1.5 py-0.5 text-[9px] font-black rounded-md bg-[#00a854] text-white uppercase tracking-wider">
-                    MẪU
-                  </span>
-                </Link>
-              </div>
-            </div>
-          )}
 
           {/* 4. NHÓM "KHÁC" */}
           <div className="space-y-1.5">
