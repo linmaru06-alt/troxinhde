@@ -98,7 +98,8 @@ export const PaymentResultPage: React.FC = () => {
 
   const formatMethodName = (m: string) => {
     if (m === 'wallet_xu') return 'Xu nội bộ Trọ Xinh';
-    if (m === 'vietqr' || m === 'banking') return 'Chuyển khoản VietQR (Techcombank)';
+    if (m === 'payos') return 'Cổng thanh toán PayOS (MBBank)';
+    if (m === 'vietqr' || m === 'banking') return 'Chuyển khoản VietQR PayOS (MBBank)';
     if (m === 'momo') return 'Ví Điện Tử MoMo';
     return 'Thanh toán trực tuyến';
   };

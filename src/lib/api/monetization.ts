@@ -8,7 +8,7 @@ import {
   ServiceOrderType,
 } from '../monetizationCatalog';
 
-export type PaymentOrderMethod = 'vietqr' | 'momo';
+export type PaymentOrderMethod = 'vietqr' | 'momo' | 'payos';
 
 export interface ServicePaymentOrder {
   id: string;

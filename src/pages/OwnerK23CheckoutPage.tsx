@@ -54,7 +54,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'yearly'>(
     rawCycleParam === 'yearly' ? 'yearly' : 'monthly'
   );
-  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'vietqr' | 'momo'>('wallet_xu');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'payos' | 'vietqr' | 'momo'>('wallet_xu');
 
   const [activeOrder, setActiveOrder] = useState<ServicePaymentOrderResponse | null>(null);
   const [isCreatingQr, setIsCreatingQr] = useState<boolean>(false);
@@ -176,7 +176,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
     }
   };
 
-  const handleCreateQrOrder = async (channel: 'vietqr' | 'momo') => {
+  const handleCreateQrOrder = async (channel: 'payos' | 'vietqr' | 'momo') => {
     if (!currentUser) {
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(currentCheckoutUrl)}`);
       return;
@@ -187,7 +187,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
         serviceType: 'k23',
         itemId: selectedPlan.code,
         billingCycle,
-        method: channel,
+        method: channel === 'momo' ? 'momo' : 'payos',
       });
       setActiveOrder(order);
     } catch (err: any) {
@@ -507,17 +507,22 @@ export const OwnerK23CheckoutPage: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => {
-                    setPaymentMethod('vietqr');
-                    handleCreateQrOrder('vietqr');
+                    setPaymentMethod('payos');
+                    handleCreateQrOrder('payos');
                   }}
-                  className={`p-3 rounded-2xl border-2 text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer ${
-                    paymentMethod === 'vietqr'
-                      ? 'border-[#006d37] bg-emerald-50 text-[#006d37]'
+                  className={`p-3 rounded-2xl border-2 text-xs font-bold flex flex-col items-center gap-1 transition cursor-pointer relative ${
+                    paymentMethod === 'payos' || paymentMethod === 'vietqr'
+                      ? 'border-blue-600 bg-blue-50 text-blue-900 shadow-xs ring-2 ring-blue-500/10'
                       : 'border-slate-200 text-slate-600 hover:border-slate-300'
                   }`}
                 >
-                  <QrCode className="w-5 h-5 text-[#006d37]" />
-                  <span>VietQR</span>
+                  <span className="absolute -top-2 right-2 bg-blue-600 text-white text-[9px] font-black px-1.5 py-0.5 rounded-full">
+                    Tự động 24/7
+                  </span>
+                  <div className="w-5 h-5 rounded-md bg-blue-600 text-white flex items-center justify-center font-black text-[10px]">
+                    P
+                  </div>
+                  <span>PayOS (MBBank)</span>
                 </button>
 
                 <button

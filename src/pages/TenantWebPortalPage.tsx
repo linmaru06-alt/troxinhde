@@ -198,7 +198,7 @@ export const TenantWebPortalPage: React.FC = () => {
                         {/* QR Code Image */}
                         <div className="w-52 h-52 mx-auto bg-white p-3 rounded-2xl border-2 border-dashed border-emerald-500/40 shadow-sm flex items-center justify-center">
                           <img
-                            src={`https://api.vietqr.io/image/970422-0912345678-compact2.jpg?amount=${latestInvoice.total_amount - latestInvoice.paid_amount}&addInfo=TROXINH%20${latestInvoice.invoice_code}&accountName=CHU%20NHA`}
+                            src={`https://img.vietqr.io/image/970422-0981246282-compact2.png?amount=${latestInvoice.total_amount - latestInvoice.paid_amount}&addInfo=TROXINH%20${latestInvoice.invoice_code}&accountName=NGUYEN%20DUY%20ANH`}
                             alt="VietQR Hóa đơn"
                             className="w-full h-full object-contain"
                           />
@@ -208,11 +208,15 @@ export const TenantWebPortalPage: React.FC = () => {
                         <div className="text-xs text-slate-600 space-y-1.5 max-w-sm mx-auto text-left bg-white p-3.5 rounded-xl border border-slate-200">
                           <div className="flex justify-between">
                             <span className="text-slate-400">Ngân hàng:</span>
-                            <span className="font-bold text-slate-800">MB Bank (Quân Đội)</span>
+                            <span className="font-bold text-slate-800">MB Bank (Quân Đội) qua PayOS</span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-slate-400">Số tài khoản:</span>
-                            <span className="font-mono font-bold text-slate-800">0912345678</span>
+                            <span className="font-mono font-bold text-slate-800">0981246282</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Chủ tài khoản:</span>
+                            <span className="font-bold text-slate-800">NGUYEN DUY ANH</span>
                           </div>
                           <div className="flex justify-between items-center">
                             <span className="text-slate-400">Nội dung:</span>

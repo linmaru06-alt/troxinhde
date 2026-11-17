@@ -61,10 +61,30 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const method = tx.payment_method === 'momo' ? 'momo' : 'vietqr';
+    const method = tx.payment_method === 'momo' ? 'momo' : tx.payment_method === 'payos' ? 'payos' : 'payos';
     const meta = (tx.metadata || {}) as Record<string, any>;
     const amountXu = Number(meta.amount_xu ?? Math.round((tx.amount || 0) / XU_TO_VND_RATE));
-    const { qrCode, deeplink, receiverInfo } = buildPaymentQrAndReceiver(method, tx.amount, tx.order_code);
+    const fallbackQr = buildPaymentQrAndReceiver('vietqr', tx.amount, tx.order_code);
+
+    const qrCode =
+      method === 'payos'
+        ? meta.payos_qr_code ||
+          `https://img.vietqr.io/image/970422-0981246282-compact2.png?amount=${tx.amount}&addInfo=${encodeURIComponent(
+            `TX ${tx.order_code}`.slice(0, 25)
+          )}&accountName=NGUYEN%20DUY%20ANH`
+        : fallbackQr.qrCode;
+
+    const deeplink = method === 'payos' ? meta.checkout_url : fallbackQr.deeplink;
+
+    const receiverInfo =
+      method === 'payos'
+        ? {
+            bankName: 'Ngân hàng Quân Đội (MBBank) qua PayOS',
+            accountNumber: '0981246282',
+            accountNumberLabel: 'Số tài khoản MBBank',
+            accountName: 'NGUYEN DUY ANH',
+          }
+        : fallbackQr.receiverInfo;
 
     return res.status(200).json({
       success: true,
@@ -91,7 +111,7 @@ export default async function handler(req: any, res: any) {
         isSandbox: Boolean(meta.is_sandbox ?? profile.is_demo_account),
         qrCode,
         deeplink,
-        transferContent: tx.order_code,
+        transferContent: method === 'payos' ? `TX ${tx.order_code}` : tx.order_code,
         receiverInfo,
       },
     });

@@ -239,7 +239,7 @@ export const CheckoutPage: React.FC = () => {
 
     try {
       // 0. Cổng thanh toán PayOS: Hiển thị mã QR VietQR PayOS trực tiếp ngay trên website Trọ Xinh
-      if (paymentMethod === 'payos') {
+      if (paymentMethod === 'payos' || paymentMethod === 'vietqr') {
         const payosRes = await createPayOSPaymentLink({
           amount: totalAmountVnd,
           planId: selectedPlan.id,

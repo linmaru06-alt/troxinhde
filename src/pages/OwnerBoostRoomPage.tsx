@@ -41,7 +41,7 @@ export const OwnerBoostRoomPage: React.FC = () => {
   const room = rooms.find((r) => r.id === roomId) || rooms[0];
 
   const [selectedOptionId, setSelectedOptionId] = useState<string>('7days');
-  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'vietqr' | 'momo'>('wallet_xu');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet_xu' | 'payos' | 'vietqr' | 'momo'>('wallet_xu');
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
   const [showQrModal, setShowQrModal] = useState<boolean>(false);
   const [qrOrder, setQrOrder] = useState<ServicePaymentOrderResponse | null>(null);
@@ -455,23 +455,30 @@ export const OwnerBoostRoomPage: React.FC = () => {
                 )}
               </div>
 
-              {/* Thanh toán trực tiếp VietQR / MoMo */}
+              {/* Thanh toán trực tiếp PayOS / VietQR / MoMo */}
               <div className="pt-2">
                 <span className="text-xs font-semibold text-gray-500 block mb-2">
-                  Hoặc thanh toán trực tiếp qua mã QR:
+                  Hoặc thanh toán trực tiếp qua cổng ngân hàng:
                 </span>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('vietqr')}
-                    className={`p-3 rounded-2xl border-2 flex items-center justify-center gap-2 text-xs font-bold transition cursor-pointer ${
-                      paymentMethod === 'vietqr'
-                        ? 'border-[#006d37] bg-emerald-50 text-[#006d37]'
+                    onClick={() => setPaymentMethod('payos')}
+                    className={`p-3 rounded-2xl border-2 flex items-center justify-between text-xs font-bold transition cursor-pointer ${
+                      paymentMethod === 'payos' || paymentMethod === 'vietqr'
+                        ? 'border-blue-600 bg-blue-50 text-blue-800 shadow-xs ring-2 ring-blue-500/10'
                         : 'border-gray-200 text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    <QrCode className="w-4 h-4 text-[#006d37]" />
-                    <span>VietQR ({formatCurrency(selectedOption.priceXu * XU_TO_VND_RATE)})</span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-blue-600 text-white flex items-center justify-center font-black text-[10px]">
+                        P
+                      </div>
+                      <span>PayOS (MBBank)</span>
+                    </div>
+                    <span className="text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-black">
+                      Tự động 24/7
+                    </span>
                   </button>
 
                   <button
@@ -567,9 +574,11 @@ export const OwnerBoostRoomPage: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="font-extrabold text-sm text-gray-900">
-                    {paymentMethod === 'momo' ? 'Quét Mã MoMo Đẩy Tin' : 'Quét Mã VietQR Đẩy Tin'}
+                    {paymentMethod === 'momo'
+                      ? 'Quét Mã MoMo Đẩy Tin'
+                      : 'Quét Mã PayOS (MBBank) Đẩy Tin'}
                   </h3>
-                  <p className="text-[11px] text-gray-500">{selectedOption.name}</p>
+                  <p className="text-[11px] text-gray-500">{selectedOption.name} • Tự động kích hoạt</p>
                 </div>
               </div>
               <button

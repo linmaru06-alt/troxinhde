@@ -161,7 +161,7 @@ export const WalletBalanceCard: React.FC<WalletBalanceCardProps> = ({
         </div>
 
         <div className="pt-2 border-t border-gray-100 text-[11px] text-gray-500 flex items-center justify-between gap-2">
-          <span>Hỗ trợ nạp Xu 24/7 qua VietQR & MoMo</span>
+          <span>Hỗ trợ nạp Xu tự động 24/7 qua cổng PayOS (MBBank)</span>
           <a href="tel:0888110789" className="text-[#006d37] font-bold hover:underline shrink-0">
             Hotline: 0888.110.789
           </a>

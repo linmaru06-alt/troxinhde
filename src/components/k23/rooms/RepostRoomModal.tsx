@@ -167,11 +167,11 @@ export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClos
         itemId: 'repost',
         roomId: room.id,
         durationDays: selectedDuration,
-        method: 'vietqr',
+        method: 'payos',
       });
       setQrOrder(order);
     } catch (err: any) {
-      showToast('Không tạo được mã VietQR', err?.message || 'Vui lòng thử lại.', 'error');
+      showToast('Không tạo được mã thanh toán PayOS', err?.message || 'Vui lòng thử lại.', 'error');
       setShowBankQr(false);
     } finally {
       setIsLoadingQr(false);
@@ -352,7 +352,7 @@ export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClos
               )}
             </div>
 
-            {/* Toggle hiển thị VietQR ngân hàng */}
+            {/* Toggle hiển thị PayOS VietQR ngân hàng */}
             <div className="text-center">
               <button
                 type="button"
@@ -361,17 +361,17 @@ export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClos
                 className="text-xs font-bold text-gray-500 hover:text-gray-800 underline cursor-pointer inline-flex items-center gap-1"
               >
                 <QrCode className="w-3.5 h-3.5" />
-                <span>{showBankQr ? 'Ẩn mã VietQR ngân hàng' : 'Hoặc quét mã VietQR trực tiếp'}</span>
+                <span>{showBankQr ? 'Ẩn mã PayOS' : 'Hoặc quét mã PayOS (MBBank) tự động'}</span>
               </button>
             </div>
 
-            {/* Quét mã VietQR chuyển khoản qua Server Order */}
+            {/* Quét mã PayOS VietQR chuyển khoản qua Server Order */}
             {showBankQr && (
               <div className="p-3 bg-gray-50 rounded-2xl border border-dashed border-gray-200 text-center space-y-2.5 animate-fadeIn">
                 {isLoadingQr || !qrOrder ? (
                   <div className="py-8 flex flex-col items-center justify-center gap-2 text-xs text-gray-500">
                     <Loader2 className="w-6 h-6 animate-spin text-[#006d37]" />
-                    <span>Đang tạo mã VietQR đối soát tự động...</span>
+                    <span>Đang tạo mã PayOS đối soát tự động...</span>
                   </div>
                 ) : (
                   <>
