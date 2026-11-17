@@ -145,12 +145,25 @@ export default async function handler(req: any, res: any) {
       // Non-blocking metadata update
     }
 
+    const bin = paymentLinkRes.bin || '970422';
+    const accountNumber = paymentLinkRes.accountNumber || '0981246282';
+    const accountName = paymentLinkRes.accountName || 'NGUYEN DUY ANH';
+
+    // Link ảnh VietQR chuẩn NAPAS để hiển thị trực tiếp ngay trên website Trọ Xinh
+    const qrImageUrl = `https://img.vietqr.io/image/${bin}-${accountNumber}-compact2.png?amount=${amount}&addInfo=${encodeURIComponent(
+      orderDescription
+    )}&accountName=${encodeURIComponent(accountName)}`;
+
     return res.status(200).json({
       success: true,
       orderCode,
       checkoutUrl: paymentLinkRes.checkoutUrl,
       paymentLinkId: paymentLinkRes.paymentLinkId,
-      qrCode: paymentLinkRes.qrCode,
+      qrCode: qrImageUrl,
+      rawQrCode: paymentLinkRes.qrCode,
+      bin,
+      accountNumber,
+      accountName,
       amount,
       description: orderDescription,
       status: 'PENDING',

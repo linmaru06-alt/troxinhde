@@ -31,6 +31,9 @@ export function usePaymentPolling(
   const safeReturnUrl = sanitizeReturnUrl(options?.returnUrl, '');
 
   const buildResultUrl = useCallback(() => {
+    if (method === 'payos') {
+      return `/thanh-toan/thanh-cong?orderCode=${encodeURIComponent(String(orderCode || ''))}&amount=${totalAmountVnd}`;
+    }
     const qs = new URLSearchParams({
       service: 'listing_plan',
       orderId: String(orderCode || ''),
@@ -117,12 +120,22 @@ export function usePaymentPolling(
     const pollInterval = setInterval(async () => {
       attempts++;
       try {
-        const result = await getServicePaymentOrderStatus(String(orderCode));
-        if (result.status === 'paid') {
+        let currentStatus = '';
+        if (method === 'payos') {
+          const res = await fetch(`/api/payos/order-status?orderCode=${encodeURIComponent(String(orderCode))}`)
+            .then((r) => r.json())
+            .catch(() => null);
+          currentStatus = res?.status || '';
+        } else {
+          const result = await getServicePaymentOrderStatus(String(orderCode));
+          currentStatus = result?.status || '';
+        }
+
+        if (currentStatus === 'paid' || currentStatus === 'success') {
           clearInterval(pollInterval);
           completeOrder();
-        } else if (result.status === 'failed' || result.status === 'expired' || attempts >= MAX_ATTEMPTS) {
-          setStatus(attempts >= MAX_ATTEMPTS || result.status === 'expired' ? 'expired' : 'failed');
+        } else if (currentStatus === 'failed' || currentStatus === 'expired' || attempts >= MAX_ATTEMPTS) {
+          setStatus(attempts >= MAX_ATTEMPTS || currentStatus === 'expired' ? 'expired' : 'failed');
           clearInterval(pollInterval);
         }
       } catch (err) {
@@ -137,13 +150,23 @@ export function usePaymentPolling(
     if (!orderCode) return;
     setIsChecking(true);
     try {
-      const paymentCheck = await getServicePaymentOrderStatus(String(orderCode));
-      if (paymentCheck.status === 'paid') {
+      let currentStatus = '';
+      if (method === 'payos') {
+        const res = await fetch(`/api/payos/order-status?orderCode=${encodeURIComponent(String(orderCode))}`)
+          .then((r) => r.json())
+          .catch(() => null);
+        currentStatus = res?.status || '';
+      } else {
+        const paymentCheck = await getServicePaymentOrderStatus(String(orderCode));
+        currentStatus = paymentCheck?.status || '';
+      }
+
+      if (currentStatus === 'paid' || currentStatus === 'success') {
         completeOrder();
-      } else if (paymentCheck.status === 'failed') {
+      } else if (currentStatus === 'failed') {
         setStatus('failed');
         showToast('Giao dịch thất bại', 'Vui lòng kiểm tra lại hoặc tạo mã QR mới.', 'error');
-      } else if (paymentCheck.status === 'expired') {
+      } else if (currentStatus === 'expired') {
         setStatus('expired');
         showToast('Mã QR đã hết hạn', 'Vui lòng tạo mã thanh toán mới.', 'warning');
       } else {

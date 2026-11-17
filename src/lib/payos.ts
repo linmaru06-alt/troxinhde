@@ -18,7 +18,11 @@ export interface PayOSPaymentLinkResult {
   orderCode: number;
   checkoutUrl: string;
   paymentLinkId?: string;
-  qrCode?: string;
+  qrCode: string;
+  rawQrCode?: string;
+  bin?: string;
+  accountNumber?: string;
+  accountName?: string;
   amount: number;
   description: string;
   status: string;

@@ -50,7 +50,7 @@ import {
 } from 'lucide-react';
 
 interface PaymentViewData {
-  method: 'vietqr' | 'momo';
+  method: 'vietqr' | 'momo' | 'payos';
   orderCode: string;
   qrCode: string;
   amountVnd: number;
@@ -238,7 +238,7 @@ export const CheckoutPage: React.FC = () => {
     setIsProcessing(true);
 
     try {
-      // 0. Cổng thanh toán PayOS: chuyển hướng khách sang checkoutUrl
+      // 0. Cổng thanh toán PayOS: Hiển thị mã QR VietQR PayOS trực tiếp ngay trên website Trọ Xinh
       if (paymentMethod === 'payos') {
         const payosRes = await createPayOSPaymentLink({
           amount: totalAmountVnd,
@@ -249,10 +249,22 @@ export const CheckoutPage: React.FC = () => {
           buyerName: currentUser?.name,
         });
 
-        if (payosRes?.checkoutUrl) {
-          window.location.href = payosRes.checkoutUrl;
-          return;
-        }
+        setPaymentData({
+          method: 'payos',
+          orderCode: String(payosRes.orderCode),
+          qrCode: payosRes.qrCode,
+          amountVnd: totalAmountVnd,
+          amountXu: finalXu,
+          receiverTitle: 'Cổng thanh toán PayOS (MBBank)',
+          receiverName: payosRes.accountName || 'NGUYEN DUY ANH',
+          accountNumber: payosRes.accountNumber || '0981246282',
+          accountNumberLabel: 'Số tài khoản nhận (MBBank)',
+          badgeLabel: 'PayOS MBBank',
+          transferContent: payosRes.description,
+          deeplink: payosRes.checkoutUrl,
+          isSandbox: false,
+        });
+        return;
       }
 
       // 1. Thanh toán 1 chạm bằng Số dư Xu nội bộ
@@ -382,7 +394,11 @@ export const CheckoutPage: React.FC = () => {
             <div className="lg:col-span-7 bg-white rounded-3xl border border-gray-200 shadow-md p-6 sm:p-8 space-y-6 text-center">
               <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <div className="text-left">
-                  {paymentData.method === 'momo' ? (
+                  {paymentData.method === 'payos' ? (
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200">
+                      <QrCode className="w-3.5 h-3.5" /> Cổng PayOS (MBBank) 24/7
+                    </span>
+                  ) : paymentData.method === 'momo' ? (
                     <span className="inline-flex items-center gap-1.5 text-xs font-bold text-[#a50064] bg-pink-50 px-2.5 py-1 rounded-full border border-pink-200">
                       <Smartphone className="w-3.5 h-3.5" /> Thanh toán Ví MoMo QR 24/7
                     </span>
@@ -392,7 +408,9 @@ export const CheckoutPage: React.FC = () => {
                     </span>
                   )}
                   <h3 className="text-base font-extrabold text-gray-900 mt-1">
-                    {paymentData.method === 'momo'
+                    {paymentData.method === 'payos'
+                      ? 'Quét mã VietQR bằng App Ngân hàng bất kỳ'
+                      : paymentData.method === 'momo'
                       ? 'Quét mã bằng App MoMo hoặc Ngân hàng'
                       : 'Quét mã bằng App Ngân hàng bất kỳ'}
                   </h3>
@@ -409,18 +427,32 @@ export const CheckoutPage: React.FC = () => {
 
               <div
                 className={`relative mx-auto w-64 h-64 bg-white p-3 rounded-2xl border-2 shadow-lg flex items-center justify-center ${
-                  paymentData.method === 'momo' ? 'border-[#a50064]' : 'border-emerald-600'
+                  paymentData.method === 'payos'
+                    ? 'border-blue-600 ring-4 ring-blue-50'
+                    : paymentData.method === 'momo'
+                    ? 'border-[#a50064]'
+                    : 'border-emerald-600'
                 }`}
               >
                 <img
                   src={paymentData.qrCode}
-                  alt={paymentData.method === 'momo' ? 'MoMo QR TroXinh' : 'VietQR TroXinh'}
+                  alt={
+                    paymentData.method === 'payos'
+                      ? 'PayOS VietQR TroXinh'
+                      : paymentData.method === 'momo'
+                      ? 'MoMo QR TroXinh'
+                      : 'VietQR TroXinh'
+                  }
                   className="w-full h-full object-contain rounded-xl"
                 />
               </div>
 
               <p className="text-xs text-gray-500 font-medium">
-                {paymentData.method === 'momo' ? (
+                {paymentData.method === 'payos' ? (
+                  <>
+                    Mở App Ngân hàng (MB, VCB, Techcombank, VPBank, ACB...) và chọn <strong>Quét mã QR</strong>.
+                  </>
+                ) : paymentData.method === 'momo' ? (
                   <>
                     Mở ứng dụng <strong>MoMo</strong> hoặc App Ngân hàng hỗ trợ VietQR và quét mã trên.
                   </>
@@ -430,6 +462,20 @@ export const CheckoutPage: React.FC = () => {
                   </>
                 )}
               </p>
+
+              {paymentData.method === 'payos' && paymentData.deeplink && (
+                <div className="space-y-2 pt-1">
+                  <a
+                    href={paymentData.deeplink}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 font-bold text-xs transition border border-blue-200"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    <span>Mở cổng thanh toán PayOS trên tab mới (Tùy chọn)</span>
+                  </a>
+                </div>
+              )}
 
               {paymentData.method === 'momo' && paymentData.deeplink && (
                 <div className="space-y-2 pt-1">
@@ -499,6 +545,8 @@ export const CheckoutPage: React.FC = () => {
               <h3 className="font-extrabold text-gray-900 text-sm pb-3 border-b border-gray-100 flex items-center gap-2">
                 {paymentData.method === 'momo' ? (
                   <Smartphone className="w-4 h-4 text-[#a50064]" />
+                ) : paymentData.method === 'payos' ? (
+                  <QrCode className="w-4 h-4 text-blue-600" />
                 ) : (
                   <Building className="w-4 h-4 text-[#006d37]" />
                 )}
@@ -510,14 +558,22 @@ export const CheckoutPage: React.FC = () => {
                   <span className="text-gray-500 text-[11px]">{paymentData.receiverTitle}</span>
                   <div className="flex items-center justify-between font-bold text-gray-900">
                     <span>
-                      {paymentData.method === 'momo'
+                      {paymentData.method === 'payos'
+                        ? 'Ngân hàng Quân Đội (MBBank) qua PayOS'
+                        : paymentData.method === 'momo'
                         ? 'Ví Điện Tử MoMo'
                         : 'Ngân hàng TMCP Kỹ Thương (Techcombank)'}
                     </span>
                     <Badge
                       variant="verified"
                       size="sm"
-                      className={paymentData.method === 'momo' ? 'bg-pink-100 text-[#a50064] border-pink-200' : ''}
+                      className={
+                        paymentData.method === 'payos'
+                          ? 'bg-blue-100 text-blue-700 border-blue-200'
+                          : paymentData.method === 'momo'
+                          ? 'bg-pink-100 text-[#a50064] border-pink-200'
+                          : ''
+                      }
                     >
                       {paymentData.badgeLabel}
                     </Badge>
@@ -534,7 +590,11 @@ export const CheckoutPage: React.FC = () => {
                       type="button"
                       onClick={() => handleCopy(paymentData.accountNumber, 'acc')}
                       className={`inline-flex items-center gap-1 font-bold hover:underline cursor-pointer ${
-                        paymentData.method === 'momo' ? 'text-[#a50064]' : 'text-[#006d37]'
+                        paymentData.method === 'payos'
+                          ? 'text-blue-700'
+                          : paymentData.method === 'momo'
+                          ? 'text-[#a50064]'
+                          : 'text-[#006d37]'
                       }`}
                     >
                       {copiedField === 'acc' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
@@ -550,14 +610,20 @@ export const CheckoutPage: React.FC = () => {
 
                 <div
                   className={`p-3 rounded-xl space-y-1 border ${
-                    paymentData.method === 'momo'
+                    paymentData.method === 'payos'
+                      ? 'bg-blue-50/70 border-blue-200'
+                      : paymentData.method === 'momo'
                       ? 'bg-pink-50/70 border-pink-200'
                       : 'bg-emerald-50/70 border-emerald-200'
                   }`}
                 >
                   <span
                     className={`text-[11px] font-medium ${
-                      paymentData.method === 'momo' ? 'text-[#a50064]' : 'text-emerald-800'
+                      paymentData.method === 'payos'
+                        ? 'text-blue-800'
+                        : paymentData.method === 'momo'
+                        ? 'text-[#a50064]'
+                        : 'text-emerald-800'
                     }`}
                   >
                     Số tiền chính xác ({paymentData.amountXu} Xu)
@@ -565,7 +631,11 @@ export const CheckoutPage: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <span
                       className={`font-black text-base ${
-                        paymentData.method === 'momo' ? 'text-[#a50064]' : 'text-[#006d37]'
+                        paymentData.method === 'payos'
+                          ? 'text-blue-700'
+                          : paymentData.method === 'momo'
+                          ? 'text-[#a50064]'
+                          : 'text-[#006d37]'
                       }`}
                     >
                       {formatCurrency(paymentData.amountVnd)}
@@ -574,7 +644,11 @@ export const CheckoutPage: React.FC = () => {
                       type="button"
                       onClick={() => handleCopy(String(paymentData.amountVnd), 'amount')}
                       className={`inline-flex items-center gap-1 font-bold hover:underline cursor-pointer ${
-                        paymentData.method === 'momo' ? 'text-[#a50064]' : 'text-[#006d37]'
+                        paymentData.method === 'payos'
+                          ? 'text-blue-700'
+                          : paymentData.method === 'momo'
+                          ? 'text-[#a50064]'
+                          : 'text-[#006d37]'
                       }`}
                     >
                       {copiedField === 'amount' ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
