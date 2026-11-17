@@ -54,6 +54,8 @@ const OwnerApplicationStatusPage = React.lazy(() => import('./pages/OwnerApplica
 const PricingPage = React.lazy(() => import('./pages/PricingPage').then((m) => ({ default: m.PricingPage })));
 const CheckoutPage = React.lazy(() => import('./pages/CheckoutPage').then((m) => ({ default: m.CheckoutPage })));
 const PaymentResultPage = React.lazy(() => import('./pages/PaymentResultPage').then((m) => ({ default: m.PaymentResultPage })));
+const PaymentSuccessPage = React.lazy(() => import('./pages/PaymentSuccessPage').then((m) => ({ default: m.PaymentSuccessPage })));
+const PaymentCancelPage = React.lazy(() => import('./pages/PaymentCancelPage').then((m) => ({ default: m.PaymentCancelPage })));
 
 // Owner Pages
 const OwnerOnboardingPage = React.lazy(() => import('./pages/OwnerOnboardingPage').then((m) => ({ default: m.OwnerOnboardingPage })));
@@ -407,6 +409,8 @@ const AppContent: React.FC = () => {
             <Route path="/bang-gia" element={<PricingPage />} />
             <Route path="/thanh-toan/:planId" element={<CheckoutPage />} />
             <Route path="/thanh-toan/ket-qua" element={<PaymentResultPage />} />
+            <Route path="/thanh-toan/thanh-cong" element={<PaymentSuccessPage />} />
+            <Route path="/thanh-toan/da-huy" element={<PaymentCancelPage />} />
 
             {/* Renter Features & Upgrade */}
             <Route path="/onboarding" element={<RenterOnboardingPage />} />

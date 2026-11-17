@@ -436,7 +436,7 @@ export interface SubscriptionPlan {
   description: string;
 }
 
-export type PaymentMethod = "wallet_xu" | "momo" | "vnpay" | "banking" | "vietqr";
+export type PaymentMethod = "wallet_xu" | "momo" | "vnpay" | "banking" | "vietqr" | "payos";
 
 export interface PaymentTransaction {
   id: string;

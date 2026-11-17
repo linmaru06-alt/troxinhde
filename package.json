@@ -17,6 +17,7 @@
     "test:reports": "node scripts/test-report-rules.mjs",
     "test:marketplace": "node scripts/test-marketplace-status.mjs",
     "test:all": "node scripts/run-all-tests.mjs",
+    "test:payos": "node scripts/test-payos-integration.mjs",
     "test:auth": "node scripts/test-unified-auth.mjs",
     "test:momo": "node scripts/test-momo-integration.mjs",
     "test:k23": "node scripts/test-k23-billing-engine.mjs",
@@ -25,6 +26,7 @@
     "stitch:doctor": "node -e \"import('./scripts/fetch-info.mjs')\""
   },
   "dependencies": {
+    "@payos/node": "^2.0.6",
     "@supabase/supabase-js": "^2.112.3",
     "@tailwindcss/forms": "^0.5.10",
     "@tanstack/react-query": "^5.102.0",

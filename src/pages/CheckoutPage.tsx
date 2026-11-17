@@ -22,6 +22,7 @@ import {
   createServicePaymentOrder,
   confirmDemoServiceOrder,
 } from '../lib/api/monetization';
+import { createPayOSPaymentLink } from '../lib/payos';
 import { isSupabaseConfigured } from '../lib/supabase';
 import {
   ShieldCheck,
@@ -237,6 +238,23 @@ export const CheckoutPage: React.FC = () => {
     setIsProcessing(true);
 
     try {
+      // 0. Cổng thanh toán PayOS: chuyển hướng khách sang checkoutUrl
+      if (paymentMethod === 'payos') {
+        const payosRes = await createPayOSPaymentLink({
+          amount: totalAmountVnd,
+          planId: selectedPlan.id,
+          serviceType: 'listing_plan',
+          description: `TX ${selectedPlan.id}`.slice(0, 25),
+          buyerEmail: currentUser?.email,
+          buyerName: currentUser?.name,
+        });
+
+        if (payosRes?.checkoutUrl) {
+          window.location.href = payosRes.checkoutUrl;
+          return;
+        }
+      }
+
       // 1. Thanh toán 1 chạm bằng Số dư Xu nội bộ
       if (paymentMethod === 'wallet_xu') {
         if (!isEnoughXu) {
@@ -689,6 +707,36 @@ export const CheckoutPage: React.FC = () => {
                       </Link>
                     </div>
                   )}
+
+                  {/* PayOS Gateway */}
+                  <label
+                    onClick={() => setPaymentMethod('payos')}
+                    className={`flex items-center justify-between p-4 rounded-2xl border-2 cursor-pointer transition ${
+                      paymentMethod === 'payos'
+                        ? 'border-blue-600 bg-blue-50/40 shadow-xs ring-2 ring-blue-500/10'
+                        : 'border-gray-200 hover:border-gray-300 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-5 h-5 rounded-full border-2 flex items-center justify-center border-gray-300">
+                        {paymentMethod === 'payos' && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-600" />
+                        )}
+                      </div>
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center shrink-0 shadow-xs font-black text-xs">
+                        PayOS
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900">Cổng Thanh Toán PayOS (VietQR Chuẩn)</p>
+                        <p className="text-[11px] text-gray-500">
+                          Chuyển sang cổng PayOS quét mã mọi ngân hàng, tự động xác nhận
+                        </p>
+                      </div>
+                    </div>
+                    <span className="text-[11px] font-bold text-blue-700 bg-blue-100 px-2 py-0.5 rounded-md">
+                      Khuyên dùng
+                    </span>
+                  </label>
 
                   {/* 2. VietQR */}
                   <label
