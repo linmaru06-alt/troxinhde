@@ -1,6 +1,6 @@
 import { supabase, isSupabaseConfigured, getFirebaseIdToken } from '../supabase';
 
-export type WalletTopupMethod = 'vietqr' | 'momo';
+export type WalletTopupMethod = 'vietqr' | 'momo' | 'payos';
 
 export interface WalletTopupPack {
   vnd: number;

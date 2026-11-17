@@ -73,7 +73,7 @@ export function useWalletTopup() {
 
   const [selectedPackIndex, setSelectedPackIndex] = useState<number>(3); // Mặc định gói 500.000đ
   const [customXuInput, setCustomXuInput] = useState<string>('500');
-  const [method, setMethod] = useState<WalletTopupMethod>('vietqr');
+  const [method, setMethod] = useState<WalletTopupMethod>('payos');
   const [activeOrder, setActiveOrder] = useState<WalletTopupOrder | null>(null);
   const [secondsLeft, setSecondsLeft] = useState<number>(900);
   const [orderError, setOrderError] = useState<string | null>(null);

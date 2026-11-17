@@ -8,6 +8,7 @@ import {
   resolveProfileByFirebaseUid,
   verifyFirebaseIdToken,
 } from '../_lib/walletServer.js';
+import { generatePayOSOrderCode, getBaseUrl, getPayOSClient } from '../_lib/payosServer.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -20,7 +21,7 @@ export default async function handler(req: any, res: any) {
 
     const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body || {};
     const amountVnd = Number(body.amountVnd);
-    const method = body.method === 'momo' ? 'momo' : 'vietqr';
+    const method = body.method === 'momo' ? 'momo' : body.method === 'payos' ? 'payos' : 'vietqr';
 
     const breakdown = calculateWalletXuBreakdown(amountVnd);
     const { supabase } = getWalletSupabaseClient(authHeader);
@@ -33,13 +34,63 @@ export default async function handler(req: any, res: any) {
     }
 
     const isSandbox = Boolean(profile.is_demo_account || claims.isDemoClaim);
-    const orderCode = isSandbox
-      ? `DEMO${generateTopupOrderCode().slice(5)}`
-      : generateTopupOrderCode();
+    let orderCode = '';
+    let payosOrderNum = 0;
+
+    if (method === 'payos') {
+      payosOrderNum = generatePayOSOrderCode();
+      orderCode = String(payosOrderNum);
+    } else {
+      orderCode = isSandbox
+        ? `DEMO${generateTopupOrderCode().slice(5)}`
+        : generateTopupOrderCode();
+    }
 
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 15 * 60 * 1000).toISOString();
-    const transferContent = orderCode;
+    const transferContent = method === 'payos' ? `TXNAP ${orderCode}` : orderCode;
+
+    let payosCheckoutUrl: string | undefined = undefined;
+    let payosQrImage: string | undefined = undefined;
+    let payosReceiver = {
+      bankName: 'Ngân hàng Quân Đội (MBBank) qua PayOS',
+      accountNumber: '0981246282',
+      accountNumberLabel: 'Số tài khoản nhận (MBBank)',
+      accountName: 'NGUYEN DUY ANH',
+    };
+
+    if (method === 'payos') {
+      try {
+        const payos = getPayOSClient();
+        const baseUrl = getBaseUrl(req);
+        const returnUrl = `${baseUrl}/chu-tro/vi-xu?buoc=hoan-tat&order=${orderCode}`;
+        const cancelUrl = `${baseUrl}/chu-tro/vi-xu?buoc=het-han&order=${orderCode}`;
+        const payosRes = await payos.paymentRequests.create({
+          orderCode: payosOrderNum,
+          amount: breakdown.amountVnd,
+          description: `TXNAP ${orderCode}`.slice(0, 25),
+          returnUrl,
+          cancelUrl,
+          buyerName: (profile as any)?.name || claims.email || undefined,
+          buyerEmail: claims.email || undefined,
+        });
+
+        payosCheckoutUrl = payosRes.checkoutUrl;
+        const bin = payosRes.bin || '970422';
+        const accNo = payosRes.accountNumber || '0981246282';
+        const accName = payosRes.accountName || 'NGUYEN DUY ANH';
+        payosReceiver.accountNumber = accNo;
+        payosReceiver.accountName = accName;
+        payosQrImage = `https://img.vietqr.io/image/${bin}-${accNo}-compact2.png?amount=${breakdown.amountVnd}&addInfo=${encodeURIComponent(
+          `TXNAP ${orderCode}`.slice(0, 25)
+        )}&accountName=${encodeURIComponent(accName)}`;
+      } catch (payosErr: any) {
+        console.error('[Create Topup Order] PayOS create error:', payosErr);
+        payosQrImage = `https://img.vietqr.io/image/970422-0981246282-compact2.png?amount=${breakdown.amountVnd}&addInfo=${encodeURIComponent(
+          `TXNAP ${orderCode}`.slice(0, 25)
+        )}&accountName=NGUYEN%20DUY%20ANH`;
+      }
+    }
 
     let insertedOrder: any = null;
     const { data: fullOrder, error: fullInsertErr } = await supabase
@@ -59,6 +110,9 @@ export default async function handler(req: any, res: any) {
           total_xu: breakdown.totalXu,
           bonus_percent: breakdown.bonusPercent,
           is_sandbox: isSandbox,
+          order_code_num: method === 'payos' ? payosOrderNum : undefined,
+          payos_qr_code: payosQrImage,
+          checkout_url: payosCheckoutUrl,
         },
         created_at: now.toISOString(),
       })
@@ -103,7 +157,9 @@ export default async function handler(req: any, res: any) {
     }
 
     const qrCode =
-      method === 'momo'
+      method === 'payos'
+        ? payosQrImage!
+        : method === 'momo'
         ? buildVietQrImageUrl(
             WALLET_MOMO_CONFIG.vietQrBankId,
             WALLET_MOMO_CONFIG.phoneNumber,
@@ -120,7 +176,9 @@ export default async function handler(req: any, res: any) {
           );
 
     const deeplink =
-      method === 'momo'
+      method === 'payos'
+        ? payosCheckoutUrl
+        : method === 'momo'
         ? `momo://app?action=pay&amount=${breakdown.amountVnd}&receiver=${WALLET_MOMO_CONFIG.phoneNumber}&comment=${encodeURIComponent(
             transferContent
           )}`
@@ -144,7 +202,9 @@ export default async function handler(req: any, res: any) {
         deeplink,
         transferContent,
         receiverInfo:
-          method === 'momo'
+          method === 'payos'
+            ? payosReceiver
+            : method === 'momo'
             ? {
                 bankName: WALLET_MOMO_CONFIG.providerName,
                 accountNumber: WALLET_MOMO_CONFIG.phoneNumber,

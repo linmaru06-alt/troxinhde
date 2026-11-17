@@ -28,6 +28,7 @@ import {
   Sparkles,
   ExternalLink,
   Building2,
+  Zap,
 } from 'lucide-react';
 
 interface TopupStepperWizardProps {
@@ -477,12 +478,51 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               Chọn phương thức thanh toán
             </label>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* VietQR */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {/* PayOS VietQR Tự Động */}
+              <button
+                type="button"
+                onClick={() => setMethod('payos')}
+                className={`p-4 rounded-2xl border-2 text-left transition relative cursor-pointer flex flex-col justify-between gap-3 ${
+                  method === 'payos'
+                    ? 'border-blue-600 bg-blue-50/50 shadow-sm ring-2 ring-blue-500/15'
+                    : 'border-gray-200 hover:border-gray-300 bg-white'
+                }`}
+              >
+                {method === 'payos' && (
+                  <span className="absolute -top-2.5 -right-2.5 w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-sm">
+                    <Check className="w-3.5 h-3.5" />
+                  </span>
+                )}
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      method === 'payos'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-sm sm:text-base text-gray-950">Cổng PayOS</span>
+                      <span className="px-1.5 py-0.5 rounded-md text-[10px] font-black uppercase bg-blue-100 text-blue-700">
+                        Tự động 24/7
+                      </span>
+                    </div>
+                    <span className="text-xs text-gray-500 mt-1 block leading-relaxed">
+                      Quét VietQR mọi ngân hàng (MBBank), tự động cộng Xu chỉ sau vài giây
+                    </span>
+                  </div>
+                </div>
+              </button>
+
+              {/* VietQR Ngân hàng */}
               <button
                 type="button"
                 onClick={() => setMethod('vietqr')}
-                className={`p-5 rounded-2xl border-2 text-left transition relative cursor-pointer flex items-start gap-3.5 ${
+                className={`p-4 rounded-2xl border-2 text-left transition relative cursor-pointer flex flex-col justify-between gap-3 ${
                   method === 'vietqr'
                     ? 'border-[#00a854] bg-emerald-50/50 shadow-sm ring-2 ring-emerald-500/15'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -493,20 +533,22 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                     <Check className="w-3.5 h-3.5" />
                   </span>
                 )}
-                <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                    method === 'vietqr'
-                      ? 'bg-emerald-100 text-[#006d37]'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  <QrCode className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="font-black text-base text-gray-950 block">VietQR</span>
-                  <span className="text-xs text-gray-500 mt-0.5 block leading-relaxed">
-                    Chuyển khoản mọi ngân hàng VN qua mã QR tự động 24/7
-                  </span>
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      method === 'vietqr'
+                        ? 'bg-emerald-100 text-[#006d37]'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="font-black text-sm sm:text-base text-gray-950 block">Vietcombank</span>
+                    <span className="text-xs text-gray-500 mt-1 block leading-relaxed">
+                      Chuyển khoản thủ công qua Vietcombank theo mã nội dung đơn
+                    </span>
+                  </div>
                 </div>
               </button>
 
@@ -514,7 +556,7 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
               <button
                 type="button"
                 onClick={() => setMethod('momo')}
-                className={`p-5 rounded-2xl border-2 text-left transition relative cursor-pointer flex items-start gap-3.5 ${
+                className={`p-4 rounded-2xl border-2 text-left transition relative cursor-pointer flex flex-col justify-between gap-3 ${
                   method === 'momo'
                     ? 'border-[#A50064] bg-pink-50/40 shadow-sm ring-2 ring-pink-500/15'
                     : 'border-gray-200 hover:border-gray-300 bg-white'
@@ -525,20 +567,22 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                     <Check className="w-3.5 h-3.5" />
                   </span>
                 )}
-                <div
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center shrink-0 ${
-                    method === 'momo'
-                      ? 'bg-pink-100 text-[#A50064]'
-                      : 'bg-gray-100 text-gray-500'
-                  }`}
-                >
-                  <Wallet className="w-6 h-6" />
-                </div>
-                <div>
-                  <span className="font-black text-base text-gray-950 block">MoMo</span>
-                  <span className="text-xs text-gray-500 mt-0.5 block leading-relaxed">
-                    Ví MoMo, thanh toán nhanh qua App hoặc quét mã QR Napas
-                  </span>
+                <div className="flex items-start gap-3">
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                      method === 'momo'
+                        ? 'bg-pink-100 text-[#A50064]'
+                        : 'bg-gray-100 text-gray-500'
+                    }`}
+                  >
+                    <Wallet className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="font-black text-sm sm:text-base text-gray-950 block">Ví MoMo</span>
+                    <span className="text-xs text-gray-500 mt-1 block leading-relaxed">
+                      Ví MoMo, thanh toán nhanh qua App hoặc quét mã QR Napas
+                    </span>
+                  </div>
                 </div>
               </button>
             </div>
@@ -635,7 +679,13 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
         <div className="max-w-lg mx-auto space-y-5 animate-fadeIn">
           <div className="text-center space-y-2">
             <div className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500">
-              <span>{activeOrder.method === 'momo' ? 'Ví MoMo' : 'VietQR Ngân hàng'}</span>
+              <span>
+                {activeOrder.method === 'momo'
+                  ? 'Ví MoMo'
+                  : activeOrder.method === 'payos'
+                  ? 'Cổng PayOS (MBBank 24/7)'
+                  : 'VietQR Ngân hàng'}
+              </span>
               <span>•</span>
               <span>Mã đơn #{activeOrder.orderCode}</span>
             </div>
@@ -692,13 +742,25 @@ export const TopupStepperWizard: React.FC<TopupStepperWizardProps> = ({
                 <span>{isDownloadingQr ? 'Đang tải...' : 'Tải mã QR'}</span>
               </button>
 
-              {activeOrder.deeplink && (
+              {activeOrder.deeplink && activeOrder.method === 'momo' && (
                 <a
                   href={activeOrder.deeplink}
                   className="flex-1 sm:flex-initial min-h-[42px] px-3.5 py-2 rounded-xl bg-[#A50064] hover:bg-[#8a0053] text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 transition active:scale-95"
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
                   <span>Mở App MoMo</span>
+                </a>
+              )}
+
+              {activeOrder.deeplink && activeOrder.method === 'payos' && (
+                <a
+                  href={activeOrder.deeplink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-1 sm:flex-initial min-h-[42px] px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold inline-flex items-center justify-center gap-1.5 transition active:scale-95"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Mở trang PayOS (Tùy chọn)</span>
                 </a>
               )}
             </div>

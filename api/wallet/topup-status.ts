@@ -92,7 +92,8 @@ export default async function handler(req: any, res: any) {
       .eq('owner_id', profile.id)
       .maybeSingle();
 
-    const normalizedMethod = tx.payment_method === 'momo' ? 'momo' : 'vietqr';
+    const normalizedMethod =
+      tx.payment_method === 'momo' ? 'momo' : tx.payment_method === 'payos' ? 'payos' : 'vietqr';
     const meta = (tx.metadata || {}) as Record<string, any>;
     const breakdown = calculateWalletXuBreakdown(Number(tx.amount) || 50000);
     const realXu = Number(meta.real_xu ?? breakdown.realXu);
@@ -101,7 +102,10 @@ export default async function handler(req: any, res: any) {
     const bonusPercent = Number(meta.bonus_percent ?? breakdown.bonusPercent);
 
     const qrCode =
-      normalizedMethod === 'momo'
+      normalizedMethod === 'payos'
+        ? meta.payos_qr_code ||
+          buildVietQrImageUrl('970422', '0981246282', tx.amount, `TXNAP ${tx.order_code}`.slice(0, 25), 'NGUYEN DUY ANH')
+        : normalizedMethod === 'momo'
         ? buildVietQrImageUrl(
             WALLET_MOMO_CONFIG.vietQrBankId,
             WALLET_MOMO_CONFIG.phoneNumber,
@@ -118,11 +122,35 @@ export default async function handler(req: any, res: any) {
           );
 
     const deeplink =
-      normalizedMethod === 'momo'
+      normalizedMethod === 'payos'
+        ? meta.checkout_url
+        : normalizedMethod === 'momo'
         ? `momo://app?action=pay&amount=${tx.amount}&receiver=${WALLET_MOMO_CONFIG.phoneNumber}&comment=${encodeURIComponent(
             tx.order_code
           )}`
         : undefined;
+
+    const receiverInfo =
+      normalizedMethod === 'payos'
+        ? {
+            bankName: 'Ngân hàng Quân Đội (MBBank) qua PayOS',
+            accountNumber: '0981246282',
+            accountNumberLabel: 'Số tài khoản nhận (MBBank)',
+            accountName: 'NGUYEN DUY ANH',
+          }
+        : normalizedMethod === 'momo'
+        ? {
+            bankName: WALLET_MOMO_CONFIG.providerName,
+            accountNumber: WALLET_MOMO_CONFIG.phoneNumber,
+            accountNumberLabel: 'Số ví MoMo nhận',
+            accountName: WALLET_MOMO_CONFIG.receiverName,
+          }
+        : {
+            bankName: WALLET_BANK_CONFIG.bankName,
+            accountNumber: WALLET_BANK_CONFIG.accountNumber,
+            accountNumberLabel: 'Số tài khoản',
+            accountName: WALLET_BANK_CONFIG.accountName,
+          };
 
     return res.status(200).json({
       success: true,
@@ -148,20 +176,7 @@ export default async function handler(req: any, res: any) {
         qrCode,
         deeplink,
         transferContent: tx.order_code,
-        receiverInfo:
-          normalizedMethod === 'momo'
-            ? {
-                bankName: WALLET_MOMO_CONFIG.providerName,
-                accountNumber: WALLET_MOMO_CONFIG.phoneNumber,
-                accountNumberLabel: 'Số ví MoMo nhận',
-                accountName: WALLET_MOMO_CONFIG.receiverName,
-              }
-            : {
-                bankName: WALLET_BANK_CONFIG.bankName,
-                accountNumber: WALLET_BANK_CONFIG.accountNumber,
-                accountNumberLabel: 'Số tài khoản',
-                accountName: WALLET_BANK_CONFIG.accountName,
-              },
+        receiverInfo,
       },
       wallet: wallet
         ? {
