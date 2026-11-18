@@ -1,13 +1,20 @@
-import { getPayOSClient, getPayOSServerSupabase } from '../_lib/payosServer.js';
+import {
+  fulfillPaidPayOSTransaction,
+  getPayOSClient,
+  getPayOSServerSupabase,
+  hasSupabaseServiceRoleKey,
+} from '../_lib/payosServer.js';
 
 /**
  * Webhook tiếp nhận thông báo thanh toán từ PayOS
  * Endpoint: POST /api/payos/webhook
- * 
+ *
  * Luồng xử lý:
  * 1. Xác minh tính toàn vẹn chữ ký HMAC-SHA256 của PayOS qua thư viện @payos/node.
  * 2. Chống xử lý trùng lặp (Idempotency): Nếu đơn hàng đã được đánh dấu PAID/SUCCESS, bỏ qua không xử lý lại.
- * 3. Nếu thanh toán thành công (code === "00"): Cập nhật trạng thái đơn thành 'paid' và kích hoạt quyền lợi dịch vụ.
+ * 3. Nếu thanh toán thành công (code === "00") và đủ số tiền:
+ *    Gọi RPC nguyên tử cộng Xu (`credit_wallet_from_topup`) hoặc kích hoạt dịch vụ (`fulfill_paid_service_order`),
+ *    sau đó lưu thông tin đối soát PayOS vào bảng transactions.
  */
 export default async function handler(req: any, res: any) {
   if (req.method !== 'POST') {
@@ -58,6 +65,17 @@ export default async function handler(req: any, res: any) {
       });
     }
 
+    // Kiểm tra quyền Service Role để tránh nuốt mất Webhook do RLS chặn
+    if (!hasSupabaseServiceRoleKey()) {
+      console.error(
+        '[PayOS Webhook] CRITICAL: Chưa cấu hình SUPABASE_SERVICE_ROLE_KEY trên Vercel! Trả 500 để PayOS retry sau khi cấu hình.'
+      );
+      return res.status(500).json({
+        error: -1,
+        message: 'Máy chủ chưa cấu hình SUPABASE_SERVICE_ROLE_KEY để đối soát thanh toán.',
+      });
+    }
+
     const supabase = getPayOSServerSupabase();
     const orderCodeStr = String(orderCode);
 
@@ -90,7 +108,6 @@ export default async function handler(req: any, res: any) {
 
     if (!tx) {
       console.warn(`[PayOS Webhook] Không tìm thấy đơn hàng #${orderCodeStr} trong bảng transactions.`);
-      // Trả về 200 để PayOS không retry dồn dập
       return res.status(200).json({
         error: 0,
         message: `Đơn hàng #${orderCodeStr} không tồn tại trên hệ thống. Đã ghi nhận.`,
@@ -100,7 +117,6 @@ export default async function handler(req: any, res: any) {
     const actualOrderCode = tx.order_code || orderCodeStr;
 
     // 3. CHỐNG XỬ LÝ TRÙNG LẶP (Idempotency Check)
-    // Nếu đơn hàng đã được cập nhật thành 'paid' hoặc 'success' trước đó -> ghi nhận 1 lần duy nhất
     if (tx.status === 'paid' || tx.status === 'success') {
       console.log(`[PayOS Webhook] Đơn hàng #${actualOrderCode} đã ở trạng thái PAID trước đó. Bỏ qua xử lý trùng.`);
       return res.status(200).json({
@@ -112,70 +128,39 @@ export default async function handler(req: any, res: any) {
 
     // 4. Kiểm tra mã phản hồi thanh toán thành công từ PayOS (code === "00")
     if (code === '00' || webhookData.code === '00') {
-      const nowIso = new Date().toISOString();
+      const fulfillRes = await fulfillPaidPayOSTransaction({
+        supabase,
+        tx,
+        paidAmount: Number(amount || 0),
+        referenceId: reference || `PAYOS_${orderCode}`,
+        payosCode: code || webhookData.code || '00',
+        rawPayload: body,
+        signature: body.signature || null,
+        source: 'webhook',
+      });
 
-      // Cập nhật trạng thái đơn hàng sang 'paid' trong bảng transactions
-      const { error: updateErr } = await supabase
-        .from('transactions')
-        .update({
-          status: 'paid',
-          paid_at: nowIso,
-          signature: body.signature || null,
-          raw_payload: body,
-          metadata: {
-            ...(tx.metadata || {}),
-            payos_reference: reference || null,
-            payos_amount: amount,
-            payos_code: code,
-            paid_at: nowIso,
-          },
-        })
-        .eq('id', tx.id);
-
-      if (updateErr) {
-        console.error('[PayOS Webhook] Lỗi cập nhật trạng thái đơn hàng sang PAID:', updateErr);
+      if (!fulfillRes.success) {
+        if (fulfillRes.insufficientAmount) {
+          return res.status(200).json({
+            error: 0,
+            message: fulfillRes.error || 'Số tiền chuyển khoản chưa đủ giá trị đơn hàng.',
+            orderCode,
+          });
+        }
         return res.status(500).json({
           error: -1,
-          message: 'Lỗi cập nhật trạng thái giao dịch trong DB.',
+          message: fulfillRes.error || 'Không thể hoàn tất kích hoạt đơn hàng trong DB.',
         });
       }
 
-      // 4. Kích hoạt dịch vụ hoặc cộng Xu vào ví người dùng
-      if (tx.plan_id === 'wallet_topup' || tx.metadata?.type === 'wallet_topup') {
-        try {
-          const { data: topupRes, error: topupErr } = await supabase.rpc('credit_wallet_from_topup', {
-            p_order_code: actualOrderCode,
-            p_paid_amount: amount || tx.amount,
-            p_reference_id: reference || `PAYOS_${orderCode}`,
-            p_gateway: 'PayOS',
-          });
-          if (topupErr) {
-            console.error('[PayOS Webhook] credit_wallet_from_topup error:', topupErr);
-          } else {
-            console.log('[PayOS Webhook] credit_wallet_from_topup thành công:', topupRes);
-          }
-        } catch (walletErr) {
-          console.warn('[PayOS Webhook] credit_wallet_from_topup exception:', walletErr);
-        }
-      } else {
-        // Kích hoạt dịch vụ tương ứng (Nếu có RPC fulfill_paid_service_order)
-        try {
-          await supabase.rpc('fulfill_paid_service_order', {
-            p_order_code: actualOrderCode,
-            p_paid_amount: amount || tx.amount,
-            p_reference_id: reference || `PAYOS_${orderCode}`,
-            p_gateway: 'PayOS',
-          });
-        } catch (rpcErr) {
-          console.warn('[PayOS Webhook] fulfill_paid_service_order rpc skipped/unhandled:', rpcErr);
-        }
-      }
-
-      console.log(`[PayOS Webhook] Đã cập nhật thành công đơn hàng #${actualOrderCode} sang PAID.`);
+      console.log(
+        `[PayOS Webhook] Hoàn tất đơn hàng #${actualOrderCode} thành công (fulfilledBy=${fulfillRes.fulfilledBy}).`
+      );
       return res.status(200).json({
         error: 0,
-        message: 'Cập nhật trạng thái đơn hàng thành công (PAID).',
+        message: 'Cập nhật trạng thái đơn hàng & kích hoạt quyền lợi thành công (PAID).',
         orderCode,
+        fulfilledBy: fulfillRes.fulfilledBy,
       });
     }
 
@@ -193,4 +178,3 @@ export default async function handler(req: any, res: any) {
     });
   }
 }
-

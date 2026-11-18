@@ -7,6 +7,11 @@ import {
   resolveProfileByFirebaseUid,
   verifyFirebaseIdToken,
 } from '../_lib/walletServer.js';
+import {
+  PAYOS_DEFAULT_RECEIVER,
+  buildPayOSQrDataUrl,
+  syncPayOSOrderStatusIfNeeded,
+} from '../_lib/payosServer.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
@@ -31,7 +36,7 @@ export default async function handler(req: any, res: any) {
     let tx: any = null;
     const { data: fullTx, error: fullTxError } = await supabase
       .from('transactions')
-      .select('id, order_code, user_id, amount, payment_method, status, expires_at, paid_at, activated_at, metadata, created_at')
+      .select('id, order_code, user_id, plan_id, amount, payment_method, status, expires_at, paid_at, activated_at, metadata, created_at')
       .eq('order_code', orderCode)
       .eq('user_id', profile.id)
       .maybeSingle();
@@ -48,7 +53,7 @@ export default async function handler(req: any, res: any) {
 
       const { data: baseTx, error: baseTxError } = await supabase
         .from('transactions')
-        .select('id, order_code, user_id, amount, payment_method, status, paid_at, activated_at, created_at')
+        .select('id, order_code, user_id, plan_id, amount, payment_method, status, paid_at, activated_at, created_at')
         .eq('order_code', orderCode)
         .eq('user_id', profile.id)
         .maybeSingle();
@@ -71,6 +76,23 @@ export default async function handler(req: any, res: any) {
     const resolvedExpiresAt = tx.expires_at || fallbackExpiresAt;
 
     let currentStatus = tx.status;
+    let paidAt = tx.paid_at;
+
+    // Đối soát chủ động với PayOS API nếu đơn vẫn đang pending (đề phòng Webhook chậm/rớt mạng)
+    if (currentStatus === 'pending' && tx.payment_method === 'payos') {
+      const syncRes = await syncPayOSOrderStatusIfNeeded({
+        supabase,
+        tx: {
+          ...tx,
+          plan_id: tx.plan_id || 'wallet_topup',
+        },
+      });
+      currentStatus = syncRes.status;
+      if (syncRes.paidAt) {
+        paidAt = syncRes.paidAt;
+      }
+    }
+
     if (
       currentStatus === 'pending' &&
       resolvedExpiresAt &&
@@ -86,6 +108,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
+    // Truy vấn lại số dư ví SAU KHI đối soát PayOS để trả về số Xu mới nhất ngay lập tức
     const { data: wallet } = await supabase
       .from('k23_wallets')
       .select('id, owner_id, balance_real_xu, balance_bonus_xu, updated_at')
@@ -101,10 +124,24 @@ export default async function handler(req: any, res: any) {
     const totalXu = Number(meta.total_xu ?? realXu + bonusXu);
     const bonusPercent = Number(meta.bonus_percent ?? breakdown.bonusPercent);
 
+    const payosDesc = meta.payos_description || `TXNAP ${tx.order_code}`.slice(0, 25);
+    const payosAccNo = meta.payos_account_number || PAYOS_DEFAULT_RECEIVER.accountNumber;
+    const payosAccName = meta.payos_account_name || PAYOS_DEFAULT_RECEIVER.accountName;
+    const payosBin = meta.payos_bin || PAYOS_DEFAULT_RECEIVER.bin;
+
     const qrCode =
       normalizedMethod === 'payos'
-        ? meta.payos_qr_code ||
-          buildVietQrImageUrl('970422', '0981246282', tx.amount, `TXNAP ${tx.order_code}`.slice(0, 25), 'NGUYEN DUY ANH')
+        ? meta.payos_raw_qr
+          ? await buildPayOSQrDataUrl({
+              qrCode: meta.payos_raw_qr,
+              bin: payosBin,
+              accountNumber: payosAccNo,
+              accountName: payosAccName,
+              amount: Number(tx.amount),
+              description: payosDesc,
+            })
+          : meta.payos_qr_code ||
+            buildVietQrImageUrl(payosBin, payosAccNo, tx.amount, payosDesc, payosAccName)
         : normalizedMethod === 'momo'
         ? buildVietQrImageUrl(
             WALLET_MOMO_CONFIG.vietQrBankId,
@@ -133,10 +170,10 @@ export default async function handler(req: any, res: any) {
     const receiverInfo =
       normalizedMethod === 'payos'
         ? {
-            bankName: 'Ngân hàng Quân Đội (MBBank) qua PayOS',
-            accountNumber: '0981246282',
+            bankName: PAYOS_DEFAULT_RECEIVER.bankName,
+            accountNumber: payosAccNo,
             accountNumberLabel: 'Số tài khoản nhận (MBBank)',
-            accountName: 'NGUYEN DUY ANH',
+            accountName: payosAccName,
           }
         : normalizedMethod === 'momo'
         ? {
@@ -158,7 +195,7 @@ export default async function handler(req: any, res: any) {
       status: currentStatus,
       amount: tx.amount,
       paymentMethod: normalizedMethod,
-      paidAt: tx.paid_at,
+      paidAt,
       expiresAt: resolvedExpiresAt,
       metadata: meta,
       order: {
@@ -175,7 +212,7 @@ export default async function handler(req: any, res: any) {
         isSandbox: Boolean(meta.is_sandbox ?? profile.is_demo_account),
         qrCode,
         deeplink,
-        transferContent: tx.order_code,
+        transferContent: normalizedMethod === 'payos' ? payosDesc : tx.order_code,
         receiverInfo,
       },
       wallet: wallet

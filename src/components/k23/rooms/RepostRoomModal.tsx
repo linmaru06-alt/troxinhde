@@ -69,7 +69,7 @@ export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClos
     const interval = setInterval(async () => {
       try {
         const res = await getServicePaymentOrderStatus(qrOrder.orderCode);
-        if (res.status === 'paid') {
+        if (res.status === 'paid' || res.status === 'success') {
           clearInterval(interval);
           applyRoomRepostUI(selectedDuration);
         }
@@ -183,7 +183,7 @@ export const RepostRoomModal: React.FC<RepostRoomModalProps> = ({ isOpen, onClos
     setIsCheckingQr(true);
     try {
       const res = await getServicePaymentOrderStatus(qrOrder.orderCode);
-      if (res.status === 'paid') {
+      if (res.status === 'paid' || res.status === 'success') {
         applyRoomRepostUI(selectedDuration);
       } else {
         showToast(

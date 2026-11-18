@@ -20,7 +20,7 @@ export interface ServicePaymentOrder {
   amountXu: number;
   amountVnd: number;
   method: PaymentOrderMethod;
-  status: 'pending' | 'paid' | 'success' | 'expired' | 'failed';
+  status: 'pending' | 'paid' | 'success' | 'expired' | 'cancelled' | 'failed';
   expiresAt: string;
   isSandbox: boolean;
   qrCode: string;
@@ -39,7 +39,7 @@ export type ServicePaymentOrderResponse = ServicePaymentOrder;
 export interface ServiceOrderStatusResponse {
   success: boolean;
   orderCode: string;
-  status: 'pending' | 'paid' | 'success' | 'expired' | 'failed';
+  status: 'pending' | 'paid' | 'success' | 'expired' | 'cancelled' | 'failed';
   amount: number;
   amountXu: number;
   paymentMethod: PaymentOrderMethod;

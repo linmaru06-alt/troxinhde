@@ -173,11 +173,18 @@ export function useWalletTopup() {
           }
         }
         if (res.status === 'paid' || res.status === 'success') {
+          if (res.wallet) {
+            syncWalletFromServer(res.wallet as any);
+          }
+          refreshWalletData();
           if (step !== 'success') {
             navigateToStep('success', { replace: true, orderCode: res.orderCode });
           }
-        } else if (res.status === 'expired') {
+        } else if (res.status === 'expired' || res.status === 'cancelled') {
           navigateToStep('expired', { replace: true });
+        } else if (step === 'success') {
+          // Đơn vẫn đang pending — quay về Bước 3 để tiếp tục đối soát thật với PayOS
+          navigateToStep(3, { replace: true, orderCode: res.orderCode });
         }
       })
       .catch((err) => {
@@ -258,8 +265,11 @@ export function useWalletTopup() {
         if (stopped) return;
         if (res.status === 'paid' || res.status === 'success') {
           stopped = true;
+          if (res.wallet) {
+            syncWalletFromServer(res.wallet as any);
+          }
           await handleOrderPaid(activeOrder.orderCode, activeOrder.totalXu);
-        } else if (res.status === 'expired') {
+        } else if (res.status === 'expired' || res.status === 'cancelled') {
           stopped = true;
           navigateToStep('expired', { replace: true });
         }
@@ -268,7 +278,7 @@ export function useWalletTopup() {
       }
     };
 
-    const pollTimer = setInterval(checkOnce, 3500);
+    const pollTimer = setInterval(checkOnce, 3000);
 
     let channel: any = null;
     if (isSupabaseConfigured) {
@@ -313,14 +323,17 @@ export function useWalletTopup() {
     try {
       const res = await getWalletTopupStatus(activeOrder.orderCode);
       if (res.status === 'paid' || res.status === 'success') {
+        if (res.wallet) {
+          syncWalletFromServer(res.wallet as any);
+        }
         await handleOrderPaid(activeOrder.orderCode, activeOrder.totalXu);
-      } else if (res.status === 'expired') {
+      } else if (res.status === 'expired' || res.status === 'cancelled') {
         navigateToStep('expired', { replace: true });
-        showToast('Đơn nạp đã hết hạn', 'Vui lòng tạo mã QR mới để tiếp tục.', 'warning');
+        showToast('Đơn nạp đã hết hạn hoặc bị hủy', 'Vui lòng tạo mã QR mới để tiếp tục.', 'warning');
       } else {
         showToast(
-          'Đang chờ ngân hàng/MoMo xác nhận',
-          'Hệ thống chưa nhận được tín hiệu chuyển khoản cho mã đơn này. Vui lòng đợi 1-3 phút và thử lại.',
+          'Đang chờ PayOS xác nhận đủ tiền',
+          'Hệ thống chưa nhận đủ tiền cho mã đơn này. Nếu bạn vừa chuyển xong, vui lòng đợi 5–15 giây và thử lại.',
           'info'
         );
       }

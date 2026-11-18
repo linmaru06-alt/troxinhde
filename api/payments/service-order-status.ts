@@ -4,6 +4,11 @@ import {
   verifyFirebaseIdToken,
 } from '../_lib/walletServer.js';
 import { XU_TO_VND_RATE, buildPaymentQrAndReceiver } from '../_lib/monetizationServer.js';
+import {
+  PAYOS_DEFAULT_RECEIVER,
+  buildPayOSQrDataUrl,
+  syncPayOSOrderStatusIfNeeded,
+} from '../_lib/payosServer.js';
 
 export default async function handler(req: any, res: any) {
   if (req.method !== 'GET') {
@@ -46,6 +51,17 @@ export default async function handler(req: any, res: any) {
     const resolvedExpiresAt = tx.expires_at || fallbackExpiresAt;
 
     let currentStatus = tx.status;
+    let paidAt = tx.paid_at;
+
+    // Đối soát chủ động với PayOS API nếu đơn vẫn đang pending
+    if (currentStatus === 'pending' && tx.payment_method !== 'momo') {
+      const syncRes = await syncPayOSOrderStatusIfNeeded({ supabase, tx });
+      currentStatus = syncRes.status;
+      if (syncRes.paidAt) {
+        paidAt = syncRes.paidAt;
+      }
+    }
+
     if (
       currentStatus === 'pending' &&
       resolvedExpiresAt &&
@@ -61,17 +77,31 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const method = tx.payment_method === 'momo' ? 'momo' : tx.payment_method === 'payos' ? 'payos' : 'payos';
+    const method = tx.payment_method === 'momo' ? 'momo' : 'payos';
     const meta = (tx.metadata || {}) as Record<string, any>;
     const amountXu = Number(meta.amount_xu ?? Math.round((tx.amount || 0) / XU_TO_VND_RATE));
-    const fallbackQr = buildPaymentQrAndReceiver('vietqr', tx.amount, tx.order_code);
+    const fallbackQr = buildPaymentQrAndReceiver(method === 'momo' ? 'momo' : 'vietqr', tx.amount, tx.order_code);
+
+    const payosDesc = meta.payos_description || `TX ${tx.order_code}`.slice(0, 25);
+    const payosAccNo = meta.payos_account_number || PAYOS_DEFAULT_RECEIVER.accountNumber;
+    const payosAccName = meta.payos_account_name || PAYOS_DEFAULT_RECEIVER.accountName;
+    const payosBin = meta.payos_bin || PAYOS_DEFAULT_RECEIVER.bin;
 
     const qrCode =
       method === 'payos'
-        ? meta.payos_qr_code ||
-          `https://img.vietqr.io/image/970422-0981246282-compact2.png?amount=${tx.amount}&addInfo=${encodeURIComponent(
-            `TX ${tx.order_code}`.slice(0, 25)
-          )}&accountName=NGUYEN%20DUY%20ANH`
+        ? meta.payos_raw_qr
+          ? await buildPayOSQrDataUrl({
+              qrCode: meta.payos_raw_qr,
+              bin: payosBin,
+              accountNumber: payosAccNo,
+              accountName: payosAccName,
+              amount: Number(tx.amount),
+              description: payosDesc,
+            })
+          : meta.payos_qr_code ||
+            `https://img.vietqr.io/image/${payosBin}-${payosAccNo}-compact2.png?amount=${tx.amount}&addInfo=${encodeURIComponent(
+              payosDesc
+            )}&accountName=${encodeURIComponent(payosAccName)}`
         : fallbackQr.qrCode;
 
     const deeplink = method === 'payos' ? meta.checkout_url : fallbackQr.deeplink;
@@ -79,10 +109,10 @@ export default async function handler(req: any, res: any) {
     const receiverInfo =
       method === 'payos'
         ? {
-            bankName: 'Ngân hàng Quân Đội (MBBank) qua PayOS',
-            accountNumber: '0981246282',
-            accountNumberLabel: 'Số tài khoản MBBank',
-            accountName: 'NGUYEN DUY ANH',
+            bankName: PAYOS_DEFAULT_RECEIVER.bankName,
+            accountNumber: payosAccNo,
+            accountNumberLabel: PAYOS_DEFAULT_RECEIVER.accountNumberLabel,
+            accountName: payosAccName,
           }
         : fallbackQr.receiverInfo;
 
@@ -93,7 +123,7 @@ export default async function handler(req: any, res: any) {
       amount: tx.amount,
       amountXu,
       paymentMethod: method,
-      paidAt: tx.paid_at,
+      paidAt,
       activatedAt: tx.activated_at,
       expiresAt: resolvedExpiresAt,
       metadata: meta,
@@ -111,7 +141,7 @@ export default async function handler(req: any, res: any) {
         isSandbox: Boolean(meta.is_sandbox ?? profile.is_demo_account),
         qrCode,
         deeplink,
-        transferContent: method === 'payos' ? `TX ${tx.order_code}` : tx.order_code,
+        transferContent: method === 'payos' ? payosDesc : tx.order_code,
         receiverInfo,
       },
     });

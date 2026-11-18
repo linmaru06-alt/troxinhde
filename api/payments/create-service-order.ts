@@ -14,6 +14,9 @@ import {
   resolveCouponDiscountPercent,
 } from '../_lib/monetizationServer.js';
 import {
+  PAYOS_DEFAULT_RECEIVER,
+  buildPayOSDescription,
+  buildPayOSQrDataUrl,
   getPayOSClient,
   getBaseUrl,
   generatePayOSOrderCode,
@@ -186,11 +189,15 @@ export default async function handler(req: any, res: any) {
 
     let payosCheckoutUrl: string | undefined;
     let payosQrImage: string | undefined;
+    let payosRawQr: string | undefined;
+    let payosPaymentLinkId: string | undefined;
+    let payosDescription: string | undefined;
+    let payosBin: string = PAYOS_DEFAULT_RECEIVER.bin;
     let payosReceiver = {
-      bankName: 'Ngân hàng Quân Đội (MBBank) qua PayOS',
-      accountNumber: '0981246282',
-      accountNumberLabel: 'Số tài khoản MBBank',
-      accountName: 'NGUYEN DUY ANH',
+      bankName: PAYOS_DEFAULT_RECEIVER.bankName,
+      accountNumber: PAYOS_DEFAULT_RECEIVER.accountNumber,
+      accountNumberLabel: PAYOS_DEFAULT_RECEIVER.accountNumberLabel,
+      accountName: PAYOS_DEFAULT_RECEIVER.accountName,
     };
 
     if (method === 'payos') {
@@ -199,10 +206,12 @@ export default async function handler(req: any, res: any) {
         const baseUrl = getBaseUrl(req);
         const returnUrl = `${baseUrl}/thanh-toan/thanh-cong?orderCode=${orderCode}`;
         const cancelUrl = `${baseUrl}/thanh-toan/da-huy?orderCode=${orderCode}`;
+        const shortDesc = buildPayOSDescription('TX', payosOrderNum!);
+
         const payosRes = await payos.paymentRequests.create({
           orderCode: payosOrderNum!,
           amount: amountVnd,
-          description: `TX ${orderCode}`.slice(0, 25),
+          description: shortDesc,
           returnUrl,
           cancelUrl,
           buyerName: (profile as any)?.name || claims.email || undefined,
@@ -210,26 +219,40 @@ export default async function handler(req: any, res: any) {
         });
 
         payosCheckoutUrl = payosRes.checkoutUrl;
-        const bin = payosRes.bin || '970422';
-        const accNo = payosRes.accountNumber || '0981246282';
-        const accName = payosRes.accountName || 'NGUYEN DUY ANH';
+        payosRawQr = payosRes.qrCode || undefined;
+        payosPaymentLinkId = payosRes.paymentLinkId || undefined;
+        payosBin = payosRes.bin || PAYOS_DEFAULT_RECEIVER.bin;
+        const accNo = payosRes.accountNumber || PAYOS_DEFAULT_RECEIVER.accountNumber;
+        const accName = payosRes.accountName || PAYOS_DEFAULT_RECEIVER.accountName;
+        payosDescription = payosRes.description || shortDesc;
+
         payosReceiver.accountNumber = accNo;
         payosReceiver.accountName = accName;
-        payosQrImage = `https://img.vietqr.io/image/${bin}-${accNo}-compact2.png?amount=${amountVnd}&addInfo=${encodeURIComponent(
-          `TX ${orderCode}`.slice(0, 25)
-        )}&accountName=${encodeURIComponent(accName)}`;
+        payosQrImage = await buildPayOSQrDataUrl({
+          qrCode: payosRes.qrCode,
+          bin: payosBin,
+          accountNumber: accNo,
+          accountName: accName,
+          amount: amountVnd,
+          description: payosDescription,
+        });
       } catch (payosErr: any) {
         console.error('[Create Service Order] PayOS create error:', payosErr);
-        payosQrImage = `https://img.vietqr.io/image/970422-0981246282-compact2.png?amount=${amountVnd}&addInfo=${encodeURIComponent(
-          `TX ${orderCode}`.slice(0, 25)
-        )}&accountName=NGUYEN%20DUY%20ANH`;
+        return res.status(502).json({
+          error: `Không thể khởi tạo đơn thanh toán với PayOS (${payosErr?.message || 'Lỗi kết nối PayOS'}). Vui lòng thử lại.`,
+        });
       }
     }
 
     metadata = {
       ...metadata,
       order_code_num: payosOrderNum,
-      payos_qr_code: payosQrImage,
+      payment_link_id: payosPaymentLinkId,
+      payos_description: payosDescription,
+      payos_bin: method === 'payos' ? payosBin : undefined,
+      payos_account_number: method === 'payos' ? payosReceiver.accountNumber : undefined,
+      payos_account_name: method === 'payos' ? payosReceiver.accountName : undefined,
+      payos_raw_qr: payosRawQr,
       checkout_url: payosCheckoutUrl,
     };
 
@@ -274,7 +297,7 @@ export default async function handler(req: any, res: any) {
       }
     }
 
-    const fallbackQr = buildPaymentQrAndReceiver('vietqr', amountVnd, orderCode);
+    const fallbackQr = buildPaymentQrAndReceiver(method === 'momo' ? 'momo' : 'vietqr', amountVnd, orderCode);
     const qrCode = method === 'payos' ? (payosQrImage || fallbackQr.qrCode) : fallbackQr.qrCode;
     const deeplink = method === 'payos' ? payosCheckoutUrl : fallbackQr.deeplink;
     const receiverInfo = method === 'payos' ? payosReceiver : fallbackQr.receiverInfo;
@@ -296,7 +319,7 @@ export default async function handler(req: any, res: any) {
         isSandbox,
         qrCode,
         deeplink,
-        transferContent: method === 'payos' ? `TX ${orderCode}` : orderCode,
+        transferContent: method === 'payos' ? (payosDescription || orderCode) : orderCode,
         receiverInfo,
       },
     });

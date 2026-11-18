@@ -5,6 +5,7 @@ export interface CreatePayOSPaymentParams {
   planId?: string;
   roomId?: string;
   serviceType?: string;
+  billingCycle?: 'monthly' | 'yearly';
   description?: string;
   buyerName?: string;
   buyerEmail?: string;
@@ -34,9 +35,11 @@ export interface PayOSOrderStatusResult {
   amount: number;
   status: 'pending' | 'paid' | 'success' | 'failed' | 'cancelled' | 'expired';
   isPaid: boolean;
+  syncedFromPayOS?: boolean;
   paidAt?: string | null;
   createdAt?: string;
   planId?: string | null;
+  serviceType?: string;
   metadata?: Record<string, any>;
   error?: string;
 }
@@ -84,11 +87,25 @@ export async function createPayOSPaymentLink(
 export async function getPayOSOrderStatus(
   orderCode: string | number
 ): Promise<PayOSOrderStatusResult> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+
+  try {
+    const user = auth?.currentUser;
+    if (user) {
+      const token = await user.getIdToken();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    }
+  } catch {
+    // Cho phép tiếp tục tra cứu qua RPC nếu token chưa sẵn sàng
+  }
+
   const response = await fetch(`/api/payos/order-status?orderCode=${encodeURIComponent(orderCode)}`, {
     method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+    headers,
   });
 
   const data = await response.json();

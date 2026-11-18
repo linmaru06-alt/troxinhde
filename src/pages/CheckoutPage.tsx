@@ -244,6 +244,7 @@ export const CheckoutPage: React.FC = () => {
           amount: totalAmountVnd,
           planId: selectedPlan.id,
           serviceType: 'listing_plan',
+          billingCycle: apiCycle,
           description: `TX ${selectedPlan.id}`.slice(0, 25),
           buyerEmail: currentUser?.email,
           buyerName: currentUser?.name,

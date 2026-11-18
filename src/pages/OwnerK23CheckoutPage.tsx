@@ -96,7 +96,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
     const interval = setInterval(async () => {
       try {
         const res = await getServicePaymentOrderStatus(activeOrder.orderCode);
-        if (res.status === 'paid') {
+        if (res.status === 'paid' || res.status === 'success') {
           clearInterval(interval);
           await completeK23Payment(activeOrder.orderCode);
         }
@@ -118,7 +118,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
             filter: `order_code=eq.${activeOrder.orderCode}`,
           },
           async (payload: any) => {
-            if (payload?.new?.status === 'paid') {
+            if (payload?.new?.status === 'paid' || payload?.new?.status === 'success') {
               clearInterval(interval);
               await completeK23Payment(activeOrder.orderCode);
             }
@@ -202,7 +202,7 @@ export const OwnerK23CheckoutPage: React.FC = () => {
     setIsCheckingQr(true);
     try {
       const res = await getServicePaymentOrderStatus(activeOrder.orderCode);
-      if (res.status === 'paid') {
+      if (res.status === 'paid' || res.status === 'success') {
         await completeK23Payment(activeOrder.orderCode);
       } else {
         showToast(

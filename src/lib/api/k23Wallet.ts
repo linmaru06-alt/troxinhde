@@ -56,7 +56,7 @@ export interface WalletTopupOrder {
   totalXu: number;
   bonusPercent: number;
   method: WalletTopupMethod;
-  status: 'pending' | 'paid' | 'success' | 'expired' | 'failed';
+  status: 'pending' | 'paid' | 'success' | 'expired' | 'cancelled' | 'failed';
   expiresAt: string;
   isSandbox: boolean;
   qrCode: string;
@@ -73,7 +73,7 @@ export interface WalletTopupOrder {
 export interface WalletTopupStatusResponse {
   success: boolean;
   orderCode: string;
-  status: 'pending' | 'paid' | 'success' | 'expired' | 'failed';
+  status: 'pending' | 'paid' | 'success' | 'expired' | 'cancelled' | 'failed';
   amount: number;
   paymentMethod: WalletTopupMethod;
   paidAt?: string | null;

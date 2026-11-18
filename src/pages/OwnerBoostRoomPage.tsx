@@ -90,7 +90,7 @@ export const OwnerBoostRoomPage: React.FC = () => {
     const interval = setInterval(async () => {
       try {
         const res = await getServicePaymentOrderStatus(qrOrder.orderCode);
-        if (res.status === 'paid') {
+        if (res.status === 'paid' || res.status === 'success') {
           clearInterval(interval);
           completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
         }
@@ -112,7 +112,7 @@ export const OwnerBoostRoomPage: React.FC = () => {
             filter: `order_code=eq.${qrOrder.orderCode}`,
           },
           (payload: any) => {
-            if (payload?.new?.status === 'paid') {
+            if (payload?.new?.status === 'paid' || payload?.new?.status === 'success') {
               clearInterval(interval);
               completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
             }
@@ -227,7 +227,7 @@ export const OwnerBoostRoomPage: React.FC = () => {
     setIsCheckingQr(true);
     try {
       const res = await getServicePaymentOrderStatus(qrOrder.orderCode);
-      if (res.status === 'paid') {
+      if (res.status === 'paid' || res.status === 'success') {
         completeBoostAndRedirect(qrOrder.orderCode, paymentMethod);
       } else {
         showToast(

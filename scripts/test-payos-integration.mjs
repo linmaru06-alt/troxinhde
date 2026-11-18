@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import { PayOS } from '@payos/node';
+import QRCode from 'qrcode';
 
 console.log('======================================================================');
 console.log('  CHẠY TEST SUITE TÍCH HỢP CỔNG THANH TOÁN PAYOS & WEBHOOK (PAYOS.VN)');
@@ -218,6 +219,59 @@ async function runTests() {
     const fullPath = path.resolve(relPath);
     assert(fs.existsSync(fullPath), `File ${relPath} tồn tại trên đĩa.`);
   }
+
+  // -------------------------------------------------------------------------
+  // TEST 6: Kiểm thử hồi quy (Regression) cho QR gốc PayOS, RPC atomic & Active Sync
+  // -------------------------------------------------------------------------
+  console.log('\nTest 6: Kiểm thử hồi quy chuỗi QR EMVCo gốc PayOS, thứ tự RPC & đối soát chủ động');
+
+  const sampleEmvcoQr = '00020101021238540010A00000072701240006970422011009812462820208QRIBFTTA53037045405500005802VN62180814CS123456 TX1236304ABCD';
+  const qrDataUrl = await QRCode.toDataURL(sampleEmvcoQr, { width: 320, margin: 2 });
+  assert(
+    typeof qrDataUrl === 'string' && qrDataUrl.startsWith('data:image/png;base64,'),
+    'Render trực tiếp chuỗi EMVCo qrCode gốc từ PayOS ra ảnh PNG data URL thành công.'
+  );
+
+  const payosServerSrc = fs.readFileSync(path.resolve('api/_lib/payosServer.ts'), 'utf8');
+  const webhookSrc = fs.readFileSync(path.resolve('api/payos/webhook.ts'), 'utf8');
+  const topupCreateSrc = fs.readFileSync(path.resolve('api/wallet/create-topup-order.ts'), 'utf8');
+  const serviceCreateSrc = fs.readFileSync(path.resolve('api/payments/create-service-order.ts'), 'utf8');
+  const orderStatusSrc = fs.readFileSync(path.resolve('api/payos/order-status.ts'), 'utf8');
+  const topupStatusSrc = fs.readFileSync(path.resolve('api/wallet/topup-status.ts'), 'utf8');
+  const serviceStatusSrc = fs.readFileSync(path.resolve('api/payments/service-order-status.ts'), 'utf8');
+
+  assert(
+    payosServerSrc.includes('buildPayOSQrDataUrl') && payosServerSrc.includes('QRCode.toDataURL'),
+    'payosServer.ts render ảnh QR trực tiếp từ chuỗi EMVCo gốc của PayOS.'
+  );
+  assert(
+    payosServerSrc.includes('effectivePaidAmount < expectedAmount') &&
+      payosServerSrc.includes('amountPaid >= Number(tx.amount) && amountRemaining <= 0'),
+    'payosServer.ts chỉ xác nhận PAID khi đã nhận đủ 100% số tiền yêu cầu.'
+  );
+  assert(
+    payosServerSrc.indexOf("rpc('credit_wallet_from_topup'") <
+      payosServerSrc.indexOf("updatePayload.status = 'paid'"),
+    'Thứ tự xử lý chuẩn: gọi RPC cộng Xu / kích hoạt dịch vụ TRƯỚC khi đổi status=paid.'
+  );
+  assert(
+    webhookSrc.includes('fulfillPaidPayOSTransaction') && webhookSrc.includes('hasSupabaseServiceRoleKey'),
+    'webhook.ts dùng hàm hoàn tất nguyên tử & kiểm tra quyền SUPABASE_SERVICE_ROLE_KEY.'
+  );
+  assert(
+    topupCreateSrc.includes('res.status(502)') && serviceCreateSrc.includes('res.status(502)'),
+    'create-topup-order & create-service-order trả lỗi 502 rõ ràng khi PayOS lỗi, không vẽ QR tĩnh giả.'
+  );
+  assert(
+    topupCreateSrc.includes('payosRes.description') && serviceCreateSrc.includes('payosRes.description'),
+    'Nội dung chuyển khoản hiển thị lấy chính xác từ payosRes.description của PayOS.'
+  );
+  assert(
+    orderStatusSrc.includes('syncPayOSOrderStatusIfNeeded') &&
+      topupStatusSrc.includes('syncPayOSOrderStatusIfNeeded') &&
+      serviceStatusSrc.includes('syncPayOSOrderStatusIfNeeded'),
+    'Cả 3 API kiểm tra trạng thái đều đối soát chủ động trực tiếp với PayOS API khi đơn còn pending.'
+  );
 
   console.log('\n======================================================================');
   console.log(`  KẾT QUẢ: ${passCount} PASSED, ${failCount} FAILED`);

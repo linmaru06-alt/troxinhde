@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getServicePaymentOrderStatus } from '../lib/api/monetization';
+import { getPayOSOrderStatus } from '../lib/payos';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAppStore } from '../store/useAppStore';
 import { PaymentMethod, SubscriptionPlanId } from '../types';
@@ -94,11 +95,12 @@ export function usePaymentPolling(
           filter: `order_code=eq.${orderCode}`,
         },
         (payload: any) => {
-          if (payload?.new?.status === 'paid') {
+          const nextStatus = payload?.new?.status;
+          if (nextStatus === 'paid' || nextStatus === 'success') {
             completeOrder();
-          } else if (payload?.new?.status === 'failed') {
+          } else if (nextStatus === 'failed' || nextStatus === 'cancelled') {
             setStatus('failed');
-          } else if (payload?.new?.status === 'expired') {
+          } else if (nextStatus === 'expired') {
             setStatus('expired');
           }
         }
@@ -110,22 +112,20 @@ export function usePaymentPolling(
     };
   }, [orderCode, status, completeOrder]);
 
-  // Fallback Polling mỗi 3s
+  // Fallback Polling mỗi 3s (kèm đối soát trực tiếp với PayOS ở phía server)
   useEffect(() => {
     if (!orderCode || status !== 'waiting') return;
 
     let attempts = 0;
-    const MAX_ATTEMPTS = 200;
+    const MAX_ATTEMPTS = 300;
 
     const pollInterval = setInterval(async () => {
       attempts++;
       try {
         let currentStatus = '';
         if (method === 'payos') {
-          const res = await fetch(`/api/payos/order-status?orderCode=${encodeURIComponent(String(orderCode))}`)
-            .then((r) => r.json())
-            .catch(() => null);
-          currentStatus = res?.status || '';
+          const res = await getPayOSOrderStatus(orderCode).catch(() => null);
+          currentStatus = res?.isPaid ? 'paid' : res?.status || '';
         } else {
           const result = await getServicePaymentOrderStatus(String(orderCode));
           currentStatus = result?.status || '';
@@ -134,7 +134,12 @@ export function usePaymentPolling(
         if (currentStatus === 'paid' || currentStatus === 'success') {
           clearInterval(pollInterval);
           completeOrder();
-        } else if (currentStatus === 'failed' || currentStatus === 'expired' || attempts >= MAX_ATTEMPTS) {
+        } else if (
+          currentStatus === 'failed' ||
+          currentStatus === 'cancelled' ||
+          currentStatus === 'expired' ||
+          attempts >= MAX_ATTEMPTS
+        ) {
           setStatus(attempts >= MAX_ATTEMPTS || currentStatus === 'expired' ? 'expired' : 'failed');
           clearInterval(pollInterval);
         }
@@ -144,7 +149,7 @@ export function usePaymentPolling(
     }, 3000);
 
     return () => clearInterval(pollInterval);
-  }, [orderCode, status, completeOrder]);
+  }, [orderCode, status, method, completeOrder]);
 
   const recheckStatus = async () => {
     if (!orderCode) return;
@@ -152,10 +157,8 @@ export function usePaymentPolling(
     try {
       let currentStatus = '';
       if (method === 'payos') {
-        const res = await fetch(`/api/payos/order-status?orderCode=${encodeURIComponent(String(orderCode))}`)
-          .then((r) => r.json())
-          .catch(() => null);
-        currentStatus = res?.status || '';
+        const res = await getPayOSOrderStatus(orderCode);
+        currentStatus = res?.isPaid ? 'paid' : res?.status || '';
       } else {
         const paymentCheck = await getServicePaymentOrderStatus(String(orderCode));
         currentStatus = paymentCheck?.status || '';
@@ -163,16 +166,16 @@ export function usePaymentPolling(
 
       if (currentStatus === 'paid' || currentStatus === 'success') {
         completeOrder();
-      } else if (currentStatus === 'failed') {
+      } else if (currentStatus === 'failed' || currentStatus === 'cancelled') {
         setStatus('failed');
-        showToast('Giao dịch thất bại', 'Vui lòng kiểm tra lại hoặc tạo mã QR mới.', 'error');
+        showToast('Giao dịch đã hủy hoặc thất bại', 'Vui lòng kiểm tra lại hoặc tạo mã QR mới.', 'error');
       } else if (currentStatus === 'expired') {
         setStatus('expired');
         showToast('Mã QR đã hết hạn', 'Vui lòng tạo mã thanh toán mới.', 'warning');
       } else {
         showToast(
-          'Đang chờ đối soát giao dịch',
-          'Hệ thống tự động kích hoạt ngay khi nhận được xác nhận từ ngân hàng/MoMo.',
+          'Đang chờ PayOS xác nhận đủ tiền',
+          'Hệ thống tự động kích hoạt ngay khi PayOS xác nhận đã nhận đủ số tiền đơn hàng.',
           'info'
         );
       }
