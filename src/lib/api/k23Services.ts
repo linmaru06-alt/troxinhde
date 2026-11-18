@@ -78,3 +78,60 @@ export async function saveBuildingServices(
   if (error) throw error;
 }
 
+export interface BuildingBankAccount {
+  bankId: string;
+  accountNo: string;
+  accountName: string;
+}
+
+export async function getBuildingBankAccount(buildingId: string): Promise<BuildingBankAccount | null> {
+  if (!isSupabaseConfigured || !buildingId) return null;
+
+  try {
+    const { data, error } = await supabase
+      .from('buildings')
+      .select('bank_id, bank_account_no, bank_account_name')
+      .eq('id', buildingId)
+      .maybeSingle();
+
+    if (error || !data) return null;
+
+    return {
+      bankId: data.bank_id || 'TCB',
+      accountNo: data.bank_account_no || '',
+      accountName: data.bank_account_name || '',
+    };
+  } catch {
+    return null;
+  }
+}
+
+export async function saveBuildingBankAccount(
+  buildingId: string,
+  bank: BuildingBankAccount
+): Promise<void> {
+  if (!isSupabaseConfigured || !buildingId) return;
+
+  const { error } = await supabase
+    .from('buildings')
+    .update({
+      bank_id: (bank.bankId || 'TCB').trim().toUpperCase(),
+      bank_account_no: (bank.accountNo || '').trim(),
+      bank_account_name: (bank.accountName || '').trim().toUpperCase(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', buildingId);
+
+  if (error) {
+    // Nếu cột mới chưa kịp chạy migration SQL thì cảnh báo rõ ràng cho quản trị viên
+    const missingCol =
+      error.code === '42703' ||
+      error.code === 'PGRST204' ||
+      /column .* does not exist|schema cache/i.test(error.message || '');
+    if (!missingCol) {
+      throw error;
+    }
+    console.warn('[k23Services] Bảng buildings chưa có cột bank_id/bank_account_no (cần chạy migration 052):', error.message);
+  }
+}
+

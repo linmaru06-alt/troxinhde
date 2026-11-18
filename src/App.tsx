@@ -679,7 +679,14 @@ const AppContent: React.FC = () => {
                 </OwnerRoute>
               }
             />
-            <Route path="/vi-xu" element={<OwnerWalletPage />} />
+            <Route
+              path="/vi-xu"
+              element={
+                <ProtectedRoute>
+                  <OwnerWalletPage />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="/chu-tro/quan-ly-goi-archive"
               element={
@@ -879,6 +886,7 @@ const AppContent: React.FC = () => {
 
             {/* Debug QA Tool */}
             <Route path="/tra-cuu-phong" element={<TenantWebPortalPage />} />
+            <Route path="/cong-khach-thue" element={<TenantWebPortalPage />} />
             <Route path="/portal" element={<TenantWebPortalPage />} />
             <Route path="/demo-hoa-don" element={<K23MonthlyDemoPage />} />
             <Route path="/chu-tro/demo-thang-tro" element={<K23MonthlyDemoPage />} />

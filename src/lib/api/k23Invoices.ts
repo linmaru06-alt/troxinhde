@@ -103,10 +103,10 @@ export async function saveInvoiceWithItems(params: {
     if (error) throw error;
     savedInvoice = data;
   } else {
-    // Generate invoice_code if missing
+    // Generate invoice_code chuẩn HD... để Webhook tự động đối soát gạch nợ chính xác
     const code =
       invoice.invoice_code ||
-      `INV-${Date.now().toString().slice(-6)}-P${invoice.room_id?.slice(0, 4) || '0'}`;
+      `HD${Date.now().toString().slice(-6)}P${(invoice.room_id || '0').replace(/[^A-Za-z0-9]/g, '').slice(0, 4).toUpperCase()}`;
     const { data, error } = await supabase
       .from('invoices')
       .insert({ ...invoicePayload, invoice_code: code })
@@ -173,5 +173,76 @@ export async function deleteInvoice(id: string): Promise<void> {
 
   const { error } = await supabase.from('invoices').delete().eq('id', id);
   if (error) throw error;
+}
+
+export interface TenantPortalInvoiceResult extends Invoice {
+  building_info?: {
+    id?: string;
+    name?: string;
+    address?: string;
+    bank_id?: string | null;
+    bank_account_no?: string | null;
+    bank_account_name?: string | null;
+  } | null;
+}
+
+export async function searchTenantPortalInvoices(rawQuery: string): Promise<TenantPortalInvoiceResult[]> {
+  const cleaned = (rawQuery || '').trim();
+  if (!isSupabaseConfigured || cleaned.length < 3) return [];
+
+  // 1. Ưu tiên gọi RPC bảo mật lookup_tenant_invoices (nếu đã chạy migration 052)
+  try {
+    const { data: rpcRows, error: rpcErr } = await supabase.rpc('lookup_tenant_invoices', {
+      p_query: cleaned,
+    });
+    if (!rpcErr && Array.isArray(rpcRows)) {
+      return rpcRows as TenantPortalInvoiceResult[];
+    }
+  } catch {
+    // Fallback sang truy vấn trực tiếp bên dưới
+  }
+
+  // 2. Truy vấn trực tiếp bảng invoices + rooms + buildings + tenants + invoice_items
+  const phoneDigits = cleaned.replace(/\s+/g, '');
+  const { data, error } = await supabase
+    .from('invoices')
+    .select(`
+      *,
+      room:rooms(
+        id,
+        room_number,
+        title,
+        building_id,
+        price,
+        building:buildings(id, name, address, bank_id, bank_account_no, bank_account_name)
+      ),
+      tenant:tenants(id, full_name, phone),
+      items:invoice_items(*)
+    `)
+    .order('billing_year', { ascending: false })
+    .order('billing_month', { ascending: false })
+    .limit(50);
+
+  if (error || !data) {
+    return [];
+  }
+
+  return data
+    .filter((inv: any) => {
+      const invPhone = String(inv.tenant?.phone || '').replace(/\s+/g, '');
+      const invCode = String(inv.invoice_code || '').toUpperCase();
+      return (
+        (phoneDigits.length >= 6 && invPhone.includes(phoneDigits)) ||
+        invCode === cleaned.toUpperCase()
+      );
+    })
+    .map((inv: any) => {
+      const rawBld = inv.room?.building;
+      const bld = Array.isArray(rawBld) ? rawBld[0] : rawBld;
+      return {
+        ...inv,
+        building_info: bld || null,
+      } as TenantPortalInvoiceResult;
+    });
 }
 

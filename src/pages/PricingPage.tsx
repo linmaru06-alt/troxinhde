@@ -95,6 +95,15 @@ export const PricingPage: React.FC = () => {
       navigate(`/dang-nhap?returnUrl=${encodeURIComponent(target)}`);
       return;
     }
+    if (currentUser.role !== 'owner' && currentUser.role !== 'admin') {
+      showToast(
+        'Dành cho Chủ trọ đối tác',
+        'Vui lòng đăng ký nâng cấp tài khoản Chủ trọ trước khi mua gói đăng phòng.',
+        'info'
+      );
+      navigate('/dang-ky-chu-tro');
+      return;
+    }
     navigate(target);
   };
 

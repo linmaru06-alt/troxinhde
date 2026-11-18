@@ -1,34 +1,30 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  Search,
   X,
-  Building2,
-  Calendar,
-  DollarSign,
   QrCode,
   Wrench,
   CheckCircle2,
   AlertCircle,
-  Clock,
   Phone,
-  FileText,
   Copy,
   Check,
-  ChevronRight,
-  ExternalLink,
-  ShieldCheck,
   Sparkles,
+  RefreshCw,
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { formatPrice } from '../components/ui/Cards';
-import { useInvoices } from '../hooks/queries/useK23';
+import { searchTenantPortalInvoices, TenantPortalInvoiceResult } from '../lib/api/k23Invoices';
 import { useK23Operations } from '../hooks/queries/useK23Operations';
-import { Invoice } from '../types/k23';
+import { generateVietQrUrl, POPULAR_BANKS } from '../lib/vietqr';
+import { isSupabaseConfigured, supabase } from '../lib/supabase';
 
 export const TenantWebPortalPage: React.FC = () => {
-  const [searchPhone, setSearchPhone] = useState<string>('0988 123 456');
-  const [isSearched, setIsSearched] = useState<boolean>(true);
+  const [searchPhone, setSearchPhone] = useState<string>('');
+  const [submittedQuery, setSubmittedQuery] = useState<string>('');
+  const [tenantInvoices, setTenantInvoices] = useState<TenantPortalInvoiceResult[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [copiedCode, setCopiedCode] = useState<boolean>(false);
+  const [copiedAccount, setCopiedAccount] = useState<boolean>(false);
 
   // Form báo hỏng
   const [isIssueModalOpen, setIsIssueModalOpen] = useState<boolean>(false);
@@ -36,25 +32,82 @@ export const TenantWebPortalPage: React.FC = () => {
   const [issueDesc, setIssueDesc] = useState<string>('');
   const [issueSuccess, setIssueSuccess] = useState<boolean>(false);
 
-  const { data: allInvoices = [] } = useInvoices({
-    ownerId: 'user_owner_1',
-  });
-
   const { createIssue } = useK23Operations();
 
-  // Lọc hóa đơn theo SĐT khách thuê
-  const tenantInvoices = allInvoices.filter((inv) => {
-    const cleanQuery = searchPhone.replace(/\s+/g, '');
-    const invPhone = (inv.tenant?.phone || '').replace(/\s+/g, '');
-    return invPhone.includes(cleanQuery) || inv.tenant?.full_name?.toLowerCase().includes(searchPhone.toLowerCase());
-  });
+  const fetchTenantInvoices = useCallback(async (queryStr: string, silent = false) => {
+    const trimmed = queryStr.trim();
+    if (trimmed.length < 3) return;
+    if (!silent) setIsLoading(true);
+    try {
+      const rows = await searchTenantPortalInvoices(trimmed);
+      setTenantInvoices(rows);
+    } finally {
+      if (!silent) setIsLoading(false);
+    }
+  }, []);
 
-  const latestInvoice: Invoice | undefined = tenantInvoices[0];
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = searchPhone.trim();
+    if (trimmed.length < 3) return;
+    setSubmittedQuery(trimmed);
+    void fetchTenantInvoices(trimmed);
+  };
 
-  const handleCopy = (text: string) => {
+  const latestInvoice: TenantPortalInvoiceResult | undefined = tenantInvoices[0];
+
+  // Lắng nghe Realtime + Polling + Kiểm tra ngay khi khách thuê chuyển từ App Ngân hàng quay lại trình duyệt
+  useEffect(() => {
+    if (!latestInvoice || latestInvoice.status === 'paid' || !submittedQuery) return;
+
+    const pollTimer = setInterval(() => {
+      void fetchTenantInvoices(submittedQuery, true);
+    }, 4000);
+
+    const handleVisibilityOrFocus = () => {
+      if (typeof document === 'undefined' || document.visibilityState === 'visible') {
+        void fetchTenantInvoices(submittedQuery, true);
+      }
+    };
+    window.addEventListener('focus', handleVisibilityOrFocus);
+    document.addEventListener('visibilitychange', handleVisibilityOrFocus);
+
+    let channel: any = null;
+    if (isSupabaseConfigured && supabase) {
+      channel = supabase
+        .channel(`tenant-invoice-${latestInvoice.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'invoices',
+            filter: `id=eq.${latestInvoice.id}`,
+          },
+          () => {
+            void fetchTenantInvoices(submittedQuery, true);
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      clearInterval(pollTimer);
+      window.removeEventListener('focus', handleVisibilityOrFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityOrFocus);
+      if (channel && supabase) supabase.removeChannel(channel);
+    };
+  }, [latestInvoice?.id, latestInvoice?.status, submittedQuery, fetchTenantInvoices]);
+
+  const handleCopy = (text: string, type: 'code' | 'acc') => {
     navigator.clipboard.writeText(text);
-    setCopiedCode(true);
-    setTimeout(() => setCopiedCode(false), 2000);
+    if (type === 'code') {
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } else {
+      setCopiedAccount(true);
+      setTimeout(() => setCopiedAccount(false), 2000);
+    }
   };
 
   const handleCreateIssue = async (e: React.FormEvent) => {
@@ -62,13 +115,13 @@ export const TenantWebPortalPage: React.FC = () => {
     if (!issueTitle.trim() || !latestInvoice) return;
 
     await createIssue({
-      building_id: latestInvoice.room?.building_id || 'bld_1',
-      building_name: latestInvoice.room?.title || 'Tòa nhà',
+      building_id: latestInvoice.room?.building_id || latestInvoice.building_info?.id || '',
+      building_name: latestInvoice.building_info?.name || latestInvoice.room?.title || 'Tòa nhà',
       room_id: latestInvoice.room_id,
       room_number: latestInvoice.room?.room_number || 'Phòng',
       tenant_name: latestInvoice.tenant?.full_name || 'Khách thuê',
       tenant_phone: latestInvoice.tenant?.phone || searchPhone,
-      owner_id: latestInvoice.owner_id || 'user_owner_1',
+      owner_id: latestInvoice.owner_id,
       title: issueTitle.trim(),
       description: issueDesc.trim() || undefined,
       priority: 'high',
@@ -85,6 +138,27 @@ export const TenantWebPortalPage: React.FC = () => {
     }, 2000);
   };
 
+  const buildingBankId = latestInvoice?.building_info?.bank_id || 'TCB';
+  const buildingAccountNo = (latestInvoice?.building_info?.bank_account_no || '').trim();
+  const buildingAccountName = (latestInvoice?.building_info?.bank_account_name || '').trim();
+  const matchedBank = POPULAR_BANKS.find((b) => b.id.toUpperCase() === buildingBankId.toUpperCase());
+  const remainingAmount = latestInvoice
+    ? Math.max(0, latestInvoice.total_amount - (latestInvoice.paid_amount || 0))
+    : 0;
+  const transferContent = latestInvoice ? `TROXINH ${latestInvoice.invoice_code}` : '';
+
+  const vietQrImageUrl =
+    latestInvoice && buildingAccountNo && remainingAmount > 0
+      ? generateVietQrUrl({
+          bankId: buildingBankId,
+          accountNo: buildingAccountNo,
+          accountName: buildingAccountName,
+          amount: remainingAmount,
+          description: transferContent,
+          template: 'compact2',
+        })
+      : '';
+
   return (
     <div className="min-h-screen bg-slate-50 font-sans py-8 px-4 sm:px-6">
       <div className="max-w-2xl mx-auto space-y-6">
@@ -94,43 +168,46 @@ export const TenantWebPortalPage: React.FC = () => {
             <Sparkles className="w-3.5 h-3.5" /> Cổng Thông Tin Khách Thuê K23
           </div>
           <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
-            Tra Cứu Tiền Nhà & Hóa Đơn
+            Tra Cứu Tiền Nhà &amp; Hóa Đơn
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
-            Xem hóa đơn hàng tháng, quét VietQR thanh toán 1-chạm và gửi yêu cầu sửa chữa đồ đạc trực tiếp cho chủ nhà.
+            Nhập số điện thoại hoặc mã hóa đơn để xem bảng kê chi tiết, quét VietQR thanh toán trực tiếp cho chủ trọ và tự động xác nhận ngay trên màn hình.
           </p>
         </div>
 
-        {/* Thanh tìm kiếm số điện thoại */}
-        <div className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2">
+        {/* Thanh tìm kiếm số điện thoại / mã hóa đơn */}
+        <form
+          onSubmit={handleSearchSubmit}
+          className="bg-white p-3 rounded-2xl border border-slate-200 shadow-sm flex items-center gap-2"
+        >
           <Phone className="w-5 h-5 text-slate-400 ml-2 shrink-0" />
           <input
             type="text"
             value={searchPhone}
             onChange={(e) => setSearchPhone(e.target.value)}
-            placeholder="Nhập số điện thoại của bạn (VD: 0988 123 456)..."
+            placeholder="Nhập SĐT khách thuê hoặc mã hóa đơn (VD: HD123456)..."
             className="flex-1 text-sm font-semibold text-slate-900 outline-none placeholder:text-slate-400"
           />
           <Button
+            type="submit"
             variant="primary"
-            onClick={() => setIsSearched(true)}
-            className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold rounded-xl"
+            isLoading={isLoading}
+            className="bg-emerald-600 hover:bg-emerald-700 text-xs font-bold rounded-xl cursor-pointer"
           >
             Tra cứu
           </Button>
-        </div>
+        </form>
 
         {/* Kết quả tra cứu */}
-        {isSearched && (
+        {submittedQuery && !isLoading && (
           <div className="space-y-6 animate-in fade-in duration-300">
             {latestInvoice ? (
               <>
-                {/* Thẻ Hóa đơn tháng hiện tại */}
                 <div className="bg-white rounded-3xl border border-slate-200 shadow-lg overflow-hidden">
                   <div className="p-5 bg-gradient-to-r from-emerald-800 to-teal-800 text-white flex items-center justify-between">
                     <div>
                       <span className="text-xs font-medium text-emerald-200 uppercase tracking-wider block">
-                        Hóa đơn tiền phòng
+                        {latestInvoice.building_info?.name || 'Hóa đơn tiền phòng'}
                       </span>
                       <h2 className="text-xl font-bold mt-0.5">
                         Tháng {latestInvoice.billing_month}/{latestInvoice.billing_year}
@@ -148,7 +225,7 @@ export const TenantWebPortalPage: React.FC = () => {
                     {/* Bảng kê chi phí */}
                     <div className="space-y-3">
                       <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                        Chi tiết các khoản phí
+                        Chi tiết các khoản phí (#{latestInvoice.invoice_code})
                       </h3>
 
                       <div className="divide-y divide-slate-100 text-sm">
@@ -180,9 +257,9 @@ export const TenantWebPortalPage: React.FC = () => {
 
                       {latestInvoice.status !== 'paid' && (
                         <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex justify-between items-center text-sm font-black text-amber-900">
-                          <span>Số tiền còn nợ:</span>
+                          <span>Số tiền cần thanh toán:</span>
                           <span className="text-lg text-amber-700 font-mono">
-                            {formatPrice(Math.max(0, latestInvoice.total_amount - latestInvoice.paid_amount))}
+                            {formatPrice(remainingAmount)}
                           </span>
                         </div>
                       )}
@@ -192,62 +269,108 @@ export const TenantWebPortalPage: React.FC = () => {
                     {latestInvoice.status !== 'paid' && (
                       <div className="p-5 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-4">
                         <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-100 text-emerald-800 text-xs font-bold">
-                          <QrCode className="w-4 h-4" /> Quét mã VietQR thanh toán 1-chạm
+                          <QrCode className="w-4 h-4" /> Quét mã VietQR thanh toán cho Chủ trọ
                         </div>
 
-                        {/* QR Code Image */}
-                        <div className="w-52 h-52 mx-auto bg-white p-3 rounded-2xl border-2 border-dashed border-emerald-500/40 shadow-sm flex items-center justify-center">
-                          <img
-                            src={`https://img.vietqr.io/image/970422-0981246282-compact2.png?amount=${latestInvoice.total_amount - latestInvoice.paid_amount}&addInfo=TROXINH%20${latestInvoice.invoice_code}&accountName=NGUYEN%20DUY%20ANH`}
-                            alt="VietQR Hóa đơn"
-                            className="w-full h-full object-contain"
-                          />
-                        </div>
-
-                        {/* Hướng dẫn chuyển khoản */}
-                        <div className="text-xs text-slate-600 space-y-1.5 max-w-sm mx-auto text-left bg-white p-3.5 rounded-xl border border-slate-200">
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Ngân hàng:</span>
-                            <span className="font-bold text-slate-800">MB Bank (Quân Đội) qua PayOS</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Số tài khoản:</span>
-                            <span className="font-mono font-bold text-slate-800">0981246282</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-slate-400">Chủ tài khoản:</span>
-                            <span className="font-bold text-slate-800">NGUYEN DUY ANH</span>
-                          </div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-slate-400">Nội dung:</span>
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono font-bold text-emerald-700">
-                                TROXINH {latestInvoice.invoice_code}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => handleCopy(`TROXINH ${latestInvoice.invoice_code}`)}
-                                className="text-slate-400 hover:text-slate-600"
-                              >
-                                {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
-                              </button>
+                        {buildingAccountNo && vietQrImageUrl ? (
+                          <>
+                            <div className="w-56 h-56 mx-auto bg-white p-3 rounded-2xl border-2 border-dashed border-emerald-500/40 shadow-sm flex items-center justify-center">
+                              <img
+                                src={vietQrImageUrl}
+                                alt={`VietQR Hóa đơn ${latestInvoice.invoice_code}`}
+                                className="w-full h-full object-contain"
+                              />
                             </div>
-                          </div>
-                        </div>
 
-                        <p className="text-[11px] text-slate-400">
-                          * Tiền sẽ tự động gạch nợ sau khi chuyển khoản thành công từ 3 đến 5 giây.
-                        </p>
+                            <div className="text-xs text-slate-600 space-y-2 max-w-sm mx-auto text-left bg-white p-3.5 rounded-xl border border-slate-200">
+                              <div className="flex justify-between">
+                                <span className="text-slate-400">Ngân hàng nhận:</span>
+                                <span className="font-bold text-slate-800">
+                                  {matchedBank?.shortName || buildingBankId}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center">
+                                <span className="text-slate-400">Số tài khoản:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-slate-800">
+                                    {buildingAccountNo}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(buildingAccountNo, 'acc')}
+                                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                  >
+                                    {copiedAccount ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                              {buildingAccountName && (
+                                <div className="flex justify-between">
+                                  <span className="text-slate-400">Chủ tài khoản:</span>
+                                  <span className="font-bold text-slate-800 uppercase">
+                                    {buildingAccountName}
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex justify-between items-center pt-1.5 border-t border-slate-100">
+                                <span className="text-slate-400">Nội dung:</span>
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                                    {transferContent}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopy(transferContent, 'code')}
+                                    className="text-slate-400 hover:text-slate-600 cursor-pointer"
+                                  >
+                                    {copiedCode ? (
+                                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                                    ) : (
+                                      <Copy className="w-3.5 h-3.5" />
+                                    )}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="pt-1">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void fetchTenantInvoices(submittedQuery)}
+                                leftIcon={<RefreshCw className="w-3.5 h-3.5" />}
+                                className="text-xs font-bold cursor-pointer"
+                              >
+                                Kiểm tra cập nhật trạng thái
+                              </Button>
+                            </div>
+
+                            <p className="text-[11px] text-slate-400">
+                              * Màn hình sẽ tự động chuyển sang <strong>Đã thanh toán</strong> ngay sau khi nhận được xác nhận chuyển khoản.
+                            </p>
+                          </>
+                        ) : (
+                          <div className="p-4 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-900">
+                            Chủ tòa nhà chưa cập nhật số tài khoản ngân hàng VietQR cho cơ sở này. Vui lòng liên hệ trực tiếp chủ trọ để lấy thông tin chuyển khoản.
+                          </div>
+                        )}
                       </div>
                     )}
 
                     {latestInvoice.status === 'paid' && (
-                      <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-1">
-                        <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                        <span className="font-bold text-emerald-900 block text-sm">
+                      <div className="p-5 rounded-2xl bg-emerald-50 border border-emerald-200 text-center space-y-1.5">
+                        <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
+                        <span className="font-black text-emerald-950 block text-base">
                           Hóa đơn tháng này đã được thanh toán đủ!
                         </span>
-                        <p className="text-xs text-emerald-700">Cảm ơn bạn đã đóng tiền phòng đúng hạn.</p>
+                        <p className="text-xs text-emerald-700">
+                          Cảm ơn bạn đã đóng tiền phòng đúng hạn. Hệ thống đã tự động gạch nợ thành công.
+                        </p>
                       </div>
                     )}
 
@@ -256,7 +379,7 @@ export const TenantWebPortalPage: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => setIsIssueModalOpen(true)}
-                        className="w-full py-3 rounded-2xl border border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs"
+                        className="w-full py-3 rounded-2xl border border-amber-300 bg-amber-50/80 hover:bg-amber-100 text-amber-900 font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-xs cursor-pointer"
                       >
                         <Wrench className="w-4 h-4 text-amber-700" />
                         <span>Phòng có đồ đạc bị hỏng? Bấm để báo chủ nhà sửa</span>
@@ -284,7 +407,11 @@ export const TenantWebPortalPage: React.FC = () => {
                             <span className="font-bold text-slate-900 font-mono">
                               {formatPrice(inv.total_amount)}
                             </span>
-                            <span className="text-emerald-600 font-semibold block text-[11px]">
+                            <span
+                              className={`font-semibold block text-[11px] ${
+                                inv.status === 'paid' ? 'text-emerald-600' : 'text-amber-600'
+                              }`}
+                            >
                               {inv.status === 'paid' ? 'Đã thanh toán' : 'Còn nợ'}
                             </span>
                           </div>
@@ -297,9 +424,9 @@ export const TenantWebPortalPage: React.FC = () => {
             ) : (
               <div className="p-12 text-center bg-white rounded-3xl border border-slate-200 space-y-2">
                 <AlertCircle className="w-10 h-10 text-slate-300 mx-auto" />
-                <h3 className="text-base font-bold text-slate-800">Không tìm thấy thông tin</h3>
+                <h3 className="text-base font-bold text-slate-800">Không tìm thấy hóa đơn</h3>
                 <p className="text-xs text-slate-500">
-                  Vui lòng kiểm tra lại số điện thoại hoặc liên hệ với chủ trọ để được cấp quyền truy cập.
+                  Không có hóa đơn nào khớp với thông tin vừa nhập. Vui lòng kiểm tra lại số điện thoại hoặc mã hóa đơn do chủ trọ cung cấp.
                 </p>
               </div>
             )}
@@ -315,8 +442,9 @@ export const TenantWebPortalPage: React.FC = () => {
                   <Wrench className="w-4 h-4 text-amber-600" /> Báo Sự Cố Phòng Cho Chủ Nhà
                 </h3>
                 <button
+                  type="button"
                   onClick={() => setIsIssueModalOpen(false)}
-                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg"
+                  className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -371,4 +499,3 @@ export const TenantWebPortalPage: React.FC = () => {
   );
 };
 export default TenantWebPortalPage;
-

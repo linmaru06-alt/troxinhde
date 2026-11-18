@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { DashboardSidebar } from '../components/layout/DashboardSidebar';
 import { useAppStore } from '../store/useAppStore';
 import { useInvoiceDetail, useSaveInvoice } from '../hooks/queries/useK23';
+import { getBuildingBankAccount } from '../lib/api/k23Services';
 import { InvoiceBillView } from '../components/k23/InvoiceBillView';
 import { ShareBillButton } from '../components/k23/ShareBillButton';
 import { ExportPdfButton } from '../components/k23/billing/ExportPdfButton';
@@ -62,30 +63,36 @@ export const OwnerInvoiceDetailPage: React.FC = () => {
       }))
     );
 
-    // Try loading building bank settings
+    // Tải cấu hình tài khoản ngân hàng thật của tòa nhà từ Supabase buildings
     const bId = invoice.room?.building_id;
-    let loadedBank = false;
+    let cancelled = false;
     if (bId) {
-      try {
-        const saved = localStorage.getItem(`k23_bank_${bId}`);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          setBankId(parsed.bankId || 'MB');
-          setAccountNo(parsed.accountNo || '');
-          setAccountName(parsed.accountName || '');
-          if (parsed.accountNo) loadedBank = true;
+      getBuildingBankAccount(bId).then((bank) => {
+        if (cancelled) return;
+        if (bank && bank.accountNo) {
+          setBankId(bank.bankId || 'TCB');
+          setAccountNo(bank.accountNo);
+          setAccountName(bank.accountName || currentUser?.name?.toUpperCase() || '');
+        } else if (currentUser?.isDemoAccount) {
+          setBankId('MB');
+          setAccountNo('0912345678');
+          setAccountName('DEMO CHU TRO K23');
+        } else {
+          setBankId('TCB');
+          setAccountNo('');
+          setAccountName('');
         }
-      } catch {
-        // ignore
-      }
-    }
-    // Fallback cho tài khoản demo chủ trọ
-    if (!loadedBank) {
+      });
+    } else if (currentUser?.isDemoAccount) {
       setBankId('MB');
       setAccountNo('0912345678');
-      setAccountName('TRAN QUOC TUAN');
+      setAccountName('DEMO CHU TRO K23');
     }
-  }, [invoice]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [invoice, currentUser?.isDemoAccount, currentUser?.name]);
 
   const handleAddItem = (type: 'extra' | 'deduction') => {
     setItems((prev) => [

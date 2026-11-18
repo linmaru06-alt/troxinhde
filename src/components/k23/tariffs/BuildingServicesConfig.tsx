@@ -5,6 +5,7 @@ import {
   useBuildingServices,
   useSaveBuildingServices,
 } from '../../../hooks/queries/useK23';
+import { getBuildingBankAccount, saveBuildingBankAccount } from '../../../lib/api/k23Services';
 import { POPULAR_BANKS } from '../../../lib/vietqr';
 import {
   Settings,
@@ -99,24 +100,27 @@ export const BuildingServicesConfig: React.FC<BuildingServicesConfigProps> = ({
     setServiceSettings(map);
   }, [catalog, buildingServices]);
 
-  // Load bank details from localStorage
+  // Tải thông tin tài khoản ngân hàng của tòa nhà từ Supabase buildings
   useEffect(() => {
     if (!selectedBuildingId) return;
-    try {
-      const savedBank = localStorage.getItem(`k23_bank_${selectedBuildingId}`);
-      if (savedBank) {
-        const parsed = JSON.parse(savedBank);
-        setBankId(parsed.bankId || 'MB');
-        setAccountNo(parsed.accountNo || '');
-        setAccountName(parsed.accountName || '');
+    let cancelled = false;
+
+    getBuildingBankAccount(selectedBuildingId).then((bank) => {
+      if (cancelled) return;
+      if (bank && (bank.accountNo || bank.accountName)) {
+        setBankId(bank.bankId || 'TCB');
+        setAccountNo(bank.accountNo || '');
+        setAccountName(bank.accountName || '');
       } else {
-        setBankId('MB');
+        setBankId('TCB');
         setAccountNo('');
         setAccountName('');
       }
-    } catch {
-      // ignore
-    }
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedBuildingId]);
 
   const handleToggle = (serviceId: string) => {
@@ -161,11 +165,12 @@ export const BuildingServicesConfig: React.FC<BuildingServicesConfigProps> = ({
         services: payload,
       });
 
-      // Save bank details
-      localStorage.setItem(
-        `k23_bank_${selectedBuildingId}`,
-        JSON.stringify({ bankId, accountNo, accountName })
-      );
+      // Lưu cấu hình tài khoản ngân hàng nhận tiền phòng trực tiếp lên Supabase buildings
+      await saveBuildingBankAccount(selectedBuildingId, {
+        bankId,
+        accountNo,
+        accountName,
+      });
 
       showToast(
         'Đã lưu thành công! ✅',

@@ -42,12 +42,12 @@ export const InvoiceBillView = forwardRef<HTMLDivElement, Props>(
       buildingAddress,
       ownerName,
       ownerPhone,
-      bankId = 'VPB',
-      bankAccountNo = '813823888',
-      bankAccountName = 'NGUYỄN TÙNG LÂM',
-      bankName = 'Ngân hàng TMCP Việt Nam Thịnh Vượng - VPBank',
+      bankId = 'TCB',
+      bankAccountNo = '',
+      bankAccountName = '',
+      bankName,
       customerCode,
-      creatorName = 'Phạm Vũ Hoàng Anh',
+      creatorName = 'Ban Quản Lý Tòa Nhà',
       transferSyntax,
       dueDayNote,
     },
@@ -72,9 +72,11 @@ export const InvoiceBillView = forwardRef<HTMLDivElement, Props>(
     );
     const displayBankName = bankName || matchedBank?.name || bankId;
 
-    // Cú pháp chuyển khoản chuẩn (ví dụ: 58TB-403-11)
-    const defaultTransferCode = `58TB-${roomNumber}-${invoice.billing_month}`;
-    const codeToTransfer = transferSyntax || invoice.invoice_code || defaultTransferCode;
+    // Cú pháp chuyển khoản chuẩn khớp tự động với Webhook gạch nợ (TROXINH HD...)
+    const defaultTransferCode = invoice.invoice_code
+      ? `TROXINH ${invoice.invoice_code}`
+      : `HD${roomNumber}T${invoice.billing_month}`;
+    const codeToTransfer = transferSyntax || defaultTransferCode;
 
     // Số tiền cần thanh toán
     const totalAmount = invoice.remaining ?? invoice.total_amount ?? 5821000;

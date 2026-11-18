@@ -69,3 +69,19 @@ try {
 
 export const supabase = client;
 
+// Cập nhật token cho Supabase Realtime WebSocket mỗi khi Firebase làm mới phiên
+if (typeof window !== 'undefined' && auth && typeof auth.onIdTokenChanged === 'function') {
+  auth.onIdTokenChanged(async (user) => {
+    try {
+      if (user) {
+        const token = await user.getIdToken();
+        if (client && client.realtime && typeof (client.realtime as any).setAuth === 'function') {
+          await (client.realtime as any).setAuth(token);
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi cập nhật realtime auth nền
+    }
+  });
+}
+
