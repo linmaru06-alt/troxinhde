@@ -1,6 +1,6 @@
 -- ==============================================================================
 -- TRỌ XINH: ĐƠN NẠP VÍ XU 3 BƯỚC, ATOMIC WEBHOOK RPC & SIẾT CHẶT RLS VÍ XU
--- Migration: 050_wallet_topup_orders_and_secure_rls.sql
+-- Migration: 053_wallet_topup_orders_and_secure_rls.sql
 -- An toàn 100% Idempotent - Bảo toàn toàn bộ dữ liệu hiện có (Không DROP TABLE)
 -- ==============================================================================
 
