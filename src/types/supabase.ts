@@ -1,3 +1,5 @@
+import type { UserRole } from './index';
+
 export type Json =
   | string
   | number
@@ -6,7 +8,7 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[];
 
-export type UserRole = 'guest' | 'user' | 'owner' | 'admin' | 'renter';
+export type { UserRole };
 export type AppRole = 'renter' | 'owner' | 'admin';
 export type OwnerApplicationStatus = 'none' | 'pending' | 'approved' | 'rejected';
 

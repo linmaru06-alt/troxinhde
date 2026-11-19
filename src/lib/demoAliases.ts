@@ -1,6 +1,8 @@
 export const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+import { supabase, isSupabaseConfigured } from "./supabase";
+
 export const KNOWN_DEMO_UUIDS: Record<string, string> = {
   demo_admin_uuid: "00000000-0000-0000-0000-000000000001",
   demo_admin_troxinh: "00000000-0000-0000-0000-000000000001",
@@ -127,4 +129,69 @@ export function isSameUserId(
   }
 
   return false;
+}
+
+/**
+ * Chuẩn hóa ID người dùng thành UUID hợp lệ để không gây lỗi SQL syntax trong PostgreSQL
+ */
+export async function resolveUserIdToUuid(userId: string): Promise<string> {
+  if (!userId) return "";
+  const trimmed = userId.trim();
+
+  // 1. Đã là UUID chuẩn -> trả về ngay
+  if (UUID_REGEX.test(trimmed)) {
+    return trimmed;
+  }
+
+  // 2. Demo alias (usr_admin_quan66934, usr_renter_..., usr_owner_...) -> lấy UUID tương ứng
+  const demoUuid = resolveDemoAlias(trimmed);
+  if (demoUuid) {
+    return demoUuid;
+  }
+
+  // 3. Nếu là currentUser trong localStorage đã có profile id là UUID -> lấy ngay (0ms)
+  try {
+    if (typeof localStorage !== "undefined" && localStorage) {
+      const raw = localStorage.getItem("troxinh_storage_v4");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const current = parsed?.state?.currentUser;
+        if (current?.id && UUID_REGEX.test(current.id)) {
+          if (current.id === trimmed || current.firebaseUid === trimmed || isSameUserId(current.id, trimmed)) {
+            return current.id;
+          }
+        }
+      }
+    }
+  } catch {}
+
+  // 4. Tra cứu trên bảng profiles bằng firebase_uid
+  if (isSupabaseConfigured) {
+    try {
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("id")
+        .eq("firebase_uid", trimmed)
+        .maybeSingle();
+
+      if (!error && profile?.id && UUID_REGEX.test(profile.id)) {
+        return profile.id;
+      }
+    } catch (err) {
+      console.warn(
+        "[UserResolver] Không thể tra cứu profile UUID cho userId:",
+        trimmed,
+        err,
+      );
+    }
+  }
+
+  // 5. Fallback an toàn: Sinh UUID xác định (deterministic) từ chuỗi ID
+  let hash = 0;
+  for (let i = 0; i < trimmed.length; i++) {
+    hash = (hash << 5) - hash + trimmed.charCodeAt(i);
+    hash |= 0;
+  }
+  const hexPart = Math.abs(hash).toString(16).padStart(12, "0").slice(0, 12);
+  return `00000000-0000-4000-8000-${hexPart}`;
 }

@@ -529,7 +529,6 @@ const AppContent: React.FC = () => {
             <Route path="/landlord-registration/trang-thai" element={<OwnerApplicationStatusPage />} />
             <Route path="/landlord-registration/status" element={<OwnerApplicationStatusPage />} />
             <Route path="/nang-cap-chu-tro" element={<OwnerUpgradePage />} />
-            <Route path="/landlord-registration" element={<OwnerUpgradePage />} />
             <Route path="/dang-ky-chu-tro" element={<OwnerUpgradePage />} />
             <Route path="/dang-ky-cho-thue" element={<OwnerUpgradePage />} />
             <Route path="/nang-cap-chu-tro/trang-thai" element={<OwnerApplicationStatusPage />} />

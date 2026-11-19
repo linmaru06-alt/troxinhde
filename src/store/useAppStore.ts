@@ -30,7 +30,7 @@ import { initialUsers } from '../data/demoUsers';
 import { signOut } from '../lib/api/auth';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { logoutAuth } from '../lib/authService';
-import { resolveUserIdToUuid } from '../lib/api/messages';
+import { resolveUserIdToUuid } from '../lib/demoAliases';
 import { syncUserToSupabase } from '../lib/supabaseAuthSync';
 import {
   fetchRoomsFromSupabase,

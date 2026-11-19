@@ -1,6 +1,7 @@
 import { supabase, isSupabaseConfigured } from "../supabase";
 import { Conversation, Message } from "../../types";
 import { getPublicProfiles } from "./publicProfiles";
+import { useAppStore } from "../../store/useAppStore";
 import {
   UUID_REGEX,
   KNOWN_DEMO_UUIDS,
@@ -9,9 +10,10 @@ import {
   resolveDemoAlias,
   isDemoUser,
   isSameUserId,
+  resolveUserIdToUuid,
 } from "../demoAliases";
 
-export { isSameUserId, isDemoUser, resolveDemoAlias, KNOWN_USER_NAMES, KNOWN_DEMO_UUIDS, DEMO_GROUPS };
+export { isSameUserId, isDemoUser, resolveDemoAlias, resolveUserIdToUuid, KNOWN_USER_NAMES, KNOWN_DEMO_UUIDS, DEMO_GROUPS };
 
 const LOCAL_CONVS_KEY = "troxinh_local_conversations";
 const LOCAL_MSGS_KEY = "troxinh_local_messages";
@@ -236,66 +238,7 @@ function saveLocalMessage(msg: Message) {
   } catch {}
 }
 
-/**
- * Chuẩn hóa ID người dùng thành UUID hợp lệ để không gây lỗi SQL syntax trong PostgreSQL
- */
-export async function resolveUserIdToUuid(userId: string): Promise<string> {
-  if (!userId) return "";
-  const trimmed = userId.trim();
-
-  // 1. Đã là UUID chuẩn -> trả về ngay
-  if (UUID_REGEX.test(trimmed)) {
-    return trimmed;
-  }
-
-  // 2. Demo alias (usr_admin_quan66934, usr_renter_..., usr_owner_...) -> lấy UUID tương ứng
-  const demoUuid = resolveDemoAlias(trimmed);
-  if (demoUuid) {
-    return demoUuid;
-  }
-
-  // 3. Nếu là currentUser trong Zustand store đã có profile id là UUID -> lấy ngay (0ms)
-  try {
-    const { useAppStore } = await import("../../store/useAppStore");
-    const current = useAppStore.getState().currentUser;
-    if (current?.id && UUID_REGEX.test(current.id)) {
-      if (current.id === trimmed || current.firebaseUid === trimmed || isSameUserId(current.id, trimmed)) {
-        return current.id;
-      }
-    }
-  } catch {}
-
-  // 4. Tra cứu trên bảng profiles bằng firebase_uid (LƯU Ý: profiles KHÔNG CÓ cột email)
-  if (isSupabaseConfigured) {
-    try {
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("firebase_uid", trimmed)
-        .maybeSingle();
-
-      if (!error && profile?.id && UUID_REGEX.test(profile.id)) {
-        return profile.id;
-      }
-    } catch (err) {
-      console.warn(
-        "[MessagesAPI] Không thể tra cứu profile UUID cho userId:",
-        trimmed,
-        err,
-      );
-    }
-  }
-
-  // 5. Fallback an toàn: Sinh UUID xác định (deterministic) từ chuỗi ID để không bao giờ bị trùng đối tác
-  //    Đồng thời không làm gãy câu lệnh PostgreSQL UUID
-  let hash = 0;
-  for (let i = 0; i < trimmed.length; i++) {
-    hash = (hash << 5) - hash + trimmed.charCodeAt(i);
-    hash |= 0;
-  }
-  const hexPart = Math.abs(hash).toString(16).padStart(12, "0").slice(0, 12);
-  return `00000000-0000-4000-8000-${hexPart}`;
-}
+// resolveUserIdToUuid được định nghĩa tại src/lib/demoAliases.ts và export lại ở đầu file để bảo đảm đơn luồng phụ thuộc (triệt tiêu circular dependency)
 
 /**
  * Lấy hoặc khởi tạo hội thoại duy nhất giữa 2 người dùng và phòng trọ
@@ -707,7 +650,6 @@ export async function markConversationAsRead(
 
   // Tự động xóa thông báo chưa đọc của cuộc hội thoại này
   try {
-    const { useAppStore } = await import("../../store/useAppStore");
     useAppStore.getState().markChatNotificationsRead(conversationId);
   } catch {}
 }
@@ -778,7 +720,6 @@ export async function sendMessage(
   let cleanSenderId = senderId ? await resolveUserIdToUuid(senderId) : null;
   if (!cleanSenderId || !UUID_REGEX.test(cleanSenderId)) {
     try {
-      const { useAppStore } = await import("../../store/useAppStore");
       const current = useAppStore.getState().currentUser;
       if (current?.id && UUID_REGEX.test(current.id)) {
         cleanSenderId = current.id;
