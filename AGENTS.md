@@ -51,4 +51,13 @@
   3. Viết sẵn RLS bảo mật theo chuẩn: `auth.uid() = user_id` cho dữ liệu cá nhân, hoặc cho phép đọc công khai (`SELECT`) nếu là trang tin tức, phòng trọ, bài viết tìm ở ghép hoặc chợ đồ cũ công khai.
   4. Người dùng chỉ việc copy đoạn SQL này dán vào Supabase SQL Editor và chạy.
 
-Khi tác vụ liên quan auth, Supabase/RLS, thanh toán hoặc hành trình nhiều trang, đọc thêm `.agents/skills/troxinh-workflow/SKILL.md`.
+## 7. Spec-Driven Development (SDD - Chuẩn GitHub Spec Kit)
+
+- Khi phát triển tính năng mới phức tạp hoặc tái cấu trúc quy mô lớn:
+  1. **Specify**: Khởi tạo `specs/<feature-name>/spec.md` từ template để làm rõ mục tiêu và Acceptance Criteria.
+  2. **Clarify**: Làm rõ các điểm mơ hồ, ngoại lệ (Edge Cases) với người dùng trước khi thiết kế.
+  3. **Plan**: Viết `plan.md` phác thảo bản vẽ kỹ thuật, luồng dữ liệu (Data Flow), mô hình DB và cơ chế RLS.
+  4. **Tasks**: Lập danh sách công việc `tasks.md` theo từng bước nhỏ có thể kiểm chứng độc lập.
+  5. **Execute & Verify**: Sau khi người dùng duyệt, thực thi từng task và vượt qua Quality Gate (`npm run build`, test suites) trước khi hoàn tất.
+
+Khi tác vụ liên quan auth, Supabase/RLS, thanh toán hoặc hành trình nhiều trang, đọc thêm `.agents/skills/troxinh-workflow/SKILL.md`
