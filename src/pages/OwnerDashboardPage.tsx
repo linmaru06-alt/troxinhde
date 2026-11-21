@@ -203,53 +203,7 @@ export const OwnerDashboardPage: React.FC = () => {
 
       {/* Main Dashboard Content */}
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
-        {/* Subscription Plan Active Strip Banner (Dịch vụ 1: Gói đăng phòng) */}
-        <div className="bg-gradient-to-r from-emerald-900 to-[#00a854] text-white rounded-3xl p-4 sm:p-5 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-amber-300 shrink-0">
-              <Crown className="w-5 h-5" />
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-black text-sm sm:text-base">{currentPlan.name}</span>
-                {activeListingPlanId === 'free' ? (
-                  <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
-                    Còn {freeRemaining}/2 phòng miễn phí
-                  </span>
-                ) : (
-                  <span className="text-[10px] font-black bg-amber-400 text-amber-950 px-2 py-0.5 rounded-full">
-                    {totalApprovedRooms}/{currentPlan.roomLimit === -1 || currentPlan.roomLimit >= 999 ? '∞' : currentPlan.roomLimit} phòng
-                  </span>
-                )}
-                {singleCredits > 0 && (
-                  <span className="text-[10px] font-black bg-white/20 text-white px-2 py-0.5 rounded-full">
-                    +{singleCredits} lượt đăng tin lẻ
-                  </span>
-                )}
-              </div>
-              <p className="text-xs text-emerald-100/90 mt-0.5">
-                {activeListingPlanId === 'free'
-                  ? 'Đăng tối đa 2 phòng đầu miễn phí. Hết quota có thể mua tin lẻ từ 30 Xu hoặc gói tháng từ 149 Xu.'
-                  : `Hạn sử dụng gói đăng phòng đến: ${activeListingExpiresAt ? new Date(activeListingExpiresAt).toLocaleDateString('vi-VN') : 'Đang hoạt động'}`}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Link to="/chu-tro/quan-ly-goi">
-              <button className="px-3.5 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition cursor-pointer">
-                Quản lý gói đăng phòng
-              </button>
-            </Link>
-            <Link to="/bang-gia?returnUrl=%2Fchu-tro">
-              <button className="px-3.5 py-1.5 rounded-xl bg-amber-400 hover:bg-amber-300 text-amber-950 text-xs font-black transition shadow-xs cursor-pointer">
-                Bảng giá đăng phòng ⭐
-              </button>
-            </Link>
-          </div>
-        </div>
-
-        {/* 🌟 1. Top Context Bar: Lời Chào + Bộ Lọc Tòa Nhà & Kỳ Tháng (Chuẩn Stitch) */}
+        {/* 🌟 1. Top Context Bar: Lời Chào + Quota + Bộ Lọc Tòa Nhà & Kỳ Tháng (Chuẩn Stitch) */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white p-5 rounded-3xl border border-gray-200 shadow-2xs">
           <div>
             <div className="flex flex-wrap items-center gap-2.5">
@@ -259,6 +213,14 @@ export const OwnerDashboardPage: React.FC = () => {
               <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-800 text-[11px] font-black border border-emerald-200">
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" /> Chủ nhà chuẩn
               </span>
+              <Link
+                to="/chu-tro/quan-ly-goi"
+                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-900 text-[11px] font-black border border-amber-200 hover:bg-amber-100 transition shadow-2xs"
+                title="Quản lý gói đăng phòng"
+              >
+                <Crown className="w-3.5 h-3.5 text-amber-600" />
+                <span>{currentPlan.name}: {activeListingPlanId === 'free' ? `Còn ${freeRemaining}/2 phòng free` : `${totalApprovedRooms} phòng`}</span>
+              </Link>
               <OfflineSyncStatusBadge />
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -490,142 +452,6 @@ export const OwnerDashboardPage: React.FC = () => {
                 <p className="text-[11px] text-emerald-700 mt-0.5">Sẵn sàng nhập chỉ số & xuất hóa đơn</p>
               </div>
             </div>
-          </div>
-        </div>
-
-        {/* 🌟 TRUNG TÂM VẬN HÀNH K23 PMS — ĐẦY ĐỦ TÍNH NĂNG ĐÃ SẴN SÀNG */}
-        <div className="bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 rounded-3xl p-6 text-white shadow-lg space-y-4 border border-emerald-500/30">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/10 pb-4">
-            <div>
-              <div className="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-bold border border-emerald-400/30 mb-1.5">
-                <Sparkles className="w-3.5 h-3.5" /> PHÂN HỆ QUẢN LÝ VẬN HÀNH PHÒNG TRỌ K23
-              </div>
-              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                Hệ Thống Thu Tiền & Quản Lý Khách Thuê Thông Minh
-              </h2>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <Link to="/chu-tro/goi-dich-vu">
-                <button className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white border border-white/20 font-bold text-xs transition flex items-center gap-1.5 cursor-pointer">
-                  <Crown className="w-3.5 h-3.5 text-amber-300" />
-                  <span>Gói Quản Lý K23 (Dùng thử 30 ngày)</span>
-                </button>
-              </Link>
-              <Link to="/demo-hoa-don">
-                <button className="px-4 py-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer">
-                  <span>Mở Phòng Lab Demo K23</span>
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </Link>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs">
-            <Link
-              to="/chu-tro/hop-dong"
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
-            >
-              <span className="font-bold text-white block">Sổ Khách & Hợp Đồng</span>
-              <p className="text-[11px] text-slate-300">Tủ hồ sơ CCCD, giữ cọc, chống trùng phòng</p>
-            </Link>
-
-            <Link
-              to="/chu-tro/hoa-don"
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
-            >
-              <span className="font-bold text-white block">Hóa Đơn & Thu Tiền</span>
-              <p className="text-[11px] text-slate-300">VietQR SePay 3s, thu từng phần, xuất Excel</p>
-            </Link>
-
-            <Link
-              to="/chu-tro/chot-so"
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
-            >
-              <span className="font-bold text-white block">Chốt Số Điện Nước</span>
-              <p className="text-[11px] text-slate-300">Nhập chỉ số tháng, tính tiền tự động</p>
-            </Link>
-
-            <a
-              href="/tra-cuu-phong"
-              target="_blank"
-              rel="noreferrer"
-              className="p-3.5 rounded-2xl bg-white/5 hover:bg-white/10 border border-white/10 transition block space-y-1"
-            >
-              <span className="font-bold text-white block">Cổng Web Khách Thuê ↗</span>
-              <p className="text-[11px] text-slate-300">Khách tra cứu bill & báo hỏng đồ không cần app</p>
-            </a>
-
-            <button
-              type="button"
-              onClick={() => setIsStaffModalOpen(true)}
-              className="p-3.5 rounded-2xl bg-indigo-500/10 hover:bg-indigo-500/20 border border-indigo-400/30 text-left transition block space-y-1 cursor-pointer"
-            >
-              <span className="font-bold text-indigo-300 block">Phân Quyền Nhân Sự</span>
-              <p className="text-[11px] text-slate-300">RBAC đa cơ sở, giấu doanh thu với bảo vệ</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsTariffModalOpen(true)}
-              className="p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/30 text-left transition block space-y-1 cursor-pointer"
-            >
-              <span className="font-bold text-amber-300 block">Điện Bậc Thang</span>
-              <p className="text-[11px] text-slate-300">Biểu giá lũy tiến EVN, ảnh công tơ</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsParkingModalOpen(true)}
-              className="p-3.5 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/30 text-left transition block space-y-1 cursor-pointer"
-            >
-              <span className="font-bold text-sky-300 block">Vé Xe Tháng</span>
-              <p className="text-[11px] text-slate-300">Quản lý biển số, kiểm soát an ninh ra vào</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsTaxModalOpen(true)}
-              className="p-3.5 rounded-2xl bg-teal-500/10 hover:bg-teal-500/20 border border-teal-400/30 text-left transition block space-y-1 cursor-pointer"
-            >
-              <span className="font-bold text-teal-300 block">Sổ Kê Khai Thuế</span>
-              <p className="text-[11px] text-slate-300">Mẫu 01/TTS, thuế TNCN 5% & GTGT 5%</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsIotModalOpen(true)}
-              className="p-3.5 rounded-2xl bg-violet-500/10 hover:bg-violet-500/20 border border-violet-400/30 text-left transition block space-y-1 cursor-pointer"
-            >
-              <span className="font-bold text-violet-300 block">Cổng IoT Phần Cứng</span>
-              <p className="text-[11px] text-slate-300">Đồng bộ công tơ Tuya & Khóa TTLock</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsAiScannerOpen(true)}
-              className="p-3.5 rounded-2xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-400/40 text-left transition block space-y-1 cursor-pointer ring-1 ring-amber-400/30"
-            >
-              <span className="font-bold text-amber-300 block">AI Camera OCR</span>
-              <p className="text-[11px] text-slate-300">Quét số công tơ điện nước tự động</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsZnsOpen(true)}
-              className="p-3.5 rounded-2xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-400/40 text-left transition block space-y-1 cursor-pointer ring-1 ring-sky-400/30"
-            >
-              <span className="font-bold text-sky-300 block">Zalo ZNS Tích Xanh</span>
-              <p className="text-[11px] text-slate-300">Gửi tin tự động 250đ/tin qua SĐT</p>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsVneidModalOpen(true)}
-              className="p-3.5 rounded-2xl bg-red-500/10 hover:bg-red-500/20 border border-red-400/40 text-left transition block space-y-1 cursor-pointer ring-1 ring-red-400/30"
-            >
-              <span className="font-bold text-red-300 block">Cổng Lưu Trú VNeID</span>
-              <p className="text-[11px] text-slate-300">Xuất XML Cổng DVC Bộ Công An</p>
-            </button>
           </div>
         </div>
 
