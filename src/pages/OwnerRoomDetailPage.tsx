@@ -19,6 +19,7 @@ import {
   ExternalLink,
   ArrowLeft,
   Rocket,
+  Phone,
 } from 'lucide-react';
 
 export const OwnerRoomDetailPage: React.FC = () => {
@@ -125,35 +126,45 @@ export const OwnerRoomDetailPage: React.FC = () => {
 
         {/* Pending Notice Banner when room is in 'Chờ duyệt' */}
         {room.status === 'Chờ duyệt' && (
-          <div className="p-4 bg-amber-50/80 rounded-2xl border border-amber-200 text-xs text-amber-900 flex items-start gap-3 shadow-2xs">
-            <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
-            <div className="space-y-1">
-              <h4 className="font-bold text-amber-950 text-sm">Tin Đăng Đang Chờ Ban Quản Trị Phê Duyệt ⏳</h4>
-              <p className="text-amber-800 leading-relaxed">
-                Tin đăng phòng trọ của bạn đã được tiếp nhận và đang trong hàng đợi kiểm duyệt thông tin & giấy tờ PCCC (trong vòng 2-4 giờ). Sau khi được Admin duyệt, tin sẽ tự động hiển thị công khai trên Trọ Xinh và tính vào tổng số phòng.
-              </p>
+          <div className="p-5 bg-amber-50/90 rounded-2xl border border-amber-200 text-xs text-amber-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+            <div className="flex items-start gap-3">
+              <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+              <div className="space-y-1">
+                <h4 className="font-bold text-amber-950 text-sm">Tin Đăng Đang Chờ Ban Quản Trị Phê Duyệt ⏳</h4>
+                <p className="text-amber-800 leading-relaxed max-w-2xl">
+                  Tin đăng phòng trọ của bạn đã được tiếp nhận và đang trong hàng đợi kiểm duyệt thông tin & giấy tờ PCCC (trong vòng 2-4 giờ). Sau khi được Admin duyệt, tin sẽ tự động hiển thị công khai trên Trọ Xinh.
+                </p>
+              </div>
+            </div>
+            <div className="shrink-0 bg-white px-4 py-2.5 rounded-xl border border-amber-200 shadow-2xs self-start sm:self-auto">
+              <span className="block text-[11px] text-gray-500 font-semibold">Cần duyệt gấp?</span>
+              <a href="tel:19006868" className="font-bold text-amber-900 hover:underline flex items-center gap-1 mt-0.5 text-xs">
+                <Phone className="w-3.5 h-3.5 text-amber-600" />
+                <span>Hotline: 1900 6868 (Phím 2)</span>
+              </a>
             </div>
           </div>
         )}
 
         {/* Performance metrics */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1">
+          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1 shadow-2xs">
             <Eye className="w-5 h-5 text-emerald-600 mx-auto" />
             <span className="text-xs text-gray-500">Lượt xem</span>
             <div className="text-xl font-black text-gray-900">{room.views}</div>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1">
+          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1 shadow-2xs">
             <Heart className="w-5 h-5 text-rose-500 mx-auto" />
             <span className="text-xs text-gray-500">Lượt lưu</span>
             <div className="text-xl font-black text-gray-900">{room.savedCount}</div>
           </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1">
+          <Link to="/chu-tro/lich-hen" className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1 hover:border-[#006d37] transition shadow-2xs block">
             <Calendar className="w-5 h-5 text-amber-500 mx-auto" />
             <span className="text-xs text-gray-500">Lịch hẹn</span>
             <div className="text-xl font-black text-gray-900">4 cuộc hẹn</div>
-          </div>
-          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1">
+            <span className="text-[10px] text-emerald-700 font-bold block">Xem lịch hẹn →</span>
+          </Link>
+          <div className="bg-white p-4 rounded-2xl border border-gray-200 text-center space-y-1 shadow-2xs">
             <CheckCircle2 className="w-5 h-5 text-blue-500 mx-auto" />
             <span className="text-xs text-gray-500">Giá thuê</span>
             <div className="text-sm font-black text-[#006d37]">{formatPrice(room.price)}</div>

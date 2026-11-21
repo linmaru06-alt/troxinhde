@@ -37,6 +37,12 @@ export const OwnerBuildingDetailPage: React.FC = () => {
   const building = buildings.find((b) => b.id === id) || buildings[0];
   const buildingRooms = rooms.filter((r) => r.buildingId === building?.id);
 
+  const totalCount = buildingRooms.length || building?.totalRooms || 1;
+  const occupiedCount = buildingRooms.filter((r) => r.status === 'Đã cho thuê').length;
+  const vacantCount = buildingRooms.filter((r) => r.status === 'Còn trống').length;
+  const pendingCount = buildingRooms.filter((r) => r.status === 'Chờ duyệt').length;
+  const occupancyPct = totalCount > 0 ? Math.round((occupiedCount / totalCount) * 100) : 0;
+
   const ownerInfo = {
     id: currentUser?.id || 'user_owner_1',
     name: currentUser?.name || 'Chủ trọ',
@@ -94,46 +100,73 @@ export const OwnerBuildingDetailPage: React.FC = () => {
         </div>
 
         {/* Building Banner */}
-        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <img
-              src={building.images[0]}
-              alt={building.name}
-              className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-1 ring-gray-200 shrink-0"
-            />
-            <div className="space-y-1">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="text-xl sm:text-2xl font-black text-gray-950">{building.name}</h1>
-                {building.verifiedBadge && (
-                  <Badge variant="verified" size="sm">Đạt Chuẩn PCCC</Badge>
-                )}
+        <div className="bg-white rounded-3xl p-6 border border-gray-200 shadow-xs space-y-5">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+            <div className="flex items-center gap-4">
+              <img
+                src={building.images[0] || '/images/hero-banner.webp'}
+                alt={building.name}
+                className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover ring-1 ring-gray-200 shrink-0"
+              />
+              <div className="space-y-1.5">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-black text-gray-950">{building.name}</h1>
+                  {building.verifiedBadge && (
+                    <Badge variant="verified" size="sm">Đạt Chuẩn PCCC</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-gray-400" />
+                  {building.address}, {building.district}, {building.city}
+                </p>
+                {/* 3 Status Chips */}
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                  <span className="px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold flex items-center gap-1.5 border border-emerald-200">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    Còn trống: {vacantCount} phòng
+                  </span>
+                  <span className="px-2.5 py-1 rounded-lg bg-slate-100 text-slate-800 font-bold flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-slate-400" />
+                    Đã thuê: {occupiedCount} phòng
+                  </span>
+                  {pendingCount > 0 && (
+                    <span className="px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold flex items-center gap-1.5 border border-amber-200">
+                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                      Chờ duyệt: {pendingCount} phòng
+                    </span>
+                  )}
+                </div>
               </div>
-              <p className="text-xs text-gray-500 flex items-center gap-1">
-                <MapPin className="w-3.5 h-3.5 text-gray-400" />
-                {building.address}, {building.district}, {building.city}
-              </p>
-              <div className="flex items-center gap-3 text-xs pt-1">
-                <span className="font-semibold text-gray-700">Quy mô: <strong>{building.totalRooms} phòng</strong></span>
-                <span>•</span>
-                <span className="font-semibold text-[#006d37]">Còn trống: <strong>{building.availableRooms} phòng</strong></span>
-              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2.5 self-start sm:self-auto">
+              <button
+                onClick={() => setIsBatchModalOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 fill-current text-slate-950" />
+                <span>Khởi tạo phòng hàng loạt</span>
+              </button>
+
+              <Link to={`/chu-tro/phong/tao-moi/${building.id}`}>
+                <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
+                  Đăng Phòng Lẻ
+                </Button>
+              </Link>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={() => setIsBatchModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-amber-400 hover:bg-amber-300 text-slate-950 font-black text-xs shadow-md transition cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 fill-current text-slate-950" />
-              <span>Khởi tạo phòng hàng loạt</span>
-            </button>
-
-            <Link to={`/chu-tro/phong/tao-moi/${building.id}`}>
-              <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
-                Đăng Phòng Lẻ
-              </Button>
-            </Link>
+          {/* Occupancy Progress Bar (chuẩn phong cách Stitch) */}
+          <div className="pt-2 border-t border-gray-100 space-y-1.5">
+            <div className="flex justify-between items-center text-xs text-gray-500">
+              <span className="font-semibold">Tỷ lệ lấp đầy tòa nhà ({occupiedCount}/{totalCount} phòng)</span>
+              <span className="font-black text-[#006d37]">{occupancyPct}%</span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-gray-100 overflow-hidden flex">
+              <div className="h-full bg-blue-600 transition-all duration-500" style={{ width: `${(occupiedCount / totalCount) * 100}%` }} />
+              <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${(pendingCount / totalCount) * 100}%` }} />
+              <div className="h-full bg-emerald-500 transition-all duration-500" style={{ width: `${(vacantCount / totalCount) * 100}%` }} />
+            </div>
           </div>
         </div>
 
