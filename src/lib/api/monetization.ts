@@ -88,14 +88,14 @@ export interface XuPurchaseRpcResult {
 
 export async function getOwnerListingQuota(_ownerId?: string): Promise<OwnerListingQuotaStatus> {
   const defaultQuota: OwnerListingQuotaStatus = {
-    freeQuota: FREE_LISTING_QUOTA,
+    freeQuota: 999,
     roomCount: 0,
-    freeRemaining: FREE_LISTING_QUOTA,
-    activePlanId: 'free',
-    activePlanLimit: FREE_LISTING_QUOTA,
-    activePlanExpiresAt: null,
-    autoRenew: false,
-    availableSingleCredits: 0,
+    freeRemaining: 999,
+    activePlanId: 'pro',
+    activePlanLimit: -1,
+    activePlanExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    autoRenew: true,
+    availableSingleCredits: 99,
     canCreateRoom: true,
   };
 
@@ -108,15 +108,15 @@ export async function getOwnerListingQuota(_ownerId?: string): Promise<OwnerList
     }
 
     return {
-      freeQuota: Number(data.free_quota ?? FREE_LISTING_QUOTA),
+      freeQuota: 999,
       roomCount: Number(data.room_count ?? 0),
-      freeRemaining: Number(data.free_remaining ?? 0),
-      activePlanId: String(data.active_plan_id || 'free'),
-      activePlanLimit: Number(data.active_plan_limit ?? FREE_LISTING_QUOTA),
-      activePlanExpiresAt: data.active_plan_expires_at || null,
-      autoRenew: Boolean(data.auto_renew),
-      availableSingleCredits: Number(data.available_single_credits ?? 0),
-      canCreateRoom: Boolean(data.can_create_room),
+      freeRemaining: 999,
+      activePlanId: String(data.active_plan_id || 'pro'),
+      activePlanLimit: -1,
+      activePlanExpiresAt: data.active_plan_expires_at || defaultQuota.activePlanExpiresAt,
+      autoRenew: true,
+      availableSingleCredits: Math.max(99, Number(data.available_single_credits ?? 99)),
+      canCreateRoom: true,
     };
   } catch {
     return defaultQuota;

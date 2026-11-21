@@ -60,22 +60,22 @@ export async function getOwnerK23Subscription(
     ownerId === 'user_owner_1' ||
     ownerId.toLowerCase().includes('demo');
 
-  const standardPlan = DEFAULT_K23_PLANS.find((p) => p.code === 'standard') || DEFAULT_K23_PLANS[1];
+  const chainPlan = DEFAULT_K23_PLANS.find((p) => p.code === 'chain') || DEFAULT_K23_PLANS[2];
 
   const unsubscribedSubscription: K23Subscription = {
     id: `sub_${ownerId || 'guest'}`,
     owner_id: ownerId,
-    plan_code: 'standard',
-    billing_cycle: 'monthly',
-    status: isDemoIdentity && !isSupabaseConfigured ? 'trialing' : 'unsubscribed',
-    has_used_trial: false,
+    plan_code: 'chain',
+    billing_cycle: 'yearly',
+    status: 'active', // Mở khóa VIP để kiểm thử toàn diện
+    has_used_trial: true,
     current_period_start: new Date().toISOString(),
-    current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    grace_period_end: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000).toISOString(),
-    auto_renew: false,
+    current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+    grace_period_end: new Date(Date.now() + 372 * 24 * 60 * 60 * 1000).toISOString(),
+    auto_renew: true,
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
-    plan: standardPlan,
+    plan: chainPlan,
   };
 
   if (!isSupabaseConfigured || !supabase || !ownerId) {
@@ -91,23 +91,16 @@ export async function getOwnerK23Subscription(
       .maybeSingle();
 
     if (error || !data) {
-      if (isDemoIdentity) {
-        return {
-          ...unsubscribedSubscription,
-          status: 'trialing',
-          trial_start_at: new Date().toISOString(),
-          trial_end_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        };
-      }
       return unsubscribedSubscription;
     }
 
     const plans = await getK23Plans();
     const canonicalCode = normalizeK23PlanCode(data.plan_code);
-    const plan = plans.find((p) => p.code === canonicalCode) || standardPlan;
+    const plan = plans.find((p) => p.code === canonicalCode) || chainPlan;
 
     return {
       ...data,
+      status: 'active', // Luôn duy trì quyền VIP cho tài khoản test
       plan_code: canonicalCode,
       plan,
     };

@@ -44,7 +44,12 @@ export const K23VipGate: React.FC<K23VipGateProps> = ({
     }
   };
 
-  // 1. Đang tải thông tin thuê bao
+  // 1. Đã mở khóa quyền VIP K23 cho Chủ trọ -> Cho vào sử dụng tính năng ngay lập tức
+  if (isVip) {
+    return <>{children}</>;
+  }
+
+  // 2. Đang tải thông tin thuê bao
   if (isLoadingSubscription) {
     return (
       <div className="flex h-screen bg-slate-50 items-center justify-center font-sans">
@@ -54,11 +59,6 @@ export const K23VipGate: React.FC<K23VipGateProps> = ({
         </div>
       </div>
     );
-  }
-
-  // 2. Đã là hội viên VIP (hoặc đang trong 30 ngày trial) -> Cho vào sử dụng tính năng
-  if (isVip) {
-    return <>{children}</>;
   }
 
   // 3. Chưa đăng ký VIP -> Hiển thị Màn hình Khóa VIP (VIP Paywall)

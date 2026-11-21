@@ -43,14 +43,15 @@ export function useK23Subscription() {
   });
 
   const subscription = subscriptionQuery.data;
-  const currentPlan = subscription?.plan || DEFAULT_K23_PLANS[1];
+  const chainPlan = DEFAULT_K23_PLANS.find((p) => p.code === 'chain') || DEFAULT_K23_PLANS[2];
+  const currentPlan = subscription?.status === 'active' && subscription.plan ? subscription.plan : chainPlan;
   const roomCount = roomCountQuery.data || 0;
   const buildingCount = buildingCountQuery.data || 0;
 
   const now = Date.now();
   const periodEnd = subscription?.current_period_end
     ? new Date(subscription.current_period_end).getTime()
-    : now;
+    : now + 365 * 24 * 60 * 60 * 1000;
   const graceEnd = subscription?.grace_period_end
     ? new Date(subscription.grace_period_end).getTime()
     : periodEnd;
@@ -58,34 +59,26 @@ export function useK23Subscription() {
   const diffTime = periodEnd - now;
   const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
 
-  const isUnsubscribed = !subscription || subscription.status === 'unsubscribed';
-  const isTrial = subscription?.status === 'trialing';
-  const isGracePeriod = !isUnsubscribed && now > periodEnd && now <= graceEnd;
-  const isSuspended = !isUnsubscribed && (now > graceEnd || subscription?.status === 'suspended');
-  const isActive =
-    !isUnsubscribed &&
-    (subscription?.status === 'active' || isTrial || isGracePeriod) &&
-    !isSuspended;
-  const isVip = isActive;
-  const hasUsedTrial = Boolean(subscription?.has_used_trial || isTrial);
+  // Mở khóa toàn bộ đặc quyền VIP K23 cho Chủ trọ kiểm thử tính năng
+  const isUnsubscribed = false;
+  const isTrial = false;
+  const isGracePeriod = false;
+  const isSuspended = false;
+  const isActive = true;
+  const isVip = true;
+  const hasUsedTrial = true;
 
-  // Quota phòng
-  const maxRooms = isActive ? (currentPlan?.max_rooms ?? 35) : 0;
-  const isUnlimitedRooms = maxRooms === -1;
-  const canAddRoom = isActive && (isUnlimitedRooms || roomCount < maxRooms);
-  const roomUsagePercent =
-    isUnlimitedRooms || maxRooms <= 0
-      ? 0
-      : Math.min(100, Math.round((roomCount / maxRooms) * 100));
+  // Quota phòng không giới hạn
+  const maxRooms = -1;
+  const isUnlimitedRooms = true;
+  const canAddRoom = true;
+  const roomUsagePercent = 0;
 
-  // Quota tòa nhà
-  const maxBuildings = isActive ? (currentPlan?.max_buildings ?? 3) : 0;
-  const isUnlimitedBuildings = maxBuildings === -1;
-  const canAddBuilding = isActive && (isUnlimitedBuildings || buildingCount < maxBuildings);
-  const buildingUsagePercent =
-    isUnlimitedBuildings || maxBuildings <= 0
-      ? 0
-      : Math.min(100, Math.round((buildingCount / maxBuildings) * 100));
+  // Quota tòa nhà không giới hạn
+  const maxBuildings = -1;
+  const isUnlimitedBuildings = true;
+  const canAddBuilding = true;
+  const buildingUsagePercent = 0;
 
   const activateTrialMutation = useMutation({
     mutationFn: () => activateK23Trial(ownerId),
