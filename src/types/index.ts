@@ -122,6 +122,7 @@ export interface Room {
   repostCount?: number; // Số lần đã đăng lại (0: lần 1 miễn phí, >=1: tính phí)
   isVerifiedListing?: boolean; // Tick xanh chính chủ kiểu Batdongsan
   verifiedAt?: string;
+  slug?: string;
   createdAt: string;
 }
 
@@ -182,6 +183,7 @@ export interface RoommatePost {
   linkedRoomArea?: number;
   linkedRoomImage?: string;
   status?: "Đang tìm" | "Đã ghép";
+  slug?: string;
   images?: string[];
   createdAt: string;
 }
@@ -217,6 +219,7 @@ export interface MarketplaceItem {
   moderationStatus?: "pending" | "approved" | "rejected";
   rejectionReason?: string;
   isHidden?: boolean;
+  slug?: string;
   showPhone?: boolean;
   closedAt?: string;
   // Liên kết phòng trọ & tòa nhà (USP 2: Vòng đời chuyển trọ khép kín)

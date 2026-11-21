@@ -354,6 +354,8 @@ const AppContent: React.FC = () => {
               <Route path="/tim-phong" element={<SearchPage />} />
               <Route path="/ban-do" element={<MapViewPage />} />
               <Route path="/phong/:id" element={<RoomDetailPage />} />
+              <Route path="/phong-tro/:id" element={<RoomDetailPage />} />
+              <Route path="/phong-tro/:district/:id" element={<RoomDetailPage />} />
               <Route path="/toa-nha/:id" element={<BuildingDetailPage />} />
 
             {/* Roommate & Marketplace */}
@@ -361,10 +363,14 @@ const AppContent: React.FC = () => {
             <Route path="/roommate/:id" element={<RoommateDetailPage />} />
             <Route path="/o-ghep" element={<RoommateListPage />} />
             <Route path="/o-ghep/:id" element={<RoommateDetailPage />} />
+            <Route path="/tim-o-ghep" element={<RoommateListPage />} />
+            <Route path="/tim-o-ghep/:id" element={<RoommateDetailPage />} />
+            <Route path="/tim-o-ghep/:district/:id" element={<RoommateDetailPage />} />
             <Route path="/tim-ban-cung-phong" element={<RoommateListPage />} />
             <Route path="/tim-ban-cung-phong/:id" element={<RoommateDetailPage />} />
             <Route path="/cho-do-cu" element={<MarketplaceListPage />} />
             <Route path="/cho-do-cu/:id" element={<MarketplaceDetailPage />} />
+            <Route path="/cho-do-cu/:category/:id" element={<MarketplaceDetailPage />} />
             <Route path="/ve-chung-toi/kiem-duyet" element={<TrustVerificationPage />} />
             <Route path="/trust/da-kiem-duyet" element={<TrustVerificationPage />} />
             <Route path="/hop-dong-mau" element={<ContractTemplatePage />} />

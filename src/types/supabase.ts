@@ -143,6 +143,7 @@ export interface Database {
           room_id?: string | null;
           building_id?: string | null;
           is_room_transfer?: boolean | null;
+          slug?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -167,6 +168,7 @@ export interface Database {
           room_id?: string | null;
           building_id?: string | null;
           is_room_transfer?: boolean | null;
+          slug?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -191,6 +193,7 @@ export interface Database {
           room_id?: string | null;
           building_id?: string | null;
           is_room_transfer?: boolean | null;
+          slug?: string | null;
           created_at?: string;
           updated_at?: string;
         };

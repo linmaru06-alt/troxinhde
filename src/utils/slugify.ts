@@ -110,3 +110,47 @@ export function buildBuildingUrl(building: {
   const slug = toVietnameseSlug(rawTitle) || 'toa-nha-tro-xinh';
   return `/toa-nha/${slug}--${building.id}`;
 }
+
+/**
+ * Tạo URL chuẩn Semantic SEO hai cấp (Quận Huyện / Danh mục)
+ * Ví dụ: /phong-tro/cau-giay/phong-studio-khep-kin--p-101
+ */
+export function buildRoomSeoUrl(room: {
+  id: string;
+  title?: string;
+  district?: string;
+}): string {
+  if (!room || !room.id) return '/tim-kiem';
+  const rawTitle = `${room.title || 'phong-tro'} ${room.district || ''}`;
+  const slug = toVietnameseSlug(rawTitle) || 'phong-tro';
+  const districtSlug = toVietnameseSlug(room.district || '') || 'ha-noi';
+  return `/phong-tro/${districtSlug}/${slug}--${room.id}`;
+}
+
+export function buildRoommateSeoUrl(post: {
+  id: string;
+  userName?: string;
+  name?: string;
+  district?: string;
+}): string {
+  if (!post || !post.id) return '/o-ghep';
+  const namePart = post.userName || post.name || 'tim-ban-o-ghep';
+  const rawTitle = `tim-ban-o-ghep-${namePart} ${post.district || ''}`;
+  const slug = toVietnameseSlug(rawTitle) || 'tim-ban-o-ghep';
+  const districtSlug = toVietnameseSlug(post.district || '') || 'ha-noi';
+  return `/tim-o-ghep/${districtSlug}/${slug}--${post.id}`;
+}
+
+export function buildMarketplaceSeoUrl(item: {
+  id: string;
+  title?: string;
+  category?: string;
+  district?: string;
+}): string {
+  if (!item || !item.id) return '/cho-do-cu';
+  const rawTitle = `thanh-ly-${item.title || 'do-cu'} ${item.district || ''}`;
+  const slug = toVietnameseSlug(rawTitle) || 'thanh-ly-do-cu';
+  const catSlug = toVietnameseSlug(item.category || '') || 'do-thanh-ly';
+  return `/cho-do-cu/${catSlug}/${slug}--${item.id}`;
+}
+
