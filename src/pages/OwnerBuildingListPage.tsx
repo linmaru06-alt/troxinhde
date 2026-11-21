@@ -19,6 +19,8 @@ import {
   Sliders,
   LocateFixed,
   Crown,
+  CheckCircle2,
+  DoorOpen,
 } from 'lucide-react';
 import { Building } from '../types';
 import { MapPinPicker } from '../components/map/TroXinhMap';
@@ -195,21 +197,23 @@ export const OwnerBuildingListPage: React.FC = () => {
 
       <main className="flex-1 p-4 sm:p-8 max-w-6xl space-y-6 overflow-y-auto">
         {/* Top Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-gray-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-gray-200">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 tracking-tight flex items-center gap-2.5">
-              <Building2 className="w-7 h-7 sm:w-8 sm:h-8 text-[#006d37]" />
-              Quản Lý Tòa Nhà & Biểu Phí Dịch Vụ
-            </h1>
+            <div className="flex items-center gap-2">
+              <Building2 className="w-6 h-6 text-[#006d37]" />
+              <h1 className="text-xl sm:text-2xl font-black text-gray-900 tracking-tight">
+                Tòa Nhà Của Tôi
+              </h1>
+            </div>
             <p className="text-xs text-gray-500 mt-1">
-              Quản lý danh sách cơ sở tòa nhà, đơn giá điện nước và thông tin nhận chuyển khoản VietQR
+              Quản lý các cơ sở tòa nhà, danh sách phòng và biểu phí dịch vụ của bạn.
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-2.5">
             <Link
               to="/chu-tro/quan-ly-goi-k23"
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-bold transition shadow-2xs"
             >
               <Crown className="w-3.5 h-3.5 text-amber-600" />
               <span>
@@ -218,15 +222,9 @@ export const OwnerBuildingListPage: React.FC = () => {
                 {roomCount}/{maxRooms === -1 ? '∞' : maxRooms} phòng
               </span>
             </Link>
-            <Link
-              to="/chu-tro/goi-dich-vu"
-              className="text-xs font-bold text-[#006d37] hover:underline px-2 py-1"
-            >
-              Bảng giá K23
-            </Link>
             <Link to="/chu-tro/toa-nha/tao-moi">
               <Button variant="primary" size="md" leftIcon={<PlusCircle className="w-4 h-4" />}>
-                Thêm Hồ Sơ Tòa Nhà
+                Tạo Tòa Nhà Mới
               </Button>
             </Link>
           </div>
@@ -304,13 +302,14 @@ export const OwnerBuildingListPage: React.FC = () => {
                         alt={bld.name}
                         className="w-full h-full object-cover"
                       />
-                      <div className="absolute top-3 left-3 flex items-center gap-2">
-                        <Badge variant="verified" size="sm">
-                          Đã kiểm duyệt PCCC
-                        </Badge>
+                      <div className="absolute top-3 left-3 flex items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600/90 text-white text-[11px] font-bold shadow-sm backdrop-blur-xs">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          Đang hoạt động
+                        </span>
                         {index === 0 && (
-                          <span className="text-[10px] font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded-full shadow-xs">
-                            Tòa nhà chính
+                          <span className="text-[10px] font-black bg-emerald-800 text-white px-2 py-0.5 rounded-full shadow-xs">
+                            Tòa chính
                           </span>
                         )}
                       </div>
@@ -388,30 +387,40 @@ export const OwnerBuildingListPage: React.FC = () => {
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-gray-100">
-                        <span className="text-xs text-amber-500 font-bold">
-                          ★ {bld.rating} ({bld.reviewCount} đánh giá)
-                        </span>
-                        <div className="flex items-center gap-1.5">
+                      {/* Actions grid theo phong cách Stitch Bento */}
+                      <div className="space-y-2 pt-2 border-t border-gray-100">
+                        <Link to={`/chu-tro/toa-nha/${bld.id}`} className="block">
+                          <button
+                            type="button"
+                            className="w-full inline-flex items-center justify-center gap-2 bg-emerald-50 hover:bg-emerald-100 text-[#006d37] px-4 py-2.5 rounded-xl text-xs font-bold transition shadow-2xs cursor-pointer"
+                          >
+                            <DoorOpen className="w-4 h-4" />
+                            <span>Quản lý phòng</span>
+                          </button>
+                        </Link>
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEdit(bld)}
+                            className="inline-flex items-center justify-center gap-1 border border-gray-200 text-gray-700 hover:bg-gray-50 px-2 py-2 rounded-xl text-xs font-semibold transition cursor-pointer"
+                          >
+                            <Edit className="w-3.5 h-3.5 text-blue-600" />
+                            <span>Chỉnh sửa</span>
+                          </button>
                           <button
                             type="button"
                             onClick={() => handleOpenServicesForBuilding(bld.id)}
-                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-[#006d37] text-xs font-bold transition cursor-pointer"
-                            title="Cài đặt bảng giá dịch vụ cho tòa nhà này"
+                            className="inline-flex items-center justify-center gap-1 border border-gray-200 text-gray-700 hover:bg-gray-50 px-2 py-2 rounded-xl text-xs font-semibold transition cursor-pointer"
                           >
-                            <Sliders className="w-3.5 h-3.5" />
+                            <Sliders className="w-3.5 h-3.5 text-emerald-600" />
                             <span>Biểu phí</span>
                           </button>
-
-                          <Link to={`/chu-tro/phong/tao-moi/${bld.id}`}>
-                            <Button variant="outline" size="sm" leftIcon={<PlusCircle className="w-3.5 h-3.5" />}>
-                              Đăng phòng
-                            </Button>
-                          </Link>
-                          <Link to={`/chu-tro/toa-nha/${bld.id}`}>
-                            <Button variant="primary" size="sm" rightIcon={<ChevronRight className="w-4 h-4" />}>
-                              Quản lý tòa
-                            </Button>
+                          <Link
+                            to={`/chu-tro/phong/tao-moi/${bld.id}`}
+                            className="inline-flex items-center justify-center gap-1 border border-gray-200 text-gray-700 hover:bg-gray-50 px-2 py-2 rounded-xl text-xs font-semibold transition cursor-pointer"
+                          >
+                            <PlusCircle className="w-3.5 h-3.5 text-emerald-600" />
+                            <span>Đăng phòng</span>
                           </Link>
                         </div>
                       </div>
