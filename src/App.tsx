@@ -655,6 +655,22 @@ const AppContent: React.FC = () => {
               }
             />
             <Route
+              path="/chu-tro/day-tin"
+              element={
+                <OwnerRoute>
+                  <OwnerBoostRoomPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/day-tin/:roomId"
+              element={
+                <OwnerRoute>
+                  <OwnerBoostRoomPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
               path="/chu-tro/quan-ly-goi"
               element={
                 <OwnerRoute>
@@ -722,6 +738,70 @@ const AppContent: React.FC = () => {
             />
             <Route
               path="/chu-tro/hop-dong"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/hop-dong/phong/:roomId"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/hop-dong/chi-tiet/:contractId"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/khach-thue-hop-dong"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/khach-thue-hop-dong/phong/:roomId"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/khach-thue-hop-dong/chi-tiet/:contractId"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/so-khach"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/so-khach/phong/:roomId"
+              element={
+                <OwnerRoute>
+                  <OwnerContractsPage />
+                </OwnerRoute>
+              }
+            />
+            <Route
+              path="/chu-tro/so-khach/chi-tiet/:contractId"
               element={
                 <OwnerRoute>
                   <OwnerContractsPage />

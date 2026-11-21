@@ -45,7 +45,7 @@ import { useK23Tenants } from '../hooks/queries/useK23Tenants';
 import { useAppStore } from '../store/useAppStore';
 import { K23Contract, K23Tenant, CreateContractParams } from '../types/k23Tenants';
 import { Room } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import { CreateContractModal } from '../components/k23/contracts/CreateContractModal';
 import { MoveOutSettlementModal } from '../components/k23/settlement/MoveOutSettlementModal';
 import { IssueManagementModal } from '../components/k23/issues/IssueManagementModal';
@@ -58,6 +58,16 @@ import { extractZaloDataFromInvoice } from '../utils/zaloTemplateBuilder';
 export const OwnerContractsPage: React.FC = () => {
   const { currentUser, rooms } = useAppStore();
   const navigate = useNavigate();
+  const location = useLocation();
+  const { roomId: urlRoomId, contractId: urlContractId } = useParams<{ roomId?: string; contractId?: string }>();
+
+  // Xác định tiền tố route hiện tại (/chu-tro/hop-dong hoặc /chu-tro/khach-thue-hop-dong hoặc /chu-tro/so-khach)
+  const baseRoute = useMemo(() => {
+    if (location.pathname.startsWith('/chu-tro/khach-thue-hop-dong')) return '/chu-tro/khach-thue-hop-dong';
+    if (location.pathname.startsWith('/chu-tro/so-khach')) return '/chu-tro/so-khach';
+    return '/chu-tro/hop-dong';
+  }, [location.pathname]);
+
   const [selectedContractForSettlement, setSelectedContractForSettlement] = useState<K23Contract | null>(null);
   const [isIssuesModalOpen, setIsIssuesModalOpen] = useState<boolean>(false);
   const [selectedContractForSign, setSelectedContractForSign] = useState<K23Contract | null>(null);
@@ -75,13 +85,26 @@ export const OwnerContractsPage: React.FC = () => {
     isTerminating,
   } = useK23Tenants();
 
-  // 🌟 Điều hướng 3 Lớp (Layer State)
-  // Lớp 1: Lưới ô phòng & hiện trạng cọc (Room Matrix)
-  // Lớp 2: Danh sách thành viên trong phòng được chọn
-  // Lớp 3: Hồ sơ chi tiết thành viên & hợp đồng
-  const [activeLayer, setActiveLayer] = useState<1 | 2 | 3>(1);
-  const [selectedRoomId, setSelectedRoomId] = useState<string | null>(null);
-  const [selectedContractId, setSelectedContractId] = useState<string | null>(null);
+  // 🌟 Điều hướng 3 Lớp có URL riêng biệt (Deep Linking Routing):
+  // Lớp 1: ${baseRoute}
+  // Lớp 2: ${baseRoute}/phong/:roomId
+  // Lớp 3: ${baseRoute}/chi-tiet/:contractId
+  const activeLayer: 1 | 2 | 3 = useMemo(() => {
+    if (urlContractId) return 3;
+    if (urlRoomId) return 2;
+    return 1;
+  }, [urlContractId, urlRoomId]);
+
+  const selectedContractId = urlContractId || null;
+
+  const selectedRoomId = useMemo(() => {
+    if (urlRoomId) return urlRoomId;
+    if (urlContractId) {
+      const match = contracts.find((c) => c.id === urlContractId);
+      return match?.room_id || null;
+    }
+    return null;
+  }, [urlRoomId, urlContractId, contracts]);
 
   // View Mode: 'layers' (3 Lớp theo Stitch) hoặc 'table' (Bảng tổng hợp tất cả HĐ)
   const [viewMode, setViewMode] = useState<'layers' | 'table'>('layers');
@@ -221,11 +244,28 @@ export const OwnerContractsPage: React.FC = () => {
     return list;
   }, [rooms, contracts, statusFilter, searchTerm]);
 
-  // Phòng đang chọn ở Lớp 2
+  // Phòng đang chọn ở Lớp 2 (Hỗ trợ cả mở URL trực tiếp lẫn điều hướng nội bộ)
   const activeRoomData = useMemo(() => {
     if (!selectedRoomId) return null;
-    return roomGridData.find((r) => r.roomId === selectedRoomId) || null;
-  }, [roomGridData, selectedRoomId]);
+    const found = roomGridData.find((r) => r.roomId === selectedRoomId);
+    if (found) return found;
+
+    const roomObj = rooms.find((r) => r.id === selectedRoomId);
+    const roomContracts = contracts.filter((c) => c.room_id === selectedRoomId);
+    return {
+      roomId: selectedRoomId,
+      roomNumber: roomObj?.room_number || roomObj?.title || `Phòng ${selectedRoomId}`,
+      buildingName: roomObj?.building_name || 'Tòa nhà Trọ Xinh',
+      floor: roomObj?.floor || 'Tầng 1',
+      contracts: roomContracts,
+      tenants: roomContracts.map((c) => c.tenant).filter(Boolean) as K23Tenant[],
+      totalDeposit: roomContracts.reduce((sum, c) => sum + (c.deposit_amount || 0), 0),
+      hasExpiring: roomContracts.some((c) => c.status === 'expiring_soon'),
+      hasExpired: roomContracts.some((c) => c.status === 'expired'),
+      hasActive: roomContracts.some((c) => c.status === 'active'),
+      capacity: roomObj?.max_occupants || 2,
+    };
+  }, [roomGridData, selectedRoomId, rooms, contracts]);
 
   // Hợp đồng / Thành viên đang chọn ở Lớp 3
   const activeContractData = useMemo(() => {
@@ -264,26 +304,25 @@ export const OwnerContractsPage: React.FC = () => {
     });
   }, [contracts, statusFilter, searchTerm]);
 
-  // Điều hướng giữa các lớp
+  // Điều hướng giữa các lớp (CẬP NHẬT TRỰC TIẾP URL TRÊN THANH ĐỊA CHỈ TRÌNH DUYỆT)
   const handleSelectRoomToLayer2 = (roomId: string) => {
-    setSelectedRoomId(roomId);
-    setActiveLayer(2);
+    navigate(`${baseRoute}/phong/${roomId}`);
   };
 
   const handleSelectContractToLayer3 = (contractId: string) => {
-    setSelectedContractId(contractId);
-    setActiveLayer(3);
+    navigate(`${baseRoute}/chi-tiet/${contractId}`);
   };
 
   const handleBackToLayer1 = () => {
-    setActiveLayer(1);
-    setSelectedRoomId(null);
-    setSelectedContractId(null);
+    navigate(baseRoute);
   };
 
   const handleBackToLayer2 = () => {
-    setActiveLayer(2);
-    setSelectedContractId(null);
+    if (selectedRoomId) {
+      navigate(`${baseRoute}/phong/${selectedRoomId}`);
+    } else {
+      navigate(baseRoute);
+    }
   };
 
   const handleOpenZaloForContract = (contract: K23Contract) => {
@@ -428,7 +467,7 @@ export const OwnerContractsPage: React.FC = () => {
                   type="button"
                   onClick={() => {
                     setViewMode('layers');
-                    setActiveLayer(1);
+                    navigate(baseRoute);
                   }}
                   className={`flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
                     viewMode === 'layers'
@@ -467,7 +506,7 @@ export const OwnerContractsPage: React.FC = () => {
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                   <span
                     onClick={() => {
-                      if (selectedRoomId) setActiveLayer(2);
+                      if (selectedRoomId) navigate(`${baseRoute}/phong/${selectedRoomId}`);
                     }}
                     className={`px-2.5 py-1 rounded-lg transition-colors ${
                       !selectedRoomId
@@ -481,8 +520,11 @@ export const OwnerContractsPage: React.FC = () => {
                   </span>
                   <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
                   <span
+                    onClick={() => {
+                      if (selectedContractId) navigate(`${baseRoute}/chi-tiet/${selectedContractId}`);
+                    }}
                     className={`px-2.5 py-1 rounded-lg ${
-                      activeLayer === 3 ? 'bg-amber-100 text-amber-900' : 'text-slate-300'
+                      activeLayer === 3 ? 'bg-amber-100 text-amber-900 cursor-pointer' : 'text-slate-300'
                     }`}
                   >
                     Lớp 3: Hồ Sơ Chi Tiết
@@ -1156,13 +1198,11 @@ export const OwnerContractsPage: React.FC = () => {
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    setSelectedRoomId(c.room_id || null);
-                                    setSelectedContractId(c.id);
                                     setViewMode('layers');
-                                    setActiveLayer(3);
+                                    handleSelectContractToLayer3(c.id);
                                   }}
                                   title="Mở hồ sơ chi tiết (Lớp 3)"
-                                  className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors"
+                                  className="p-1.5 rounded-lg text-emerald-700 hover:bg-emerald-50 transition-colors cursor-pointer"
                                 >
                                   <FolderOpen className="w-4 h-4" />
                                 </button>
