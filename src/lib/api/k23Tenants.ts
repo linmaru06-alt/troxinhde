@@ -266,13 +266,15 @@ export async function createK23Contract(params: CreateContractParams): Promise<{
   error?: string;
 }> {
   try {
-    // 1. Kiểm tra chống trùng phòng (P0-03)
-    const checkOccupancy = await checkRoomIsOccupied(params.room_id);
-    if (checkOccupancy.isOccupied) {
-      return {
-        success: false,
-        error: `Phòng này đang có hợp đồng hoạt động (Khách thuê: ${checkOccupancy.currentContract?.tenant?.full_name || 'Khách'}). Vui lòng thanh lý hợp đồng cũ trước!`,
-      };
+    // 1. Kiểm tra chống trùng phòng (P0-03): Chỉ áp dụng khi tạo hợp đồng phòng độc lập, cho phép thêm thành viên ở cùng
+    if (!params.is_roommate_member) {
+      const checkOccupancy = await checkRoomIsOccupied(params.room_id);
+      if (checkOccupancy.isOccupied) {
+        return {
+          success: false,
+          error: `Phòng này đang có hợp đồng hoạt động (Khách thuê: ${checkOccupancy.currentContract?.tenant?.full_name || 'Khách'}). Vui lòng thanh lý hợp đồng cũ hoặc đánh dấu thêm thành viên cùng phòng!`,
+        };
+      }
     }
 
     // 2. Tạo hoặc gán Tenant

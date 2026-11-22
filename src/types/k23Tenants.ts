@@ -68,5 +68,6 @@ export interface CreateContractParams {
   tenant_vehicle_plate?: string;
   tenant_id_front_url?: string;
   tenant_id_back_url?: string;
+  is_roommate_member?: boolean;
 }
 
