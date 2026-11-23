@@ -96,15 +96,24 @@ export const MarketplaceDetailPage: React.FC = () => {
   useEffect(() => {
     if (!linkedRoomId || linkedRoom) return;
     if (!isSupabaseConfigured) return;
-    supabase
-      .from('rooms')
-      .select('id, title, price, district, address, images, area')
-      .eq('id', linkedRoomId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) setFetchedRoom(data);
-      })
-      .catch((err) => console.warn('[MarketplaceDetail] fetch linked room error:', err));
+    let isMounted = true;
+    (async () => {
+      try {
+        const { data } = await supabase
+          .from('rooms')
+          .select('id, title, price, district, address, images, area')
+          .eq('id', linkedRoomId)
+          .maybeSingle();
+        if (isMounted && data) {
+          setFetchedRoom(data);
+        }
+      } catch (err) {
+        console.warn('[MarketplaceDetail] fetch linked room error:', err);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, [linkedRoomId, linkedRoom]);
 
   const activeLinkedRoom = linkedRoom || fetchedRoom;

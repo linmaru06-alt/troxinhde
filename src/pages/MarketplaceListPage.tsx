@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect, useLayoutEffect, useRef } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAppStore } from '../store/useAppStore';
-import { MarketplaceCard } from '../components/ui/Cards';
+import { MarketplaceCard, formatCurrency } from '../components/ui/Cards';
 import { Button } from '../components/ui/Button';
 import { EmptyState } from '../components/ui/EmptyState';
 import { Pagination } from '../components/ui/Pagination';
@@ -577,17 +577,18 @@ export const MarketplaceListPage: React.FC = () => {
     };
   }, []);
 
-  const handlePostItem = (targetRoomId?: string) => {
+  const handlePostItem = (targetRoomId?: string | unknown) => {
+    const validRoomId = typeof targetRoomId === 'string' && targetRoomId.trim() ? targetRoomId.trim() : undefined;
     if (!currentUser) {
-      const returnParam = targetRoomId ? `/cho-do-cu?dangTin=1&roomId=${targetRoomId}` : '/cho-do-cu?dangTin=1';
+      const returnParam = validRoomId ? `/cho-do-cu?dangTin=1&roomId=${validRoomId}` : '/cho-do-cu?dangTin=1';
       showToast('Vui lòng đăng nhập', 'Bạn cần đăng nhập để đăng tin thanh lý đồ cũ', 'warning');
       navigate('/dang-nhap?returnUrl=' + encodeURIComponent(returnParam));
       return;
     }
-    if (targetRoomId) {
-      setSelectedRoomId(targetRoomId);
+    if (validRoomId) {
+      setSelectedRoomId(validRoomId);
       setIsRoomTransfer(true);
-      const matchedRoom = (rooms || []).find((r) => r.id === targetRoomId);
+      const matchedRoom = (rooms || []).find((r) => r.id === validRoomId);
       if (matchedRoom) {
         setLocation(matchedRoom.address || location);
         setDistrict(matchedRoom.district || district);
@@ -770,7 +771,7 @@ export const MarketplaceListPage: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={handlePostItem}
+            onClick={() => handlePostItem()}
             className="shrink-0 px-4 sm:px-5 py-2 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-xs sm:text-sm tracking-wide shadow-md cursor-pointer transition"
             tabIndex={showStickyBar ? 0 : -1}
           >
@@ -809,7 +810,7 @@ export const MarketplaceListPage: React.FC = () => {
             <div className="p-1 rounded-2xl bg-gradient-to-r from-emerald-400 via-[#006d37] to-emerald-500 shadow-[0_0_25px_rgba(0,109,55,0.45)] hover:shadow-[0_0_35px_rgba(0,109,55,0.7)] transition-all duration-300 hover:scale-[1.03] active:scale-[0.98] w-full md:w-auto">
               <button
                 type="button"
-                onClick={handlePostItem}
+                onClick={() => handlePostItem()}
                 className="w-full md:w-auto flex items-center justify-center px-6 sm:px-8 py-3.5 rounded-xl bg-gradient-to-r from-[#006d37] via-emerald-600 to-[#005a2d] hover:from-[#005a2d] hover:to-[#004724] text-white font-black text-sm sm:text-base tracking-wide cursor-pointer transition-all duration-200 shadow-md"
               >
                 <span>Đăng Tin Thanh Lý</span>
@@ -1377,7 +1378,7 @@ export const MarketplaceListPage: React.FC = () => {
           title={viewMode === 'my_items' ? "Bạn chưa có tin đăng thanh lý nào" : "Chưa có món đồ nào phù hợp"}
           description={viewMode === 'my_items' ? "Hãy đăng món đồ đầu tiên để pass lại cho các bạn sinh viên nhé!" : "Hãy thử thay đổi từ khóa, khoảng giá hoặc bộ lọc danh mục để tìm thấy nhiều đồ hơn nhé!"}
           actionText={viewMode === 'my_items' ? "Đăng đồ thanh lý ngay" : "Xóa tất cả bộ lọc"}
-          onAction={viewMode === 'my_items' ? handlePostItem : handleResetAllFilters}
+          onAction={viewMode === 'my_items' ? () => handlePostItem() : handleResetAllFilters}
         />
       ) : isPageOutOfRange ? (
         <EmptyState
